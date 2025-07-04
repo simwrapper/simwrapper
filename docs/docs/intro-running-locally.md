@@ -14,23 +14,26 @@ This is the easiest solution for most situations. SimWrapper has been packaged a
 **Shortest path to a running local installation:**
 
 Use the [uv software manager](https://docs.astral.sh/uv/). uv is the modern replacement for all previous python software management tools like pip, poetry, virtualenv, etc. It eliminates the problems with virtual environments, messy multiple Python versions, etc. It is far, far faster and more error-proof than using pip or other methods!
-- Install uv first if you don't already have it:
+- (1) Install uv first if you don't already have it:
   https://docs.astral.sh/uv/getting-started/installation
-- uv will use your local install of Python. If you don't have Python or have an old Python < 3.8, let uv install a recent python for you (no, this won't mess up any of your existing python installations!):
-  - `uv python install 3.11`
-- Go to the folder containing the data you want to explore, and run 
-  - `uvx simwrapper run` 
-- There's no step 3! SimWrapper is now running at http://127.0.0.1:4999 or http://localhost:4999
+  - Read the output from the install command; you might need to edit your PATH to include the program.
+  - uv will use your local install of Python. If you don't have Python or have a very old Python < 3.6, let uv install a recent python for you (no, this won't mess up any of your existing python installations!):
+    - `uv python install 3.11`
+- (2) Install the simwrapper command-line tool using uv:
+  - `uv tool install simwrapper`
+- (3) Go to the folder containing your data and run:
+  - `simwrapper run`
 
-`uvx` is a combined installer/command runner that will auto install the simwrapper tool from https://pypi.org/project/simwrapper/ on first run. Each time it runs, it will check for the latest version and update automatically. In offline mode it runs the most recent version that it has already installed.
-- Read the [uv docs](https://docs.astral.sh/uv/) for many other uv capabilities such as `uv tool install simwrapper` and managing your pip dependencies and python versions! 
+That's it! Your site is running at http://127.0.0.1:4999
+
+Read the [uv docs](https://docs.astral.sh/uv/) for many other uv capabilities such as `uv tool install simwrapper` and managing your pip dependencies and python versions!
 
 **pip**
 
 You can also use pip directly, with `pip install simwrapper`. If you go this route, you should
 probably create a virtualenv (venv) and make sure you have a recent version of Python. These extra
 steps can be a real pain, especially because SimWrapper has many data science dependencies which are
-difficult to install. Please use `uv` instead, as above :-) 
+difficult to install. Please use `uv` instead, as above :-)
 
 
 ### Use Docker
@@ -39,7 +42,7 @@ SimWrapper is available as a built Docker image at https://hub.docker.com/r/simw
 
 Let's assume you already know how to use Docker if you are reading this!
 
-- `docker pull simwrapper/app` 
+- `docker pull simwrapper/app`
 - `docker run -p 4999:4999 -v /my/data/folder:/data simwrapper/app`
 
 The `-p` tells docker to listen on port 4999; `-v` links your local folder of files to `/data` in
