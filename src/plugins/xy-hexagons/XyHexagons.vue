@@ -103,6 +103,7 @@ import {
   VisualizationPlugin,
   Status,
 } from '@/Globals'
+import { NewRowCache } from './CsvGzipParser.worker'
 
 interface Aggregations {
   [heading: string]: {
@@ -145,7 +146,7 @@ const MyComponent = defineComponent({
     thumbnail: Boolean,
   },
   data: () => {
-    const colorRamps = ['bathymetry', 'par', 'chlorophyll', 'magma']
+    const colorRamps = ['par', 'bathymetry', 'magma', 'chlorophyll']
     return {
       id: `id-${Math.floor(1e12 * Math.random())}` as any,
 
@@ -168,9 +169,9 @@ const MyComponent = defineComponent({
       },
       YAMLrequirementsXY: { file: '', aggregations: {} },
       colorRamps,
-      buttonColors: ['#5E8AAE', '#BF7230', '#269367', '#9C439C'],
+      buttonColors: ['#BF7230', '#5E8AAE', '#9C439C', '#269367'],
       aggregations: {} as Aggregations,
-      columnLookup: [] as number[],
+      aggNumber: 0,
       gzipWorker: null as Worker | null,
       colorRamp: colorRamps[0],
       globalState: globalStore.state,
@@ -192,10 +193,7 @@ const MyComponent = defineComponent({
         yamlConfig: '',
         thumbnail: false,
       },
-      rowCache: {} as {
-        [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }
-      },
-      requests: { raw: new Float32Array(0), length: 0 } as { raw: Float32Array; length: number },
+      requests: null as null | NewRowCache,
       highlightedTrips: [] as any[],
       searchTerm: '',
       searchEnabled: false,
@@ -242,6 +240,7 @@ const MyComponent = defineComponent({
     mapProps(): any {
       return {
         viewId: this.id,
+        agg: this.aggNumber,
         colorRamp: this.colorRamp,
         coverage: 0.65,
         dark: this.$store.state.isDarkMode,
@@ -287,7 +286,6 @@ const MyComponent = defineComponent({
   },
   methods: {
     handleClick(target: any, event: any) {
-      console.log({ target, event })
       if (!target.layer) this.handleEmptyClick()
       else this.handleHexClick(target, event)
     },
@@ -320,84 +318,53 @@ const MyComponent = defineComponent({
       if (this.isHighlightingZone) {
         // force highlight off if user clicked on a second hex
         this.isHighlightingZone = false
-      } else if (!pickedObject.object) {
-        // force highlight off if user clicked away
-        this.isHighlightingZone = false
       } else {
-        this.isHighlightingZone = true
+        // force highlight off if user clicked away
+        this.isHighlightingZone = !!pickedObject.object
       }
 
       const parts = this.activeAggregation.split('~') // an unlikely unicode
 
-      let suffix = 0
-      let revSuffix = 0
-
-      // set up the hexagons
       if (!this.isHighlightingZone) {
-        // reset the view
+        // reset the view to normal
         this.hexStats = null
         this.multiSelectedHexagons = {}
         this.handleOrigDest(parts[0], parseInt(parts[1]))
-      } else {
-        // select the anti-view
-        suffix = parseInt(parts[1])
-        revSuffix = suffix % 2 ? suffix - 1 : suffix + 1
-
-        const origKey = `${parts[0]}${suffix}`
-        const origArray = this.rowCache[origKey]
-
-        const key = `${parts[0]}${revSuffix}`
-        const inverseArray = this.rowCache[key]
-
-        const arcFilteredRows: any = []
-
-        for (const row of pickedObject.object.points) {
-          const zoffset = row.index * 2
-          const coords = [inverseArray.raw[zoffset], inverseArray.raw[zoffset + 1]]
-
-          arcFilteredRows.push([
-            // from
-            [origArray.raw[zoffset], origArray.raw[zoffset + 1]],
-            // to
-            coords,
-          ])
-          this.highlightedTrips = arcFilteredRows
-        }
-
-        if (this.hexStats) this.hexStats.selectedHexagonIds = []
-        this.multiSelectedHexagons = {}
-
-        this.colorRamp = this.colorRamps[revSuffix]
-      }
-
-      // set up the connecting arc-lines
-      if (!this.isHighlightingZone) {
         this.highlightedTrips = []
-      } else {
-        // this.highlightedTrips = arcFilteredRows
+        return
       }
+
+      // select the anti-view
+      let numAggregations = this.requests?.columnIds.length ?? 0
+      let revAgg = this.aggNumber % 2 ? -1 : 1 // this.aggNumber - 1 : this.aggNumber + 1
+      const arcFilteredRows: any = []
+
+      for (const row of pickedObject.object.points) {
+        const zoffset = row.index * 2
+        const revoffset = (row.index + revAgg) * 2
+
+        const from = [this.requests?.positions[zoffset], this.requests?.positions[zoffset + 1]]
+        const to = [this.requests?.positions[revoffset], this.requests?.positions[revoffset + 1]]
+
+        arcFilteredRows.push([from, to])
+        this.highlightedTrips = arcFilteredRows
+      }
+
+      if (this.hexStats) this.hexStats.selectedHexagonIds = []
+      this.multiSelectedHexagons = {}
+      this.colorRamp = this.colorRamps[revAgg]
     },
 
     async handleOrigDest(groupName: string, number: number) {
-      const cacheKey = groupName + number
-
+      const groups = Object.keys(this.aggregations)
+      const groupNumber = groups.indexOf(groupName)
+      this.aggNumber = groupNumber * groups.length + number
       this.hexStats = null
       this.multiSelectedHexagons = {}
-
-      // const xytitle = this.aggregations[groupName][number]
-      // const x = this.columnLookup.indexOf(xytitle.x)
-      // const y = this.columnLookup.indexOf(xytitle.y)
 
       this.highlightedTrips = []
       this.activeAggregation = `${groupName}~${number}`
 
-      // get element offsets in data array
-      // const col = this.aggregations[item]
-      // this.whichCoords = { x, y }
-
-      // this.requests = this.rawRequests.map(r => [r[x], r[y]]).filter(z => z[0] && z[1])
-      // this.requests = this.rawRequests
-      this.requests = this.rowCache[cacheKey]
       this.colorRamp = this.colorRamps[number]
     },
 
@@ -609,8 +576,6 @@ const MyComponent = defineComponent({
     },
 
     async setMapCenter() {
-      const data = Object.values(this.rowCache)[0].raw
-
       // If user gave us the center, use it
       if (this.vizDetails.center) {
         if (typeof this.vizDetails.center == 'string') {
@@ -636,6 +601,7 @@ const MyComponent = defineComponent({
       }
 
       // user didn't give us the center, so calculate it
+      const data = this.requests?.positions || []
       if (!data.length) return
 
       let samples = 0
@@ -692,17 +658,19 @@ const MyComponent = defineComponent({
       this.gzipWorker.onmessage = async (buffer: MessageEvent) => {
         if (buffer.data.status) {
           this.myState.statusMessage = buffer.data.status
+        } else if (buffer.data.projection) {
+          console.log('dataset has a #EPSG:projection, using it', buffer.data.projection)
+          this.vizDetails.projection = buffer.data.projection
         } else if (buffer.data.error) {
           this.myState.statusMessage = buffer.data.error
           this.$emit('error', {
             type: Status.ERROR,
-            msg: `Loading Error`,
-            desc: 'Error loading: ${this.myState.subfolder}/${this.vizDetails.file}',
+            msg: `Error loading: ${this.myState.subfolder}/${this.vizDetails.file}`,
           })
         } else {
-          const { rowCache, columnLookup } = buffer.data
+          const { fullRowCache } = buffer.data
           if (this.gzipWorker) this.gzipWorker.terminate()
-          this.dataIsLoaded({ rowCache, columnLookup })
+          this.dataIsLoaded({ fullRowCache })
         }
       }
 
@@ -714,12 +682,8 @@ const MyComponent = defineComponent({
       })
     },
 
-    dataIsLoaded({ rowCache, columnLookup }: any) {
-      this.columnLookup = columnLookup
-      this.rowCache = rowCache
-
-      const agg = this.activeAggregation.replaceAll('~', '')
-      this.requests = this.rowCache[agg]
+    dataIsLoaded({ fullRowCache }: any) {
+      this.requests = fullRowCache
 
       this.setMapCenter()
       this.moveLogo()
@@ -762,7 +726,6 @@ const MyComponent = defineComponent({
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
     this.aggregations = this.vizDetails.aggregations
 
-    // console.log('loading files')
     await this.loadFiles()
 
     // this.mapState.center = this.findCenter(this.rawRequests)

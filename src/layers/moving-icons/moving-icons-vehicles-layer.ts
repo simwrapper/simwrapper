@@ -25,6 +25,7 @@ import GL from '@luma.gl/constants'
 import { Model, Geometry } from '@luma.gl/core'
 
 import vertShader from './icon-layer.glsl.vert?raw'
+import vertShaderOcc from './icon-layer-occupancy.glsl.vert?raw'
 import fragShader from './icon-layer.glsl.frag?raw'
 
 import IconManager from './icon-manager'
@@ -42,6 +43,7 @@ const defaultProps = {
   alphaCutoff: { type: 'number', value: 0.05, min: 0, max: 1 },
   iconStill: { type: 'object', value: null },
   latitudeCorrectionFactor: 0.8,
+  isColorOccupancy: false,
 
   getIcon: { type: 'accessor', value: 'vehicle' }, // (x: any) => x.icon },
   getBOffsets: { type: 'accessor', value: [0, 0] }, // (x: any) => x.icon },
@@ -69,7 +71,8 @@ const defaultProps = {
 
 export default class IconLayer extends Layer {
   getShaders() {
-    return super.getShaders({ vs: vertShader, fs: fragShader, modules: [project32, picking] })
+    const vs = this.props.isColorOccupancy ? vertShaderOcc : vertShader
+    return super.getShaders({ vs, fs: fragShader, modules: [project32, picking] })
   }
 
   initializeState() {

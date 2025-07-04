@@ -5,11 +5,9 @@ const ctx: Worker = self as any
 export default null as any
 // -----------------------------------------------------------
 
-import pako from 'pako'
-
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
-import { findMatchingGlobInFiles } from '@/js/util'
+import { gUnzip, findMatchingGlobInFiles } from '@/js/util'
 
 onmessage = ({ data: { filePath, fileSystem } }: MessageEvent) => {
   fetchGzip(filePath, fileSystem).then((result: any) => {
@@ -42,25 +40,10 @@ async function fetchGzip(filepath: string, fileSystem: FileSystemConfig) {
     if (!blob) throw Error('BLOB IS NULL')
 
     const buffer = await blob.arrayBuffer()
-    const cargo = gUnzip(buffer)
+    const cargo = await gUnzip(buffer)
 
     return cargo
   } catch (e) {
     ctx.postMessage({ error: 'Error loading ' + expandedFilename })
   }
-}
-
-/**
- * This recursive function gunzips the buffer. It is recursive because
- * some combinations of subversion, nginx, and various user browsers
- * can single- or double-gzip .gz files on the wire. It's insane but true.
- */
-function gUnzip(buffer: any): any {
-  // GZIP always starts with a magic number, hex 1f8b
-  const header = new Uint8Array(buffer.slice(0, 2))
-  if (header[0] === 0x1f && header[1] === 0x8b) {
-    return gUnzip(pako.inflate(buffer))
-  }
-
-  return buffer
 }

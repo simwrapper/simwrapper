@@ -176,8 +176,6 @@ export default defineComponent({
           }
         }
       }
-
-      console.log(this.alignmentClasses)
     },
 
     prepareData() {

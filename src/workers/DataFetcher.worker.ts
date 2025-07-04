@@ -1,12 +1,11 @@
 /*eslint prefer-rest-params: "off"*/
 
-import pako from 'pako'
 import DBF from '@/js/dbfReader'
 import Papa from '@simwrapper/papaparse'
 
 import { DataTableColumn, DataTable, DataType, FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { findMatchingGlobInFiles } from '@/js/util'
+import { gUnzip, findMatchingGlobInFiles } from '@/js/util'
 
 // global variables
 let _fileSystem: HTTPFileSystem
@@ -47,7 +46,7 @@ async function fetchData(props: {
   // Did we get a pre-filled buffer? Just need to parse it
   if (props.buffer) {
     _buffer = props.buffer
-    parseData(_dataset, _buffer)
+    parseData(_dataset, _buffer as any)
     postMessage(_fileData[_dataset])
     return
   }
@@ -159,7 +158,7 @@ async function loadFile() {
   parseData(filename, unzipped)
 }
 
-async function parseData(filename: string, buffer: Uint8Array) {
+async function parseData(filename: string, buffer: ArrayBuffer) {
   try {
     if (filename && filename.toLocaleLowerCase().endsWith('.dbf')) {
       const dataTable = DBF(buffer, new TextDecoder('windows-1252')) // dbf has a weird default textcode
@@ -391,20 +390,6 @@ function badparseCsvFile(fileKey: string, filename: string, text: string) {
 }
 
 async function loadFileOrGzipFile(filename: string) {
-  /**
-   * This recursive function gunzips the buffer. It is recursive because
-   * some combinations of subversion, nginx, and various web browsers
-   * can single- or double-gzip .gz files on the wire. It's insane but true.
-   */
-  function gUnzip(buffer: any): Uint8Array {
-    // GZIP always starts with a magic number, hex $8b1f
-    const header = new Uint8Array(buffer.slice(0, 2))
-    if (header[0] === 0x1f && header[1] === 0x8b) {
-      return gUnzip(pako.inflate(buffer))
-    }
-    return buffer
-  }
-
   const filepath = `${_subfolder}/${filename}`
 
   // fetch the file
@@ -413,7 +398,7 @@ async function loadFileOrGzipFile(filename: string) {
   const buffer = await blob.arrayBuffer()
 
   // recursively gunzip until it can gunzip no more:
-  const unzipped = gUnzip(buffer)
+  const unzipped = await gUnzip(buffer)
 
   return unzipped
 }

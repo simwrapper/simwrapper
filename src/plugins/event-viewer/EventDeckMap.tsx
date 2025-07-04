@@ -15,7 +15,6 @@ import { REACT_VIEW_HANDLES, MAPBOX_TOKEN } from '@/Globals'
 import ScatterplotColorBinsLayer from '@/plugins/xy-time/ScatterplotColorBinsLayer'
 import MovingIconsLayer from '@/layers/moving-icons/moving-icons-vehicles-layer'
 import globalStore from '@/store'
-import { NetworkLinks } from '@/js/DashboardDataManager'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -29,9 +28,7 @@ const dataFilter = new DataFilterExtension({ filterSize: 1 })
 // -------------------------------------------------------------------
 export default function EventDeckMap({
   viewId = 0,
-  eventLayers = [] as any[],
   eventData = [] as { data: any; timeRange: number[] }[],
-  network = {} as NetworkLinks,
   dark = false,
   colors = [
     [1, 0, 0],
@@ -129,6 +126,7 @@ export default function EventDeckMap({
         // getColor: [30, 208, 170], // brightColors[layerIndex], // 64 + layerIndex * 25, 64, 250 - layerIndex * 30], // (d: any) => props.colors[d.occ],
         iconMoving: 'vehicle',
         iconStill: 'vehicle',
+        isColorOccupancy: true,
         colorMap: [
           // 0: no colors: greenish
           30, 208, 170,
@@ -144,7 +142,7 @@ export default function EventDeckMap({
         latitudeCorrectionFactor,
         currentTime: simulationTime,
         shadowEnabled: false,
-        iconAtlas: `${BASE_URL}veh-curvy5.png`, // BASE_URL + '/images/icon-atlas.png',
+        iconAtlas: `${BASE_URL}images/veh-curvy5.png`, // BASE_URL + '/images/icon-atlas.png',
         iconMapping: ICON_MAPPING,
         sizeScale: 1,
         billboard: false,

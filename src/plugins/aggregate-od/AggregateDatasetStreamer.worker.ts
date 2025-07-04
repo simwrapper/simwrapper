@@ -82,7 +82,7 @@ async function loadFile() {
   const csv = Papa.parse(rawText, {
     comments: '#',
     delimitersToGuess: [';', '\t', ',', ' '],
-    dynamicTyping: true,
+    dynamicTyping: false,
     header: true,
     skipEmptyLines: true,
   })

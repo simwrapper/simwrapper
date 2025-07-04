@@ -3,7 +3,6 @@
 // Pass in a filename; can be MATSim network.xml.gz or preprocessed GeoJSON
 // Get a table of links with Anode Bnode and properties
 
-import { decompressSync } from 'fflate'
 import { XMLParser } from 'fast-xml-parser'
 import reproject from 'reproject'
 import * as shapefile from 'shapefile'
@@ -11,7 +10,7 @@ import * as shapefile from 'shapefile'
 import Coords from '@/js/Coords'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { DataTable, FileSystemConfig } from '@/Globals'
-import { findMatchingGlobInFiles } from '@/js/util'
+import { gUnzip, findMatchingGlobInFiles } from '@/js/util'
 
 enum NetworkFormat {
   MATSIM_XML,
@@ -44,7 +43,7 @@ onmessage = async function (e) {
 
   // pre-filled buffer?
   if (e.data.xmlBuffer) {
-    const cargo = gUnzip(e.data.xmlBuffer)
+    const cargo = await gUnzip(e.data.xmlBuffer)
     memorySafeXMLParser(new Uint8Array(cargo), {})
     return
   }
@@ -448,11 +447,13 @@ function buildLinkChunk(nodes: any, linkIds: any[], links: any[]) {
 
 async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemConfig, options: any) {
   const rawData = await fetchGzip(filePath, fileSystem)
-
+  console.log({ rawData })
+  if (!rawData) throw 'Failed to unzip/parse'
+  const u8 = new Uint8Array(rawData)
   try {
     // always use the memory-safe parser, because Firefox randomly hangs without any
     // error messages or warnings when the parse object is too big :-(
-    await memorySafeXMLParser(rawData, options)
+    await memorySafeXMLParser(u8, options)
   } catch (e) {
     console.error('' + e)
     postMessage({ error: 'Could not parse network XML' })
@@ -543,6 +544,7 @@ async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
 
 async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
   let resolvedPath = filePath
+
   try {
     const httpFileSystem = new HTTPFileSystem(fileSystem)
 
@@ -567,34 +569,12 @@ async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
     if (!blob) throwError('BLOB IS NULL')
 
     const buffer = await blob.arrayBuffer()
-    const cargo = gUnzip(buffer)
+    const cargo = await gUnzip(buffer)
     return cargo
   } catch (e) {
     console.error('oh no', e)
     throwError('Error loading ' + filePath)
   }
-}
-
-/**
- * This recursive function gunzips the buffer. It is recursive because
- * some combinations of subversion, nginx, and various user browsers
- * can single- or double-gzip .gz files on the wire. It's insane but true.
- */
-function gUnzip(buffer: ArrayBuffer): any {
-  const u8 = new Uint8Array(buffer)
-
-  // GZIP always starts with a magic number, hex 0x8b1f
-  const header = new Uint16Array(buffer, 0, 2)
-  if (header[0] === 0x8b1f) {
-    try {
-      const result = decompressSync(u8)
-      return result
-    } catch (e) {
-      console.error('eee', e)
-    }
-  }
-
-  return buffer
 }
 
 function throwError(message: string) {

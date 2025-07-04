@@ -1,14 +1,13 @@
 /**
  * Load a gzip file, parse its contents and return a set of ArrayBuffers for display.
  */
-import pako from 'pako'
 import Papa from '@simwrapper/papaparse'
 
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import Coords from '@/js/Coords'
 
-import { findMatchingGlobInFiles } from '@/js/util'
+import { gUnzip, findMatchingGlobInFiles } from '@/js/util'
 
 // -----------------------------------------------------------
 onmessage = function (e) {
@@ -16,8 +15,12 @@ onmessage = function (e) {
 }
 // -----------------------------------------------------------
 
-interface RowCache {
-  [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }
+export interface NewRowCache {
+  positions: Float32Array
+  columnIds: string[]
+  coordColumns: number[]
+  column: Uint8Array
+  length: number
 }
 
 interface Aggregations {
@@ -32,8 +35,13 @@ let allAggregations: Aggregations = {}
 let totalLines = 0
 let proj = 'EPSG:4326'
 
-const rowCache: RowCache = {}
-const columnLookup: number[] = []
+const fullRowCache: NewRowCache = {
+  positions: new Float32Array(0),
+  column: new Uint8Array(0),
+  columnIds: [],
+  coordColumns: [],
+  length: 0,
+}
 
 /**
  * Begin loading the file, and return status updates
@@ -54,19 +62,14 @@ function startLoading(props: {
   step1fetchFile(props.filepath, props.fileSystem)
 }
 
-// export type CSVParser = typeof csvParser
-
 // --- helper functions ------------------------------------------------
 
 /**
  * Return the results after processing is complete.
- * @returns RowCache, ColumnLookup
+ * @returns FullRowCache, ColumnLookup
  */
 function postResults() {
-  postMessage(
-    { rowCache, columnLookup },
-    Object.values(rowCache).map(cache => cache.raw.buffer)
-  )
+  postMessage({ fullRowCache }, [fullRowCache.positions.buffer, fullRowCache.column.buffer])
 }
 
 async function step1fetchFile(filepath: string, fileSystem: FileSystemConfig) {
@@ -91,12 +94,11 @@ async function step1fetchFile(filepath: string, fileSystem: FileSystemConfig) {
     const blob = await httpFileSystem.getFileBlob(expandedFilename)
     if (!blob) throw Error('BLOB IS NULL')
     const buffer = await blob.arrayBuffer()
-    const uint8View = new Uint8Array(buffer)
 
     // this will recursively gunzip until it can gunzip no more:
-    const unzipped = gUnzip(uint8View)
+    const unzipped = await gUnzip(buffer)
 
-    step2examineUnzippedData(unzipped)
+    step2examineUnzippedData(new Uint8Array(unzipped))
   } catch (e) {
     postMessage({ error: 'Error loading: ' + filepath })
     throw Error('LOAD FAIL! ' + filepath)
@@ -109,8 +111,21 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
   // Figure out which columns to save
   const decoder = new TextDecoder()
 
-  const header = decoder.decode(unzipped.subarray(0, 1024)).split('\n')[0]
-  const endOfHeader = header.length
+  let skipLength = 0
+  let header = ''
+  const initialLines = decoder.decode(unzipped.subarray(0, 1024)).split('\n')
+  for (let i = 0; i < 20; i++) {
+    header = initialLines[i]
+    skipLength += header.length
+    if (!header.startsWith('#')) break
+    const epsg = header.indexOf('EPSG')
+    if (epsg > -1) {
+      postMessage({ projection: header.slice(epsg) })
+      proj = header.slice(epsg)
+    }
+  }
+
+  const endOfHeader = skipLength // header.length
 
   const separator =
     header.indexOf(';') > -1
@@ -143,10 +158,11 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
     sections.push(section1)
     sections.push(section2)
   }
-
-  // how many lines
+  // how many lines - count the \n chars
+  // there must be a better way...?
   let count = 0
   for (let i = startOfData; i < unzipped.length; i++) if (unzipped[i] === 10) count++
+
   // might end last line without EOL marker
   if (unzipped[unzipped.length - 1] !== 10) count++
 
@@ -154,10 +170,13 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
 
   // only save the relevant columns to save memory and not die
 
+  let numAggregations = 0
+
   for (const group of Object.keys(allAggregations)) {
     const aggregations = allAggregations[group]
     let i = 0
     for (const agg of aggregations) {
+      numAggregations++
       const xCol = headerColumns.indexOf(agg.x)
       const yCol = headerColumns.indexOf(agg.y)
 
@@ -171,16 +190,22 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
         return
       }
 
-      columnLookup.push(...[xCol, yCol])
+      fullRowCache.columnIds.push(`${group}${i}`)
+      fullRowCache.coordColumns.push(...[xCol, yCol]),
+        // rowCache[] = {
+        //   raw: new Float32Array(count * 2),
+        //   weights: new Float32Array(),
+        //   length: count,
+        // }
 
-      rowCache[`${group}${i}`] = {
-        raw: new Float32Array(count * 2),
-        coordColumns: [xCol, yCol],
-        length: count,
-      }
-      i++
+        i++
     }
   }
+
+  // now we know the row count and the number of aggregations, so we can size our arrays
+  fullRowCache.length = count * numAggregations
+  fullRowCache.positions = new Float32Array(2 * count * numAggregations)
+  fullRowCache.column = new Uint8Array(count * numAggregations)
 
   step3parseCSVdata(sections)
 }
@@ -194,7 +219,9 @@ function step3parseCSVdata(sections: Uint8Array[]) {
     for (const section of sections) {
       const text = decoder.decode(section)
 
+      const numAggregations = fullRowCache.columnIds.length
       Papa.parse(text, {
+        comments: '#',
         header: false,
         // preview: 100,
         skipEmptyLines: true,
@@ -203,16 +230,18 @@ function step3parseCSVdata(sections: Uint8Array[]) {
         step: (results: any, parser: any) => {
           if (offset % 65536 === 0) {
             console.log(offset)
-            postMessage({ status: `Processing CSV: ${Math.floor((50.0 * offset) / totalLines)}%` })
+            postMessage({ status: `Processing CSV: ${Math.floor((100.0 * offset) / totalLines)}%` })
           }
-          for (const key of Object.keys(rowCache)) {
+          for (let agg = 0; agg < numAggregations; agg++) {
             const wgs84 = Coords.toLngLat(proj, [
-              results.data[rowCache[key].coordColumns[0] as any],
-              results.data[rowCache[key].coordColumns[1] as any],
+              results.data[fullRowCache.coordColumns[agg * 2] as any],
+              results.data[fullRowCache.coordColumns[1 + agg * 2] as any],
             ])
-            rowCache[key].raw.set(wgs84, offset)
+            fullRowCache.positions[offset * 2 * numAggregations + agg * 2] = wgs84[0]
+            fullRowCache.positions[offset * 2 * numAggregations + agg * 2 + 1] = wgs84[1]
+            fullRowCache.column[offset * numAggregations + agg] = agg
           }
-          offset += 2
+          offset += 1
           return results
         },
       })
@@ -222,31 +251,17 @@ function step3parseCSVdata(sections: Uint8Array[]) {
     postMessage({ error: 'ERROR projection coordinates' })
     return
   }
-
   postMessage({ status: 'Trimming results...' })
+
   // now filter zero-cells out: some rows don't have coordinates, and they
   // will mess up the total calculations
-  for (const key of Object.keys(rowCache)) {
-    // this is dangerous: only works if BOTH the x and the y are zero; otherwise
-    // it will get out of sync and things will look crazy or crash HAHahahAHHAA
+  // for (const key of Object.keys(rowCache)) {
+  // this is dangerous: only works if BOTH the x and the y are zero; otherwise
+  // it will get out of sync and things will look crazy or crash HAHahahAHHAA
 
-    // rowCache[key].raw = rowCache[key].raw.filter(elem => elem !== 0) // filter zeroes
-    rowCache[key].length = rowCache[key].raw.length / 2
-  }
+  // rowCache[key].raw = rowCache[key].raw.filter(elem => elem !== 0) // filter zeroes
+  // rowCache[key].length = rowCache[key].raw.length / 2
+  // }
 
   postResults()
-}
-
-/**
- * This recursive function gunzips the buffer. It is recursive because
- * some combinations of subversion, nginx, and various web browsers
- * can single- or double-gzip .gz files on the wire. It's insane but true.
- */
-function gUnzip(buffer: any): Uint8Array {
-  // GZIP always starts with a magic number, hex $1f8b
-  const header = new Uint8Array(buffer.slice(0, 2))
-  if (header[0] === 0x1f && header[1] === 0x8b) {
-    return gUnzip(pako.inflate(buffer))
-  }
-  return buffer
 }

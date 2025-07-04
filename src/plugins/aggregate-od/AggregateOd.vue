@@ -450,8 +450,8 @@ const Component = defineComponent({
         if (extent) {
           const lnglat = JSON.parse(extent)
 
-          const mFac = this.isMobile ? 0 : 1
-          const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 100 * mFac, left: 50 * mFac }
+          // const mFac = this.isMobile ? 0 : 1
+          // const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 100 * mFac, left: 50 * mFac }
 
           this.$store.commit('setMapCamera', {
             longitude: 0.5 * (lnglat[0] + lnglat[2]),
@@ -518,7 +518,6 @@ const Component = defineComponent({
 
     createSpiderLinks() {
       this.spiderLinkFeatureCollection = { type: 'FeatureCollection', features: [] }
-
       for (const id of Object.keys(this.linkData)) {
         const link: any = this.linkData[id]
 
@@ -1124,7 +1123,6 @@ const Component = defineComponent({
     },
 
     async finishedLoadingData(message: any) {
-      // console.log(222, message)
       this.loadingText = 'Building diagram...'
       this.isFinishedLoading = true
       await this.$nextTick()

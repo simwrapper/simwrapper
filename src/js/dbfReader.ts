@@ -56,7 +56,7 @@ export default function (sourceBuffer: ArrayBuffer, decoder: TextDecoder): DataT
   )
 
   const numberOfColumns = data._fields.length
-  console.log({ numberOfColumns, expectedNumberOfRows })
+  // console.log({ numberOfColumns, expectedNumberOfRows })
 
   // loop thru fields
   for (const field of data._fields) {
@@ -85,7 +85,7 @@ export default function (sourceBuffer: ArrayBuffer, decoder: TextDecoder): DataT
           dataTable[f.name].values[recordNumber] = decodedValue
           i = i + f.length
         }, {})
-        if (!(recordNumber % 50000)) console.log('dbf', recordNumber)
+        // if (!(recordNumber % 50000)) console.log('dbf', recordNumber)
       } else {
         break
       }

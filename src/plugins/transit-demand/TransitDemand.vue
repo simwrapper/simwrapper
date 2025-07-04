@@ -31,8 +31,8 @@
               img.icon-blue-ramp(:src="icons.blueramp")
               b-slider.pie-slider(type="is-success" :tooltip="false" size="is-small"  v-model="widthSlider")
               //- pie slider
-              img.icon-pie-slider(v-if="cfDemand1" :src="icons.piechart")
-              b-slider.pie-slider(v-if="cfDemand1" type="is-success" :tooltip="false" size="is-small"  v-model="pieSlider")
+              img.icon-pie-slider(v-if="crossFilters.length" :src="icons.piechart")
+              b-slider.pie-slider(v-if="crossFilters.length" type="is-success" :tooltip="false" size="is-small"  v-model="pieSlider")
 
           zoom-buttons
 
@@ -77,7 +77,7 @@
               .aa
                 b {{ summaryStats.departures }}
                 | &nbsp;Departures
-              .aa(v-if="cfDemand1")
+              .aa(v-if="crossFilters.length")
                 b {{ summaryStats.pax }}
                 | &nbsp;Passengers
 
@@ -362,12 +362,11 @@ const MyComponent = defineComponent({
       resolvers: {} as { [id: number]: any },
       resolverId: 0,
       xmlWorker: null as null | Worker,
-      cfDemand1: null as crossfilter.Crossfilter<any> | null,
-      cfDemand2: null as crossfilter.Crossfilter<any> | null,
-      cfDemandLink1: null as crossfilter.Dimension<any, any> | null,
-      cfDemandLink2: null as crossfilter.Dimension<any, any> | null,
-      cfDemandStop1: null as crossfilter.Dimension<any, any> | null,
-      cfDemandStop2: null as crossfilter.Dimension<any, any> | null,
+      crossFilters: [] as {
+        cfDemand: crossfilter.Crossfilter<any>
+        cfDemandLink: crossfilter.Dimension<any, any>
+        cfDemandStop: crossfilter.Dimension<any, any>
+      }[],
 
       stopLevelDemand: {} as {
         [id: string]: {
@@ -445,32 +444,24 @@ const MyComponent = defineComponent({
         lines[route.lineId].routes.push(route)
       })
 
-      if (!this.selectedLinkId) return lines
+      // if (!this.selectedLinkId) return lines
 
-      // fetch demand data for these links
+      // store demand data for these links
       const demandLookup = {} as { [routeId: string]: any[] }
 
-      this.cfDemandStop1?.filterAll()
-      this.cfDemandStop2?.filterAll()
+      // run the cross filters for each data subsection
+      this.crossFilters.forEach(cf => {
+        cf.cfDemandStop.filterAll()
+        cf.cfDemandLink.filter((id: any) => id.indexOf(this.selectedLinkId) > -1)
+        let demandData = cf.cfDemand.allFiltered()
+        if (demandData) {
+          demandData.forEach(row => {
+            if (!(row.transitRoute in demandLookup)) demandLookup[row.transitRoute] = []
+            demandLookup[row.transitRoute].push(row)
+          })
+        }
+      })
 
-      this.cfDemandLink1?.filter((id: any) => id.indexOf(this.selectedLinkId) > -1)
-      let demandData = this.cfDemand1?.allFiltered()
-      if (demandData) {
-        demandData.forEach(row => {
-          if (!(row.transitRoute in demandLookup)) demandLookup[row.transitRoute] = []
-          demandLookup[row.transitRoute].push(row)
-        })
-      }
-      this.cfDemandLink2?.filter((id: any) => id.indexOf(this.selectedLinkId) > -1)
-      demandData = this.cfDemand2?.allFiltered()
-      if (demandData) {
-        demandData.forEach(row => {
-          if (!(row.transitRoute in demandLookup)) demandLookup[row.transitRoute] = []
-          demandLookup[row.transitRoute].push(row)
-        })
-      }
-
-      // sort the routes
       Object.values(lines).forEach(line => {
         // sort by nice names
         line.routes.sort((a, b) => naturalSort(a.id, b.id))
@@ -1136,19 +1127,68 @@ const MyComponent = defineComponent({
             return
           }
 
-          const csvData = new TextDecoder('utf-8').decode(event.data)
+          // SPLIT loaded data into chunks because TextDecoder, PapaParse, and CrossFilter all bork on > 500k lines
+          // at some point, we can't do all of this in the browser....
 
-          Papa.parse(csvData, {
-            // preview: 10000,
-            header: true,
-            skipEmptyLines: true,
-            dynamicTyping: false,
-            worker: true,
-            complete: (results: any) => {
-              const result = this.processDemand(results)
-              resolve(result)
-            },
+          const chunkSize = 100000000
+          let offset = 0
+          let rawData = new Uint8Array(event.data)
+
+          // first build header
+          const decoder = new TextDecoder('utf-8')
+          const header = decoder.decode(rawData.subarray(0, 1024)).split('\n')[0]
+
+          // then chunk over raw text
+          while (offset < event.data.byteLength) {
+            let high = offset + chunkSize
+            let chunk = new Uint8Array(event.data).subarray(offset, high)
+            let currentChunkLength = chunk.length
+
+            // find last \n so we break on line ending
+            while (chunk[currentChunkLength] !== 10 && currentChunkLength > 0) {
+              currentChunkLength--
+            }
+
+            if (!currentChunkLength) break
+
+            chunk = new Uint8Array(event.data).subarray(offset, offset + currentChunkLength)
+            let csvData = decoder.decode(chunk)
+
+            if (offset > 0) csvData = header + csvData
+
+            const results = Papa.parse(csvData, {
+              // preview: 10000,
+              header: true,
+              skipEmptyLines: true,
+              dynamicTyping: false,
+              // worker: true,
+              // complete: (results: any) => {
+              //   const result = this.processDemand(results)
+              //   resolve(result)
+              // },
+            })
+            this.processDemand(results)
+            offset += currentChunkLength
+          }
+
+          this.metrics = this.metrics.concat([
+            { field: 'pax', name_en: 'Passengers', name_de: 'Passagiere' },
+            { field: 'loadfac', name_en: 'Load Factor', name_de: 'Auslastung' },
+          ])
+
+          this.loadProgress = 100
+
+          // update load factors now that we are all done
+          this.transitLinks.features.forEach((transitLink: any) => {
+            try {
+              transitLink.properties.loadfac =
+                Math.round((1000 * transitLink.properties.pax) / transitLink.properties.cap) / 1000
+            } catch {
+              transitLink.properties.loadfac = 0
+            }
           })
+
+          resolve([])
         }
 
         worker.postMessage({
@@ -1175,23 +1215,13 @@ const MyComponent = defineComponent({
         for (const key of numericCols) row[key] = parseFloat(row[key])
       })
 
-      // build TWO crossfilters so memory doesn't freak out
-      const midpoint = Math.floor(results.data.length / 2)
-      const data1 = results.data.slice(0, midpoint)
-      const data2 = results.data.slice(midpoint)
-
-      // everything is doubled because crossfilter fails above ~1million rows
-      // splitting the dataset into halves gets us to ~2million...
-      this.cfDemand1 = crossfilter(data1)
-      this.cfDemand2 = crossfilter(data2)
-      this.cfDemandLink1 = this.cfDemand1.dimension((d: any) => d.linkIdsSincePreviousStop)
-      this.cfDemandLink2 = this.cfDemand2.dimension((d: any) => d.linkIdsSincePreviousStop)
-
-      // // stop-level demand
-      // const dimStop1 = this.cfDemand1.dimension((d: any) => d.stop)
-      // const dimStop2 = this.cfDemand2.dimension((d: any) => d.stop)
-      // const stop1 = dimStop1.group()
-      // const stop2 = dimStop2.group()
+      // build the crossfilters for this data subsection
+      const cfDemand = crossfilter(results.data)
+      this.crossFilters.push({
+        cfDemand,
+        cfDemandLink: cfDemand.dimension((d: any) => d.linkIdsSincePreviousStop),
+        cfDemandStop: cfDemand.dimension((d: any) => d.stop),
+      })
 
       // make stopLevelDemand a 2-dimensional array? stop ID and then pt-line?
       for (const row of results.data) {
@@ -1209,14 +1239,20 @@ const MyComponent = defineComponent({
       }
       // build link-level passenger ridership ----------
       console.log('---Calculating link-by-link pax/cap')
+
       const linkPassengersById = {} as any
       const linkCapacity = {} as any
+
+      // link IDs are split using what character? They changed the format again :-O
+      let splitter = ','
+      if (results.data.length)
+        splitter = results.data[0].linkIdsSincePreviousStop.indexOf(',') > -1 ? ',' : ';'
 
       // loop through rows
       for (const row of results.data) {
         // console.log(row)
         if (row.linkIdsSincePreviousStop) {
-          const traversedLinks = row.linkIdsSincePreviousStop.split(';')
+          const traversedLinks = row.linkIdsSincePreviousStop.split(splitter)
           for (const linkId of traversedLinks) {
             // pax
             if (!linkPassengersById[linkId]) linkPassengersById[linkId] = 0
@@ -1230,22 +1266,13 @@ const MyComponent = defineComponent({
 
       // update passenger value in the transit-link geojson.
       for (const transitLink of this.transitLinks.features) {
-        if (!transitLink.properties) transitLink.properties = {}
-        transitLink.properties['pax'] = linkPassengersById[transitLink.properties.id]
-        transitLink.properties['cap'] = linkCapacity[transitLink.properties.id]
-        transitLink.properties['loadfac'] =
-          Math.round(
-            (1000 * linkPassengersById[transitLink.properties.id]) /
-              linkCapacity[transitLink.properties.id]
-          ) / 1000
+        if (!transitLink.properties) transitLink.properties = { pax: 0, cap: 0, loadfac: 0 }
+        transitLink.properties.pax =
+          (transitLink.properties.pax || 0) + (linkPassengersById[transitLink.properties.id] || 0)
+        transitLink.properties.cap =
+          (transitLink.properties.cap || 0) + (linkCapacity[transitLink.properties.id] || 0)
       }
 
-      this.metrics = this.metrics.concat([
-        { field: 'pax', name_en: 'Passengers', name_de: 'Passagiere' },
-        { field: 'loadfac', name_en: 'Load Factor', name_de: 'Auslastung' },
-      ])
-
-      this.loadProgress = 100
       return []
     },
 
@@ -1796,16 +1823,15 @@ const MyComponent = defineComponent({
       this.transitLinks = { type: 'FeatureCollection', features: [] }
       this.transitLines = []
       this.selectedRouteIds = []
-      this.cfDemand1 = null
-      this.cfDemand2 = null
-      this.cfDemandLink1?.dispose()
-      this.cfDemandLink2?.dispose()
-      this.cfDemandStop1?.dispose()
-      this.cfDemandStop2?.dispose()
       this.resolvers = {}
       this.routesOnLink = []
       this.stopMarkers = []
       this.searchText = ''
+      this.crossFilters.forEach(cf => {
+        cf.cfDemandLink.dispose()
+        cf.cfDemandStop.dispose()
+        cf.cfDemand = null as any
+      })
     },
   },
 

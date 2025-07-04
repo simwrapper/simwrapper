@@ -520,7 +520,6 @@ const MyComponent = defineComponent({
     filterShapesNow() {
       // shape filters only
       const shapeFilters = this.filterDefinitions.filter(f => f.dataset === 'shapes')
-
       this.boundaryFilters = new Float32Array(this.boundaries.length)
 
       // show all elements if there are no shapefilters defined
@@ -1092,7 +1091,7 @@ const MyComponent = defineComponent({
     },
 
     setupJoin(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
-      console.log('SETUP JOIN', this.featureJoinColumn)
+      // console.log('SETUP JOIN', this.featureJoinColumn)
       const { dataTable, datasetId, dataJoinColumn } = props
       // console.log('> setupJoin', datasetId, dataJoinColumn)
 
@@ -1467,6 +1466,7 @@ const MyComponent = defineComponent({
       this.dataCalculatedValueLabel = columnName ?? ''
 
       // Do we need a join? Join it
+      this.$emit('error', '')
       let dataJoinColumn = ''
       if (color.join && color.join !== '@count') {
         // join column name set by user
@@ -1477,7 +1477,14 @@ const MyComponent = defineComponent({
       } else {
         // nothing specified: let's hope they didn't want to join
         if (this.datasetChoices.length > 1) {
-          console.warn('No join; lets hope user just wants to display data in boundary file')
+          const boundaries = this.datasetChoices[0]
+          if (datasetKey !== boundaries) {
+            console.warn('No join; lets hope user just wants to display data in boundary file')
+            this.$emit(
+              'error',
+              `Specify the "Join by" column to link ${datasetKey} dataset values correctly!`
+            )
+          }
         }
       }
 
@@ -1578,29 +1585,37 @@ const MyComponent = defineComponent({
       // (note, processFiltersNow() will call this function again once the calcs are done)
       if (isColorDefinition) {
         const dataset = colorOrFilteredDataTable?.dataset as string
-        const { filteredRows } = this.myDataManager.getFilteredDataset({
-          dataset: `${dataset}` || '',
-        })
-        if (filteredRows && filteredRows.length) {
-          this.currentUILineColorDefinitions = colorOrFilteredDataTable
-          this.processFiltersNow(dataset)
-          return
+        if (dataset) {
+          const { filteredRows } = this.myDataManager.getFilteredDataset({
+            dataset: `${dataset}` || '',
+          })
+          if (filteredRows && filteredRows.length) {
+            this.currentUILineColorDefinitions = colorOrFilteredDataTable
+            this.processFiltersNow(dataset)
+            return
+          }
         }
       }
 
-      if (isFilterTable) {
+      const color = colorOrFilteredDataTable as LineColorDefinition
+
+      if (isFilterTable && color.columnName !== '@0') {
         this.paintColorsWithFilter('lineColor', colorOrFilteredDataTable)
         return
       }
 
-      const color = colorOrFilteredDataTable as LineColorDefinition
       this.currentUILineColorDefinitions = color
 
       const columnName = color.columnName
-
       if (color.diffDatasets) {
         // *** diff mode *************************
         this.handleColorDiffMode('lineColor', color)
+        return
+      } else if (columnName === '@0') {
+        // *** no polygon borders!  ***
+        this.dataLineColors = this.isAreaMode ? '' : '#4E7AA7' // default blue
+        this.dataCalculatedValueLabel = ''
+        this.legendStore.clear('Line Color')
         return
       } else if (!columnName) {
         // *** simple color **********************
@@ -1628,6 +1643,7 @@ const MyComponent = defineComponent({
         this.dataCalculatedValueLabel = columnName ?? ''
 
         // Do we need a join? Join it
+        this.$emit('error', '')
         let dataJoinColumn = ''
         if (color.join && color.join !== '@count') {
           // join column name set by user
@@ -1638,7 +1654,14 @@ const MyComponent = defineComponent({
         } else {
           // nothing specified: let's hope they didn't want to join
           if (this.datasetChoices.length > 1) {
-            console.warn('No join; lets hope user just wants to display data in boundary file')
+            const boundaries = this.datasetChoices[0]
+            if (datasetKey !== boundaries) {
+              console.warn('No join; lets hope user just wants to display data in boundary file')
+              this.$emit(
+                'error',
+                `Specify the "Join by" column to link ${datasetKey} dataset values correctly!`
+              )
+            }
           }
         }
 
@@ -1797,6 +1820,7 @@ const MyComponent = defineComponent({
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
 
           // Do we need a join? Join it
+          this.$emit('error', '')
           let dataJoinColumn = ''
           if (width.join && width.join !== '@count') {
             // join column name set by user
@@ -1807,7 +1831,14 @@ const MyComponent = defineComponent({
           } else {
             // nothing specified: let's hope they didn't want to join
             if (this.datasetChoices.length > 1) {
-              console.warn('No join; lets hope user just wants to display data in boundary file')
+              const boundaries = this.datasetChoices[0]
+              if (datasetKey !== boundaries) {
+                console.warn('No join; lets hope user just wants to display data in boundary file')
+                this.$emit(
+                  'error',
+                  `Specify the "Join by" column to link ${datasetKey} dataset values correctly!`
+                )
+              }
             }
           }
 
@@ -1867,6 +1898,7 @@ const MyComponent = defineComponent({
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
 
           // Do we need a join? Join it
+          this.$emit('error', '')
           let dataJoinColumn = ''
           if (height.join && height.join !== '@count') {
             // join column name set by user
@@ -1877,7 +1909,14 @@ const MyComponent = defineComponent({
           } else {
             // nothing specified: let's hope they didn't want to join
             if (this.datasetChoices.length > 1) {
-              console.warn('No join; lets hope user just wants to display data in boundary file')
+              const boundaries = this.datasetChoices[0]
+              if (datasetKey !== boundaries) {
+                console.warn('No join; lets hope user just wants to display data in boundary file')
+                this.$emit(
+                  'error',
+                  `Specify the "Join by" column to link ${datasetKey} dataset values correctly!`
+                )
+              }
             }
           }
 
@@ -2066,7 +2105,7 @@ const MyComponent = defineComponent({
     async processFiltersNow(datasetName?: string) {
       // This callback occurs when there is a newly filtered dataset.
 
-      console.log('> processFiltersNow', datasetName)
+      // console.log('> processFiltersNow', datasetName)
 
       const { filteredRows } = this.myDataManager.getFilteredDataset({ dataset: datasetName || '' })
       const filteredDataTable: { [id: string]: DataTableColumn } = {}
@@ -2289,8 +2328,9 @@ const MyComponent = defineComponent({
             this.statusText = message
             this.incrementLoadProgress()
           }
+          // true // load extra columns
         )
-        // for now convert to shapefile
+        // convert to geojson
         const numLinks = network.source.length / 2
         const boundaries = [] as any[]
         for (let i = 0; i < numLinks; i++) {
@@ -2377,11 +2417,11 @@ const MyComponent = defineComponent({
         await this.$nextTick()
         await this.$nextTick()
 
-        // for a big speedup, move properties to its own nabob
         let hasNoLines = true
         let hasNoPolygons = true
         let hasPoints = false
 
+        // for a big speedup, move properties to its own nabob
         boundaries.forEach(b => {
           const properties = b.properties ?? {}
           // geojson sometimes has "id" outside of properties:
@@ -2421,12 +2461,12 @@ const MyComponent = defineComponent({
         this.incrementLoadProgress()
 
         // turn ON line borders if it's a SMALL dataset (user can re-enable)
-        if (!hasNoLines || boundaries.length < 5000) {
-          this.dataLineColors = '#4e79a7'
-        }
+        // if (!hasNoLines || boundaries.length < 5000) {
+        // this.dataLineColors = '#4e79a7'
+        // }
 
         // hide polygon/point buttons and opacity if we have no polygons or we do have points
-        if (!hasNoPolygons || hasPoints) this.isAreaMode = true
+        if (hasPoints || !hasNoPolygons) this.isAreaMode = true
 
         this.statusText = 'Adding boundaries to map'
         await this.$nextTick()
@@ -2500,6 +2540,13 @@ const MyComponent = defineComponent({
         allowedModes.values = allowedModes.values.map((v: number) => modeLookup[v])
 
         dataTable = await this.myDataManager.setRowWisePropertyTable(filename, avroTable, config)
+
+        // special case: Avro networks have linkId instead of id, jesus christ!! :-()
+        if ('linkId' in dataTable && !('id' in dataTable)) {
+          dataTable = { id: dataTable.linkId, ...dataTable }
+          dataTable.id.name = 'id'
+        }
+
         // save memory: no longer need the avro input file
         this.avroNetwork = null
       } else {
@@ -2522,8 +2569,10 @@ const MyComponent = defineComponent({
 
       this.config.datasets = Object.assign({}, this.vizDetails.datasets)
 
-      // this.myDataManager.addFilterListener({ dataset: datasetId }, this.filterListener)
-      // this.figureOutRemainingFilteringOptions()
+      this.myDataManager.addFilterListener(
+        { dataset: datasetId, subfolder: '' },
+        this.processFiltersNow
+      )
     },
 
     async calculateAndMoveToCenter() {
