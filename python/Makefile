@@ -41,7 +41,7 @@ push: build
 
 .build-sentinel: $(shell find simwrapper/*.py) pyproject.toml README.md
 > rm -rf dist
-> python3 -m build
+> uv run python3 -m build
 > twine check dist/*
 > touch $@
 
