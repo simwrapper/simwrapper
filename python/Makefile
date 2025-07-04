@@ -28,7 +28,7 @@ test:
 .PHONY: test
 
 docker:
-> rm -r .venv dist
+> rm -rf .venv dist
 > cd ..
 > docker build -t simwrapper/app .
 .PHONY: docker
