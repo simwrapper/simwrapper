@@ -444,7 +444,7 @@ const MyComponent = defineComponent({
         lines[route.lineId].routes.push(route)
       })
 
-      if (!this.selectedLinkId) return lines
+      // if (!this.selectedLinkId) return lines
 
       // store demand data for these links
       const demandLookup = {} as { [routeId: string]: any[] }
