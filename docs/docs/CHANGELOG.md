@@ -1,4 +1,4 @@
---
+---
 id: changelog
 title: SimWrapper Change Log
 ---
@@ -69,15 +69,15 @@ Bump to version 4.0. New look and feel for main page and file browsers should he
 New front page, file view, color scheme, event viewer (beta), map builder
 (beta), and updated Python (pip) package for running standalone or in server environments.
 
-
 ### Features
 
 * New front page, file view, and color scheme for easier navigation based on user testing and feedback
 * Event viewer (beta) -- event files can be directly opened to see vehicle animations (WIP)
 * Map builder (beta) -- layered map is starting to become useful with geojson, point, and arc views.
   WIP, more to come!
-* Updated python/pip/uv command line tool makes it much easier to run simwrapper locally and view
-  local or network-mounted files. See [running SimWrapper locally](https://docs.simwrapper.app/docs/intro/running-locally) and [cloud storage docs](https://docs.simwrapper.app/docs/guide-cloud-storage) 
+* Updated [uv tool](https://docs.astral.sh/uv)/python/pip simwrapper **command line tool** makes it much easier to run simwrapper locally and view
+  local or network-mounted files. Try `uv tool install simwrapper` and `simwrapper run`. See [running SimWrapper locally](https://docs.simwrapper.app/docs/intro/running-locally) and [cloud storage docs](https://docs.simwrapper.app/docs/guide-cloud-storage) 
+* Updated Docker image, you can run SimWrapper locally with `docker pull simwrapper/app`. See [running SimWrapper locally](https://docs.simwrapper.app/docs/intro/running-locally) 
 * Gridmap Diff Mode ([#468](https://github.com/simwrapper/simwrapper/issues/468)) ([611a825](https://github.com/simwrapper/simwrapper/commit/611a8251a3cd3826b8113b73ba5da19a5bbb9abc))
 
 
