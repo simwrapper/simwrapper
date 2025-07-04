@@ -12,11 +12,19 @@ This python program bridges that gap: it is a command-line tool that starts a lo
 
 This library contains the "simwrapper" command-line tool, which allows browsing of local files on your PC/laptop using the SimWrapper website.
 
-- Only Python 3.10+ is supported.
+- Python versions 3.7 and up are supported. If you get frustrated with Python version and library/dependency hell, use the modern [uv tool](https://docs.astral.sh/uv) to finally end the madness. It works!
 
 ## Installation
 
-This package is on the PyPi pip package library. You can use pip or the more modern **uv** tool to install it. Note it has many scientific library dependencies, so it's best to use a virtual environment (via uv)
+This package is on the PyPi pip package library. You can use pip or the more modern [uv tool](https://docs.astral.sh/uv) to install it. SimWrapper has many scientific library dependencies, so it's best to use a virtual environment (via uv)
+
+**uv**
+
+- Install using `uv tool install simwrapper`
+  - or upgrade using `uv tool upgrade simwrapper`
+- Now run commands using `simwrapper [command]`
+
+**pip**
 
 - Install using `pip install simwrapper`
 - To upgrade to the latest version, `pip install --upgrade simwrapper`
@@ -80,11 +88,13 @@ readme: 'readme.md'
 ```
 
 ---
+
 ### simwrapper serve
 
 starts a local file server in the current directory. Run this command, then browse to either <https://vsp.berlin/simwrapper> or <https://activitysim.github.io/dashboard> to view your local folder outputs.
 
 ---
+
 ### simwrapper here
 
 _Deprecated - "use simwrapper run" instead_
@@ -95,6 +105,7 @@ starts a _local copy of the SimWrapper website_ usually listening on port 8050. 
 - Note, it's not a battle-tested multi-threaded web proxy server such as Apache, NGINX, or Gunicorn. Ultimately you may decide that you want to put simwrapper behind a proxy server such as those listed, for improved performance, features, and security.
 
 ---
+
 ### simwrapper open [vsp|asim]
 
 opens a new web browser tab AND a local file server in the current directory. The site will only operate as long as you keep that local server running, so don't close the command window.
@@ -129,7 +140,7 @@ This requires Homebrew, which supplies the `brew` command.
 brew install mkcert nss   # installs mkcert command
 mkcert localhost          # Create PEM key/cert files for "localhost"
 mkcert -install           # Installs certificates in browser
-````
+```
 
 This creates two files: `localhost.pem` and `localhost-key.pem`. Move them somewhere where you cn find them.
 

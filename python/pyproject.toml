@@ -1,12 +1,12 @@
 [project]
 version = "4.0.3"
 name = "simwrapper"
-description = "Run SimWrapper from Python"
+description = "SimWrapper command line tools"
 readme = "README.md"
 license = "GPL-3.0-or-later"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 dependencies = [
-    "blosc>=1.11.2",
+    "blosc>=1.11.3",
     "build>=1.2.2.post1",
     "click>=8.0",
     "flask>=3.1.0",
@@ -16,7 +16,7 @@ dependencies = [
     "openmatrix>=0.3.5.0",
     "pypatch>=1.0.2",
     "pyyaml>=6.0.2",
-    "tables>=3.10.2",
+    "tables>=3.9.2",
     "waitress>=3.0.2",
 ]
 
