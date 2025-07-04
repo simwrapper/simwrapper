@@ -62,7 +62,7 @@ export function buildColors(categories: any, colorRamp: string) {
 function getColorsForDataColumn(props: VizProperties) {
   // First: if there is no dataColumn yet, return empty everything
   if (!props.data) {
-    console.log('NO DATA YET')
+    // console.log('NO DATA YET')
     return { rgbArray: null, legend: [], calculatedValues: null }
   }
 

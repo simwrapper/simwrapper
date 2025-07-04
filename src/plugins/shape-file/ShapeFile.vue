@@ -520,7 +520,6 @@ const MyComponent = defineComponent({
     filterShapesNow() {
       // shape filters only
       const shapeFilters = this.filterDefinitions.filter(f => f.dataset === 'shapes')
-
       this.boundaryFilters = new Float32Array(this.boundaries.length)
 
       // show all elements if there are no shapefilters defined
@@ -1092,7 +1091,7 @@ const MyComponent = defineComponent({
     },
 
     setupJoin(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
-      console.log('SETUP JOIN', this.featureJoinColumn)
+      // console.log('SETUP JOIN', this.featureJoinColumn)
       const { dataTable, datasetId, dataJoinColumn } = props
       // console.log('> setupJoin', datasetId, dataJoinColumn)
 
@@ -2106,7 +2105,7 @@ const MyComponent = defineComponent({
     async processFiltersNow(datasetName?: string) {
       // This callback occurs when there is a newly filtered dataset.
 
-      console.log('> processFiltersNow', datasetName)
+      // console.log('> processFiltersNow', datasetName)
 
       const { filteredRows } = this.myDataManager.getFilteredDataset({ dataset: datasetName || '' })
       const filteredDataTable: { [id: string]: DataTableColumn } = {}
@@ -2570,8 +2569,10 @@ const MyComponent = defineComponent({
 
       this.config.datasets = Object.assign({}, this.vizDetails.datasets)
 
-      // this.myDataManager.addFilterListener({ dataset: datasetId }, this.filterListener)
-      // this.figureOutRemainingFilteringOptions()
+      this.myDataManager.addFilterListener(
+        { dataset: datasetId, subfolder: '' },
+        this.processFiltersNow
+      )
     },
 
     async calculateAndMoveToCenter() {

@@ -41,9 +41,6 @@ export default function Component({
   isRGBA = false,
   features = [] as any[],
 }) {
-  // const features = globalStore.state.globalCache[viewId] as any[]
-  // const [features, setFeatures] = useState([] as any[])
-
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [screenshotCount, setScreenshot] = useState(screenshot)
 
@@ -235,12 +232,14 @@ export default function Component({
   // our own polygon border using the LinkLayer instead.
   // Thick links will not smoothly "flow" around bends, but it's far far faster.
 
-  const { linksData, hasPolygons } = useMemo(() => {
+  const { linksData, hasPolygons, filterValues } = useMemo(() => {
     // no strokes? no links. we're done
     if (!isStroked) return { linksData: [], hasPolygons: true }
 
     const linksData: any[] = []
     let hasPolygons = false
+
+    const filterValues = [] as number[]
 
     features.forEach((feature, f) => {
       let coords
@@ -282,11 +281,15 @@ export default function Component({
         //@ts-ignore
         if (hasWidthData) element.width = cbLineWidth(null, { index: f } as any)
         element.feature_idx = f
+
+        // filter values - duplicate filter 0/-1 for each coordinate
+        if (featureFilter.length) filterValues.push(featureFilter[f])
+
         linksData.push(element)
       }
     })
-    return { linksData, hasPolygons }
-  }, [features, lineColors, lineWidths, dark, isStroked])
+    return { linksData, hasPolygons, filterValues }
+  }, [features, lineColors, lineWidths, featureFilter, dark, isStroked])
 
   // ----------------------------------------------------------------------------
   const finalLayers = [...backgroundLayers]
@@ -359,20 +362,23 @@ export default function Component({
 
   // --------- LINE LAYER -- on top of main Geojson layer
   if (isStroked) {
+    // if useMemo did some filter processing, use the new filter values
+    const theFilter = filterValues || featureFilter
+
     const lineLayer = typeof cbLineWidth == 'number' ? LineLayer : LineOffsetLayer
     finalLayers.push(
       //@ts-ignore
       new lineLayer({
         id: 'linksLayer',
-        pickable: true,
-        opacity: 1,
-        widthUnits: 'pixels',
-        widthMinPixels: 1,
         data: linksData,
         getColor: Array.isArray(cbLineColor) ? cbLineColor : (d: any) => d.color,
         getWidth: typeof cbLineWidth == 'number' ? cbLineWidth : (d: any) => d.width,
         getSourcePosition: (d: any) => d.path[0],
         getTargetPosition: (d: any) => d.path[1],
+        pickable: true,
+        opacity: 1,
+        widthUnits: 'pixels',
+        widthMinPixels: 1,
         offsetDirection: OFFSET_DIRECTION.RIGHT,
         transitions: {
           getColor: 300,
@@ -386,6 +392,12 @@ export default function Component({
           // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
           preserveDrawingBuffer: true,
           fp64: false,
+        },
+        // filter shapes
+        extensions: [new DataFilterExtension({ filterSize: 1 })],
+        filterRange: [0, 1], // set filter to -1 to filter element out
+        getFilterValue: (_: any, o: DeckObject) => {
+          return theFilter[o.index]
         },
       })
     )

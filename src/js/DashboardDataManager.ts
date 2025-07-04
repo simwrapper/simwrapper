@@ -446,8 +446,8 @@ export default class DashboardDataManager {
     let filteredRows: any[] = []
 
     const numberOfRowsInFullDataset = dataset[allColumns[0]].values.length
-    console.log('FILTERS:', metaData.activeFilters)
-    console.log('TOTLROWS', numberOfRowsInFullDataset)
+    // console.log('FILTERS:', metaData.activeFilters)
+    // console.log('TOTLROWS', numberOfRowsInFullDataset)
 
     // we will go thru each filter for this dataset and set the elements
     // to false whenever a row fails a filter.
