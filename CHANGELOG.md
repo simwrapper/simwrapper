@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.0.4](https://github.com/simwrapper/simwrapper/compare/v4.0.3...v4.0.4) (2025-07-04)
+
+
+### Bug Fixes
+
+* **aggregate-od:** link IDs with leading zeroes now processed correctly ([74b8655](https://github.com/simwrapper/simwrapper/commit/74b8655735892db0ae7b6470fe768f26a4f0e7f3))
+* Area map using avro-format network doesn't link to CSV data files ([b597ba8](https://github.com/simwrapper/simwrapper/commit/b597ba8795ed9347443acd1fd9e34e3de11df412)), closes [#425](https://github.com/simwrapper/simwrapper/issues/425)
+* **hexagons:** hexes should not shift on the map when orig/dest is toggled ([dc955e8](https://github.com/simwrapper/simwrapper/commit/dc955e8d62d60e8f248325bafdfe27822ff0be24)), closes [#330](https://github.com/simwrapper/simwrapper/issues/330)
+* **map:** add missing "None" option to LineColor ([1e95301](https://github.com/simwrapper/simwrapper/commit/1e9530188d5efae224df1b2f69189d0715d1558f)), closes [#307](https://github.com/simwrapper/simwrapper/issues/307)
+* **map:** shapefile/network filters were disabled; fixed now (dataset filters TBA) ([9ece2a3](https://github.com/simwrapper/simwrapper/commit/9ece2a36a155dac0e055490a2c078ac12205b255)), closes [#423](https://github.com/simwrapper/simwrapper/issues/423)
+* **matrix:** Export function now exports 1-based CSV with row/col headers ([8470b65](https://github.com/simwrapper/simwrapper/commit/8470b659430ebf14c1f470276f7dd97b23bf8e96)), closes [#470](https://github.com/simwrapper/simwrapper/issues/470)
+* **matrix:** sort matrix row/col data by various columns; and selectable ([13c27c0](https://github.com/simwrapper/simwrapper/commit/13c27c0056a401b3c13ca63b2d0365a0257c4128)), closes [#483](https://github.com/simwrapper/simwrapper/issues/483)
+* simwrapper slow is very slow on Windows 11 / IPv6 connected machines ([bf5d700](https://github.com/simwrapper/simwrapper/commit/bf5d7006c76ba19c8ba666cb6ba0244bf18d6fc9)), closes [#410](https://github.com/simwrapper/simwrapper/issues/410)
+* **transit:** side panel number of departures displays zero when a route is selected but no link is selected ([5af1346](https://github.com/simwrapper/simwrapper/commit/5af1346d000a6453fea5d82affea1c96c998ce5d))
+* **transit:** Very large (RVR) pax data files would not load due to silent out-of-memory error ([50983a1](https://github.com/simwrapper/simwrapper/commit/50983a141d96e8a327c8ea5fdcdacbf6aa7e2aa9))
+* **video:** video player config now in sync with simwrapper contrib ([722165c](https://github.com/simwrapper/simwrapper/commit/722165c2a0268e722dcc7e6fff5d7bd96f832de5))
+
 ### [4.0.3](https://github.com/simwrapper/simwrapper/compare/v4.0.2...v4.0.3) (2025-06-25)
 
 
