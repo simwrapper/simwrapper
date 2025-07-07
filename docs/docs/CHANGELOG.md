@@ -12,7 +12,17 @@ The SimWrapper code repository is open source and you can find the full commit h
 
 # Changelog
 
-All notable changes to this project are documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+### [4.0.5](https://github.com/simwrapper/simwrapper/compare/v4.0.4...v4.0.5) (2025-07-07)
+
+
+### Bug Fixes
+
+* **map:** implement missing "mapIsIndependent" for shapefiles/geojson/networks ([e1248e8](https://github.com/simwrapper/simwrapper/commit/e1248e841d0206ab805d9fb6deeba72a8989ac4f)), closes [#258](https://github.com/simwrapper/simwrapper/issues/258)
+* **map:** map stops displaying tooltip when user clicks on some links ([86a2bf0](https://github.com/simwrapper/simwrapper/commit/86a2bf046a441675c41f534d8887dc6bbbfb7239)), closes [#484](https://github.com/simwrapper/simwrapper/issues/484)
+* **map:** Shapefile tooltips now linger correctly on hover with editable columns, highlight ([1ba8e9b](https://github.com/simwrapper/simwrapper/commit/1ba8e9bea18b65380c2230b21713e7c623263b30)), closes [#484](https://github.com/simwrapper/simwrapper/issues/484)
+* **map:** tooltips based on datasets should appear correctly ([3ea2348](https://github.com/simwrapper/simwrapper/commit/3ea2348e19260adf1e1c94958b3ceaefaaa8cf8b)), closes [#289](https://github.com/simwrapper/simwrapper/issues/289)
 
 ### [4.0.4](https://github.com/simwrapper/simwrapper/compare/v4.0.3...v4.0.4) (2025-07-04)
 
