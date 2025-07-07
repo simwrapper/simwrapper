@@ -34,11 +34,11 @@
             @input="updateBgLayers" v-model="bgLayers[layer].visible"
           ) {{  layer }}
 
-      .tooltip-html(v-if="tooltipHtml && !statusText"
+      .tooltip-html.flex-col(v-if="tooltipHtml && !statusText"
         @mouseover="wantToClearTooltip=false" @mouseout="wantToClearTooltip=true"
       )
         .the-html(v-html="tooltipHtml")
-        .edit-hint(v-if="!vizDetails.tooltip" style="text-align: right;")
+        .edit-hint(v-if="tooltipDesiredColumns.length" style="text-align: right;")
           a(@click="showTooltipConfigurator=true") Show/hide...
 
     .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
@@ -47,7 +47,7 @@
         @mouseover="wantToClearTooltip=false" @mouseout="wantToClearTooltip=true"
       )
         .the-html(v-html="tooltipHtml")
-        a(v-if="!vizDetails.tooltip" style="textAlign: right" @click="showTooltipConfigurator=true") Show/hide...
+        a(v-if="tooltipDesiredColumns.length" style="textAlign: right" @click="showTooltipConfigurator=true") Show/hide...
 
       //- drawing-tool.draw-tool(v-if="isLoaded && !thumbnail")
 
@@ -2557,7 +2557,9 @@ const MyComponent = defineComponent({
 
       this.config.datasets = Object.assign({}, this.vizDetails.datasets)
 
-      if (!this.vizDetails.tooltip) this.tooltipDesiredColumns = this.setupTooltipDesiredColumns()
+      if (!this.vizDetails.tooltip || !this.vizDetails.tooltip.length) {
+        this.tooltipDesiredColumns = this.setupTooltipDesiredColumns()
+      }
       // this.myDataManager.addFilterListener(
       //   { dataset: datasetId, subfolder: '' },
       //   this.processFiltersNow
@@ -3258,7 +3260,6 @@ export default MyComponent
     right: 0;
     border-top: 1px solid #88888880;
     max-height: 50%;
-    overflow-y: auto;
   }
 }
 
@@ -3275,6 +3276,9 @@ export default MyComponent
   background-color: var(--bgCardFrame);
   border: 1px solid #88888880;
   max-height: 50%;
+}
+
+.the-html {
   overflow-y: auto;
 }
 
