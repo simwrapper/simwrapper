@@ -51,6 +51,7 @@ Properties are written in either a standalone `viz-map*.yaml` file, or in a dash
 | `zoom`|  Zoom level of the map between 5 and 20. (default: 9) |
 | `pitch`|  Map pitch (default: 0) |
 | `bearing`|  Map bearing/direction (default:0) |
+| `mapIsIndependent`| Allow this map to have its own map/center/motion independent from other maps on the same dashboard.  (default: false) |
 
 ---
 
@@ -272,6 +273,7 @@ layout:
       height: 10
       center: [6.9814, 51.57]
       zoom: 10
+      mapIsIndependent: true
       shapes:
         file: '../../shapefiles/geoid.geojson'
         join: id
