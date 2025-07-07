@@ -21,16 +21,10 @@
     .configuration-panels(v-show="showPanels && !showAddDatasets")
       .section-panel
         .actions
-          b-dropdown(v-model="selectedExportAction"
-            aria-role="list" position="is-bottom-left" :close-on-click="true"
-            @change="clickedExport"
-          )
-              template(#trigger="{ active }")
-                b-button.is-small.is-white.export-button()
-                  i.fa.fa-sm.fa-share
-                  | &nbsp;Export
-              b-dropdown-item(value="yaml" aria-role="listitem") Save YAML config
-              b-dropdown-item(value="png" aria-role="listitem") Take screenshot
+          select.select-exporter(name="exporter" v-model="selectedExportAction" @change="clickedExport") hello
+            option(value="" aria-role="menu") EXPORT...
+            option(value="yaml" aria-role="listitem") Save YAML config
+            option(value="png" aria-role="listitem") Take screenshot
 
           b-button.is-small.is-white.export-button(@click="clickedAddData")
             i.fa.fa-sm.fa-plus
@@ -198,7 +192,7 @@ export default defineComponent({
       this.showAddDatasets = true
     },
 
-    async clickedExport() {
+    async clickedExport(event: any) {
       await this.$nextTick()
       if (this.selectedExportAction == 'yaml') {
         this.exportYaml()
@@ -533,6 +527,21 @@ h1:hover {
   z-index: 10;
   pointer-events: none;
   gap: 2rem;
+}
+
+.select-exporter {
+  width: 5rem;
+  font-size: 0.8rem;
+  font-weight: bold;
+  padding: 0.25rem 0.25rem;
+  margin: auto 0;
+  text-align: right;
+  color: var(--link);
+}
+
+.select-exporter:hover {
+  color: var(--linkHover);
+  background-color: var(--bgCream4);
 }
 
 @media only screen and (max-width: 640px) {

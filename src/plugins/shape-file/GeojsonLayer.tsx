@@ -164,7 +164,10 @@ export default function Component({
   // TOOLTIP ------------------------------------------------------------------
   function getTooltip({ object, index }: { object: any; index: number }) {
     let offset = index
-    if (object && 'feature_idx' in object) offset = object.feature_idx
+    if (object && 'feature_idx' in object) {
+      offset = object.feature_idx
+    }
+    // always call this even if we're blank so tooltip goes away
     if (cbTooltip) cbTooltip(offset, object)
   }
 

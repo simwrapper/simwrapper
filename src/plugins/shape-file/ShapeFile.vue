@@ -621,6 +621,11 @@ const MyComponent = defineComponent({
     cbTooltip(index: number, object: any, forceUpdate: boolean = false) {
       if (this.tooltipIsFixed && !forceUpdate) return
 
+      if (object === null || !this.boundaries[index]?.properties) {
+        this.tooltipHtml = ''
+        return
+      }
+
       this.highlightedLinkIndex = index
 
       // tooltip will show values for color settings and for width settings.
@@ -628,12 +633,6 @@ const MyComponent = defineComponent({
       // for both color and width.
 
       const PRECISION = 4
-
-      if (object === null || !this.boundaries[index]?.properties) {
-        this.tooltipHtml = ''
-        return
-      }
-
       const propList = []
 
       // normalized value first
@@ -678,7 +677,8 @@ const MyComponent = defineComponent({
       // --- boundary feature tooltip lines ---
       let columns = Object.keys(this.boundaryDataTable)
       if (this.vizDetails.tooltip?.length) {
-        columns = this.vizDetails.tooltip.map(tip => tip.substring(tip.indexOf(':') + 1))
+        const delim = this.vizDetails.tooltip[0].indexOf(':') > -1 ? ':' : '.'
+        columns = this.vizDetails.tooltip.map(tip => tip.substring(tip.indexOf(delim) + 1))
       }
 
       let featureProps = ''
@@ -1171,11 +1171,24 @@ const MyComponent = defineComponent({
 
       const { dataTable, datasetId, dataJoinColumn } = props
 
+      let delim = ':'
       const tips = this.vizDetails.tooltip || []
+      if (tips.length) delim = tips[0].indexOf(':') > -1 ? ':' : '.'
+
+      // user specified no tooltips, but we can help them by adding
+      // data for columns that they've put in their display{} config anyway
+      if (!tips.length) {
+        const symbologies = Object.values(this.vizDetails.display)
+        for (const config of symbologies) {
+          if (config.columnName && config.dataset === datasetId)
+            tips.push(`${datasetId}${delim}${config.columnName}`)
+        }
+      }
+
       const relevantTips = tips
-        .filter(tip => tip.substring(0, tip.indexOf(':')).startsWith(datasetId))
+        .filter(tip => tip.substring(0, tip.indexOf(delim)).startsWith(datasetId))
         .map(tip => {
-          return { id: tip, column: tip.substring(1 + tip.indexOf(':')) }
+          return { id: tip, column: tip.substring(1 + tip.indexOf(delim)) }
         })
 
       // no tips for this datasetId
@@ -2484,10 +2497,10 @@ const MyComponent = defineComponent({
 
       this.config.datasets = Object.assign({}, this.vizDetails.datasets)
 
-      this.myDataManager.addFilterListener(
-        { dataset: datasetId, subfolder: '' },
-        this.processFiltersNow
-      )
+      // this.myDataManager.addFilterListener(
+      //   { dataset: datasetId, subfolder: '' },
+      //   this.processFiltersNow
+      // )
     },
 
     async calculateAndMoveToCenter() {

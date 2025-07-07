@@ -317,8 +317,8 @@ export default defineComponent({
     },
 
     setPanelError(e: any) {
-      console.error('LMError: ' + (e.msg || e))
       this.errorPanelText = '' + (e.msg || e)
+      if (e) console.error('LMError: ' + (e.msg || e))
     },
 
     async buildGistPage(pathMatch: string) {
