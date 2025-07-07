@@ -55,8 +55,8 @@
         :opacity="(sliderOpacity / 100) * (sliderOpacity / 100)"
         :pointRadii="dataPointRadii"
         :cbTooltip="cbTooltip"
+        :cbClickEvent="handleClickEvent"
         :bgLayers="bgLayers"
-        :handleClickEvent="handleClickEvent"
         :highlightedLinkIndex="highlightedLinkIndex"
         :redraw="redraw"
         :features="boundaries"
@@ -609,8 +609,10 @@ const MyComponent = defineComponent({
 
     async handleClickEvent(event: any) {
       if (event.index != -1) {
-        this.cbTooltip(event.index, event, true)
+        let offset = event?.object?.feature_idx || -1
+        this.cbTooltip(offset, event, true)
         this.tooltipIsFixed = true
+        this.highlightedLinkIndex = event.index
       } else {
         this.tooltipIsFixed = false
         this.highlightedLinkIndex = -1
@@ -625,8 +627,6 @@ const MyComponent = defineComponent({
         this.tooltipHtml = ''
         return
       }
-
-      this.highlightedLinkIndex = index
 
       // tooltip will show values for color settings and for width settings.
       // if there is base data, it will also show values and diff vs. base
@@ -652,6 +652,7 @@ const MyComponent = defineComponent({
         const label = this.dataNormalizedValues
           ? cLabel.substring(0, cLabel.lastIndexOf('/'))
           : cLabel
+
         let value = this.truncateFractionalPart(this.dataCalculatedValues[index], PRECISION)
         if (this.dataCalculatedValueLabel.startsWith('%')) value = `${value} %`
 

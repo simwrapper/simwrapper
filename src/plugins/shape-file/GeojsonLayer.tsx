@@ -34,8 +34,8 @@ export default function Component({
   redraw = 0,
   featureFilter = new Float32Array(0),
   cbTooltip = null as any,
+  cbClickEvent = {} as any,
   bgLayers = {} as { [name: string]: BackgroundLayer },
-  handleClickEvent = {} as any,
   highlightedLinkIndex = -1 as number,
   dark = false,
   isRGBA = false,
@@ -158,7 +158,7 @@ export default function Component({
     // console.log('click!')
     // console.log(event)
     // TODO: send click event to parent
-    if (handleClickEvent) handleClickEvent(event)
+    if (cbClickEvent) cbClickEvent(event)
   }
 
   // TOOLTIP ------------------------------------------------------------------
@@ -350,7 +350,7 @@ export default function Component({
     // if useMemo did some filter processing, use the new filter values
     const theFilter = filterValues || featureFilter
 
-    const lineLayer = typeof cbLineWidth == 'number' ? LineLayer : LineOffsetLayer
+    const lineLayer = LineLayer // typeof cbLineWidth == 'number' ? LineLayer : LineOffsetLayer
     finalLayers.push(
       //@ts-ignore
       new lineLayer({
@@ -361,6 +361,9 @@ export default function Component({
         getSourcePosition: (d: any) => d.path[0],
         getTargetPosition: (d: any) => d.path[1],
         pickable: true,
+        autoHighlight: true,
+        highlightedObjectIndex: highlightedLinkIndex == -1 ? null : highlightedLinkIndex,
+        highlightColor: [255, 0, 204, 255],
         opacity: 1,
         widthUnits: 'pixels',
         widthMinPixels: 1,
