@@ -155,19 +155,19 @@ _More filter examples needed!_
 
 ```yaml
 tooltip:
-  - AM:TOT_VOL
-  - AM:TNC
-  - freeflow.shp:FACILITY_TYPE
-  - freeflow.shp:SPEED
+  - shapes.FACILITY_TYPE # "shapes" always refers to the shapefile/network/features
+  - shapes.SPEED
+  - am_assign.TOT_VOL
+  - am_assign:BIKE
 ```
 
-By default, the tooltip shows all columns in the shapefile, as well as any columns that are actively being displayed as either a color or a width.
+By default, the tooltip shows all columns in the featureset/shapefile, as well as any columns that are actively being displayed as either a color or a width.
 
 You can customize the tooltip to just show what you are interested as follows:
 
-- Add a `tooltip:` section to the properties, which will be an array of tooltip entries
-- Each entry is of format `datasetname:columnname`, so for example `AM_FLOWS:VEHICLE_VOL` will display the AM_FLOWS dataset and VEHICLE_VOL column.
-- Use the shapefile/network filename for its columnar data, or the dataset "key" for joined datasets.
+- Add a `tooltip:` section to the properties, which will be an *array of tooltip entries*
+- Each entry is of format `dataset.columnname`, so for example `AM_FLOWS.VEHICLE_VOL` will display the AM_FLOWS dataset and VEHICLE_VOL column.
+- Use `shapes:...` for the shapefile/network data,  or the dataset "key" for joined datasets.
 
 ## Difference plots
 
@@ -256,6 +256,10 @@ display:
     colorRamp:
       ramp: Plasma
       steps: 7
+tooltip:
+  - shapes.FACILITY_TYPE # "shapes" always refers to the shapefile/network/features
+  - shapes.SPEED
+  - transit-trips.passengers
 ```
 
 ### Sample dashboard-1.yaml dashboard with an area map
@@ -289,4 +293,8 @@ layout:
           colorRamp:
             ramp: Plasma
             steps: 7
+      tooltip:
+        - shapes.FACILITY_TYPE
+        - shapes.DISTRICT
+        - transit-trips.passengers
 ```
