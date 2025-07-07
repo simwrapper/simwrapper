@@ -683,7 +683,7 @@ li.is-not-active b a {
   display: flex;
   flex: 1;
   flex-direction: row;
-  padding: 0 0.5rem; // $cardSpacing;
+  padding: 0 0.25rem; // $cardSpacing;
   position: relative;
   overflow-y: auto;
 }

@@ -350,7 +350,7 @@ export default function Component({
     // if useMemo did some filter processing, use the new filter values
     const theFilter = filterValues || featureFilter
 
-    const lineLayer = LineLayer // typeof cbLineWidth == 'number' ? LineLayer : LineOffsetLayer
+    const lineLayer = typeof cbLineWidth == 'number' ? LineLayer : LineOffsetLayer
     finalLayers.push(
       //@ts-ignore
       new lineLayer({

@@ -28,19 +28,26 @@
         p(v-if="!legendStore.state?.sections?.length" style="font-size: 1.1rem"): b INFO PANEL
         legend-box(:legendStore="legendStore")
 
-      .tooltip-html(v-if="tooltipHtml && !statusText"
-        v-html="tooltipHtml"
-      )
-        .bglayer-section
+        .bglayer-section.flex-col(v-if="Object.keys(bgLayers).length")
+          h5 Layers
           b-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)" :key="layer"
             @input="updateBgLayers" v-model="bgLayers[layer].visible"
           ) {{  layer }}
 
+      .tooltip-html(v-if="tooltipHtml && !statusText"
+        @mouseover="wantToClearTooltip=false" @mouseout="wantToClearTooltip=true"
+      )
+        .the-html(v-html="tooltipHtml")
+        .edit-hint(v-if="!vizDetails.tooltip" style="text-align: right;")
+          a(@click="showTooltipConfigurator=true") Show/hide...
+
     .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
 
-      .tooltip-when-no-legend-present(v-if="!showLegend && !statusText && tooltipHtml"
-        v-html="tooltipHtml"
+      .tooltip-when-no-legend-present.flex-col(v-if="!showLegend && !statusText && tooltipHtml"
+        @mouseover="wantToClearTooltip=false" @mouseout="wantToClearTooltip=true"
       )
+        .the-html(v-html="tooltipHtml")
+        a(v-if="!vizDetails.tooltip" style="textAlign: right" @click="showTooltipConfigurator=true") Show/hide...
 
       //- drawing-tool.draw-tool(v-if="isLoaded && !thumbnail")
 
@@ -70,6 +77,20 @@
 
       //- :features="useCircles ? centroids: boundaries"
       //- background-map-on-top(v-if="isLoaded")
+
+      //- TOOLTIP MODAL SELECTOR
+      .modal.modal-tooltip-picker.flex-col(v-if="showTooltipConfigurator"
+        @mouseover="wantToClearTooltip=false"
+      )
+        h4 Configure tooltips
+        p(style="margin: 0.5rem auto 0 0.75rem;") Select feature columns to be displayed in default tooltips.
+        .flex-row(style="margin: 0.25rem auto 0 0.75rem;gap: 0.25rem;")
+          b-button.is-small(type="is-link" outlined @click="setDesiredTooltipsNone") None
+          b-button.is-small(type="is-link" outlined @click="setDesiredTooltipsAll") &nbsp;All&nbsp;
+        .tooltip-items.flex-col.flex1
+          b-checkbox.cbspace(v-for="item,i in tooltipDesiredColumns" :key="item.col" v-model="item.enabled")  {{ item.col}}
+        .close-row.flex-row(style="padding: 0.5rem; margin-left: auto;gap: 0.25rem;")
+          b-button.is-small(type="is-success" @click="showTooltipConfigurator=false") &nbsp;Close&nbsp;
 
       viz-configurator(v-if="isLoaded"
         :embedded="isEmbedded"
@@ -156,6 +177,7 @@ import {
   Status,
 } from '@/Globals'
 
+import { debounce } from '@/js/util'
 import GeojsonLayer from './GeojsonLayer'
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ColorWidthSymbologizer, { buildRGBfromHexCodes } from '@/js/ColorsAndWidths'
@@ -293,6 +315,8 @@ const MyComponent = defineComponent({
       globalStore,
       globalState: globalStore.state,
       layerId: Math.floor(1e12 * Math.random()),
+      dbClearTooltip: {} as any,
+      wantToClearTooltip: false,
 
       activeColumn: '',
       useCircles: false,
@@ -342,6 +366,9 @@ const MyComponent = defineComponent({
 
       tooltipHtml: '' as string,
       tooltipIsFixed: false as boolean,
+      tooltipDesiredColumns: [] as { col: string; enabled: boolean }[],
+      showTooltipConfigurator: false,
+
       highlightedLinkIndex: -1 as number,
 
       bgLayers: {} as { [name: string]: BackgroundLayer },
@@ -470,13 +497,31 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    setDesiredTooltipsNone() {
+      this.tooltipDesiredColumns.forEach(m => (m.enabled = false))
+    },
+    setDesiredTooltipsAll() {
+      this.tooltipDesiredColumns.forEach(m => (m.enabled = true))
+    },
+
+    setupTooltipDesiredColumns() {
+      try {
+        const featureColumns = Object.keys(this.boundaryDataTable)
+        return featureColumns.map(m => {
+          return { col: m, enabled: true }
+        })
+      } catch {
+        return []
+      }
+    },
+
     incrementLoadProgress() {
       this.loadSteps += 1
       this.loadProgress = (100 * this.loadSteps) / this.totalLoadSteps
     },
 
     dividerDragStart(e: MouseEvent) {
-      console.log('dragStart', e)
+      // console.log('dragStart', e)
       this.isDraggingDivider = e.clientX
       this.dragStartWidth = this.legendSectionWidth
     },
@@ -620,11 +665,18 @@ const MyComponent = defineComponent({
       }
     },
 
+    clearTooltip() {
+      if (this.wantToClearTooltip && this.highlightedLinkIndex == -1) {
+        this.tooltipHtml = ''
+      }
+    },
+
     cbTooltip(index: number, object: any, forceUpdate: boolean = false) {
       if (this.tooltipIsFixed && !forceUpdate) return
 
       if (object === null || !this.boundaries[index]?.properties) {
-        this.tooltipHtml = ''
+        this.wantToClearTooltip = true
+        this.dbClearTooltip()
         return
       }
 
@@ -632,6 +684,7 @@ const MyComponent = defineComponent({
       // if there is base data, it will also show values and diff vs. base
       // for both color and width.
 
+      this.wantToClearTooltip = false
       const PRECISION = 4
       const propList = []
 
@@ -676,7 +729,13 @@ const MyComponent = defineComponent({
       if (datasetProps) propList.push(datasetProps)
 
       // --- boundary feature tooltip lines ---
-      let columns = Object.keys(this.boundaryDataTable)
+      let columns
+      if (this.tooltipDesiredColumns.length) {
+        columns = this.tooltipDesiredColumns.filter(m => m.enabled).map(m => m.col)
+      } else {
+        columns = Object.keys(this.boundaryDataTable)
+      }
+
       if (this.vizDetails.tooltip?.length) {
         const delim = this.vizDetails.tooltip[0].indexOf(':') > -1 ? ':' : '.'
         columns = this.vizDetails.tooltip.map(tip => tip.substring(tip.indexOf(delim) + 1))
@@ -2498,6 +2557,7 @@ const MyComponent = defineComponent({
 
       this.config.datasets = Object.assign({}, this.vizDetails.datasets)
 
+      if (!this.vizDetails.tooltip) this.tooltipDesiredColumns = this.setupTooltipDesiredColumns()
       // this.myDataManager.addFilterListener(
       //   { dataset: datasetId, subfolder: '' },
       //   this.processFiltersNow
@@ -2987,6 +3047,8 @@ const MyComponent = defineComponent({
 
   async mounted() {
     try {
+      this.dbClearTooltip = debounce(this.clearTooltip, 1000)
+
       // EMBED MODE?
       this.setEmbeddedMode()
 
@@ -3195,6 +3257,8 @@ export default MyComponent
     left: 0;
     right: 0;
     border-top: 1px solid #88888880;
+    max-height: 50%;
+    overflow-y: auto;
   }
 }
 
@@ -3210,6 +3274,8 @@ export default MyComponent
   text-align: left;
   background-color: var(--bgCardFrame);
   border: 1px solid #88888880;
+  max-height: 50%;
+  overflow-y: auto;
 }
 
 .config-bar {
@@ -3256,8 +3322,14 @@ export default MyComponent
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  background-color: var(--bgPanel);
   width: min-content;
+  // background-color: var(--bgPanel);
+
+  h5 {
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-top: 0.5rem;
+  }
 }
 
 .filter {
@@ -3320,6 +3392,7 @@ export default MyComponent
 
 .simple-checkbox {
   padding: 0.25rem;
+  width: max-content;
 }
 
 .simple-checkbox:hover {
@@ -3394,5 +3467,36 @@ export default MyComponent
   width: 10rem;
   padding: 1rem;
   margin: 0;
+}
+
+.modal-tooltip-picker {
+  position: absolute;
+  inset: 0 0 0 0;
+  z-index: 20;
+  background-color: var(--bgBold);
+  margin: auto 5rem;
+  max-height: 30rem;
+  border: 1px solid var(--linkHover);
+  text-align: left;
+  filter: $filterShadow;
+
+  .tooltip-items {
+    padding: 0 0.75rem;
+    overflow-y: auto;
+    margin: 0.5rem 0;
+    width: 100%;
+  }
+
+  h4 {
+    color: white;
+    font-weight: bold;
+    padding: 2px 0.5rem;
+    width: 100%;
+    background-color: $appTag;
+  }
+
+  .cbspace {
+    margin-bottom: 3px;
+  }
 }
 </style>
