@@ -40,8 +40,10 @@ export default function Component({
   dark = false,
   isRGBA = false,
   features = [] as any[],
+  mapIsIndependent = false,
+  initialView = null,
 }) {
-  const [viewState, setViewState] = useState(globalStore.state.viewState)
+  const [viewState, setViewState] = useState(initialView || globalStore.state.viewState)
   const [screenshotCount, setScreenshot] = useState(screenshot)
 
   const _mapRef = useRef<MapRef>() as any
@@ -55,27 +57,6 @@ export default function Component({
   REACT_VIEW_HANDLES[viewId] = () => {
     setViewState(globalStore.state.viewState)
   }
-
-  // console.log(featureFilter)
-
-  // Feature setter hack:
-  // Using the array itself causes an enormous memory leak. I am not sure why
-  // Vue/React/Deck.gl are not managing this array correctly. Surely the problem
-  // is in our code, not theirs? But I spent days trying to find it.
-  // Anyway, making this deep copy of the feature array seems to solve it.
-
-  // REACT_VIEW_HANDLES[1000 + viewId] = (features: any[]) => {
-  //   const fullCopy = features.map(feature => {
-  //     const f = {
-  //       type: '' + feature.type,
-  //       geometry: JSON.parse(JSON.stringify(feature.geometry)),
-  //       properties: JSON.parse(JSON.stringify(feature?.properties || {})),
-  //     } as any
-  //     if ('id' in feature) f.id = '' + feature.id
-  //     return f
-  //   })
-  //   setFeatures(fullCopy)
-  // }
 
   // SCREENSHOT -----------------------------------------------------------------------
   let isTakingScreenshot = screenshot > screenshotCount
@@ -168,7 +149,8 @@ export default function Component({
     if (!view.latitude) return
     view.center = [view.longitude, view.latitude]
     setViewState(view)
-    globalStore.commit('setMapCamera', view)
+
+    if (!mapIsIndependent) globalStore.commit('setMapCamera', view)
   }
 
   // CLICK  ---------------------------------------------------------------------
