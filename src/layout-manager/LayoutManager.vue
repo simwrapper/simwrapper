@@ -41,7 +41,6 @@
     .authorization-strip(v-if="authHandles.length")
       .auth-row(v-for="auth in authHandles")
         p.flex1 {{ '' + auth }}
-        //- b-button hello
 
     .row-drop-target(:style="buildDragHighlightStyle(-1,-1)"
         @drop="onDrop({event: $event, row: 'rowTop'})"
@@ -772,6 +771,7 @@ export default defineComponent({
         // Just the folder and viz file itself
         let finalUrl = `${BASE_URL}${root}/${xsubfolder}`
         if (props.config) finalUrl += `/${props.config}`
+        finalUrl += `?tab=files`
         this.$router.push(finalUrl)
       }
     },

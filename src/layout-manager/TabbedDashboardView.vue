@@ -3,6 +3,7 @@
 
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
+  //-- Breadcrumbs, favorite star, project header
   .tabholder(v-if="isShowingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
     .tab-holder-container.flex-col.white-text
       .project-path.flex-row(v-show="!header")
@@ -20,16 +21,22 @@
 
       .project-header(v-if="header" v-html="header")
 
+  //-- Main area --------------
   .dashboard-finder(:class="{isMultipanel, isZoomed}")
+
+    //-- Vertical list of dashboard tabs -- one for each dashboard-*.yaml
     ul.dashboard-right-sections(v-show="!isZoomed && Object.keys(dashboards).length > 1")
       li.tab-list(v-for="tab,index in Object.keys(dashboards)" :key="tab"
         :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
         :style="{opacity: tab===activeTab ? 1.0 : 0.75}"
         @click="switchLeftTab(tab,index)"
       )
-        a(v-if="dashboards[tab].header" :href="`${$route.path}?tab=${index+1}`") {{ dashboards[tab].header.tab }}
+        a(v-if="dashboards[tab].header"
+          :href="`${$route.path}?tab=${index+1}`"
+        ) {{ dashboards[tab].header.tab }}
         //- a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
 
+    //-- The actual dashboard for this tab (if there is one) ------------------
     .dashboard-content(
       v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
       :class="{'is-breadcrumbs-hidden': !isShowingBreadcrumbs && !isZoomed}"
@@ -46,6 +53,7 @@
         @layoutComplete="handleLayoutComplete"
       )
 
+    //-- No dashboard? Show folder browser ---------
     folder-browser.dashboard-folder-browser(v-if="dashboardTabWithDelay && dashboardTabWithDelay === 'FILE__BROWSER'"
       :root="root"
       :xsubfolder="xsubfolder"
@@ -284,13 +292,17 @@ export default defineComponent({
         // // Start on correct tab
         const dashboardKeys = Object.keys(this.dashboards)
         if (this.$route.query.tab) {
-          try {
-            const userSupplied = parseInt('' + this.$route.query.tab) - 1
-            const userTab = dashboardKeys[userSupplied]
-            this.activeTab = userTab || dashboardKeys[0]
-          } catch (e) {
-            // user spam; just use first tab
-            this.activeTab = dashboardKeys[0]
+          if (this.$route.query.tab === 'files') {
+            this.activeTab = 'FILE__BROWSER'
+          } else {
+            try {
+              const userSupplied = parseInt('' + this.$route.query.tab) - 1
+              const userTab = dashboardKeys[userSupplied]
+              this.activeTab = userTab || dashboardKeys[0]
+            } catch (e) {
+              // user spam; just use first tab
+              this.activeTab = dashboardKeys[0]
+            }
           }
         } else {
           this.activeTab = dashboardKeys[0]
