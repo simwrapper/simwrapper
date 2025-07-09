@@ -15,7 +15,7 @@ enum FileSystemType {
   FETCH,
   CHROME,
   GITHUB,
-  AZURE,
+  FLASK,
 }
 
 naturalSort.insensitive = true
@@ -39,7 +39,7 @@ class HTTPFileSystem {
   private fsHandle: FileSystemAPIHandle | null
   private store: any
   private isGithub: boolean
-  private isOMX: boolean
+  private isFlask: boolean
   private type: FileSystemType
 
   constructor(project: FileSystemConfig, store?: any) {
@@ -49,12 +49,12 @@ class HTTPFileSystem {
     this.fsHandle = project.handle || null
     this.store = store || null
     this.isGithub = !!project.isGithub
-    this.isOMX = !!project.omx
+    this.isFlask = !!project.flask
 
     this.type = FileSystemType.FETCH
     if (this.fsHandle) this.type = FileSystemType.CHROME
     if (this.isGithub) this.type = FileSystemType.GITHUB
-    if (this.isOMX) this.type = FileSystemType.AZURE
+    if (this.isFlask) this.type = FileSystemType.FLASK
 
     this.baseUrl = project.baseURL
     if (!project.baseURL.endsWith('/')) this.baseUrl += '/'
@@ -111,7 +111,7 @@ class HTTPFileSystem {
         return this._getFileFromChromeFileSystem(scaryPath)
       case FileSystemType.GITHUB:
         return this._getFileFromGitHub(scaryPath)
-      case FileSystemType.AZURE:
+      case FileSystemType.FLASK:
         return this._getFileFromAzure(scaryPath)
       case FileSystemType.FETCH:
       default:
@@ -121,7 +121,6 @@ class HTTPFileSystem {
 
   private async _getFileFetchResponse(scaryPath: string): Promise<Response> {
     const path = this.cleanURL(scaryPath)
-    // console.log(path)
     const headers: any = {}
 
     // const credentials = globalStore.state.credentials[this.urlId]
@@ -420,8 +419,12 @@ class HTTPFileSystem {
       case FileSystemType.FETCH:
         stream = await this._getFileFetchResponse(scaryPath).then(response => response.body)
         return stream as any
+      case FileSystemType.FLASK:
+        const fullUrl = `/file/${this.slug}?prefix=${scaryPath}`
+        stream = await this._getFileFetchResponse(fullUrl).then(response => response.body)
+        return stream as any
       default:
-        throw Error('Not implemented')
+        throw Error(`FileSystemType ${this.type} not implemented`)
     }
   }
 
@@ -454,7 +457,7 @@ class HTTPFileSystem {
         case FileSystemType.GITHUB:
           dirEntry = await this._getDirectoryFromGitHub(stillScaryPath)
           break
-        case FileSystemType.AZURE:
+        case FileSystemType.FLASK:
           dirEntry = await this._getDirectoryFromAzure(stillScaryPath)
           break
         case FileSystemType.FETCH:

@@ -16,7 +16,7 @@ if (typeof window !== 'undefined') {
 }
 
 /** Flask filesystems are running the latest Python flask app which
- * supports OMX file slices!
+ * supports OMX file slices and streaming large files!
  */
 export function addFlaskFilesystems(flaskEntries: { [id: string]: any }) {
   const roots = Object.keys(flaskEntries)
@@ -27,7 +27,7 @@ export function addFlaskFilesystems(flaskEntries: { [id: string]: any }) {
       slug,
       description: params.description,
       baseURL: window.location.origin, // params.path,
-      omx: true,
+      flask: true,
     }
     fileSystems.unshift(fsconfig)
   }
