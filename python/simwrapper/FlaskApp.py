@@ -18,12 +18,14 @@ from flask_restful import Resource, Api, reqparse
 from functools import wraps
 import openmatrix as omx
 import yaml
-
 from waitress import serve
 
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('simwrapper')
+
+import mimetypes
+mimetypes.add_type('application/wasm', '.wasm')
 
 # STORAGE LOCATIONS -------------------------------------------------
 # Default is to just share the content of the starting folder.
@@ -177,7 +179,7 @@ def serve_static_files(path):
     if path.startswith('omx/'): return "Not Found", 404
 
     # List of file extensions that should be served as static files
-    static_extensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.gz', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.yaml', '.zip']
+    static_extensions = ['.js', '.css', '.csv', '.dbf', '.png', '.jpg', '.jpeg', '.gif', '.gz', '.svg', '.ico', '.wasm', '.woff', '.woff2', '.ttf', '.eot', '.yaml', '.zip']
 
     # Check if the requested file has a static file extension
     if any(path.endswith(ext) for ext in static_extensions):

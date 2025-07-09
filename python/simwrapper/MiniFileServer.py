@@ -22,7 +22,7 @@ except ImportError:
 current_dir = os.getcwd()
 package_dir = os.path.dirname(__file__)
 
-pattern = re.compile('.png|.jpg|.jpeg|.js|.css|.ico|.gif|.svg|.woff|.ttf|.woff2|.eot', re.IGNORECASE)
+pattern = re.compile('.csv|.png|.gz|.jpg|.jpeg|.js|.css|.ico|.gif|.svg|.ttf|.wasm|.woff|.woff2|.eot', re.IGNORECASE)
 
 SPA_MODE = False
 
@@ -129,7 +129,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         # the browser MUST ping us to see if there is a new copy of every
         # file, but if it has the latest file then it can use a cached version
         # instead of transferring it again.
-        # Former settings no caching EVER: "no-cache, max-age=0, must-revalidate, no-store"
+        # no caching EVER: "no-cache, max-age=0, must-revalidate, no-store"
 
     def do_OPTIONS(self):
         self.send_response(200)
