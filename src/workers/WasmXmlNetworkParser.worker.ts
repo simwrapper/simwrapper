@@ -44,9 +44,13 @@ const Task = {
 
     // First we find nodes
     let searchElement = '<node '
+    let closeTag = '</node>'
+    let endOfSection = '</nodes>'
+
     let closeNode = ''
 
     let allNodes = [] as any[]
+    let allLinks = [] as any[]
 
     // Use a writablestream, which the docs say creates backpressure automatically:
     // https://developer.mozilla.org/en-US/docs/Web/API/WritableStream
@@ -54,16 +58,20 @@ const Task = {
       {
         write(entireChunk: Uint8Array) {
           return new Promise(async (resolve, reject) => {
-            console.log('CHINK!')
+            // console.log('CHINK!')
             if (parent._isCancelled) reject()
             _numChunks++
 
             let text = _leftovers + _decoder.decode(entireChunk)
 
-            if (!closeNode) closeNode = text.indexOf('</node>') > -1 ? '</node>' : '/>'
+            if (!closeNode) closeNode = text.indexOf(closeTag) > -1 ? closeTag : '/>'
 
-            const endOfNodes = text.indexOf('</nodes>')
-            if (endOfNodes > -1) text = text.slice(0, endOfNodes)
+            const endOfNodes = text.indexOf(endOfSection)
+            let linkText = ''
+            if (endOfNodes > -1) {
+              linkText = text.slice(endOfNodes)
+              text = text.slice(0, endOfNodes)
+            }
 
             const startNode = text.indexOf(searchElement)
             if (startNode == -1) reject('no nodes found')
@@ -73,11 +81,21 @@ const Task = {
             _leftovers = text.slice(lastNode + closeNode.length)
 
             const json = (await parseXML(xmlBody, {
-              alwaysArray: ['node', 'link'],
+              alwaysArray: ['node', 'link', 'attribute'],
             })) as any
 
             console.log(json)
-            allNodes.push(...json.node)
+            if (json.node) allNodes.push(...json.node)
+            if (json.link) allLinks.push(...json.link)
+
+            // flip to link mode if we got the </nodes> tag
+            if (endOfNodes > -1) {
+              searchElement = '<link '
+              closeTag = '</link>'
+              endOfSection = '</links>'
+              closeNode = ''
+              _leftovers += linkText
+            }
             resolve()
           })
         },
@@ -112,6 +130,7 @@ const Task = {
     console.log('Total data:', data)
 
     console.log(allNodes)
+    console.log(allLinks)
     // console.log('FINAL: Posting', offset)
     return {}
   },
