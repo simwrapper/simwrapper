@@ -706,11 +706,13 @@ export default class DashboardDataManager {
       // WASM -----------
       const wasmWorker = new WasmXmlNetworkParser() as any
       const task = Comlink.wrap(wasmWorker) as unknown as any
-      const n = await task.parseXML({ path, fsConfig: this.fileApi })
-      console.log({ n })
+      const network = await task.parseXML({ path, fsConfig: this.fileApi })
 
+      resolve(network)
+      return
+
+      console.log(711, network)
       // Build bare network with no attributes, just like other networks
-      const network = n.links
       const numLinks = network.id.length
 
       const crs = network.crs || 'EPSG:25833' || 'EPSG:4326'

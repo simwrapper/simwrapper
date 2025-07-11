@@ -4,6 +4,7 @@ import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 import { parseXML } from '@/js/util'
+import Coords from '@/js/Coords'
 
 // import init, { XmlNetworkParser } from 'xml-network-parser'
 
@@ -52,6 +53,168 @@ const Task = {
     let allNodes = [] as any[]
     let allLinks = [] as any[]
 
+    let promises = [] as any[]
+
+    const buildNodeLookups = (results: any[]) => {
+      let nodeIdOffset: { [id: string]: number } = {}
+      let offset = 0
+
+      const outStuff = [] as any[]
+
+      // build nodes first ===========================================
+
+      for (const chunk of results) {
+        const nodes = chunk.node as { $id: string; $x: string; $y: string }[]
+        if (!nodes) continue
+        let numNodes = nodes.length
+        const nodeIds = []
+        const nodeCoords = new Float32Array(numNodes * 2).fill(NaN)
+
+        let xy = [0, 0]
+
+        for (let n = 0; n < numNodes; n++) {
+          nodeIdOffset[nodes[n].$id] = offset + n * 2
+          xy[0] = parseFloat(nodes[n].$x)
+          xy[1] = parseFloat(nodes[n].$y)
+          xy = Coords.toLngLat('EPSG:25832', xy)
+          nodeCoords[n * 2] = xy[0]
+          nodeCoords[n * 2 + 1] = xy[1]
+          nodeIds.push(nodes[n].$id)
+        }
+        // for next chunk
+        outStuff.push({ nodeCoords, nodeIds, nodeIdOffset })
+        offset += 2 * numNodes
+      }
+
+      // stitch all node arrays together ================================
+      const numNodes = offset / 2
+      const znodeCoords = new Float32Array(numNodes * 2)
+      let nOffset = 0
+      for (const stuff of outStuff) {
+        znodeCoords.set(stuff.nodeCoords, nOffset)
+        nOffset += stuff.nodeCoords.length
+      }
+
+      // build links next ===========================================
+      const cleanLinks = [] as any[]
+      let countLinks = 0
+
+      for (const chunk of results) {
+        const links = chunk.link as { $id: string; $from: string; $to: string }[]
+        if (!links) continue
+        let numLinks = links.length
+
+        const props = {
+          capacity: new Float32Array(numLinks),
+          freespeed: new Float32Array(numLinks),
+          length: new Float32Array(numLinks),
+          oneway: new Float32Array(numLinks),
+          permlanes: new Float32Array(numLinks),
+          linkIds: [],
+        } as any
+
+        let defaultProps = Object.keys(props)
+          .filter(p => p !== 'linkIds')
+          .map(p => [p, `$${p}`]) as []
+
+        props.source = new Float32Array(2 * numLinks)
+        props.dest = new Float32Array(2 * numLinks)
+
+        links.forEach((link, i) => {
+          // standard matsim parameters: id,cap,length, etc
+          props.linkIds.push(link.$id)
+          for (const prop of defaultProps) {
+            props[prop[0]][i] = link[prop[1]]
+          }
+
+          // look up source/dest coordinates for each link
+          let nodeFrom = nodeIdOffset[link.$from]
+          let nodeTo = nodeIdOffset[link.$to]
+          props.source[i * 2] = znodeCoords[nodeFrom]
+          props.source[i * 2 + 1] = znodeCoords[nodeFrom + 1]
+          props.dest[i * 2] = znodeCoords[nodeTo]
+          props.dest[i * 2 + 1] = znodeCoords[nodeTo + 1]
+        })
+        countLinks += numLinks
+        cleanLinks.push(props)
+      }
+
+      // stitch all link arrays together ================================
+      const network = { crs: 'EPSG:4326' } as any
+      let LOffset = 0
+      for (const col of Object.keys(cleanLinks[0])) {
+        if (col == 'source' || col == 'dest') {
+          network[col] = new Float32Array(countLinks * 2)
+          LOffset = 0
+          for (const chunk of cleanLinks) {
+            network[col].set(chunk[col], LOffset)
+            LOffset += chunk[col].length
+          }
+        } else if (ArrayBuffer.isView(cleanLinks[0][col])) {
+          network[col] = new Float32Array(countLinks)
+          LOffset = 0
+          for (const chunk of cleanLinks) {
+            network[col].set(chunk[col], LOffset)
+            LOffset += chunk[col].length
+          }
+        } else {
+          network[col] = []
+          for (const chunk of cleanLinks) {
+            network[col].push(...chunk[col])
+          }
+        }
+      }
+      network.id = network.linkIds
+      return network
+    }
+
+    const processLinkData = () => {
+      // Build bare network with no attributes, just like other networks
+
+      const numLinks = network.linkId.length
+
+      const crs = network.crs || 'EPSG:4326'
+      const needsProjection = crs !== 'EPSG:4326' && crs !== 'WGS84'
+
+      const source: Float32Array = new Float32Array(2 * numLinks)
+      const dest: Float32Array = new Float32Array(2 * numLinks)
+      const linkIds: any = []
+
+      let coordFrom = [0, 0]
+      let coordTo = [0, 0]
+
+      for (let i = 0; i < numLinks; i++) {
+        const linkID = network.linkId[i]
+        const fromOffset = 2 * network.from[i]
+        const toOffset = 2 * network.to[i]
+
+        coordFrom[0] = network.nodeCoordinates[fromOffset]
+        coordFrom[1] = network.nodeCoordinates[1 + fromOffset]
+        coordTo[0] = network.nodeCoordinates[toOffset]
+        coordTo[1] = network.nodeCoordinates[1 + toOffset]
+
+        if (needsProjection) {
+          coordFrom = Coords.toLngLat(crs, coordFrom)
+          coordTo = Coords.toLngLat(crs, coordTo)
+        }
+
+        source[2 * i + 0] = coordFrom[0]
+        source[2 * i + 1] = coordFrom[1]
+        dest[2 * i + 0] = coordTo[0]
+        dest[2 * i + 1] = coordTo[1]
+
+        linkIds[i] = linkID
+      }
+
+      const links = { source, dest, linkIds, projection: 'EPSG:4326' } as any
+
+      // add network attributes back in
+      for (const col of network.linkAttributes) {
+        if (col !== 'linkId') links[col] = network[col]
+      }
+      return links
+    }
+
     // Use a writablestream, which the docs say creates backpressure automatically:
     // https://developer.mozilla.org/en-US/docs/Web/API/WritableStream
     const streamProcessorWithBackPressure = new WritableStream(
@@ -80,13 +243,15 @@ const Task = {
             const xmlBody = text.slice(startNode, lastNode + closeNode.length)
             _leftovers = text.slice(lastNode + closeNode.length)
 
-            const json = (await parseXML(xmlBody, {
-              alwaysArray: ['node', 'link', 'attribute'],
-            })) as any
-
-            console.log(json)
-            if (json.node) allNodes.push(...json.node)
-            if (json.link) allLinks.push(...json.link)
+            promises.push(
+              new Promise<any>(async resolve => {
+                const json = (await parseXML(xmlBody, {
+                  alwaysArray: ['node', 'link', 'attribute'],
+                })) as any
+                console.log(json)
+                resolve(json)
+              })
+            )
 
             // flip to link mode if we got the </nodes> tag
             if (endOfNodes > -1) {
@@ -127,12 +292,16 @@ const Task = {
     }
 
     console.log('Total chunks:', _numChunks)
-    console.log('Total data:', data)
+    const results = await Promise.all(promises)
+    console.log('All promises done')
 
-    console.log(allNodes)
-    console.log(allLinks)
+    const network = buildNodeLookups(results)
+
+    console.log({ network })
+    // console.log(allNodes)
+    // console.log(allLinks)
     // console.log('FINAL: Posting', offset)
-    return {}
+    return network
   },
 }
 
