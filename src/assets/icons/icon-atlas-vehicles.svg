@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.3 (0e150ed, 2023-07-21)"
+   sodipodi:docname="icon-atlas-vehicles.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="2.3786088"
+     inkscape:cx="431.55478"
+     inkscape:cy="560.62182"
+     inkscape:window-width="2528"
+     inkscape:window-height="1387"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:#e3dfdf;stroke-width:3;stroke-linecap:round;fill-opacity:0.67134267"
+       id="rect1"
+       width="84.315742"
+       height="84.315742"
+       x="33.704048"
+       y="99.332397" />
+    <rect
+       style="fill:#e3dfdf;fill-opacity:0.67134267;stroke-width:3;stroke-linecap:round"
+       id="rect1-2"
+       width="84.315742"
+       height="84.315742"
+       x="118.04402"
+       y="99.365311" />
+    <circle
+       style="fill:#0ea445;fill-opacity:1;stroke-width:3.75904;stroke-linecap:round"
+       id="path2"
+       cx="76.029076"
+       cy="156.58479"
+       r="11.568387" />
+    <path
+       sodipodi:type="star"
+       style="fill:#0ea445;fill-opacity:1;stroke-width:3;stroke-linecap:round"
+       id="path3"
+       inkscape:flatsided="true"
+       sodipodi:sides="3"
+       sodipodi:cx="144.1599"
+       sodipodi:cy="145.04977"
+       sodipodi:r1="25.918211"
+       sodipodi:r2="9.1770134"
+       sodipodi:arg1="0.0042917635"
+       sodipodi:arg2="1.0514894"
+       inkscape:rounded="0"
+       inkscape:randomized="0"
+       d="m 170.07787,145.16101 -38.97329,22.27877 0.19266,-44.89125 z"
+       inkscape:transform-center-x="-7.273195"
+       inkscape:transform-center-y="-6.38961e-06"
+       transform="matrix(1.5850947,0,0,1.0440814,-68.818691,6.0957579)"
+       inkscape:export-filename="../../../public/images/icon-atlas-vehicles.png"
+       inkscape:export-xdpi="77.110001"
+       inkscape:export-ydpi="77.110001" />
+  </g>
+</svg>

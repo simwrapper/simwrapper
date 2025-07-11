@@ -5,10 +5,12 @@ export default class EventsHandler {
   private network = {} as any
   private linkIdLookup = {} as any
   private tracker = {} as { [vehId: string]: any }
+  private follow = ''
 
   constructor(props: any) {
+    this.follow = props.follow || ''
     this.network = props.network
-    // network offset
+    // network i-offset
     this.network.linkIds.forEach((link: string, i: number) => {
       this.linkIdLookup[link] = i
     })
@@ -24,9 +26,18 @@ export default class EventsHandler {
       colors: [],
     } as any
 
+    // // chase one vehicle
+    const verfolgen = {
+      t0: [],
+      t1: [],
+      p0: [],
+      p1: [],
+      colors: [],
+    } as any
+
     // go through each set that we received
     for (const eachSet of events) {
-      this.processOneSetOfEvents(eachSet, trips)
+      this.processOneSetOfEvents(eachSet, trips, verfolgen)
     }
 
     // and convert to floatarrays!
@@ -34,6 +45,11 @@ export default class EventsHandler {
     Object.keys(trips).forEach(key => {
       dataArray[key] = new Float32Array(trips[key].flat())
     })
+    if (this.follow) {
+      Object.keys(verfolgen).forEach(key => {
+        dataArray[`vv${key}`] = new Float32Array(verfolgen[key].flat())
+      })
+    }
 
     const timeLastArrival = dataArray.t1.reduce((a: number, b: number) => Math.max(a, b), 0)
 
@@ -49,7 +65,7 @@ export default class EventsHandler {
     return { data: dataArray, timeRange: [dataArray.t0[0], timeLastArrival] }
   }
 
-  processOneSetOfEvents(events: any[], trips: any) {
+  processOneSetOfEvents(events: any[], trips: any, verfolgen: any) {
     // todo: need enters/exits traffic events too
     const linkEvents = events.filter(
       event =>
@@ -75,34 +91,37 @@ export default class EventsHandler {
             if (event.time == prevEvent.time) break
 
             const offset = 2 * this.linkIdLookup[prevEvent.link]
-            // const endOffset = 2 * this.linkIdLookup[event.link]
-
             // couldn't get coord? skip
             if (Number.isNaN(offset)) break
 
-            //speed colors
-            let colorCode = 0
+            //speed-based colors
+            let colorCode = 0.6
             if (this.network.freespeed) {
-              colorCode = 1
               const linkNum = offset / 2
               const relSpeed =
                 this.network.length[linkNum] /
                 (event.time - prevEvent.time) /
                 this.network.freespeed[linkNum]
-
-              if (relSpeed < 0.4) colorCode = 2
-              if (relSpeed < 0.2) colorCode = 3
+              colorCode = relSpeed
+              // if (relSpeed < 0.4) colorCode = 2
+              // if (relSpeed < 0.2) colorCode = 3
             }
 
             // times
             trips.t0.push(prevEvent.time)
             trips.t1.push(event.time)
-            // origLoc
             trips.p0.push([this.network.source[offset], this.network.source[offset + 1]])
-            // destLoc
             trips.p1.push([this.network.dest[offset], this.network.dest[offset + 1]])
-            // color code
+            // color code -- now 0.0-1.0 based on freespeed
             trips.colors.push(colorCode)
+
+            // Are we chasing this vehicle? Save it
+            if (this.follow === event.vehicle) {
+              verfolgen.t0.push(prevEvent.time)
+              verfolgen.t1.push(event.time)
+              verfolgen.p0.push([this.network.source[offset], this.network.source[offset + 1]])
+              verfolgen.p1.push([this.network.dest[offset], this.network.dest[offset + 1]])
+            }
           } catch (e) {
             console.log('' + e)
           }

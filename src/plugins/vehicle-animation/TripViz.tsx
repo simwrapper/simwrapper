@@ -13,10 +13,8 @@ import globalStore from '@/store'
 const BASE_URL = import.meta.env.BASE_URL
 
 const ICON_MAPPING = {
-  marker: { x: 0, y: 0, width: 128, height: 128, mask: true },
-  info: { x: 128, y: 0, width: 128, height: 128, mask: true },
-  vehicle: { x: 128, y: 128, width: 128, height: 128, mask: true },
-  diamond: { x: 0, y: 128, width: 128, height: 128, mask: false },
+  circle: { x: 0, y: 0, width: 256, height: 256, mask: false },
+  vehicle: { x: 256, y: 0, width: 256, height: 256, mask: true },
 }
 
 const ambientLight = new AmbientLight({
@@ -32,11 +30,19 @@ const pointLight = new PointLight({
 
 const lightingEffect = new LightingEffect({ ambientLight, pointLight })
 
-const DEFAULT_THEME = {
-  vehicleColor: [200, 130, 250],
-  trailColor0: [235, 235, 25],
-  trailColor1: [23, 184, 190],
-  effects: [lightingEffect],
+const THEMES = {
+  dark: {
+    vehicleColor: [200, 130, 250],
+    trailColor0: [235, 235, 25],
+    trailColor1: [23, 184, 190],
+    effects: [lightingEffect],
+  },
+  light: {
+    vehicleColor: [200, 130, 250],
+    trailColor0: [235, 235, 25],
+    trailColor1: [23, 184, 190],
+    effects: [lightingEffect],
+  },
 }
 
 const DRT_REQUEST = {
@@ -49,62 +55,51 @@ const DRT_REQUEST = {
   arrival: 6,
 }
 
-export default function Component(props: {
-  viewId: number
-  dark: boolean
-  simulationTime: number
-  paths: any[]
-  drtRequests: any[]
-  traces: any[]
-  colors: any
-  center: [number, number]
-  settingsShowLayers: { [label: string]: boolean }
-  vehicleLookup: string[]
-  searchEnabled: boolean
-  onClick: any
+export default function Component({
+  viewId = 0,
+  mapIsIndependent = false,
+  leftside = false,
+  simulationTime = 0,
+  paths = [] as any[],
+  drtRequests = [] as any[],
+  traces = [] as any[],
+  colors = [] as any[],
+  settingsShowLayers = {} as { [label: string]: boolean },
+  vehicleLookup = [] as string[],
+  searchEnabled = false,
+  onClick = null as any,
 }) {
-  const {
-    simulationTime,
-    paths,
-    traces,
-    drtRequests,
-    settingsShowLayers,
-    center,
-    dark,
-    vehicleLookup,
-    searchEnabled,
-    onClick,
-    viewId,
-  } = props
+  const locale = globalStore.state.locale
+  const theme = THEMES[globalStore.state.isDarkMode ? 'dark' : 'light']
 
-  const theme = DEFAULT_THEME
-
-  // set initial view
-  const [viewState, setViewState] = useState(
-    center
-      ? ({
-          center: [16, 42],
-          longitude: center[0],
-          latitude: center[1],
-          pitch: 0,
-          bearing: 0,
-          zoom: 10,
-        } as any)
-      : Object.assign({}, globalStore.state.viewState)
-  )
-
+  const [viewState, setViewState] = useState(globalStore.state.viewState)
   // register setViewState in global view updater so we can respond to external map motion
   REACT_VIEW_HANDLES[viewId] = () => {
     setViewState(globalStore.state.viewState)
   }
+
+  // left-side driving icons are just vertically flipped
+  const iconAtlas = leftside
+    ? `${BASE_URL}images/icon-atlas-vehicles-leftside.png`
+    : `${BASE_URL}images/icon-atlas-vehicles.png`
+
+  // rotation factors are warped at high latitudes. Thanks, mercator
+  const latitude = viewState.latitude || (viewState.center && viewState.center[1]) || 35.0
+  const latitudeCorrectionFactor = Math.cos((latitude * Math.PI) / 180.0)
 
   const arcWidth = 1
   const [hoverInfo, setHoverInfo] = useState({} as any)
 
   const layers: any = []
 
+  function handleViewState(view: any) {
+    setViewState(view)
+    view.center = [view.longitude, view.latitude]
+    if (!mapIsIndependent) globalStore.commit('setMapCamera', view)
+  }
+
   function handleClick() {
-    console.log(hoverInfo)
+    // console.log(hoverInfo)
     // send null as message that blank area was clicked
     if (!hoverInfo.object) {
       onClick(null)
@@ -140,7 +135,9 @@ export default function Component(props: {
         <big>
           <b>{vehicleId}</b>
         </big>
-        <div>Passagiere: {object.occ} </div>
+        <div>
+          {locale !== 'en' ? 'Passagiere' : 'Passengers'}: {object.occ}
+        </div>
       </div>
     )
   }
@@ -156,10 +153,10 @@ export default function Component(props: {
         getTargetPosition: (d: any) => d.p1,
         getTimeStart: (d: any) => d.t0,
         getTimeEnd: (d: any) => d.t1,
-        getColor: (d: any) => props.colors[d.occ],
+        getColor: (d: any) => colors[d.occ],
         getWidth: 1, // (d: any) => 3.0 * (d.occ + 1) - 1,
         opacity: 0.7,
-        widthMinPixels: 2,
+        widthMinPixels: 1,
         rounded: false,
         shadowEnabled: false,
         searchFlag: searchEnabled ? 1.0 : 0.0,
@@ -180,27 +177,25 @@ export default function Component(props: {
         getPathEnd: (d: any) => d.p1,
         getTimeStart: (d: any) => d.t0,
         getTimeEnd: (d: any) => d.t1,
+        getColor: (d: any) => colors[d.occ],
         getIcon: (d: any) => 'vehicle',
-        getColor: (d: any) => props.colors[d.occ],
+        latitudeCorrectionFactor,
         iconMoving: 'vehicle',
-        iconStill: 'diamond',
-        getSize: searchEnabled ? 72 : 54,
+        iconStill: 'circle',
+        getSize: searchEnabled ? 72 : 48,
         opacity: 1.0,
         currentTime: simulationTime,
         shadowEnabled: false,
         noAlloc: true,
-        iconAtlas: `${BASE_URL}icon-atlas.png`,
+        iconAtlas: iconAtlas,
         iconMapping: ICON_MAPPING,
         sizeScale: 0.5,
         billboard: false,
         pickable: true,
-        depthTest: true,
         autoHighlight: false,
         highlightColor: [255, 0, 255],
         onHover: setHoverInfo,
-        parameters: {
-          depthTest: false,
-        },
+        parameters: { depthTest: false },
       })
     )
 
@@ -227,14 +222,12 @@ export default function Component(props: {
     <DeckGL
       layers={layers}
       effects={theme.effects}
-      pickingRadius={5}
+      pickingRadius={4}
       viewState={viewState}
       controller={true}
       getCursor={() => 'pointer'}
       onClick={handleClick}
-      onViewStateChange={(e: any) => {
-        globalStore.commit('setMapCamera', e.viewState)
-      }}
+      onViewStateChange={(e: any) => handleViewState(e.viewState)}
     >
       {
         /*

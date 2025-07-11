@@ -106,8 +106,8 @@ export default defineComponent({
       if (this.location == Corner.TOPLEFT) {
         style = Object.assign(style, {
           flexDirection: 'row-reverse',
-          top: '5px',
-          left: '2px',
+          top: '8px',
+          left: '0px',
           paddingLeft: 0,
           right: 'unset',
         })

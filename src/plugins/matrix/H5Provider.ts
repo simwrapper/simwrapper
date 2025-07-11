@@ -50,8 +50,8 @@ class H5Provider {
   public async init() {
     if (this.file) {
       await this._initLocalFile()
-    } else if (this.fileSystem.omx) {
-      await this._initOmxAPI()
+    } else if (this.fileSystem.flask) {
+      await this._initFlaskAPI()
     } else {
       await this._initFileAPI()
     }
@@ -59,7 +59,7 @@ class H5Provider {
   }
 
   public async getDataArray(tableName: string) {
-    if (this.fileSystem.omx) {
+    if (this.fileSystem.flask) {
       return this._getMatrixFromOMXApi(tableName)
     } else {
       return this._getMatrixFromH5File(tableName)
@@ -85,7 +85,7 @@ class H5Provider {
     await this._setFileProps()
   }
 
-  private async _initOmxAPI() {
+  private async _initFlaskAPI() {
     const props = await this._getOmxPropsFromOmxAPI()
     if (props) {
       this.catalog = props.catalog

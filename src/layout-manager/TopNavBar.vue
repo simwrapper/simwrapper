@@ -1,11 +1,12 @@
 <template lang="pug">
-.my-navbar.flex-row(@mouseleave="showSidebarMenu=false")
+.my-navbar.flex-row(@mouseleave="dbCloseQuickMenu")
 
-  .brand.flex-row(@mouseover="showSidebarMenu=true"
+  .brand.flex-row(@click="showSidebarMenu=!showSidebarMenu"
     :class="{'is-highlighted': showSidebarMenu}"
   )
     .sidebar-button
-      img(:src="imgSidebar")
+      i.fa.fa-bars
+      //- img(:src="imgSidebar")
     .simwrapper-logo
       img(:src="imgLogo")
 
@@ -19,10 +20,8 @@
     @close="toggleSettings()"
   )
 
-
   .dropdown-holder.flex-col(v-if="showSidebarMenu"
     @mouseover="showSidebarMenu=true"
-    @mouseleave="showSidebarMenu=false"
   )
     .x-item(@click="go('/')" style="margin-left: 3px")
       p: i.x-menu-icon.fas.fa-home
@@ -74,6 +73,7 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import isDarkColor from 'is-dark-color'
+import { debounce } from 'debounce'
 
 import globalStore from '@/store'
 import type { NavigationItem } from '@/Globals'
@@ -98,6 +98,7 @@ export default defineComponent({
       showSidebarMenu: false,
       showSettings: false,
       selectedGroup: -1,
+      dbCloseQuickMenu: {} as any,
       isDark: false,
       imgLogo,
       imgSidebar,
@@ -117,7 +118,15 @@ export default defineComponent({
     },
   },
 
+  mounted() {
+    this.dbCloseQuickMenu = debounce(this.closeQuickMenu, 500)
+  },
+
   methods: {
+    closeQuickMenu() {
+      this.showSidebarMenu = false
+    },
+
     go(path: string) {
       this.showSidebarMenu = false
       const fullPath = `${BASE_URL}${path}`.replaceAll('//', '/')
@@ -211,7 +220,7 @@ $appTag: #32926f;
 .my-navbar {
   user-select: none;
   gap: 1rem;
-  background: linear-gradient(90deg, #425bda, #246a4f); // #801bec
+  background-image: linear-gradient(30deg, #425bda, #246a4f); // #801bec
   color: white;
   position: relative;
 }
@@ -222,14 +231,16 @@ $appTag: #32926f;
 }
 
 .sidebar-button {
-  margin-top: 5px;
-  width: 20px;
+  margin: auto 0 auto 4px;
+  width: 16px;
   filter: brightness(0) invert(1);
+  font-size: 16px;
 }
 
 .brand {
   gap: 1rem;
   padding: 4px 0.75rem 3px 0.75rem;
+  z-index: 10000;
 }
 
 .brand:hover {
@@ -250,7 +261,8 @@ $appTag: #32926f;
 }
 
 .right-section {
-  margin: auto 0.75rem auto 0;
+  font-size: 15px;
+  margin: auto 1rem auto 0;
   cursor: pointer;
 }
 
@@ -301,7 +313,7 @@ $appTag: #32926f;
     font-size: 1rem;
     font-weight: bold;
     color: $appTag;
-    padding: 0.5rem 10px 5px 2.71rem;
+    padding: 0.5rem 10px 5px 8px;
   }
 
   .x-item {

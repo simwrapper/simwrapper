@@ -56,7 +56,6 @@ let _vehiclesOnLinks = {} as any
 
 // Pako library has gunzip chunking mode!
 let _isGzipped = false
-let _cbUnzipChunkComplete: any
 
 const _gunzipper = new pako.Inflate({ to: 'string', chunkSize: 524288 })
 const _queue = [] as any[]
@@ -238,20 +237,4 @@ async function convertXMLtoEventArray(lines: string[]) {
     }
   }
   return events
-}
-
-/*
- *
- * This recursive function gunzips the buffer. It is recursive because
- * some combinations of subversion, nginx, and various user browsers
- * can single- or double-gzip .gz files on the wire. It's insane but true.
- */
-function gUnzip(buffer: any): any {
-  // GZIP always starts with a magic number, hex 1f8b
-  const header = new Uint8Array(buffer.slice(0, 2))
-  if (header[0] === 0x1f && header[1] === 0x8b) {
-    return gUnzip(pako.inflate(buffer))
-  }
-
-  return buffer
 }

@@ -6,7 +6,8 @@
     size="is-large"
     @dragging="dragging"
     @dragstart="dragStart"
-    @dragend="dragEnd")
+    @dragend="dragEnd"
+  )
 
   .buttons
     .playpause(@click='toggleSimulation')
@@ -27,7 +28,7 @@ export default defineComponent({
     timeEnd: { type: Number, required: true },
     currentTime: { type: Number, required: true },
   },
-  data: () => {
+  data: (self: any) => {
     return {
       pauseWhileDragging: false,
       sliderValue: 0,
@@ -37,15 +38,18 @@ export default defineComponent({
         clickable: false,
         duration: 0,
         lazy: true,
-        tooltip: true,
-        'tooltip-placement': 'top',
+        tooltip: false,
+        // 'tooltip-placement': 'bottom',
+        // 'custom-formatter': (v: number) => {
+        //   return `${v}`
+        // },
       } as any,
     }
   },
   mounted() {
-    this.sliderOptions['custom-formatter'] = (v: number) => {
-      return this.convertSecondsToClockTimeMinutes(v)
-    }
+    // this.sliderOptions['custom-formatter'] = (v: number) => {
+    //   return this.convertSecondsToClockTimeMinutes(this.currentTime)
+    // }
     window.addEventListener('keyup', this.onKeyPressed)
   },
 

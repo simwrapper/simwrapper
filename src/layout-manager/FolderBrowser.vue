@@ -13,20 +13,21 @@
     //- these are sections defined by viz-summary.yml etc
     .curated-sections(:id="idFolderTable")
 
-      //- FOLDERS: file system folders
-      h3.curate-heading(v-if="myState.folders.length")  {{ $t('Folders') }}
+      h2 {{ xsubfolder || cwd || root }}
 
-      .curate-content(v-if="myState.folders.length")
-        .folder-table
-          .folder(v-for="folder,i in myState.folders"
-                  :key="folder"
-                  :class="{fade: myState.isLoading, 'up-folder': i == 0}"
-                  @click="openOutputFolder(folder)"
-          )
-            .is-favorite(v-if="isFavorite(folder)")
-            p
-              i.fa(:class="i == 0 ? 'fa-arrow-up' : 'fa-folder-open'")
-              | &nbsp;&nbsp;{{ cleanName(folder) }}
+      //- FOLDERS: file system folders
+      .folder-area(v-if="myState.folders.length")
+        h4.az-title  {{ $t('Folders') }}
+        .az-grid.folder-table
+          //- .az-cell.heading folder
+          //- .az-cell.heading Description
+          .az-cell.folder(v-for="folder,i in myState.folders" :key="folder"
+                    :class="{fade: myState.isLoading, 'up-folder': i == 0}"
+                    @click="openOutputFolder(folder)")
+              .is-favorite(v-if="isFavorite(folder)")
+              p
+                i.fa(:class="i == 0 ? 'fa-arrow-up' : 'fa-folder'" :style="i == 0 ? 'color: green' : 'color: #ea0'")
+                span(:style="isFavorite(folder) && 'font-weight: bold'") &nbsp;&nbsp;{{ cleanName(folder) }}
 
       //- README: content of readme.md, if it exists
       .readme-header.markdown(v-if="myState.readme")
@@ -34,33 +35,31 @@
 
       //- MAPS: thumbnails of each viz map here
       .section-maps(v-if="Object.keys(vizMaps).length")
-        h3.curate-heading {{ $t('Maps')}}
-        .curate-content
-          .viz-table
-            .viz-grid-item(v-for="[index, viz] of Object.entries(vizMaps)" :key="index"
-                      @click="clickedVisualization(index)")
-
-              .viz-element
-                .viz-color-bar(:style="`border-top: 1px solid ${getTabColor(viz.component)}`")
-                    .v-plugin(:style="`background-color: ${getTabColor(viz.component)}`") {{ viz.component || 'dashboard' }}
-                .viz-frame
-                  p.v-title: b {{ viz.title }}
-                  p.v-filename {{ viz.config }}
-                  //- this "fake" hidden component is here so the plugin can send us its title
-                  component.viz-frame-component(
-                      v-show="false"
-                      :is="viz.component"
-                      :root="myState.svnProject.slug"
-                      :subfolder="myState.subfolder"
-                      :yamlConfig="viz.config"
-                      :thumbnail="true"
-                      :fileApi="myState.svnRoot"
-                      :style="{'pointer-events': 'none'}"
-                      @title="updateTitle(index, $event)")
+        h4.az-title {{ $t('Maps')}}
+        .az-grid(style="grid-template-columns: 1fr 1fr auto")
+          .az-cell.heading Title
+          .az-cell.heading Filename
+          .az-cell.heading Type
+          .az-row(v-for="[index, viz] of Object.entries(vizMaps)" :key="index" @click="clickedVisualization(index)")
+            a.az-cell: b {{ viz.title }}
+            .az-cell.pointer {{ viz.config }}
+            .az-cell
+              .v-plugin.pointer(:style="`background-color: ${getTabColor(viz.component)}`") {{ viz.component || 'dashboard' }}
+              //- this "fake" hidden component is here so the plugin can send us its title
+              component.viz-frame-component(
+                  v-show="false"
+                  :is="viz.component"
+                  :root="myState.svnProject.slug"
+                  :subfolder="myState.subfolder"
+                  :yamlConfig="viz.config"
+                  :thumbnail="true"
+                  :fileApi="myState.svnRoot"
+                  :style="{'pointer-events': 'none'}"
+                  @title="updateTitle(index, $event)")
 
       //- IMAGES here
       .section-images(v-if="Object.keys(vizImages).length")
-        h3.curate-heading {{ $t('Images')}}
+        h4.az-title {{ $t('Images')}}
         .curate-content
           .viz-image-table
             .viz-image-grid-item(v-for="[index, viz] of Object.entries(vizImages)" :key="index"
@@ -83,7 +82,7 @@
       //- can't download those files via regular URL
       //- .files-section(v-if="myState?.svnProject?.baseURL")
       .files-section
-        h3.curate-heading(v-if="myState.files.length") {{$t('Files')}}
+        h4.az-title(v-if="myState.files.length") {{$t('Files')}}
         .curate-content(v-if="myState.files.length")
           .file-table
             .file(v-for="file in myState.files" :key="file"
@@ -218,6 +217,10 @@ export default defineComponent({
     }
   },
   computed: {
+    cwd() {
+      return this.$route.query.cwd || ''
+    },
+
     favoriteLocations(): string[] {
       const faves = this.$store.state.favoriteLocations.filter((fave: FavoriteLocation) => {
         if (fave.root !== this.root) return false
@@ -602,21 +605,14 @@ export default defineComponent({
 @import '@/styles.scss';
 
 .folder-browser {
-  padding: 0 0.75rem;
+  padding: 0 0;
+  background-image: var(--bgSplashPage);
 }
 
 .vessel {
-  margin: 0 0;
-  padding: 0rem 0rem 2rem 0rem;
-  max-width: $dashboardWidth + 3;
-}
-
-.white {
-  background-color: var(--bgBold);
-}
-
-.cream {
-  background-color: var(--bgCream);
+  margin: 0 auto;
+  padding: 0rem 2rem 2rem 2rem;
+  max-width: 100rem;
 }
 
 h2 {
@@ -703,12 +699,10 @@ h4 {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  background-color: var(--bgCream5);
-  padding: 0.25rem 0.75rem;
   word-wrap: break-word;
-  border: 1px solid var(--bgDashboard);
-  border-top-right-radius: 10px;
   position: relative;
+  padding-left: 6px;
+  padding-right: 4px;
 }
 
 .folder:hover {
@@ -716,6 +710,12 @@ h4 {
   // box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08), 0 3px 10px 0 rgba(0, 0, 0, 0.08);
   transition: background-color 0.1s ease-in-out;
   color: var(--yellowHighlight);
+}
+
+.up-folder {
+  // background-color: var(--bgBold);
+  padding-left: 6px;
+  font-weight: bold;
 }
 
 .file-table {
@@ -826,8 +826,9 @@ h3.curate-heading {
   background-color: var(--bgPanel);
 }
 
-p.v-filename {
-  margin: 5px 0;
+.v-filename {
+  margin: 0 0;
+  cursor: pointer;
 }
 
 .viz-color-bar {
@@ -838,15 +839,11 @@ p.v-filename {
 .v-plugin {
   text-transform: uppercase;
   color: white;
-  padding: 2px 5px 0 5px;
-
+  padding: 2px 6px 1px 6px;
+  border-radius: 4px;
   p {
     margin-right: auto;
   }
-}
-
-.up-folder {
-  background-color: var(--bgTreeItem);
 }
 
 .is-favorite {
@@ -868,5 +865,13 @@ p.v-filename {
   right: -23px;
   font-size: 13px;
   color: white;
+}
+
+.pointer {
+  cursor: pointer;
+}
+
+.az-title {
+  margin-top: 2.5rem;
 }
 </style>

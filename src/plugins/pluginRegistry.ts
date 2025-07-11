@@ -14,6 +14,11 @@ const plugins = [
     component: defineAsyncComponent(() => import('./xy-time/XyTime.vue')),
   },
   {
+    kebabName: 'layer-map',
+    filePatterns: [],
+    component: defineAsyncComponent(() => import('./layer-map/LayerMap.vue')),
+  },
+  {
     kebabName: 'area-map',
     filePatterns: [
       '**/viz-map*.y?(a)ml',

@@ -46,6 +46,8 @@ import type { PropType } from 'vue'
 import * as shapefile from 'shapefile'
 import reproject from 'reproject'
 
+import { gUnzip } from '@/js/util'
+import GMNS from '@simwrapper/gmns'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
 import FileSelector from '@/components/viz-configurator/FileSelector.vue'
@@ -53,9 +55,6 @@ import { DataTable } from '@/Globals'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkWorker from '@/workers/RoadNetworkLoader.worker.ts?worker'
-
-import { gUnzip } from '@/js/util'
-import GMNS from '@simwrapper/gmns'
 import { loadGeoPackageFromBuffer } from '@/plugins/shape-file/ShapeFile.vue'
 
 export default defineComponent({
@@ -119,9 +118,9 @@ export default defineComponent({
       const url = await new Promise(resolve => {
         const reader = new FileReader()
         reader.readAsArrayBuffer(file)
-        reader.onload = (e: any) => {
+        reader.onload = async (e: any) => {
           const buffer = e.target.result
-          const unzipped = gUnzip(buffer)
+          const unzipped = await gUnzip(buffer)
           resolve(unzipped)
         }
       })

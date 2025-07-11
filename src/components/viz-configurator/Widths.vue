@@ -32,15 +32,16 @@ export type WidthDefinition = {
 export default defineComponent({
   name: 'WidthConfig',
   props: {
+    vizDetails: { required: false },
     vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
   },
   data: (self: any) => {
     const transforms = ['none', 'sqrt', 'pow5']
-
+    const xscaleFactor = '' + (self.vizDetails?.widthFactor || 100)
     return {
       dataColumn: '',
-      xscaleFactor: '100',
+      xscaleFactor,
       selectedTransform: transforms[0],
       datasetLabels: [] as string[],
       debounceHandleWidthChanged: debounce(self.emitWidthSpecification, 500),

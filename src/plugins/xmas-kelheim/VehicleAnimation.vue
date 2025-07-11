@@ -778,7 +778,7 @@ const MyComponent = defineComponent({
           )
           const buffer = await blob.arrayBuffer()
           // recursively gunzip until it can gunzip no more:
-          const unzipped = gUnzip(buffer)
+          const unzipped = await gUnzip(buffer)
 
           const text = new TextDecoder('utf-8').decode(unzipped)
           const json = JSON.parse(text)

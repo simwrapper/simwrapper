@@ -158,7 +158,7 @@ export interface FileSystemConfig {
   handle?: FileSystemAPIHandle
   example?: boolean
   isGithub?: boolean
-  omx?: boolean // supports OMX open matrix API - see https://github.com/simwrapper/omx-server
+  flask?: boolean // Flask filesystem supports OMX open matrix API - see https://github.com/simwrapper/omx-server
 }
 
 export interface VisualizationPlugin {

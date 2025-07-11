@@ -17,6 +17,7 @@ export default function Component({
   cbTooltip = null as any,
   clickedZone = {} as any,
   activeZoneFeature = null as any,
+  altZoneFeature = null as any,
   isLoading = false,
 }) {
   const PRECISION = 4
@@ -86,16 +87,20 @@ export default function Component({
   }
 
   // --------------------------------------------------------------------------
-  const highlight = activeZoneFeature ? [activeZoneFeature] : []
+  const highlights = []
+  if (activeZoneFeature) {
+    highlights.push(activeZoneFeature)
+    if (altZoneFeature) highlights.push(altZoneFeature)
+  }
 
   const highlightColor = [255, 0, 224]
-  // globalStore.state.isDarkMode ? [255, 255, 255] : [255, 0, 224]
+  const altColor = [255, 255, 128]
 
   const highlightLayer = new GeoJsonLayer({
     id: 'HighlightLayer',
-    data: highlight,
+    data: highlights,
     getLineWidth: 6,
-    getLineColor: highlightColor,
+    getLineColor: (_: any, o: any) => (o.index === 0 ? highlightColor : altColor),
     getFillColor: [0, 0, 0, 0], // fully transparent
     lineJointRounded: true,
     lineWidthUnits: 'pixels',

@@ -23,6 +23,7 @@
             :pieSlider="pieSlider"
             :widthSlider="widthSlider"
             :transitLines="activeTransitLines"
+            :vizDetails="vizDetails"
           )
 
           .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
@@ -30,8 +31,8 @@
               img.icon-blue-ramp(:src="icons.blueramp")
               b-slider.pie-slider(type="is-success" :tooltip="false" size="is-small"  v-model="widthSlider")
               //- pie slider
-              img.icon-pie-slider(v-if="cfDemand1" :src="icons.piechart")
-              b-slider.pie-slider(v-if="cfDemand1" type="is-success" :tooltip="false" size="is-small"  v-model="pieSlider")
+              img.icon-pie-slider(v-if="crossFilters.length" :src="icons.piechart")
+              b-slider.pie-slider(v-if="crossFilters.length" type="is-success" :tooltip="false" size="is-small"  v-model="pieSlider")
 
           zoom-buttons
 
@@ -57,7 +58,7 @@
           //- p(v-if="transitLines.length" style="margin: 0.75rem 0 0rem 0"): b LINES AND ROUTES
 
           b-input.searchbox(v-if="transitLines.length"
-            v-model="searchText" style="padding: 0rem 0.5rem 0.75rem 0" size="is-small" placeholder="Search line ID..."
+            v-model="searchText" style="padding: 0rem 0.5rem 0.75rem 0" size="is-small" placeholder="Search line ID or /regex/"
           )
 
           .transit-lines.flex-col.flex1
@@ -76,7 +77,7 @@
               .aa
                 b {{ summaryStats.departures }}
                 | &nbsp;Departures
-              .aa(v-if="cfDemand1")
+              .aa(v-if="crossFilters.length")
                 b {{ summaryStats.pax }}
                 | &nbsp;Passengers
 
@@ -141,15 +142,14 @@ const COLOR_CATEGORIES = 10
 const SHOW_STOPS_AT_ZOOM_LEVEL = 11
 
 interface PtData {
-  name: string;
-  a: number;
-  b: number;
+  name: string
+  a: number
+  b: number
 }
 
 interface StopLevelData {
-  [ptLine: string]: PtData | number;
+  [ptLine: string]: PtData | number
 }
-
 
 const DEFAULT_ROUTE_COLORS = [
   // ---------------------------------------------------
@@ -310,6 +310,7 @@ const MyComponent = defineComponent({
         transitSchedule: '',
         network: '',
         demand: '',
+        ptStop2stopFile: '',
         projection: '',
         title: '',
         description: '',
@@ -355,20 +356,25 @@ const MyComponent = defineComponent({
       _transitFetcher: {} as any,
       _transitHelper: {} as any,
 
-      pieSlider: 30,
-      widthSlider: 50,
+      pieSlider: 20,
+      widthSlider: 20,
 
       resolvers: {} as { [id: number]: any },
       resolverId: 0,
       xmlWorker: null as null | Worker,
-      cfDemand1: null as crossfilter.Crossfilter<any> | null,
-      cfDemand2: null as crossfilter.Crossfilter<any> | null,
-      cfDemandLink1: null as crossfilter.Dimension<any, any> | null,
-      cfDemandLink2: null as crossfilter.Dimension<any, any> | null,
-      cfDemandStop1: null as crossfilter.Dimension<any, any> | null,
-      cfDemandStop2: null as crossfilter.Dimension<any, any> | null,
+      crossFilters: [] as {
+        cfDemand: crossfilter.Crossfilter<any>
+        cfDemandLink: crossfilter.Dimension<any, any>
+        cfDemandStop: crossfilter.Dimension<any, any>
+      }[],
 
-      stopLevelDemand: {} as { [id: string]: { b: number, a: number, ptLines: { [ptLineId: string]: { name: string, b: number, a: number } } } },
+      stopLevelDemand: {} as {
+        [id: string]: {
+          b: number
+          a: number
+          ptLines: { [ptLineId: string]: { name: string; b: number; a: number } }
+        }
+      },
 
       routeColors: [] as { match: any; color: string; label: string; hide: boolean }[],
       usedLabels: [] as string[],
@@ -438,32 +444,24 @@ const MyComponent = defineComponent({
         lines[route.lineId].routes.push(route)
       })
 
-      if (!this.selectedLinkId) return lines
+      // if (!this.selectedLinkId) return lines
 
-      // fetch demand data for these links
+      // store demand data for these links
       const demandLookup = {} as { [routeId: string]: any[] }
 
-      this.cfDemandStop1?.filterAll()
-      this.cfDemandStop2?.filterAll()
+      // run the cross filters for each data subsection
+      this.crossFilters.forEach(cf => {
+        cf.cfDemandStop.filterAll()
+        cf.cfDemandLink.filter((id: any) => id.indexOf(this.selectedLinkId) > -1)
+        let demandData = cf.cfDemand.allFiltered()
+        if (demandData) {
+          demandData.forEach(row => {
+            if (!(row.transitRoute in demandLookup)) demandLookup[row.transitRoute] = []
+            demandLookup[row.transitRoute].push(row)
+          })
+        }
+      })
 
-      this.cfDemandLink1?.filter((id: any) => id.indexOf(this.selectedLinkId) > -1)
-      let demandData = this.cfDemand1?.allFiltered()
-      if (demandData) {
-        demandData.forEach(row => {
-          if (!(row.transitRoute in demandLookup)) demandLookup[row.transitRoute] = []
-          demandLookup[row.transitRoute].push(row)
-        })
-      }
-      this.cfDemandLink2?.filter((id: any) => id.indexOf(this.selectedLinkId) > -1)
-      demandData = this.cfDemand2?.allFiltered()
-      if (demandData) {
-        demandData.forEach(row => {
-          if (!(row.transitRoute in demandLookup)) demandLookup[row.transitRoute] = []
-          demandLookup[row.transitRoute].push(row)
-        })
-      }
-
-      // sort the routes
       Object.values(lines).forEach(line => {
         // sort by nice names
         line.routes.sort((a, b) => naturalSort(a.id, b.id))
@@ -628,19 +626,33 @@ const MyComponent = defineComponent({
         return
       }
 
-      let foundRoutes = Object.keys(this.routeData).filter(
-        routeID => routeID.toLocaleLowerCase().indexOf(searchTerm) > -1
-      )
+      let foundRoutes = [] as any[]
+      let foundLines = [] as any[]
+      let regexp
+
+      // user provided /regex/ ?
+      if (searchTerm.startsWith('/') && searchTerm.endsWith('/')) {
+        const regexTerm = this.searchText.slice(1, this.searchText.length - 1)
+        regexp = new RegExp(regexTerm, 'gu') // global, unicode
+      }
+
+      if (regexp) {
+        foundRoutes = Object.keys(this.routeData).filter(routeID => routeID.match(regexp))
+        foundLines = this.transitLines.filter(line => line.id.match(regexp)).map(line => line.id)
+      } else {
+        foundRoutes = Object.keys(this.routeData).filter(
+          routeID => routeID.toLocaleLowerCase().indexOf(searchTerm) > -1
+        )
+        foundLines = this.transitLines
+          .filter(line => line.id.toLocaleLowerCase().indexOf(searchTerm) > -1)
+          .map(line => line.id)
+      }
 
       // show selected route snakepaths
       this.routesOnLink = foundRoutes.map(id => this.routeData[id])
       this.highlightAllAttachedRoutes()
 
       // show found lines in list
-      const foundLines = this.transitLines
-        .filter(line => line.id.toLocaleLowerCase().indexOf(searchTerm) > -1)
-        .map(line => line.id)
-
       this.highlightedTransitLineIds = new Set(foundLines)
       this.selectedRouteIds = this.routesOnLink.map(route => route.id)
     },
@@ -699,6 +711,7 @@ const MyComponent = defineComponent({
         title,
         description: '',
         demand: '',
+        ptStop2stopFile: '',
         projection: '',
         colors: [],
       }
@@ -718,7 +731,7 @@ const MyComponent = defineComponent({
           .filter(f => f.toLocaleLowerCase().endsWith('.avro'))
           .filter(f => f.toLocaleLowerCase().indexOf('network') > -1)
         if (avroNetworkFiles.length) {
-          console.log("avro network found")
+          console.log('avro network found')
           network = avroNetworkFiles[0]
         }
         if (avroNetworkFiles.length > 1)
@@ -744,7 +757,7 @@ const MyComponent = defineComponent({
           const analysisPtFolder = await this.fileApi.getDirectory(
             `${this.myState.subfolder}/analysis/pt/`
           )
-          demandFiles = analysisPtFolder.files.filter(f => f.endsWith('pt_pax_volumes.csv.gz'))
+          demandFiles = analysisPtFolder.files.filter(f => f.includes('pt_pax_volumes.'))
         } catch (e) {
           // we can skip pax loads if file not found
           console.warn('error', '' + e)
@@ -906,13 +919,13 @@ const MyComponent = defineComponent({
         let width = 1
         switch (this.activeMetric) {
           case 'departures':
-            width = link.properties.departures * 0.025
+            width = link.properties.departures
             break
           case 'pax':
-            width = link.properties.pax * 0.00015
+            width = link.properties.pax
             break
           case 'loadfac':
-            width = link.properties.loadfac * 25.0
+            width = link.properties.loadfac * 10000
             break
         }
         link.properties.width = width
@@ -957,12 +970,16 @@ const MyComponent = defineComponent({
 
     async loadEverything() {
       const networks = await this.loadNetworks()
-      const projection = await this.guessProjection(networks)
-      this.vizDetails.projection = projection
-      this.projection = this.vizDetails.projection
+      if (!networks) return
 
-      if (networks) this.processInputs(networks)
-      console.log(networks)
+      const projection = await this.guessProjection(networks)
+      this.projection = projection
+
+      // comment this for now; this is what the user really asked for: NOT A GUESS.
+      // this.vizDetails.projection = projection
+
+      this.processInputs(networks)
+      // console.log(networks)
 
       // TODO remove for now until we research whether this causes a memory leak:
       // this.setupKeyListeners()
@@ -1055,14 +1072,14 @@ const MyComponent = defineComponent({
         const roads =
           filename.indexOf('.avro') > -1
             ? // AVRO networks have a separate reader:
-            this.loadAvroRoadNetwork()
+              this.loadAvroRoadNetwork()
             : // normal MATSim network
-            this.fetchXML({
-              worker: this._roadFetcher,
-              slug: this.fileSystem.slug,
-              filePath: this.myState.subfolder + '/' + this.vizDetails.network,
-              options: { attributeNamePrefix: '' },
-            })
+              this.fetchXML({
+                worker: this._roadFetcher,
+                slug: this.fileSystem.slug,
+                filePath: this.myState.subfolder + '/' + this.vizDetails.network,
+                options: { attributeNamePrefix: '' },
+              })
 
         const transit = this.fetchXML({
           worker: this._transitFetcher,
@@ -1082,7 +1099,7 @@ const MyComponent = defineComponent({
         return { roadXML: results[0], transitXML: results[1], ridership: [] }
       } catch (e) {
         console.error('TRANSIT:', e)
-        this.loadingText
+        this.loadingText = ''
         this.$emit('error', '' + e)
         return null
       }
@@ -1110,19 +1127,68 @@ const MyComponent = defineComponent({
             return
           }
 
-          const csvData = new TextDecoder('utf-8').decode(event.data)
+          // SPLIT loaded data into chunks because TextDecoder, PapaParse, and CrossFilter all bork on > 500k lines
+          // at some point, we can't do all of this in the browser....
 
-          Papa.parse(csvData, {
-            // preview: 10000,
-            header: true,
-            skipEmptyLines: true,
-            dynamicTyping: false,
-            worker: true,
-            complete: (results: any) => {
-              const result = this.processDemand(results)
-              resolve(result)
-            },
+          const chunkSize = 100000000
+          let offset = 0
+          let rawData = new Uint8Array(event.data)
+
+          // first build header
+          const decoder = new TextDecoder('utf-8')
+          const header = decoder.decode(rawData.subarray(0, 1024)).split('\n')[0]
+
+          // then chunk over raw text
+          while (offset < event.data.byteLength) {
+            let high = offset + chunkSize
+            let chunk = new Uint8Array(event.data).subarray(offset, high)
+            let currentChunkLength = chunk.length
+
+            // find last \n so we break on line ending
+            while (chunk[currentChunkLength] !== 10 && currentChunkLength > 0) {
+              currentChunkLength--
+            }
+
+            if (!currentChunkLength) break
+
+            chunk = new Uint8Array(event.data).subarray(offset, offset + currentChunkLength)
+            let csvData = decoder.decode(chunk)
+
+            if (offset > 0) csvData = header + csvData
+
+            const results = Papa.parse(csvData, {
+              // preview: 10000,
+              header: true,
+              skipEmptyLines: true,
+              dynamicTyping: false,
+              // worker: true,
+              // complete: (results: any) => {
+              //   const result = this.processDemand(results)
+              //   resolve(result)
+              // },
+            })
+            this.processDemand(results)
+            offset += currentChunkLength
+          }
+
+          this.metrics = this.metrics.concat([
+            { field: 'pax', name_en: 'Passengers', name_de: 'Passagiere' },
+            { field: 'loadfac', name_en: 'Load Factor', name_de: 'Auslastung' },
+          ])
+
+          this.loadProgress = 100
+
+          // update load factors now that we are all done
+          this.transitLinks.features.forEach((transitLink: any) => {
+            try {
+              transitLink.properties.loadfac =
+                Math.round((1000 * transitLink.properties.pax) / transitLink.properties.cap) / 1000
+            } catch {
+              transitLink.properties.loadfac = 0
+            }
           })
+
+          resolve([])
         }
 
         worker.postMessage({
@@ -1149,44 +1215,44 @@ const MyComponent = defineComponent({
         for (const key of numericCols) row[key] = parseFloat(row[key])
       })
 
-      // build TWO crossfilters so memory doesn't freak out
-      const midpoint = Math.floor(results.data.length / 2)
-      const data1 = results.data.slice(0, midpoint)
-      const data2 = results.data.slice(midpoint)
-
-      // everything is doubled because crossfilter fails above ~1million rows
-      // splitting the dataset into halves gets us to ~2million...
-      this.cfDemand1 = crossfilter(data1)
-      this.cfDemand2 = crossfilter(data2)
-      this.cfDemandLink1 = this.cfDemand1.dimension((d: any) => d.linkIdsSincePreviousStop)
-      this.cfDemandLink2 = this.cfDemand2.dimension((d: any) => d.linkIdsSincePreviousStop)
-
-      // // stop-level demand
-      // const dimStop1 = this.cfDemand1.dimension((d: any) => d.stop)
-      // const dimStop2 = this.cfDemand2.dimension((d: any) => d.stop)
-      // const stop1 = dimStop1.group()
-      // const stop2 = dimStop2.group()
+      // build the crossfilters for this data subsection
+      const cfDemand = crossfilter(results.data)
+      this.crossFilters.push({
+        cfDemand,
+        cfDemandLink: cfDemand.dimension((d: any) => d.linkIdsSincePreviousStop),
+        cfDemandStop: cfDemand.dimension((d: any) => d.stop),
+      })
 
       // make stopLevelDemand a 2-dimensional array? stop ID and then pt-line?
       for (const row of results.data) {
         const stopId = row.stop
-        if (!this.stopLevelDemand[stopId]) this.stopLevelDemand[stopId] = { b: 0, a: 0, ptLines: {} }
+        if (!this.stopLevelDemand[stopId]) {
+          this.stopLevelDemand[stopId] = { b: 0, a: 0, ptLines: {} }
+        }
         this.stopLevelDemand[stopId].b += row.passengersBoarding
         this.stopLevelDemand[stopId].a += row.passengersAlighting
         const ptLineId = row.transitLine
-        if (!this.stopLevelDemand[stopId].ptLines[ptLineId]) this.stopLevelDemand[stopId].ptLines[ptLineId] = { name: ptLineId, b: 0, a: 0 }
+        if (!this.stopLevelDemand[stopId].ptLines[ptLineId])
+          this.stopLevelDemand[stopId].ptLines[ptLineId] = { name: ptLineId, b: 0, a: 0 }
         this.stopLevelDemand[stopId].ptLines[ptLineId].a += row.passengersAlighting
         this.stopLevelDemand[stopId].ptLines[ptLineId].b += row.passengersBoarding
       }
       // build link-level passenger ridership ----------
       console.log('---Calculating link-by-link pax/cap')
+
       const linkPassengersById = {} as any
       const linkCapacity = {} as any
-      ``
+
+      // link IDs are split using what character? They changed the format again :-O
+      let splitter = ','
+      if (results.data.length)
+        splitter = results.data[0].linkIdsSincePreviousStop.indexOf(',') > -1 ? ',' : ';'
+
+      // loop through rows
       for (const row of results.data) {
         // console.log(row)
         if (row.linkIdsSincePreviousStop) {
-          const traversedLinks = row.linkIdsSincePreviousStop.split(';')
+          const traversedLinks = row.linkIdsSincePreviousStop.split(splitter)
           for (const linkId of traversedLinks) {
             // pax
             if (!linkPassengersById[linkId]) linkPassengersById[linkId] = 0
@@ -1198,25 +1264,15 @@ const MyComponent = defineComponent({
         }
       }
 
-
       // update passenger value in the transit-link geojson.
       for (const transitLink of this.transitLinks.features) {
-        if (!transitLink.properties) transitLink.properties = {}
-        transitLink.properties['pax'] = linkPassengersById[transitLink.properties.id]
-        transitLink.properties['cap'] = linkCapacity[transitLink.properties.id]
-        transitLink.properties['loadfac'] =
-          Math.round(
-            (1000 * linkPassengersById[transitLink.properties.id]) /
-            linkCapacity[transitLink.properties.id]
-          ) / 1000
+        if (!transitLink.properties) transitLink.properties = { pax: 0, cap: 0, loadfac: 0 }
+        transitLink.properties.pax =
+          (transitLink.properties.pax || 0) + (linkPassengersById[transitLink.properties.id] || 0)
+        transitLink.properties.cap =
+          (transitLink.properties.cap || 0) + (linkCapacity[transitLink.properties.id] || 0)
       }
 
-      this.metrics = this.metrics.concat([
-        { field: 'pax', name_en: 'Passengers', name_de: 'Passagiere' },
-        { field: 'loadfac', name_en: 'Load Factor', name_de: 'Auslastung' },
-      ])
-
-      this.loadProgress = 100
       return []
     },
 
@@ -1231,9 +1287,27 @@ const MyComponent = defineComponent({
         this.receivedProcessedTransit(buffer)
       }
 
+      // Transit schedule: this might have a different projection than the network,
+      // because Avro networks are always EPSG:4326 even if original network is not.
+      let transitProjection = this.vizDetails.projection
+      if (!transitProjection) {
+        // see if transit network has its own projection
+        let tCRS = networks?.transitXML?.transitSchedule?.attributes?.attribute
+        // sometimes array, sometimes element.
+        if (!tCRS.length) tCRS = [tCRS]
+        tCRS = tCRS.filter((f: any) => f.name === 'coordinateReferenceSystem')
+        if (tCRS.length) {
+          transitProjection = tCRS[0]['#text']
+        } else {
+          // otherwise use roadnetwork project
+          transitProjection = this.projection
+        }
+      }
+
+      console.log('Transit schedule using', transitProjection)
       this._transitHelper.postMessage({
         xml: networks,
-        projection: this.projection,
+        projection: transitProjection,
       })
     },
 
@@ -1279,7 +1353,12 @@ const MyComponent = defineComponent({
       await this.processDepartures()
 
       // Build the links layer and add it
-      this.transitLinks = await this.constructDepartureFrequencyGeoJson()
+      try {
+        this.transitLinks = await this.constructDepartureFrequencyGeoJson()
+      } catch (e) {
+        const msg = '' + e || 'Failed processing departure links'
+        this.$emit('error', msg)
+      }
       // don't keep the network lying around wasting memory
       this._network = { links: {}, nodes: {} }
       // build the lookup for transit links by linkId
@@ -1307,7 +1386,8 @@ const MyComponent = defineComponent({
 
       localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
 
-      if (this.vizDetails.demand) await this.loadDemandData(this.vizDetails.demand)
+      const demand = this.vizDetails.demand || this.vizDetails.ptStop2stopFile
+      if (demand) await this.loadDemandData(demand)
 
       this.loadingText = ''
     },
@@ -1403,6 +1483,9 @@ const MyComponent = defineComponent({
         }
       }
 
+      if (!geojson.length) {
+        throw Error('No links found. Does the network contain PT links?')
+      }
       return { type: 'FeatureCollection', features: geojson } as GeoJSON.FeatureCollection
     },
 
@@ -1740,16 +1823,15 @@ const MyComponent = defineComponent({
       this.transitLinks = { type: 'FeatureCollection', features: [] }
       this.transitLines = []
       this.selectedRouteIds = []
-      this.cfDemand1 = null
-      this.cfDemand2 = null
-      this.cfDemandLink1?.dispose()
-      this.cfDemandLink2?.dispose()
-      this.cfDemandStop1?.dispose()
-      this.cfDemandStop2?.dispose()
       this.resolvers = {}
       this.routesOnLink = []
       this.stopMarkers = []
       this.searchText = ''
+      this.crossFilters.forEach(cf => {
+        cf.cfDemandLink.dispose()
+        cf.cfDemandStop.dispose()
+        cf.cfDemand = null as any
+      })
     },
   },
 
@@ -1773,7 +1855,9 @@ const MyComponent = defineComponent({
 
     if (this.thumbnail) return
 
-    await this.findInputFiles()
+    // If we don't have a network file yet, try and find one
+    if (!this.vizDetails.network) await this.findInputFiles()
+
     this.loadEverything()
   },
 
@@ -1788,8 +1872,6 @@ const MyComponent = defineComponent({
     this.$store.commit('setFullScreen', false)
   },
 })
-
-const _colorScale = colormap({ colormap: 'viridis', nshades: COLOR_CATEGORIES })
 
 export default MyComponent
 </script>

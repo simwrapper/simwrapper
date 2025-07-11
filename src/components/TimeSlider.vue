@@ -2,7 +2,7 @@
 .time-slider-component(v-if="hasNonZeroTimeRange" :id="`id-${id}`")
   .label-area
     p.p1 {{ state.labels[0] }}
-    p.p2(v-show="state.labels[1] !== undefined") &nbsp;-&nbsp;{{ state.labels[1] }}
+    p.p2(v-show="!isPointInTime && state.labels[1] !== undefined") -&nbsp;{{ state.labels[1] }}
 
   .slider-area
     button.button.play-button(size="is-small" type="is-link"
@@ -35,6 +35,7 @@ export default defineComponent({
     range: Array as PropType<number[]>,
     activeTimeExtent: Array as PropType<number[]>,
     isAnimating: Boolean,
+    isPointInTime: Boolean,
   },
   data: () => {
     return {
@@ -284,16 +285,16 @@ export default defineComponent({
 
 .label-area {
   margin: 0 0;
-  font-size: 1.3rem;
+  font-size: 1.4rem;
   font-weight: bold;
+  font-family: monospace;
   display: flex;
   flex-direction: row;
   margin-right: auto;
 }
 
 .p1 {
-  padding: 0 0;
-  padding-left: 1rem;
+  padding: 0 1rem;
   background-color: var(--bgPanel);
 }
 

@@ -405,7 +405,7 @@ export default defineComponent({
 }
 
 .simwrapper-logo {
-  background-color: $panelTitle;
+  background-color: $appTag; // $panelTitle;
   padding: 7px 0px 3px 8px;
   margin-bottom: 8px;
 }

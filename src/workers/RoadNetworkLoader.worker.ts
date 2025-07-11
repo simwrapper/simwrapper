@@ -3,7 +3,6 @@
 // Pass in a filename; can be MATSim network.xml.gz or preprocessed GeoJSON
 // Get a table of links with Anode Bnode and properties
 
-import { decompressSync } from 'fflate'
 import { XMLParser } from 'fast-xml-parser'
 import reproject from 'reproject'
 import * as shapefile from 'shapefile'
@@ -11,7 +10,7 @@ import * as shapefile from 'shapefile'
 import Coords from '@/js/Coords'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { DataTable, FileSystemConfig } from '@/Globals'
-import { findMatchingGlobInFiles } from '@/js/util'
+import { gUnzip, findMatchingGlobInFiles } from '@/js/util'
 
 enum NetworkFormat {
   MATSIM_XML,
@@ -35,12 +34,16 @@ let _isFirefox = false
 let _rawData = null as Uint8Array | null
 let _options = {} as any
 let _crs = ''
+let _extraColumns = false
 
 // ENTRY POINT: -----------------------
 onmessage = async function (e) {
+  // does user want extra columns
+  if (e.data.extraColumns) _extraColumns = true
+
   // pre-filled buffer?
   if (e.data.xmlBuffer) {
-    const cargo = gUnzip(e.data.xmlBuffer)
+    const cargo = await gUnzip(e.data.xmlBuffer)
     memorySafeXMLParser(new Uint8Array(cargo), {})
     return
   }
@@ -371,31 +374,57 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   // console.log({ totalNumberOfLinks })
 
   // Last chunk, close out.
-  const source: Float32Array = new Float32Array(2 * totalNumberOfLinks)
-  const dest: Float32Array = new Float32Array(2 * totalNumberOfLinks)
+  const source = new Float32Array(2 * totalNumberOfLinks)
+  const dest = new Float32Array(2 * totalNumberOfLinks)
+  let freespeed = new Float32Array(0)
+  let length = new Float32Array(0)
+  if (_extraColumns) {
+    freespeed = new Float32Array(totalNumberOfLinks)
+    length = new Float32Array(totalNumberOfLinks)
+  }
 
   let offset = 0
   for (const chunk of linkChunks) {
     for (let i = 0; i < chunk[0].length; i++) {
-      source[offset + i] = chunk[0][i]
-      dest[offset + i] = chunk[1][i]
+      source[2 * offset + i] = chunk[0][i]
+      dest[2 * offset + i] = chunk[1][i]
     }
-    offset += chunk[0].length
+    if (_extraColumns) {
+      for (let i = 0; i < chunk[2].length; i++) {
+        freespeed[offset + i] = chunk[2][i]
+        length[offset + i] = chunk[3][i]
+      }
+    }
+    offset += chunk[0].length / 2
   }
 
-  const links = {
-    source,
-    dest,
-    linkIds,
-    projection: coordinateReferenceSystem,
+  if (_extraColumns) {
+    const links = {
+      source,
+      dest,
+      linkIds,
+      freespeed,
+      length,
+      projection: coordinateReferenceSystem,
+    }
+    postMessage({ links }, [
+      links.source.buffer,
+      links.dest.buffer,
+      links.freespeed.buffer,
+      links.length.buffer,
+    ])
+  } else {
+    const links = { source, dest, linkIds, projection: coordinateReferenceSystem }
+    postMessage({ links }, [links.source.buffer, links.dest.buffer])
   }
-  postMessage({ links }, [links.source.buffer, links.dest.buffer])
 }
 
 // build [source,dest] Float32Array of link positions
-function buildLinkChunk(nodes: any, linkIds: any[], links: any[]): Float32Array[] {
-  const source: Float32Array = new Float32Array(2 * links.length)
-  const dest: Float32Array = new Float32Array(2 * links.length)
+function buildLinkChunk(nodes: any, linkIds: any[], links: any[]) {
+  const source = new Float32Array(2 * links.length)
+  const dest = new Float32Array(2 * links.length)
+  const freespeed = new Float32Array(_extraColumns ? links.length : 0)
+  const linkLength = new Float32Array(_extraColumns ? links.length : 0)
 
   for (let i = 0; i < links.length; i++) {
     const link = links[i]
@@ -408,18 +437,23 @@ function buildLinkChunk(nodes: any, linkIds: any[], links: any[]): Float32Array[
     source[2 * i + 1] = nodeFrom ? nodeFrom[1] : NaN
     dest[2 * i + 0] = nodeTo ? nodeTo[0] : NaN
     dest[2 * i + 1] = nodeTo ? nodeTo[1] : NaN
+    if (_extraColumns) {
+      freespeed[i] = parseFloat(link.$freespeed || 0.0)
+      linkLength[i] = parseFloat(link.$length || 0.0)
+    }
   }
-
-  return [source, dest]
+  return [source, dest, freespeed, linkLength]
 }
 
 async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemConfig, options: any) {
   const rawData = await fetchGzip(filePath, fileSystem)
-
+  console.log({ rawData })
+  if (!rawData) throw 'Failed to unzip/parse'
+  const u8 = new Uint8Array(rawData)
   try {
     // always use the memory-safe parser, because Firefox randomly hangs without any
     // error messages or warnings when the parse object is too big :-(
-    await memorySafeXMLParser(rawData, options)
+    await memorySafeXMLParser(u8, options)
   } catch (e) {
     console.error('' + e)
     postMessage({ error: 'Could not parse network XML' })
@@ -510,6 +544,7 @@ async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
 
 async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
   let resolvedPath = filePath
+
   try {
     const httpFileSystem = new HTTPFileSystem(fileSystem)
 
@@ -534,34 +569,12 @@ async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
     if (!blob) throwError('BLOB IS NULL')
 
     const buffer = await blob.arrayBuffer()
-    const cargo = gUnzip(buffer)
+    const cargo = await gUnzip(buffer)
     return cargo
   } catch (e) {
     console.error('oh no', e)
     throwError('Error loading ' + filePath)
   }
-}
-
-/**
- * This recursive function gunzips the buffer. It is recursive because
- * some combinations of subversion, nginx, and various user browsers
- * can single- or double-gzip .gz files on the wire. It's insane but true.
- */
-function gUnzip(buffer: ArrayBuffer): any {
-  const u8 = new Uint8Array(buffer)
-
-  // GZIP always starts with a magic number, hex 0x8b1f
-  const header = new Uint16Array(buffer, 0, 2)
-  if (header[0] === 0x8b1f) {
-    try {
-      const result = decompressSync(u8)
-      return result
-    } catch (e) {
-      console.error('eee', e)
-    }
-  }
-
-  return buffer
 }
 
 function throwError(message: string) {

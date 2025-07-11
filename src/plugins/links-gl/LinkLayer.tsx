@@ -3,6 +3,7 @@ import DeckGL from '@deck.gl/react'
 import { COORDINATE_SYSTEM } from '@deck.gl/core'
 
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
+import { LineLayer } from '@deck.gl/layers'
 
 import { StaticMap } from 'react-map-gl'
 import { format } from 'mathjs'
@@ -151,7 +152,7 @@ export default function Component({
     },
     widthUnits: 'pixels',
     widthScale: widthDivisor,
-    widthMinPixels: 0.5,
+    widthMinPixels: 0.25,
     widthMaxPixels: 50,
     pickable: true,
     coordinateSystem,

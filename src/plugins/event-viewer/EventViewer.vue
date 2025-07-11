@@ -4,10 +4,8 @@
   event-map.map-layer(v-if="isLoaded && !thumbnail"
     :viewId="viewId"
     :eventData = "eventData"
-    :eventLayers="eventLayers"
     :network="network"
     :linkIdLookup="linkIdLookup"
-    :timeFilter="timeFilter"
     :dark="this.$store.state.isDarkMode"
     :colors="this.colors"
     :breakpoints="this.breakpoints"
@@ -19,7 +17,7 @@
     :tick="tick"
   )
 
-  zoom-buttons(v-if="!thumbnail" corner="bottom")
+  zoom-buttons(v-if="!thumbnail" corner="top-left")
 
   .top-right
     .gui-config(:id="configId")
@@ -29,6 +27,7 @@
       legend-box(:legendStore="legendStore")
 
   time-slider.time-slider-area(v-if="isLoaded"
+    :isPointInTime="true"
     :range="timeRange"
     :activeTimeExtent="timeFilter"
     :labels="timeLabels"
@@ -87,6 +86,7 @@ import LegendStore from '@/js/LegendStore'
 import TimeSlider from '@/components/TimeSlider.vue'
 import EventMap from './EventDeckMap'
 import ZoomButtons from '@/components/ZoomButtons.vue'
+import * as Turf from '@turf/turf'
 
 import WasmEventStreamer from './WASMEventStreamer.worker.ts?worker'
 // import WasmEventStreamer from './LibXml2WasmEventStreamer.worker.ts?worker'
@@ -206,8 +206,7 @@ const MyComponent = defineComponent({
         yamlConfig: '',
         thumbnail: false,
       },
-      eventLayers: [] as any[],
-      eventData: [] as any[],
+      eventData: [] as { data: any; timeRange: number[] }[],
       isLoaded: false,
       animator: null as any,
       guiController: null as GUI | null,
@@ -216,6 +215,7 @@ const MyComponent = defineComponent({
       ANIMATE_SPEED: 0.25,
       animationElapsedTime: 0,
       animationClockTime: 0,
+      prevBearing: 0,
     }
   },
   computed: {
@@ -235,6 +235,13 @@ const MyComponent = defineComponent({
     },
     urlThumbnail(): any {
       return this.thumbnailUrl
+    },
+    follow() {
+      const follow = this.$route.query?.follow
+      return follow ?? ''
+    },
+    rotate() {
+      return 'rotate' in this.$route.query
     },
   },
   watch: {
@@ -321,7 +328,7 @@ const MyComponent = defineComponent({
         description: this.myState.yamlConfig,
         file: this.myState.yamlConfig,
         projection,
-        center: this.vizDetails.center,
+        center: this.vizDetails.center || undefined,
         zoom: this.vizDetails.zoom,
       }
       this.$emit('title', this.vizDetails.title || this.vizDetails.file)
@@ -434,6 +441,7 @@ const MyComponent = defineComponent({
           layers,
           network: this.network,
           fsConfig,
+          follow: this.follow,
         },
         // callback when stream has new data to report
         Comlink.proxy(this.receiveDataFromEventStreamer)
@@ -504,7 +512,9 @@ const MyComponent = defineComponent({
       const network = await this.myDataManager.getRoadNetwork(
         networkFile,
         this.myState.subfolder,
-        Object.assign({}, this.vizDetails)
+        Object.assign({}, this.vizDetails),
+        null, // no status callback?!
+        true // extra: get freespeed, length attributes
       )
       this.vizDetails.projection = '' + network.projection
       return { network }
@@ -514,10 +524,23 @@ const MyComponent = defineComponent({
       const { network } = await this.loadNetwork()
       this.network = network
 
-      // let dataArray: any = []
-      // if (!this.fileApi) return { dataArray }
+      if (!this.vizDetails.center) {
+        let lng = 0
+        let lat = 0
+        let cnt = 0
+        for (let i = 0; i < this.network.source.length; i += 4096) {
+          lng += this.network.source[i]
+          lat += this.network.source[i + 1]
+          cnt += 1
+        }
+        this.vizDetails.center = [lng / cnt, lat / cnt]
+        globalStore.commit('setMapCamera', {
+          longitude: lng / cnt || 13.45,
+          latitude: lat / cnt || 52.5,
+          zoom: 10,
+        })
+      }
 
-      // try {
       let filename = `${this.myState.subfolder}/${this.vizDetails.file}`
       await this.streamEventFile(filename)
     },
@@ -534,6 +557,49 @@ const MyComponent = defineComponent({
       ]
     },
 
+    followVehicle() {
+      for (const slice of this.eventData) {
+        if (slice.timeRange[1] < this.simTime) continue
+        if (slice.timeRange[0] > this.simTime) continue
+        for (let i = 0; i < slice.data.vvt0.length; i++) {
+          const t0 = slice.data.vvt0[i]
+          const t1 = slice.data.vvt1[i]
+
+          if (t0 <= this.simTime && t1 >= this.simTime) {
+            // found chased vehicle and it is currently moving RIGHT NOW!
+            const pctComplete = (this.simTime - t0) / (t1 - t0)
+            const p0 = [slice.data.vvp0[i * 2], slice.data.vvp0[i * 2 + 1]]
+            const p1 = [slice.data.vvp1[i * 2], slice.data.vvp1[i * 2 + 1]]
+            const longitude = p0[0] + (p1[0] - p0[0]) * pctComplete
+            const latitude = p0[1] + (p1[1] - p0[1]) * pctComplete
+            const camera = {
+              longitude,
+              latitude,
+              center: [longitude, latitude],
+              zoom: 14,
+              jump: true,
+            } as any
+
+            if (this.rotate) {
+              let bearing = Turf.bearing(Turf.point(p0), Turf.point(p1))
+              const differenceInBearing = bearing - this.prevBearing
+              if (Math.abs(differenceInBearing) > 1) {
+                bearing =
+                  this.prevBearing + (2 * differenceInBearing) / Math.abs(differenceInBearing)
+                this.prevBearing = bearing
+              }
+              camera.bearing = bearing
+              camera.pitch = 45
+              camera.zoom = 15
+            }
+            globalStore.commit('setMapCamera', camera)
+            // that's the trip, no more searching.
+            break
+          }
+        }
+      }
+    },
+
     animate() {
       if (!this.isAnimating) return
 
@@ -548,8 +614,11 @@ const MyComponent = defineComponent({
       const span = 3600 // this.timeFilter[1] - this.timeFilter[0]
       this.timeFilter = [this.animationClockTime, this.animationClockTime + span]
       this.simTime = this.animationClockTime
-      // this.timeFilter = [0, 86400] // this.animationClockTime, this.animationClockTime + span]
 
+      // VERFOLGEN: chase a vehicle ------------
+      if (this.follow) this.followVehicle()
+
+      // loop forever
       this.animator = window.requestAnimationFrame(this.animate)
     },
 
