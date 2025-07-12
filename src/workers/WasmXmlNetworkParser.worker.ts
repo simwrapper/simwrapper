@@ -16,9 +16,11 @@ const Task = {
   _cbReporter: null as any,
   _isCancelled: false,
 
-  async parseXML(props: { path: string; fsConfig: FileSystemConfig }) {
+  async parseXML(props: { path: string; fsConfig: FileSystemConfig; options?: { crs: string } }) {
     console.log('----starting xml parser')
-    const { path, fsConfig } = props
+    const { path, fsConfig, options } = props
+
+    let _crs = options?.crs
 
     // await init()
     // this._xmlParser = new XmlNetworkParser()
@@ -76,7 +78,7 @@ const Task = {
           nodeIdOffset[nodes[n].$id] = offset + n * 2
           xy[0] = parseFloat(nodes[n].$x)
           xy[1] = parseFloat(nodes[n].$y)
-          xy = Coords.toLngLat('EPSG:25832', xy)
+          if (_crs) xy = Coords.toLngLat(_crs, xy)
           nodeCoords[n * 2] = xy[0]
           nodeCoords[n * 2 + 1] = xy[1]
           nodeIds.push(nodes[n].$id)
@@ -110,11 +112,12 @@ const Task = {
           length: new Float32Array(numLinks),
           oneway: new Float32Array(numLinks),
           permlanes: new Float32Array(numLinks),
-          linkIds: [],
+          id: [],
+          modes: [],
         } as any
 
         let defaultProps = Object.keys(props)
-          .filter(p => p !== 'linkIds')
+          .filter(p => p !== 'id')
           .map(p => [p, `$${p}`]) as []
 
         props.source = new Float32Array(2 * numLinks)
@@ -122,7 +125,7 @@ const Task = {
 
         links.forEach((link, i) => {
           // standard matsim parameters: id,cap,length, etc
-          props.linkIds.push(link.$id)
+          props.id.push(link.$id)
           for (const prop of defaultProps) {
             props[prop[0]][i] = link[prop[1]]
           }
@@ -140,7 +143,7 @@ const Task = {
       }
 
       // stitch all link arrays together ================================
-      const network = { crs: 'EPSG:4326' } as any
+      const network = {} as any
       let LOffset = 0
       for (const col of Object.keys(cleanLinks[0])) {
         if (col == 'source' || col == 'dest') {
@@ -164,7 +167,10 @@ const Task = {
           }
         }
       }
-      network.id = network.linkIds
+      // final cleanup
+      network.linkAttributes = Object.keys(network)
+      network.crs = 'EPSG:4326'
+
       return network
     }
 
@@ -221,11 +227,19 @@ const Task = {
       {
         write(entireChunk: Uint8Array) {
           return new Promise(async (resolve, reject) => {
-            // console.log('CHINK!')
+            // console.log('CHuNK!')
             if (parent._isCancelled) reject()
             _numChunks++
 
             let text = _leftovers + _decoder.decode(entireChunk)
+
+            if (!_crs) {
+              const crsLine = text.indexOf('coordinateReferenceSystem')
+              if (crsLine > -1) {
+                const line = text.slice(crsLine)
+                _crs = line.substring(line.indexOf('>') + 1, line.indexOf('</attribute'))
+              }
+            }
 
             if (!closeNode) closeNode = text.indexOf(closeTag) > -1 ? closeTag : '/>'
 
@@ -245,11 +259,16 @@ const Task = {
 
             promises.push(
               new Promise<any>(async resolve => {
-                const json = (await parseXML(xmlBody, {
-                  alwaysArray: ['node', 'link', 'attribute'],
-                })) as any
-                console.log(json)
-                resolve(json)
+                try {
+                  const json = (await parseXML(xmlBody, {
+                    alwaysArray: ['node', 'link', 'attribute'],
+                  })) as any
+                  // console.log(json)
+                  resolve(json)
+                } catch (e) {
+                  console.error('' + e)
+                  reject('' + e)
+                }
               })
             )
 
@@ -296,11 +315,7 @@ const Task = {
     console.log('All promises done')
 
     const network = buildNodeLookups(results)
-
     console.log({ network })
-    // console.log(allNodes)
-    // console.log(allLinks)
-    // console.log('FINAL: Posting', offset)
     return network
   },
 }

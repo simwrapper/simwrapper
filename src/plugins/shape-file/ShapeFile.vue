@@ -2327,7 +2327,7 @@ const MyComponent = defineComponent({
           const offset = i * 2
           const feature = {
             type: 'Feature',
-            id: network.linkIds[i],
+            id: network.id[i],
             properties: {},
             geometry: {
               type: 'LineString',
@@ -2339,6 +2339,9 @@ const MyComponent = defineComponent({
           }
           boundaries.push(feature)
         }
+        this.avroNetwork = network
+        this.isAvroFile = true
+
         return boundaries
       } catch (e) {
         console.error('' + e)
@@ -2522,17 +2525,21 @@ const MyComponent = defineComponent({
           avroTable[colName] = dataColumn
         }
         // special case: allowedModes needs to be looked up
-        const modeLookup = this.avroNetwork['modes']
-        const allowedModes = avroTable['allowedModes']
-        allowedModes.type = DataType.STRING
-        allowedModes.values = allowedModes.values.map((v: number) => modeLookup[v])
-
+        if (this.avroNetwork.allowedModes) {
+          const modeLookup = this.avroNetwork['modes']
+          const allowedModes = avroTable['allowedModes']
+          allowedModes.type = DataType.STRING
+          allowedModes.values = allowedModes.values.map((v: number) => modeLookup[v])
+          avroTable['modes'] = allowedModes
+          delete avroTable['allowedModes']
+        }
         dataTable = await this.myDataManager.setRowWisePropertyTable(filename, avroTable, config)
 
         // special case: Avro networks have linkId instead of id, jesus christ!! :-()
         if ('linkId' in dataTable && !('id' in dataTable)) {
-          dataTable = { id: dataTable.linkId, ...dataTable }
+          dataTable = { id: dataTable.linkId, ...dataTable } as DataTable
           dataTable.id.name = 'id'
+          delete dataTable['linkId']
         }
 
         // save memory: no longer need the avro input file

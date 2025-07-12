@@ -49,7 +49,7 @@ export interface FilterDefinition {
 export interface NetworkLinks {
   source: Float32Array
   dest: Float32Array
-  linkIds: any[]
+  id: any[]
   projection: String
 }
 
@@ -706,7 +706,7 @@ export default class DashboardDataManager {
       // WASM -----------
       const wasmWorker = new WasmXmlNetworkParser() as any
       const task = Comlink.wrap(wasmWorker) as unknown as any
-      const network = await task.parseXML({ path, fsConfig: this.fileApi })
+      const network = await task.parseXML({ path, fsConfig: this.fileApi, options })
 
       resolve(network)
       return
