@@ -274,10 +274,7 @@ export default defineComponent({
       // markdown does not want a default height
       const defaultHeight = card.type === 'text' ? undefined : 300
 
-      // old version:  plotlyChartTypes[card.type] ? 300 : undefined
-
       const height = card.height ? card.height * 60 : defaultHeight
-
       const flex = card.width || 1
 
       let style: any = { flex: flex }
@@ -290,16 +287,19 @@ export default defineComponent({
         style.minHeight = `${height}px`
       }
 
+      // if there is only a single card on this panel, shrink its margin
+      if (this.rows.length == 1 && this.rows[0].cards.length == 1) {
+        style.margin = '0.25rem 0.25rem'
+      }
+
+      // but no actually, if it's full screen then do this.
       if (this.fullScreenCardId) {
         if (this.fullScreenCardId !== card.id) {
           style.display = 'none'
         } else {
           style = {
             position: 'absolute',
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
+            inset: '0 0 0 0',
             margin: '6px 0px', // '18px 1rem 0.5rem 1rem',
           }
         }

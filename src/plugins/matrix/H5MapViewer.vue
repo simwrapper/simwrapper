@@ -48,16 +48,13 @@
 
       //- FILTER VALUES
       .flex-row(style="margin-top: 0.75rem; gap: 0.5rem;")
-        .t Filter values
+        .filter-label(:title="filterExplanation") Filter values
+          i.fa.fa-info-circle(style="opacity: 0.5; margin-left: 0.25rem;")
+
         input.input-zone.input-filter(
           v-model="filterText"
           @input="updateFilter"
         )
-
-    //- .panel-area.flex-col
-    //-   h4 DISPLAY
-    //-   .flex-col(style="gap: 2px")
-    //-     b-checkbox Show values on map
 
     //- ROW/COL VALUES -------------------------------------------
     h4 {{ mapConfig.isRowWise ? 'Row ' : 'Column ' }} Values
@@ -66,16 +63,19 @@
       .zone-details(v-if="activeZone !== null")
         //- b.zone-header {{ mapConfig.isRowWise ? 'Row' : 'Column' }} {{  activeZone }}
         .titles.matrix-data-value
-          b.zone-number Zone
-          b.zone-value(v-html="matrices?.h5Main?.table || 'Value'")
-          b.zone-value(v-if="matrices.diff") Cmp
-          b.zone-value(v-if="matrices.diff") Diff
+          b.zone-number(@click="tsort(0)" :class="{'tlink': sortColumn==0}") Zone
+          b.zone-value(@click="tsort(1)" :class="{'tlink': sortColumn==1}" v-html="matrices?.h5Main?.table || 'Value'")
+          b.zone-value(@click="tsort(2)" :class="{'tlink': sortColumn==2}" v-if="matrices.diff") Cmp
+          b.zone-value(@click="tsort(3)" :class="{'tlink': sortColumn==3}" v-if="matrices.diff") Diff
         .scrolly
-          .matrix-data-value(v-for="value,i in prettyDataArray" :key="i")
-            span.zone-number {{  i+1 }}
-            span.zone-value {{ value[0] }}
-            span.zone-value(v-if="matrices.diff") {{  value[1] }}
+          .matrix-data-value(v-for="value,i in prettyDataArray" :key="value[0]"
+            :class="{'alt-row': value[0] == altZone}"
+            @click="selectAltZone(value[0])"
+          )
+            span.zone-number {{  value[0]}}
+            span.zone-value {{ value[1] }}
             span.zone-value(v-if="matrices.diff") {{  value[2] }}
+            span.zone-value(v-if="matrices.diff") {{  value[3] }}
 
   .right-container
     .map-holder(oncontextmenu="return false")
@@ -85,12 +85,16 @@
         :features="features"
         :clickedZone="clickedZone"
         :activeZoneFeature="activeZoneFeature"
+        :altZoneFeature="altZoneFeature"
         :cbTooltip="showTooltip"
         :isLoading="isLoading"
       )
 
       background-map-on-top(v-if="isMapReady")
       zoom-buttons(corner="top-left")
+
+      //- .zone-announce-area.flex-col
+      //-   h2  {{ this.mapConfig.isRowWise ? 'Row ' : 'Column ' }} {{ this.activeZone }}
 
       .click-zone-hint.flex-col(v-if="activeZone == null")
         h4: b MATRIX VIEWER
@@ -174,7 +178,9 @@ const MyComponent = defineComponent({
     return {
       activeTable: null as null | { key: string; name: string },
       activeZone: null as any,
-      activeZoneFeature: {} as any,
+      activeZoneFeature: null as any,
+      altZone: -1,
+      altZoneFeature: null as any,
       colorThresholds: {} as any,
       currentKey: '',
       dataArray: [] as number[],
@@ -196,11 +202,15 @@ const MyComponent = defineComponent({
       layerId: Math.floor(1e12 * Math.random()),
       prettyDataArray: [] as any[],
       searchTerm: '',
+      sortColumn: 0,
       statusText: 'Loading...',
       tableKeys: [] as { key: string; name: string }[],
       tooltip: '',
       useConfig: '',
       zoneID: 'TAZ',
+      filterExplanation:
+        'Some matrices have "N/A" values coded with magic numbers like -999.\n\n' +
+        'Enter comma-separated list of such values to be ignored when calculating colors and breakpoints.',
     }
   },
 
@@ -295,6 +305,25 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    selectAltZone(zoneNumber: number) {
+      this.altZone = zoneNumber
+      this.altZoneFeature = this.features.find((f: any) => f.properties[this.zoneID] == zoneNumber)
+    },
+
+    tsort(col: number) {
+      console.log('sort', col)
+      if (col == Math.abs(this.sortColumn)) {
+        this.sortColumn *= -1
+      } else {
+        this.sortColumn = col
+      }
+      if (this.sortColumn >= 1) {
+        this.prettyDataArray.sort((a, b) => (parseFloat(a[col]) > parseFloat(b[col]) ? -1 : 1))
+      } else {
+        this.prettyDataArray.sort((a, b) => (parseFloat(a[col]) < parseFloat(b[col]) ? -1 : 1))
+      }
+    },
+
     parseFilters() {
       let validFilters = [] as number[]
       const filters = this.filterText.split(',')
@@ -368,7 +397,7 @@ const MyComponent = defineComponent({
       await this.setInitialColorsForArray()
 
       // create array of pretty values: each i-element is [value, base, diff]
-      const pvs = this.setPrettyValuesForArray(values).map(v => [v])
+      const pvs = this.setPrettyValuesForArray(values).map((v, i) => [i + 1, v])
       if (this.matrices.diff) {
         const b = this.setPrettyValuesForArray(base)
         const d = this.setPrettyValuesForArray(diff)
@@ -662,7 +691,7 @@ const MyComponent = defineComponent({
             blob = await fetch(localPath).then(async r => await r.blob())
           }
           const buffer = await blob.arrayBuffer()
-          const rawtext = gUnzip(buffer)
+          const rawtext = await gUnzip(buffer)
           const text = new TextDecoder('utf-8').decode(rawtext)
           const json = JSON.parse(text)
           boundaries = json.features
@@ -1017,6 +1046,8 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 .scrolly {
   flex: 1;
   overflow-y: scroll;
+  margin-left: 0.25rem;
+  cursor: pointer;
 }
 
 .ztitle {
@@ -1049,6 +1080,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .titles {
   margin-right: 0.5rem;
+  cursor: pointer;
 }
 
 h4 {
@@ -1066,5 +1098,21 @@ h4 {
 .btn-rowcol {
   font-weight: bold;
   border-radius: 0px !important;
+}
+
+.tlink {
+  color: var(--link);
+}
+.alt-row {
+  background-color: var(--bgBold);
+}
+
+.zone-announce-area {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 5;
+  background-color: var(--bgBold);
+  padding: 0 1rem;
 }
 </style>

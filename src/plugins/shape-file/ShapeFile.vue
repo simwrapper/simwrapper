@@ -28,19 +28,26 @@
         p(v-if="!legendStore.state?.sections?.length" style="font-size: 1.1rem"): b INFO PANEL
         legend-box(:legendStore="legendStore")
 
-      .tooltip-html(v-if="tooltipHtml && !statusText"
-        v-html="tooltipHtml"
-      )
-        .bglayer-section
+        .bglayer-section.flex-col(v-if="Object.keys(bgLayers).length")
+          h5 Layers
           b-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)" :key="layer"
             @input="updateBgLayers" v-model="bgLayers[layer].visible"
           ) {{  layer }}
 
+      .tooltip-html.flex-col(v-if="tooltipHtml && !statusText"
+        @mouseover="wantToClearTooltip=false" @mouseout="wantToClearTooltip=true"
+      )
+        .the-html(v-html="tooltipHtml")
+        .edit-hint(v-if="tooltipDesiredColumns.length" style="text-align: right;")
+          a(@click="showTooltipConfigurator=true") Show/hide...
+
     .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
 
-      .tooltip-when-no-legend-present(v-if="!showLegend && !statusText && tooltipHtml"
-        v-html="tooltipHtml"
+      .tooltip-when-no-legend-present.flex-col(v-if="!showLegend && !statusText && tooltipHtml"
+        @mouseover="wantToClearTooltip=false" @mouseout="wantToClearTooltip=true"
       )
+        .the-html(v-html="tooltipHtml")
+        a(v-if="tooltipDesiredColumns.length" style="textAlign: right" @click="showTooltipConfigurator=true") Show/hide...
 
       //- drawing-tool.draw-tool(v-if="isLoaded && !thumbnail")
 
@@ -55,19 +62,35 @@
         :opacity="(sliderOpacity / 100) * (sliderOpacity / 100)"
         :pointRadii="dataPointRadii"
         :cbTooltip="cbTooltip"
+        :cbClickEvent="handleClickEvent"
         :bgLayers="bgLayers"
-        :handleClickEvent="handleClickEvent"
         :highlightedLinkIndex="highlightedLinkIndex"
         :redraw="redraw"
         :features="boundaries"
         :dark="globalState.isDarkMode"
         :isRGBA="isRGBA"
+        :mapIsIndependent="vizDetails.mapIsIndependent"
+        :initialView="initialView"
       )
 
       background-map-on-top(v-if="isLoaded && isAreaMode")
 
       //- :features="useCircles ? centroids: boundaries"
       //- background-map-on-top(v-if="isLoaded")
+
+      //- TOOLTIP MODAL SELECTOR
+      .modal.modal-tooltip-picker.flex-col(v-if="showTooltipConfigurator"
+        @mouseover="wantToClearTooltip=false"
+      )
+        h4 Configure tooltips
+        p(style="margin: 0.5rem auto 0 0.75rem;") Select feature columns to be displayed in default tooltips.
+        .flex-row(style="margin: 0.25rem auto 0 0.75rem;gap: 0.25rem;")
+          b-button.is-small(type="is-link" outlined @click="setDesiredTooltipsNone") None
+          b-button.is-small(type="is-link" outlined @click="setDesiredTooltipsAll") &nbsp;All&nbsp;
+        .tooltip-items.flex-col.flex1
+          b-checkbox.cbspace(v-for="item,i in tooltipDesiredColumns" :key="item.col" v-model="item.enabled")  {{ item.col}}
+        .close-row.flex-row(style="padding: 0.5rem; margin-left: auto;gap: 0.25rem;")
+          b-button.is-small(type="is-success" @click="showTooltipConfigurator=false") &nbsp;Close&nbsp;
 
       viz-configurator(v-if="isLoaded"
         :embedded="isEmbedded"
@@ -90,7 +113,7 @@
           img.icon-blue-ramp(:src="icons.blueramp")
           b-slider.pie-slider(type="is-success" :tooltip="true" size="is-small"  :min="0" :max="100" v-model="sliderOpacity")
 
-      zoom-buttons(v-if="isLoaded && !thumbnail")
+      zoom-buttons(v-if="isLoaded && !thumbnail && !vizDetails.mapIsIndependent")
 
       .config-bar(v-if="!thumbnail && !isEmbedded && isLoaded && Object.keys(filters).length"
         :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
@@ -154,6 +177,7 @@ import {
   Status,
 } from '@/Globals'
 
+import { debounce } from '@/js/util'
 import GeojsonLayer from './GeojsonLayer'
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ColorWidthSymbologizer, { buildRGBfromHexCodes } from '@/js/ColorsAndWidths'
@@ -291,6 +315,8 @@ const MyComponent = defineComponent({
       globalStore,
       globalState: globalStore.state,
       layerId: Math.floor(1e12 * Math.random()),
+      dbClearTooltip: {} as any,
+      wantToClearTooltip: false,
 
       activeColumn: '',
       useCircles: false,
@@ -340,9 +366,14 @@ const MyComponent = defineComponent({
 
       tooltipHtml: '' as string,
       tooltipIsFixed: false as boolean,
+      tooltipDesiredColumns: [] as { col: string; enabled: boolean }[],
+      showTooltipConfigurator: false,
+
       highlightedLinkIndex: -1 as number,
 
       bgLayers: {} as { [name: string]: BackgroundLayer },
+
+      initialView: null as null | { longitude: number; latitude: number; zoom: number },
 
       vizDetails: {
         title: '',
@@ -364,6 +395,7 @@ const MyComponent = defineComponent({
         center: null as any[] | null,
         pitch: null as number | null,
         bearing: null as number | null,
+        mapIsIndependent: false,
         display: {
           fill: {} as any,
           fillHeight: {} as any,
@@ -447,6 +479,11 @@ const MyComponent = defineComponent({
 
   watch: {
     'globalState.viewState'() {
+      // don't pay attention to map motion until we are loaded, to give map center a
+      // fighting chance of being correct
+      if (!this.isLoaded) return
+      if (this.vizDetails.mapIsIndependent) return
+
       if (REACT_VIEW_HANDLES[this.layerId]) REACT_VIEW_HANDLES[this.layerId]()
     },
 
@@ -460,13 +497,31 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    setDesiredTooltipsNone() {
+      this.tooltipDesiredColumns.forEach(m => (m.enabled = false))
+    },
+    setDesiredTooltipsAll() {
+      this.tooltipDesiredColumns.forEach(m => (m.enabled = true))
+    },
+
+    setupTooltipDesiredColumns() {
+      try {
+        const featureColumns = Object.keys(this.boundaryDataTable)
+        return featureColumns.map(m => {
+          return { col: m, enabled: true }
+        })
+      } catch {
+        return []
+      }
+    },
+
     incrementLoadProgress() {
       this.loadSteps += 1
       this.loadProgress = (100 * this.loadSteps) / this.totalLoadSteps
     },
 
     dividerDragStart(e: MouseEvent) {
-      console.log('dragStart', e)
+      // console.log('dragStart', e)
       this.isDraggingDivider = e.clientX
       this.dragStartWidth = this.legendSectionWidth
     },
@@ -520,7 +575,6 @@ const MyComponent = defineComponent({
     filterShapesNow() {
       // shape filters only
       const shapeFilters = this.filterDefinitions.filter(f => f.dataset === 'shapes')
-
       this.boundaryFilters = new Float32Array(this.boundaries.length)
 
       // show all elements if there are no shapefilters defined
@@ -600,8 +654,10 @@ const MyComponent = defineComponent({
 
     async handleClickEvent(event: any) {
       if (event.index != -1) {
-        this.cbTooltip(event.index, event, true)
+        let offset = event?.object?.feature_idx || -1
+        this.cbTooltip(offset, event, true)
         this.tooltipIsFixed = true
+        this.highlightedLinkIndex = event.index
       } else {
         this.tooltipIsFixed = false
         this.highlightedLinkIndex = -1
@@ -609,22 +665,27 @@ const MyComponent = defineComponent({
       }
     },
 
+    clearTooltip() {
+      if (this.wantToClearTooltip && this.highlightedLinkIndex == -1) {
+        this.tooltipHtml = ''
+      }
+    },
+
     cbTooltip(index: number, object: any, forceUpdate: boolean = false) {
       if (this.tooltipIsFixed && !forceUpdate) return
 
-      this.highlightedLinkIndex = index
+      if (object === null || !this.boundaries[index]?.properties) {
+        this.wantToClearTooltip = true
+        this.dbClearTooltip()
+        return
+      }
 
       // tooltip will show values for color settings and for width settings.
       // if there is base data, it will also show values and diff vs. base
       // for both color and width.
 
+      this.wantToClearTooltip = false
       const PRECISION = 4
-
-      if (object === null || !this.boundaries[index]?.properties) {
-        this.tooltipHtml = ''
-        return
-      }
-
       const propList = []
 
       // normalized value first
@@ -644,6 +705,7 @@ const MyComponent = defineComponent({
         const label = this.dataNormalizedValues
           ? cLabel.substring(0, cLabel.lastIndexOf('/'))
           : cLabel
+
         let value = this.truncateFractionalPart(this.dataCalculatedValues[index], PRECISION)
         if (this.dataCalculatedValueLabel.startsWith('%')) value = `${value} %`
 
@@ -667,9 +729,16 @@ const MyComponent = defineComponent({
       if (datasetProps) propList.push(datasetProps)
 
       // --- boundary feature tooltip lines ---
-      let columns = Object.keys(this.boundaryDataTable)
+      let columns
+      if (this.tooltipDesiredColumns.length) {
+        columns = this.tooltipDesiredColumns.filter(m => m.enabled).map(m => m.col)
+      } else {
+        columns = Object.keys(this.boundaryDataTable)
+      }
+
       if (this.vizDetails.tooltip?.length) {
-        columns = this.vizDetails.tooltip.map(tip => tip.substring(tip.indexOf(':') + 1))
+        const delim = this.vizDetails.tooltip[0].indexOf(':') > -1 ? ':' : '.'
+        columns = this.vizDetails.tooltip.map(tip => tip.substring(tip.indexOf(delim) + 1))
       }
 
       let featureProps = ''
@@ -1042,9 +1111,20 @@ const MyComponent = defineComponent({
       }
     },
 
+    generateUniqueDatasetKeyFromFilename(name: string) {
+      if (!(name in this.vizDetails.datasets)) return name
+      console.log(name, 'not unique')
+      for (let i = 2; i < 100; i++) {
+        let newName = `${name}_${i}`
+        if (!(newName in this.vizDetails.datasets)) return newName
+      }
+      return `${name}__${Math.floor(100 + 1e5 * Math.random())}`
+    },
+
     async handleNewDataset(props: DatasetDefinition) {
-      const { key, dataTable, filename } = props
-      const datasetId = key
+      let { key, dataTable, filename } = props
+      const uniqueKey = this.generateUniqueDatasetKeyFromFilename(key)
+      const datasetId = uniqueKey
       const datasetFilename = filename || datasetId
 
       console.log('HANDLE NEW DATASET:', datasetId, datasetFilename)
@@ -1081,7 +1161,7 @@ const MyComponent = defineComponent({
     },
 
     setupJoin(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
-      console.log(88, this.featureJoinColumn)
+      // console.log('SETUP JOIN', this.featureJoinColumn)
       const { dataTable, datasetId, dataJoinColumn } = props
       // console.log('> setupJoin', datasetId, dataJoinColumn)
 
@@ -1136,10 +1216,10 @@ const MyComponent = defineComponent({
 
       this.prepareTooltipData(props)
 
-      // Notify Deck.gl of the new tooltip data
-      if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
-        REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
-      }
+      // // Notify Deck.gl of the new tooltip data
+      // if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
+      //   REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
+      // }
       // console.log('triggering updates')
       this.datasets[datasetId] = dataTable
     },
@@ -1151,11 +1231,24 @@ const MyComponent = defineComponent({
 
       const { dataTable, datasetId, dataJoinColumn } = props
 
+      let delim = ':'
       const tips = this.vizDetails.tooltip || []
+      if (tips.length) delim = tips[0].indexOf(':') > -1 ? ':' : '.'
+
+      // user specified no tooltips, but we can help them by adding
+      // data for columns that they've put in their display{} config anyway
+      if (!tips.length) {
+        const symbologies = Object.values(this.vizDetails.display)
+        for (const config of symbologies) {
+          if (config.columnName && config.dataset === datasetId)
+            tips.push(`${datasetId}${delim}${config.columnName}`)
+        }
+      }
+
       const relevantTips = tips
-        .filter(tip => tip.substring(0, tip.indexOf(':')).startsWith(datasetId))
+        .filter(tip => tip.substring(0, tip.indexOf(delim)).startsWith(datasetId))
         .map(tip => {
-          return { id: tip, column: tip.substring(1 + tip.indexOf(':')) }
+          return { id: tip, column: tip.substring(1 + tip.indexOf(delim)) }
         })
 
       // no tips for this datasetId
@@ -1456,6 +1549,7 @@ const MyComponent = defineComponent({
       this.dataCalculatedValueLabel = columnName ?? ''
 
       // Do we need a join? Join it
+      this.$emit('error', '')
       let dataJoinColumn = ''
       if (color.join && color.join !== '@count') {
         // join column name set by user
@@ -1466,7 +1560,14 @@ const MyComponent = defineComponent({
       } else {
         // nothing specified: let's hope they didn't want to join
         if (this.datasetChoices.length > 1) {
-          console.warn('No join; lets hope user just wants to display data in boundary file')
+          const boundaries = this.datasetChoices[0]
+          if (datasetKey !== boundaries) {
+            console.warn('No join; lets hope user just wants to display data in boundary file')
+            this.$emit(
+              'error',
+              `Specify the "Join by" column to link ${datasetKey} dataset values correctly!`
+            )
+          }
         }
       }
 
@@ -1567,29 +1668,37 @@ const MyComponent = defineComponent({
       // (note, processFiltersNow() will call this function again once the calcs are done)
       if (isColorDefinition) {
         const dataset = colorOrFilteredDataTable?.dataset as string
-        const { filteredRows } = this.myDataManager.getFilteredDataset({
-          dataset: `${dataset}` || '',
-        })
-        if (filteredRows && filteredRows.length) {
-          this.currentUILineColorDefinitions = colorOrFilteredDataTable
-          this.processFiltersNow(dataset)
-          return
+        if (dataset) {
+          const { filteredRows } = this.myDataManager.getFilteredDataset({
+            dataset: `${dataset}` || '',
+          })
+          if (filteredRows && filteredRows.length) {
+            this.currentUILineColorDefinitions = colorOrFilteredDataTable
+            this.processFiltersNow(dataset)
+            return
+          }
         }
       }
 
-      if (isFilterTable) {
+      const color = colorOrFilteredDataTable as LineColorDefinition
+
+      if (isFilterTable && color.columnName !== '@0') {
         this.paintColorsWithFilter('lineColor', colorOrFilteredDataTable)
         return
       }
 
-      const color = colorOrFilteredDataTable as LineColorDefinition
       this.currentUILineColorDefinitions = color
 
       const columnName = color.columnName
-
       if (color.diffDatasets) {
         // *** diff mode *************************
         this.handleColorDiffMode('lineColor', color)
+        return
+      } else if (columnName === '@0') {
+        // *** no polygon borders!  ***
+        this.dataLineColors = this.isAreaMode ? '' : '#4E7AA7' // default blue
+        this.dataCalculatedValueLabel = ''
+        this.legendStore.clear('Line Color')
         return
       } else if (!columnName) {
         // *** simple color **********************
@@ -1617,6 +1726,7 @@ const MyComponent = defineComponent({
         this.dataCalculatedValueLabel = columnName ?? ''
 
         // Do we need a join? Join it
+        this.$emit('error', '')
         let dataJoinColumn = ''
         if (color.join && color.join !== '@count') {
           // join column name set by user
@@ -1627,7 +1737,14 @@ const MyComponent = defineComponent({
         } else {
           // nothing specified: let's hope they didn't want to join
           if (this.datasetChoices.length > 1) {
-            console.warn('No join; lets hope user just wants to display data in boundary file')
+            const boundaries = this.datasetChoices[0]
+            if (datasetKey !== boundaries) {
+              console.warn('No join; lets hope user just wants to display data in boundary file')
+              this.$emit(
+                'error',
+                `Specify the "Join by" column to link ${datasetKey} dataset values correctly!`
+              )
+            }
           }
         }
 
@@ -1786,6 +1903,7 @@ const MyComponent = defineComponent({
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
 
           // Do we need a join? Join it
+          this.$emit('error', '')
           let dataJoinColumn = ''
           if (width.join && width.join !== '@count') {
             // join column name set by user
@@ -1796,7 +1914,14 @@ const MyComponent = defineComponent({
           } else {
             // nothing specified: let's hope they didn't want to join
             if (this.datasetChoices.length > 1) {
-              console.warn('No join; lets hope user just wants to display data in boundary file')
+              const boundaries = this.datasetChoices[0]
+              if (datasetKey !== boundaries) {
+                console.warn('No join; lets hope user just wants to display data in boundary file')
+                this.$emit(
+                  'error',
+                  `Specify the "Join by" column to link ${datasetKey} dataset values correctly!`
+                )
+              }
             }
           }
 
@@ -1856,6 +1981,7 @@ const MyComponent = defineComponent({
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
 
           // Do we need a join? Join it
+          this.$emit('error', '')
           let dataJoinColumn = ''
           if (height.join && height.join !== '@count') {
             // join column name set by user
@@ -1866,7 +1992,14 @@ const MyComponent = defineComponent({
           } else {
             // nothing specified: let's hope they didn't want to join
             if (this.datasetChoices.length > 1) {
-              console.warn('No join; lets hope user just wants to display data in boundary file')
+              const boundaries = this.datasetChoices[0]
+              if (datasetKey !== boundaries) {
+                console.warn('No join; lets hope user just wants to display data in boundary file')
+                this.$emit(
+                  'error',
+                  `Specify the "Join by" column to link ${datasetKey} dataset values correctly!`
+                )
+              }
             }
           }
 
@@ -1910,6 +2043,7 @@ const MyComponent = defineComponent({
             const angledView = Object.assign({}, this.$store.state.viewState, {
               pitch: 30,
             })
+            // console.log('SMC: handleNewFillHeight')
             this.$store.commit('setMapCamera', angledView)
           }
         }
@@ -1980,13 +2114,6 @@ const MyComponent = defineComponent({
       }
 
       // this.filterListener()
-
-      // set features INSIDE react component
-      if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
-        REACT_VIEW_HANDLES[1000 + this.layerId](
-          typeof this.dataPointRadii == 'number' ? this.boundaries : this.centroids
-        )
-      }
     },
 
     async handleMapClick(click: any) {
@@ -2055,7 +2182,7 @@ const MyComponent = defineComponent({
     async processFiltersNow(datasetName?: string) {
       // This callback occurs when there is a newly filtered dataset.
 
-      console.log('> processFiltersNow', datasetName)
+      // console.log('> processFiltersNow', datasetName)
 
       const { filteredRows } = this.myDataManager.getFilteredDataset({ dataset: datasetName || '' })
       const filteredDataTable: { [id: string]: DataTableColumn } = {}
@@ -2108,93 +2235,6 @@ const MyComponent = defineComponent({
         this.$emit('error', '' + e)
       }
     },
-
-    // ------------------------------------
-    // TODO do shapes later
-
-    // // hide shapes that don't match filter.
-    // const hideFeature = new Uint8Array(this.boundaries.length).fill(1) // hide by default
-    // filteredRows.forEach(row => {
-    //   const rowNumber = row['@']
-    //   hideFeature[rowNumber] = 0
-    // })
-    // const newFilter = new Float32Array(this.boundaries.length)
-    // for (let i = 0; i < this.boundaries.length; i++) {
-    //   if (this.boundaryFilters[i] == -1 || hideFeature[i]) newFilter[i] = -1
-    // }
-
-    // this.boundaryFilters = newFilter
-    // return
-
-    // ------------------------------------
-
-    // let groupLookup: any // this will be the map of boundary IDs to rows
-    // let groupIndex: any = 1 // unfiltered values will always be element 1 of [key, values[]]
-
-    // if (!filteredRows) {
-    //   // is filter UN-selected? Rebuild full dataset
-    //   // TODO: FIXME this is old ------:
-    //   // const joinCol = this.boundaryDataTable[this.datasetJoinColumn].values
-    //   // const dataValues = this.boundaryDataTable[this.datasetValuesColumn].values
-    //   // groupLookup = group(zip(joinCol, dataValues), d => d[0]) // group by join key
-    //   filteredRows = [] // get rid of this
-    // } else {
-    //   // group filtered values by lookup key
-    //   groupLookup = group(filteredRows, d => d[join[0]])
-    //   groupIndex = this.datasetValuesColumn // index is values column name
-    // }
-
-    // console.log({ groupLookup })
-
-    // // Build the filtered dataset columns
-    // const filteredDataset: DataTable = {}
-    // const columns = Object.keys(filteredRows[0])
-    // for (const column of columns) {
-    //   filteredDataset[column] = { name: column, values: [], type: DataType.NUMBER }
-    // }
-    // for (let i = 0; i < filteredRows.length; i++) {
-    //   for (const column of columns) {
-    //     filteredDataset[column].values[i] = filteredRows[i][column]
-    //   }
-    // }
-
-    // console.log({ filteredDataset })
-    // // ok we have a filter, let's update the geojson values
-    // this.setupJoin(filteredDataset, '_filter', join[0], join[1])
-
-    // // const filteredBoundaries = [] as any[]
-
-    //       this.boundaries.forEach(boundary => {
-    //         // id can be in root of feature, or in properties
-    //         let lookupKey = boundary.properties[joinShapesBy] || boundary[joinShapesBy]
-    //         if (!lookupKey) this.$emit('error', `Shape is missing property "${joinShapesBy}"`)
-
-    //         // the groupy thing doesn't auto-convert between strings and numbers
-    //         let row = groupLookup.get(lookupKey)
-    //         if (row == undefined) row = groupLookup.get('' + lookupKey)
-
-    //         // do we have an answer
-    //         boundary.properties.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
-    //         filteredBoundaries.push(boundary)
-    //       })
-
-    // // centroids
-    // const filteredCentroids = [] as any[]
-    // this.centroids.forEach(centroid => {
-    //   const centroidId = centroid.properties!.id
-    //   if (!centroidId) return
-
-    //   let row = groupLookup.get(centroidId)
-    //   if (row == undefined) row = groupLookup.get('' + centroidId)
-    //   centroid.properties!.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
-    //   filteredCentroids.push(centroid)
-    // })
-
-    // this.boundaries = filteredBoundaries
-    // this.centroids = filteredCentroids
-    // } catch (e) {
-    //   console.error('' + e)
-    // }
 
     async loadGMNSFeatures(filename: string) {
       // load .zip file
@@ -2278,8 +2318,9 @@ const MyComponent = defineComponent({
             this.statusText = message
             this.incrementLoadProgress()
           }
+          // true // load extra columns
         )
-        // for now convert to shapefile
+        // convert to geojson
         const numLinks = network.source.length / 2
         const boundaries = [] as any[]
         for (let i = 0; i < numLinks; i++) {
@@ -2366,11 +2407,11 @@ const MyComponent = defineComponent({
         await this.$nextTick()
         await this.$nextTick()
 
-        // for a big speedup, move properties to its own nabob
         let hasNoLines = true
         let hasNoPolygons = true
         let hasPoints = false
 
+        // for a big speedup, move properties to its own nabob
         boundaries.forEach(b => {
           const properties = b.properties ?? {}
           // geojson sometimes has "id" outside of properties:
@@ -2410,12 +2451,12 @@ const MyComponent = defineComponent({
         this.incrementLoadProgress()
 
         // turn ON line borders if it's a SMALL dataset (user can re-enable)
-        if (!hasNoLines || boundaries.length < 5000) {
-          this.dataLineColors = '#4e79a7'
-        }
+        // if (!hasNoLines || boundaries.length < 5000) {
+        // this.dataLineColors = '#4e79a7'
+        // }
 
         // hide polygon/point buttons and opacity if we have no polygons or we do have points
-        if (!hasNoPolygons || hasPoints) this.isAreaMode = true
+        if (hasPoints || !hasNoPolygons) this.isAreaMode = true
 
         this.statusText = 'Adding boundaries to map'
         await this.$nextTick()
@@ -2426,20 +2467,18 @@ const MyComponent = defineComponent({
         this.incrementLoadProgress()
 
         // generate centroids if we have polygons
-        if (!hasNoPolygons || hasPoints) {
-          await this.generateCentroidsAndMapCenter()
-        } else if (this.needsInitialMapExtent) {
-          this.calculateAndMoveToCenter()
-        }
+        // if (!hasNoPolygons || hasPoints) {
+        //   await this.generateCentroidsAndMapCenter()
+        // }
 
         // Need to wait one tick so Vue inserts the Deck.gl view AFTER center is calculated
         // (not everyone lives in Berlin)
         await this.$nextTick()
 
-        // set features INSIDE react component
-        if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
-          REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
-        }
+        // // set features INSIDE react component
+        // if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
+        //   REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
+        // }
       } catch (e) {
         const err = e as any
         const message = err.statusText || 'Could not load'
@@ -2489,6 +2528,13 @@ const MyComponent = defineComponent({
         allowedModes.values = allowedModes.values.map((v: number) => modeLookup[v])
 
         dataTable = await this.myDataManager.setRowWisePropertyTable(filename, avroTable, config)
+
+        // special case: Avro networks have linkId instead of id, jesus christ!! :-()
+        if ('linkId' in dataTable && !('id' in dataTable)) {
+          dataTable = { id: dataTable.linkId, ...dataTable }
+          dataTable.id.name = 'id'
+        }
+
         // save memory: no longer need the avro input file
         this.avroNetwork = null
       } else {
@@ -2511,8 +2557,13 @@ const MyComponent = defineComponent({
 
       this.config.datasets = Object.assign({}, this.vizDetails.datasets)
 
-      // this.myDataManager.addFilterListener({ dataset: datasetId }, this.filterListener)
-      // this.figureOutRemainingFilteringOptions()
+      if (!this.vizDetails.tooltip || !this.vizDetails.tooltip.length) {
+        this.tooltipDesiredColumns = this.setupTooltipDesiredColumns()
+      }
+      // this.myDataManager.addFilterListener(
+      //   { dataset: datasetId, subfolder: '' },
+      //   this.processFiltersNow
+      // )
     },
 
     async calculateAndMoveToCenter() {
@@ -2533,18 +2584,22 @@ const MyComponent = defineComponent({
       centerLong /= numCoords
       centerLat /= numCoords
 
-      console.log('CENTER', centerLong, centerLat)
-      if (this.needsInitialMapExtent && !this.vizDetails.center) {
-        this.$store.commit('setMapCamera', {
-          longitude: centerLong,
-          latitude: centerLat,
-          center: [centerLong, centerLat],
-          bearing: 0,
-          pitch: 0,
-          zoom: 9,
-          initial: true,
-        })
-        this.needsInitialMapExtent = false
+      console.log('--- CALCULATED CENTER', centerLong, centerLat)
+      // console.log('SMC: calculateAndMoveToCenter')
+
+      const view = {
+        longitude: centerLong,
+        latitude: centerLat,
+        center: [centerLong, centerLat],
+        bearing: 0,
+        pitch: 0,
+        zoom: 9,
+        initial: true,
+      }
+      this.initialView = view
+
+      if (!this.vizDetails.mapIsIndependent) {
+        this.$store.commit('setMapCamera', view)
       }
     },
 
@@ -2666,7 +2721,8 @@ const MyComponent = defineComponent({
       // Allow user to override .PRJ projection with YAML config
       const guessCRS = this.vizDetails.projection || Coords.guessProjection(projection)
 
-      console.log({ guessCRS })
+      // console.log({ guessCRS })
+
       // then, reproject if we have a .prj file
       if (guessCRS) {
         this.statusText = 'Projecting coordinates...'
@@ -2690,32 +2746,6 @@ const MyComponent = defineComponent({
         return []
       }
 
-      // if (this.needsInitialMapExtent && !this.$store.state.viewState.latitude) {
-      if (true) {
-        // if we don't have a user-specified map center/zoom, focus on the shapefile itself
-
-        const long = []
-        const lat = []
-        for (let i = 0; i < geojson.features.length; i += 128) {
-          const firstPoint = getFirstPoint(geojson.features[i].geometry.coordinates)
-          long.push(firstPoint[0])
-          lat.push(firstPoint[1])
-        }
-        const longitude = long.reduce((x, y) => x + y) / long.length
-        const latitude = lat.reduce((x, y) => x + y) / lat.length
-
-        this.$store.commit('setMapCamera', {
-          longitude,
-          latitude,
-          bearing: 0,
-          pitch: 0,
-          zoom: 9,
-          center: [longitude, latitude],
-          initial: true,
-        })
-      }
-
-      this.needsInitialMapExtent = false
       return geojson.features as any[]
     },
 
@@ -2890,97 +2920,6 @@ const MyComponent = defineComponent({
       this.filters[column] = { column, label: column, options, active: [], dataset }
     },
 
-    updateChart() {
-      // boundaryDataTable come back as an object of columnName: values[].
-      // We need to make a lookup of the values by ID, and then
-      // insert those values into the boundaries geojson.
-
-      // console.log(this.config)
-      // console.log(this.datasets)
-      if (!this.config.display || !this.config.datasets) return
-
-      let joinShapesBy = 'linkId'
-
-      if (this.config.shapes?.join) joinShapesBy = this.config.shapes.join
-      // throw Error('Need "join" property to link shapes to datasets')
-
-      const datasetJoinCol = this.datasetJoinColumn // used to be this.config.display.fill.join
-      if (!datasetJoinCol) {
-        console.error(`No join column ${datasetJoinCol}`)
-        return
-      }
-
-      // value columns should be an array but might not be there yet
-      let valueColumns = this.config.display.fill.values
-      if (!valueColumns) {
-        this.statusText = ''
-        throw Error(`Need to specify column for data values`)
-      }
-
-      // Display values from query param if available, or config, or first option.
-      if (this.$route.query.display) this.config.display.fill.columnName = this.$route.query.display
-      let datasetValuesCol = this.config.display.fill.columnName || valueColumns[0]
-
-      this.datasetValuesColumn = datasetValuesCol
-      // this.datasetValuesColumnOptions = valueColumns
-
-      // this.setupFilters()
-
-      // 1. build the data lookup for each key in the dataset.
-      //    There is often more than one row per key, so we will
-      //    create an array for the group now, and (sum) them in step 2 below
-      const joinCol = this.boundaryDataTable[datasetJoinCol].values
-      const dataValues = this.boundaryDataTable[datasetValuesCol].values
-      const groupLookup = group(zip(joinCol, dataValues), d => d[0]) // group by join key
-
-      let max = 0
-
-      // 2. insert values into geojson
-      for (let idx = 0; idx < this.boundaries.length; idx++) {
-        const boundary = this.boundaries[idx]
-        const centroid = this.centroids[idx]
-
-        // id can be in root of feature, or in properties
-        let lookupValue = boundary[joinShapesBy]
-        if (lookupValue == undefined) lookupValue = boundary.properties[joinShapesBy]
-
-        if (lookupValue === undefined) {
-          this.$emit('error', `Shape is missing property "${joinShapesBy}"`)
-        }
-
-        // SUM the values of the second elements of the zips from (1) above
-        const row = groupLookup.get(lookupValue)
-        if (row) {
-          boundary.properties.value = sum(row.map(v => v[1]))
-          max = Math.max(max, boundary.properties.value)
-        } else {
-          boundary.properties.value = 'N/A'
-        }
-
-        // update the centroid too
-        if (centroid) centroid.properties!.value = boundary.properties.value
-      }
-
-      // this.maxValue = max // this.boundaryDataTable[datasetValuesCol].max || 0
-      this.maxValue = this.boundaryDataTable[datasetValuesCol].max || 0
-
-      // // 3. insert values into centroids
-      // this.centroids.forEach(centroid => {
-      //   const centroidId = centroid.properties!.id
-      //   if (!centroidId) return
-
-      //   let row = groupLookup.get(centroidId)
-      //   if (row === undefined) row = groupLookup.get(parseInt(centroidId))
-      //   centroid.properties!.value = row ? sum(row.map(v => v[1])) : 'N/A'
-      // })
-
-      // sort them so big bubbles are below small bubbles
-      this.centroids = this.centroids.sort((a: any, b: any) =>
-        a.properties.value > b.properties.value ? -1 : 1
-      )
-      this.activeColumn = 'value'
-    },
-
     clearData() {
       // these lines change the properties of these objects
       // WITHOUT reassigning them to new objects; this is
@@ -3110,6 +3049,8 @@ const MyComponent = defineComponent({
 
   async mounted() {
     try {
+      this.dbClearTooltip = debounce(this.clearTooltip, 1000)
+
       // EMBED MODE?
       this.setEmbeddedMode()
 
@@ -3131,7 +3072,7 @@ const MyComponent = defineComponent({
       ) {
         this.$emit(
           'error',
-          `Invalid map center coordinate specified. This doesn't look like longitude/latitude: ${this.config.center}`
+          `Invalid map center. This doesn't look like longitude/latitude: ${this.config.center}`
         )
         const initialView = this.globalState.viewState
         this.vizDetails.center = [initialView.longitude, initialView.latitude]
@@ -3149,17 +3090,24 @@ const MyComponent = defineComponent({
 
       this.setupLogoMover()
 
+      // if we have a USER-SUPPLIED center, move there now
+      // (otherwise we will calc it after the shapes are loaded)
       if (this.needsInitialMapExtent && this.vizDetails.center) {
-        this.$store.commit('setMapCamera', {
+        this.needsInitialMapExtent = false
+        const view = {
           center: this.vizDetails.center,
+          longitude: this.vizDetails.center[0],
+          latitude: this.vizDetails.center[1],
           zoom: this.vizDetails.zoom || 9,
           bearing: this.vizDetails.bearing || 0,
           pitch: this.vizDetails.pitch || 0,
-          longitude: this.vizDetails.center ? this.vizDetails.center[0] : 0,
-          latitude: this.vizDetails.center ? this.vizDetails.center[1] : 0,
           initial: true,
-        })
-        this.needsInitialMapExtent = false
+        }
+        if (this.vizDetails.mapIsIndependent) {
+          this.initialView = view
+        } else {
+          this.$store.commit('setMapCamera', view)
+        }
       }
 
       this.expColors = this.config.display?.fill?.exponentColors
@@ -3177,9 +3125,16 @@ const MyComponent = defineComponent({
       await this.loadBoundaries()
       this.filterShapesNow()
 
+      // if we still need a centerpoint, calculate it
+      if (this.needsInitialMapExtent && !this.vizDetails.center) {
+        this.calculateAndMoveToCenter()
+        this.needsInitialMapExtent = false
+      }
+
       this.isLoaded = true
       this.$emit('isLoaded')
 
+      await this.$nextTick()
       await this.loadDatasets()
 
       // Check URL query parameters
@@ -3203,11 +3158,6 @@ const MyComponent = defineComponent({
   beforeDestroy() {
     // MUST delete the React view handles to prevent gigantic memory leaks!
     delete REACT_VIEW_HANDLES[this.layerId]
-
-    if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
-      REACT_VIEW_HANDLES[1000 + this.layerId]([])
-      delete REACT_VIEW_HANDLES[1000 + this.layerId]
-    }
 
     this.clearData()
     this.legendStore.clear()
@@ -3309,6 +3259,7 @@ export default MyComponent
     left: 0;
     right: 0;
     border-top: 1px solid #88888880;
+    max-height: 50%;
   }
 }
 
@@ -3324,6 +3275,11 @@ export default MyComponent
   text-align: left;
   background-color: var(--bgCardFrame);
   border: 1px solid #88888880;
+  max-height: 50%;
+}
+
+.the-html {
+  overflow-y: auto;
 }
 
 .config-bar {
@@ -3370,8 +3326,14 @@ export default MyComponent
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  background-color: var(--bgPanel);
   width: min-content;
+  // background-color: var(--bgPanel);
+
+  h5 {
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-top: 0.5rem;
+  }
 }
 
 .filter {
@@ -3434,6 +3396,7 @@ export default MyComponent
 
 .simple-checkbox {
   padding: 0.25rem;
+  width: max-content;
 }
 
 .simple-checkbox:hover {
@@ -3508,5 +3471,36 @@ export default MyComponent
   width: 10rem;
   padding: 1rem;
   margin: 0;
+}
+
+.modal-tooltip-picker {
+  position: absolute;
+  inset: 0 0 0 0;
+  z-index: 20;
+  background-color: var(--bgBold);
+  margin: auto 5rem;
+  max-height: 30rem;
+  border: 1px solid var(--linkHover);
+  text-align: left;
+  filter: $filterShadow;
+
+  .tooltip-items {
+    padding: 0 0.75rem;
+    overflow-y: auto;
+    margin: 0.5rem 0;
+    width: 100%;
+  }
+
+  h4 {
+    color: white;
+    font-weight: bold;
+    padding: 2px 0.5rem;
+    width: 100%;
+    background-color: $appTag;
+  }
+
+  .cbspace {
+    margin-bottom: 3px;
+  }
 }
 </style>

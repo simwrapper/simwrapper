@@ -25,8 +25,15 @@ export default {
     subfolder: String,
     yamlConfig: String,
   },
+
   mounted() {
     this.$emit('isLoaded')
+  },
+
+  methods: {
+    isLoaded() {
+      this.$emit('isLoaded')
+    },
   },
 }
 </script>

@@ -1,15 +1,12 @@
 import * as Comlink from 'comlink'
-// import { SaxEventType, SAXParser, Detail, Tag, Attribute } from 'sax-wasm'
-import pako from 'pako'
+
+import globalStore from '@/store'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
+import { FileSystemConfig } from '@/Globals'
 
 import init, { EventStreamer } from 'matsim-event-streamer'
 
-import { parseXML } from '@/js/util'
 import AllEventLayers from './_views'
-
-import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { FileSystemConfig } from '@/Globals'
-import globalStore from '@/store'
 
 // read one chunk at a time. This sends backpressure to the server
 const strategy = new CountQueuingStrategy({ highWaterMark: 1 })
@@ -35,9 +32,6 @@ const Task = {
   _currentTranch: [] as any[][],
   _currentTranchTotalLength: 0,
 
-  // Pako library has gunzip chunking mode!
-  // _gunzipper: new pako.Inflate({ to: 'string', chunkSize: 524288 }),
-
   _isGzipped: false,
   _cbUnzipChunkComplete: {} as any,
 
@@ -53,6 +47,7 @@ const Task = {
       network: any
       layers: any
       fsConfig: FileSystemConfig
+      follow?: string
     },
     cbReportNewData: Function
   ) {
@@ -60,10 +55,9 @@ const Task = {
       console.log('----starting event stream')
       const { filename, fsConfig } = props
 
-      console.log('EVENT STREAM MUTHAAAA')
       await init()
       this._eventStreamer = new EventStreamer()
-      console.log('EVENT STREAM MUTHAAAA 2')
+      console.log('EVENT STREAM survived INIT')
 
       this._cbReporter = cbReportNewData
 
@@ -111,10 +105,10 @@ const Task = {
 
     // Notify all the layers they have some work to do!
     if (this._currentTranchTotalLength > MAX_ARRAY_LENGTH) {
-      console.log('----batching off for processing:', this._currentTranchTotalLength)
+      // console.log('----batching off for processing:', this._currentTranchTotalLength)
       const oneSetOfChunks = [...this._currentTranch]
       this.sendDataToLayersForProcessing(oneSetOfChunks)
-      console.log('----done processing:', this._currentTranchTotalLength)
+      // console.log('----done processing:', this._currentTranchTotalLength)
       this._currentTranch = [] // this._currentTranch.slice(MAX_ARRAY_LENGTH)
       this._currentTranchTotalLength = 0
     }
@@ -129,15 +123,15 @@ const Task = {
           return new Promise(async (resolve, reject) => {
             if (parent._isCancelled) reject()
 
-            console.log('====GOT LARGE CHUNK', entireChunk.length)
+            // console.log('====GOT LARGE CHUNK', entireChunk.length)
             const parseIt = async (smallChunk: Uint8Array, chunkId: number) => {
               if (parent._isCancelled) reject()
 
-              console.log('--sending chunk to WASM:', entireChunk.length)
+              // console.log('--sending chunk to WASM:', entireChunk.length)
               const rawEvents: string = await parent._eventStreamer.process(smallChunk)
-              console.log('--got text. parsing raw json string:', rawEvents.length)
+              // console.log('--got text. parsing raw json string:', rawEvents.length)
               const events = JSON.parse(rawEvents)
-              console.log('--handling event rows:', events.length)
+              // console.log('--handling event rows:', events.length)
               await parent.handleText(events)
             }
 

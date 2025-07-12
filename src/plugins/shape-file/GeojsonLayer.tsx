@@ -34,17 +34,16 @@ export default function Component({
   redraw = 0,
   featureFilter = new Float32Array(0),
   cbTooltip = null as any,
+  cbClickEvent = {} as any,
   bgLayers = {} as { [name: string]: BackgroundLayer },
-  handleClickEvent = {} as any,
   highlightedLinkIndex = -1 as number,
   dark = false,
   isRGBA = false,
   features = [] as any[],
+  mapIsIndependent = false,
+  initialView = null,
 }) {
-  // const features = globalStore.state.globalCache[viewId] as any[]
-  // const [features, setFeatures] = useState([] as any[])
-
-  const [viewState, setViewState] = useState(globalStore.state.viewState)
+  const [viewState, setViewState] = useState(initialView || globalStore.state.viewState)
   const [screenshotCount, setScreenshot] = useState(screenshot)
 
   const _mapRef = useRef<MapRef>() as any
@@ -58,27 +57,6 @@ export default function Component({
   REACT_VIEW_HANDLES[viewId] = () => {
     setViewState(globalStore.state.viewState)
   }
-
-  // console.log(featureFilter)
-
-  // Feature setter hack:
-  // Using the array itself causes an enormous memory leak. I am not sure why
-  // Vue/React/Deck.gl are not managing this array correctly. Surely the problem
-  // is in our code, not theirs? But I spent days trying to find it.
-  // Anyway, making this deep copy of the feature array seems to solve it.
-
-  // REACT_VIEW_HANDLES[1000 + viewId] = (features: any[]) => {
-  //   const fullCopy = features.map(feature => {
-  //     const f = {
-  //       type: '' + feature.type,
-  //       geometry: JSON.parse(JSON.stringify(feature.geometry)),
-  //       properties: JSON.parse(JSON.stringify(feature?.properties || {})),
-  //     } as any
-  //     if ('id' in feature) f.id = '' + feature.id
-  //     return f
-  //   })
-  //   setFeatures(fullCopy)
-  // }
 
   // SCREENSHOT -----------------------------------------------------------------------
   let isTakingScreenshot = screenshot > screenshotCount
@@ -171,7 +149,8 @@ export default function Component({
     if (!view.latitude) return
     view.center = [view.longitude, view.latitude]
     setViewState(view)
-    globalStore.commit('setMapCamera', view)
+
+    if (!mapIsIndependent) globalStore.commit('setMapCamera', view)
   }
 
   // CLICK  ---------------------------------------------------------------------
@@ -179,13 +158,16 @@ export default function Component({
     // console.log('click!')
     // console.log(event)
     // TODO: send click event to parent
-    if (handleClickEvent) handleClickEvent(event)
+    if (cbClickEvent) cbClickEvent(event)
   }
 
   // TOOLTIP ------------------------------------------------------------------
   function getTooltip({ object, index }: { object: any; index: number }) {
     let offset = index
-    if (object && 'feature_idx' in object) offset = object.feature_idx
+    if (object && 'feature_idx' in object) {
+      offset = object.feature_idx
+    }
+    // always call this even if we're blank so tooltip goes away
     if (cbTooltip) cbTooltip(offset, object)
   }
 
@@ -235,12 +217,14 @@ export default function Component({
   // our own polygon border using the LinkLayer instead.
   // Thick links will not smoothly "flow" around bends, but it's far far faster.
 
-  const { linksData, hasPolygons } = useMemo(() => {
+  const { linksData, hasPolygons, filterValues } = useMemo(() => {
     // no strokes? no links. we're done
     if (!isStroked) return { linksData: [], hasPolygons: true }
 
     const linksData: any[] = []
     let hasPolygons = false
+
+    const filterValues = [] as number[]
 
     features.forEach((feature, f) => {
       let coords
@@ -282,11 +266,15 @@ export default function Component({
         //@ts-ignore
         if (hasWidthData) element.width = cbLineWidth(null, { index: f } as any)
         element.feature_idx = f
+
+        // filter values - duplicate filter 0/-1 for each coordinate
+        if (featureFilter.length) filterValues.push(featureFilter[f])
+
         linksData.push(element)
       }
     })
-    return { linksData, hasPolygons }
-  }, [features, lineColors, lineWidths, dark, isStroked])
+    return { linksData, hasPolygons, filterValues }
+  }, [features, lineColors, lineWidths, featureFilter, dark, isStroked])
 
   // ----------------------------------------------------------------------------
   const finalLayers = [...backgroundLayers]
@@ -359,20 +347,26 @@ export default function Component({
 
   // --------- LINE LAYER -- on top of main Geojson layer
   if (isStroked) {
+    // if useMemo did some filter processing, use the new filter values
+    const theFilter = filterValues || featureFilter
+
     const lineLayer = typeof cbLineWidth == 'number' ? LineLayer : LineOffsetLayer
     finalLayers.push(
       //@ts-ignore
       new lineLayer({
         id: 'linksLayer',
-        pickable: true,
-        opacity: 1,
-        widthUnits: 'pixels',
-        widthMinPixels: 1,
         data: linksData,
         getColor: Array.isArray(cbLineColor) ? cbLineColor : (d: any) => d.color,
         getWidth: typeof cbLineWidth == 'number' ? cbLineWidth : (d: any) => d.width,
         getSourcePosition: (d: any) => d.path[0],
         getTargetPosition: (d: any) => d.path[1],
+        pickable: true,
+        autoHighlight: true,
+        highlightedObjectIndex: highlightedLinkIndex == -1 ? null : highlightedLinkIndex,
+        highlightColor: [255, 0, 204, 255],
+        opacity: 1,
+        widthUnits: 'pixels',
+        widthMinPixels: 1,
         offsetDirection: OFFSET_DIRECTION.RIGHT,
         transitions: {
           getColor: 300,
@@ -386,6 +380,12 @@ export default function Component({
           // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
           preserveDrawingBuffer: true,
           fp64: false,
+        },
+        // filter shapes
+        extensions: [new DataFilterExtension({ filterSize: 1 })],
+        filterRange: [0, 1], // set filter to -1 to filter element out
+        getFilterValue: (_: any, o: DeckObject) => {
+          return theFilter[o.index]
         },
       })
     )

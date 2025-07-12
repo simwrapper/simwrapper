@@ -25,6 +25,7 @@ import GL from '@luma.gl/constants'
 import { Model, Geometry } from '@luma.gl/core'
 
 import vertShader from './icon-layer.glsl.vert?raw'
+import vertShaderOcc from './icon-layer-occupancy.glsl.vert?raw'
 import fragShader from './icon-layer.glsl.frag?raw'
 
 import IconManager from './icon-manager'
@@ -37,6 +38,8 @@ const defaultProps = {
   sizeScale: { type: 'number', value: 1, min: 0 },
   billboard: false,
   sizeUnits: 'pixels',
+  isColorOccupancy: false,
+  latitudeCorrectionFactor: 0.8,
   sizeMinPixels: { type: 'number', min: 0, value: 0 }, //  min point radius in pixels
   sizeMaxPixels: { type: 'number', min: 0, value: Number.MAX_SAFE_INTEGER }, // max point radius in pixels
   alphaCutoff: { type: 'number', value: 0.05, min: 0, max: 1 },
@@ -60,7 +63,8 @@ const defaultProps = {
 
 export default class IconLayer extends Layer {
   getShaders() {
-    return super.getShaders({ vs: vertShader, fs: fragShader, modules: [project32, picking] })
+    const vs = this.props.isColorOccupancy ? vertShaderOcc : vertShader
+    return super.getShaders({ vs, fs: fragShader, modules: [project32, picking] })
   }
 
   initializeState() {
@@ -200,6 +204,7 @@ export default class IconLayer extends Layer {
       currentTime,
       iconStill,
       pickable,
+      latitudeCorrectionFactor,
     } = this.props
 
     const { iconManager } = this.state
@@ -219,6 +224,7 @@ export default class IconLayer extends Layer {
           alphaCutoff,
           currentTime,
           pickable,
+          latitudeCorrectionFactor,
           iconStillOffsets: this.getInstanceOffset(iconStill),
           iconStillFrames: this.getInstanceIconFrame(iconStill),
         })

@@ -22,43 +22,9 @@ uniform float bearing;
 varying vec4 vColor;
 varying vec2 uv;
 
-// offset vector by strokeWidth pixels
-// offset_direction is -1 (left) or 1 (right)
-vec2 getExtrusionOffset(vec2 line_clipspace, float offset_direction, float width) {
-  // normalized direction of the line
-  vec2 dir_screenspace = normalize(line_clipspace * project_uViewportSize);
-  // rotate by 90 degrees
-  dir_screenspace = vec2(-dir_screenspace.y, dir_screenspace.x);
-
-  return dir_screenspace * offset_direction * width / 2.0;
-}
-
 vec3 splitLine(vec3 a, vec3 b, float x) {
   float t = (x - a.x) / (b.x - a.x);
   return vec3(x, mix(a.yz, b.yz, t));
-}
-
-void drivingSideOffset(inout vec3 size, float widthPixels) {
-
-    // a -> b
-    vec3 link = geometry.worldPositionAlt.xyz - geometry.worldPosition.xyz;
-
-    // normalized direction of the line
-    vec2 direction = normalize(link.xy * project_uViewportSize);
-
-    // rotate by map bearing
-    vec2 rotation;
-    rotation.x = direction.x * cos(bearing) + direction.y * -sin(bearing);
-    rotation.y = direction.x * sin(bearing) + direction.y *  cos(bearing);
-
-    // rotate by 90 degrees to get offset direction
-    rotation = vec2(-rotation.y, rotation.x);
-
-    // offset the coordinates
-    vec2 offset = rotation * offsetDirection * widthPixels / 2.0;
-
-    size.x += offset.x;
-    size.y += offset.y;
 }
 
 void main(void) {
@@ -74,7 +40,6 @@ void main(void) {
     source_world.x = mod(source_world.x + 180., 360.0) - 180.;
     target_world.x = mod(target_world.x + 180., 360.0) - 180.;
     float deltaLng = target_world.x - source_world.x;
-
     if (deltaLng * useShortestPath > 180.) {
       source_world.x += 360. * useShortestPath;
       source_world = splitLine(source_world, target_world, 180. * useShortestPath);
@@ -90,35 +55,49 @@ void main(void) {
     }
   }
 
-  // Position
+  // Linear interpolation to get the current vertex position along the line
+  float segmentIndex = positions.x;
+  vec3 current_world = mix(source_world, target_world, segmentIndex);
+
+  // Project positions to common space to get the line direction in projected coordinates
   vec4 source_commonspace;
   vec4 target_commonspace;
-  vec4 source = project_position_to_clipspace(source_world, source_world_64low, vec3(0.), source_commonspace);
-  vec4 target = project_position_to_clipspace(target_world, target_world_64low, vec3(0.), target_commonspace);
+  vec4 current_commonspace;
 
-  // linear interpolation of source & target to pick right coord
-  float segmentIndex = positions.x;
-  vec4 p = mix(source, target, segmentIndex);
-  geometry.position = mix(source_commonspace, target_commonspace, segmentIndex);
+  project_position_to_clipspace(source_world, source_world_64low, vec3(0.), source_commonspace);
+  project_position_to_clipspace(target_world, target_world_64low, vec3(0.), target_commonspace);
+  project_position_to_clipspace(current_world, vec3(0.), vec3(0.), current_commonspace);
+
+  // Calculate line direction in projected common space
+  vec3 line_direction = normalize(target_commonspace.xyz - source_commonspace.xyz);
+
+  // Get perpendicular direction in projected space (rotate 90 degrees in XY plane)
+  vec3 perpendicular = vec3(-line_direction.y, line_direction.x, 0.0);
+
+  // Compatibility factor makes widths approx what they used to be when the calcs were wrong
+  float compatFactor = 0.25;
+
+  // Calculate width in common space units
+  float width_commonspace = project_size_to_pixel(instanceWidths * widthScale * compatFactor, widthUnits);
+  width_commonspace = clamp(width_commonspace, widthMinPixels, widthMaxPixels);
+  width_commonspace = project_pixel_size(width_commonspace);
+
+  // Calculate offsets in common space
+  vec3 lineWidthOffset = perpendicular * positions.y * width_commonspace;
+  vec3 drivingSideOffset = perpendicular * offsetDirection * width_commonspace;
+
+  // Apply offsets to the current position in common space
+  vec3 offset_commonspace_position = current_commonspace.xyz + lineWidthOffset + drivingSideOffset;
+
+  // Project the final position
+  vec4 final_position = project_common_position_to_clipspace(vec4(offset_commonspace_position, 1.0));
+
+  geometry.position = current_commonspace;
   uv = positions.xy;
   geometry.uv = uv;
   geometry.pickingColor = instancePickingColors;
 
-  // Multiply out width and clamp to limits
-  float widthPixels = clamp(
-    project_size_to_pixel(instanceWidths * widthScale, widthUnits),
-    widthMinPixels, widthMaxPixels
-  );
-
-  // extrude
-  vec3 offset = vec3(
-    getExtrusionOffset(target.xy - source.xy, positions.y, widthPixels),
-    0.0);
-
-  drivingSideOffset(offset, 1.0 + widthPixels);
-
-  DECKGL_FILTER_SIZE(offset, geometry);
-  gl_Position = p + vec4(project_pixel_size_to_clipspace(offset.xy), 0.0, 0.0);
+  gl_Position = final_position;
   DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
 
   // Color

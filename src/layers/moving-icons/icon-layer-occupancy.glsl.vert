@@ -153,18 +153,35 @@ void main(void) {
 
   // COLORS
   vColor = instanceColors;
-  if (instanceColorCodes  == 1.0) {
-    // green
-    // vColor = vec4(0.0, 0.65, 0.0, 1.0);
-    vColor = vec4(0.0, 0.75, 0.22, 1.0);
-  } else if (instanceColorCodes == 2.0) {
-    // yellow
-    // vColor = vec4(0.85, 0.65, 0.0, 1.0);
-    vColor = vec4(0.90, 0.80, 0.0, 1.0);
-  } else if (instanceColorCodes == 3.0 ) {
-    // red
-    vColor = vec4(0.95, 0.0, 0.2, 1.0);
+  float bp1 = 0.20;
+  float bp2 = 0.40;
+
+  vec4 col1 = vec4(0.95, 0.0, 0.2, 1.0);
+  vec4 col2 = vec4(0.90, 0.80, 0.0, 0.8);
+  vec4 col3 = vec4(0.00, 0.75, 0.20, 1.0);
+  vec4 col4 = vec4(0.15, 0.45, 0.98, 1.0);
+
+  if (instanceColorCodes < bp1) {
+    float t = instanceColorCodes / bp1;
+    vColor = mix(col1, col2, t);
+  } else if (instanceColorCodes < bp2) {
+    float t = (instanceColorCodes - bp2 + bp1) / (bp2 - bp1);
+    vColor =  mix(col2, col3, t);
+  } else {
+    float t = (instanceColorCodes - bp2) / (1.0 - bp2);
+    vColor =  mix(col3, col4,  t);
   }
+
+  // if (instanceColorCodes  == 1.0) {
+  //   // green
+  //   vColor = vec4(0.0, 0.75, 0.22, 1.0);
+  // } else if (instanceColorCodes == 2.0) {
+  //   // yellow
+  //   vColor = vec4(0.90, 0.80, 0.0, 1.0);
+  // } else if (instanceColorCodes == 3.0 ) {
+  //   // red
+  //   vColor = vec4(0.95, 0.0, 0.2, 1.0);
+  // }
 
   DECKGL_FILTER_COLOR(vColor, geometry);
 

@@ -2,17 +2,17 @@
 .video-plugin-container(:class="{thumbnail}")
   h3(v-if="!thumbnail") {{ title }}
 
-  .vid-container
-    video(:controls="controls" :loop='loop' :allowfullscreen='allowfullscreen' :autoplay="autoplay" :muted="muted")
-      source(v-for="(src, type) in sources" :src="src" :type="type" :key="type")
-      p(v-for="(src, type) in sources" :key="type") Video tag not supported. Download the video&nbsp;
-        a(:href="src" target="_blank") here
-
-    //- video-player.vjs-default-skin.vjs-big-play-centered(
-    //-   ref="videoPlayer"
-    //-   :options="playerOptions"
-    //- )
-    //- v-if="movieSource"
+  .vid-container(v-if="!thumbnail")
+    video(
+      :controls="playerOptions.controls"
+      :loop='playerOptions.loop'
+      :allowfullscreen="true"
+      :autoplay="playerOptions.autoplay"
+      :muted="playerOptions.muted"
+    )
+      source(:src="movieSource" type="video/mp4")
+      p Video tag not supported. Download the video&nbsp;
+        a(:href="movieSource" target="_blank") here
 
 </template>
 
@@ -22,8 +22,7 @@ import { defineComponent } from 'vue'
 // import { videoPlayer } from 'vue-video-player'
 
 import globalStore from '@/store'
-import { FileSystem, FileSystemConfig, VisualizationPlugin } from '@/Globals'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
+import { FileSystemConfig } from '@/Globals'
 
 // import '~/video.js/dist/video-js.min.css'
 
@@ -43,16 +42,17 @@ const MyComponent = defineComponent({
       title: '',
       myState: {} as any,
       fileApi: null as FileSystemConfig | null,
+      sources: [] as any[],
       playerOptions: {
+        autoplay: false,
+        controls: true,
+        fluid: false,
+        language: globalStore.state.locale,
         muted: false,
-        language: 'en',
         playbackRates: [0.5, 1.0, 1.5, 2.0, 5.0],
+        playsInline: true,
         preload: 'metadata',
         responsive: true,
-        fluid: false,
-        playsInline: true,
-        controls: true,
-        sources: [] as any[],
       },
     }
   },
@@ -71,6 +71,10 @@ const MyComponent = defineComponent({
       imageData: '',
     }
 
+    this.getVizDetails()
+
+    if (this.thumbnail) return
+
     this.playerOptions.fluid = !!this.thumbnail
     if (!this.thumbnail) globalStore.commit('setFullScreen', true)
 
@@ -81,8 +85,6 @@ const MyComponent = defineComponent({
       this.myState.yamlConfig = this.yamlConfig
       this.buildMovieSource()
     }
-
-    this.getVizDetails()
   },
   watch: {
     yamlConfig() {
@@ -98,11 +100,6 @@ const MyComponent = defineComponent({
   methods: {
     buildMovieSource() {
       this.movieSource = `${this.fileApi?.baseURL}/${this.myState.subfolder}/${this.myState.yamlConfig}`
-
-      this.playerOptions.sources.push({
-        type: 'video/mp4',
-        src: this.movieSource,
-      })
     },
 
     getFileSystem(name: string) {

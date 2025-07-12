@@ -184,9 +184,9 @@ export default defineComponent({
       const url = await new Promise(resolve => {
         const reader = new FileReader()
         reader.readAsArrayBuffer(file)
-        reader.onload = (e: any) => {
+        reader.onload = async (e: any) => {
           const buffer = e.target.result
-          const unzipped = gUnzip(buffer)
+          const unzipped = await gUnzip(buffer)
           resolve(unzipped)
         }
       })
@@ -379,5 +379,4 @@ a {
   background-repeat: no-repeat;
   background-position: center center;
 }
-
 </style>

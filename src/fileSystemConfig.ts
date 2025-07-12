@@ -15,6 +15,24 @@ if (typeof window !== 'undefined') {
   websiteLiveHost = `${loc?.protocol}//${webLiveHostname}`
 }
 
+/** Flask filesystems are running the latest Python flask app which
+ * supports OMX file slices and streaming large files!
+ */
+export function addFlaskFilesystems(flaskEntries: { [id: string]: any }) {
+  const roots = Object.keys(flaskEntries)
+  for (const slug of roots) {
+    const params = flaskEntries[slug]
+    const fsconfig: FileSystemConfig = {
+      name: slug,
+      slug,
+      description: params.description,
+      baseURL: window.location.origin, // params.path,
+      flask: true,
+    }
+    fileSystems.unshift(fsconfig)
+  }
+}
+
 export function addInitialLocalFilesystems(
   filesystems: { handle: FileSystemAPIHandle; key: string }[]
 ) {
@@ -116,20 +134,12 @@ let fileSystems: FileSystemConfig[] = [
     skipList: ['episim/battery'],
   },
   {
-    name: 'Berlin Open Scenario v6.3',
+    name: 'Berlin Open Scenario v6',
     slug: 'open-berlin',
     description: 'Standard dashboard from the MATSim SimWrapper contrib',
     thumbnail: 'images/thumb-localfiles.jpg',
     baseURL:
-      'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.3/output/berlin-v6.3-10pct/',
-    example: true,
-  },
-  {
-    name: 'Visualization Examples',
-    slug: 'examples',
-    description: 'Various SimWrapper data vis types',
-    thumbnail: 'images/thumb-localfiles.jpg',
-    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper',
+      'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.4/output/berlin-v6.4-10pct/',
     example: true,
   },
   {
@@ -153,6 +163,14 @@ let fileSystems: FileSystemConfig[] = [
     example: true,
   },
   {
+    name: 'Visualization Examples',
+    slug: 'examples',
+    description: 'Various SimWrapper data vis types',
+    thumbnail: 'images/thumb-localfiles.jpg',
+    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper',
+    example: true,
+  },
+  {
     name: 'Additional Sample Data',
     slug: 'sample-data',
     description: 'Sample data from various cities',
@@ -163,8 +181,8 @@ let fileSystems: FileSystemConfig[] = [
   {
     name: 'Localhost:8000',
     slug: 'local',
-    description: 'Files shared using "simwrapper serve"',
-    baseURL: 'http://localhost:8000',
+    description: 'Files shared using "simwrapper serve" on http://127.0.0.1:8000',
+    baseURL: 'http://127.0.0.1:8000',
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
   },
   {

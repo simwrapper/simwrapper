@@ -1,4 +1,4 @@
-import pako from 'pako'
+import { Blosc } from 'numcodecs'
 import naturalSort from 'javascript-natural-sort'
 
 import { FileSystemConfig } from '@/Globals'
@@ -50,8 +50,8 @@ class H5Provider {
   public async init() {
     if (this.file) {
       await this._initLocalFile()
-    } else if (this.fileSystem.omx) {
-      await this._initOmxAPI()
+    } else if (this.fileSystem.flask) {
+      await this._initFlaskAPI()
     } else {
       await this._initFileAPI()
     }
@@ -59,7 +59,7 @@ class H5Provider {
   }
 
   public async getDataArray(tableName: string) {
-    if (this.fileSystem.omx) {
+    if (this.fileSystem.flask) {
       return this._getMatrixFromOMXApi(tableName)
     } else {
       return this._getMatrixFromH5File(tableName)
@@ -85,7 +85,7 @@ class H5Provider {
     await this._setFileProps()
   }
 
-  private async _initOmxAPI() {
+  private async _initFlaskAPI() {
     const props = await this._getOmxPropsFromOmxAPI()
     if (props) {
       this.catalog = props.catalog
@@ -186,9 +186,9 @@ class H5Provider {
     // MAIN MATRIX - fetch the individual matrix from API
     const response = await fetch(url, { headers })
     const buffer = await response.blob().then(async b => await b.arrayBuffer())
-    const compressed = new Uint8Array(buffer)
-    const decompressed = pako.inflate(compressed)
-    const data = new Float64Array(decompressed.buffer)
+    const codec = new Blosc() // buffer is blosc-compressed
+    const data = new Float64Array(new Uint8Array(await codec.decode(buffer)).buffer)
+
     return { data, table, path: this.path }
     // }
   }

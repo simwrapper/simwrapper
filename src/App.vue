@@ -39,7 +39,7 @@ import { get } from 'idb-keyval'
 import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
 import { ColorScheme, MAPBOX_TOKEN, MAP_STYLES_OFFLINE } from '@/Globals'
-import { addInitialLocalFilesystems } from '@/fileSystemConfig'
+import { addInitialLocalFilesystems, addFlaskFilesystems } from '@/fileSystemConfig'
 
 import TopNavBar from '@/layout-manager/TopNavBar.vue'
 
@@ -107,6 +107,7 @@ export default defineComponent({
 
     // ------ Find Chrome Local File System roots ----
     setupLocalFiles() {
+      // only do this once
       if (globalStore.state.localFileHandles.length) return
 
       // this must be completed before the router-view initializes,
@@ -116,8 +117,22 @@ export default defineComponent({
         if (localFileSystems && localFileSystems.length) {
           addInitialLocalFilesystems(localFileSystems)
         }
-        // this signals that we have what we need and router-view can get started
-        this.isFileSystemLoaded = true
+
+        // If there are Flask filesystems, get those too
+        fetch('/_storage_')
+          .then(r => r.json())
+          .then(json => {
+            console.log('---Registering Flask filesystems', json.storage)
+            addFlaskFilesystems(json.storage)
+            globalStore.commit('setFlaskConfig', json)
+          })
+          .catch(e => {
+            console.log('---no flask filesystems found on this server')
+          })
+          .finally(() => {
+            // this signals that we have what we need and router-view can get started
+            this.isFileSystemLoaded = true
+          })
       })
     },
 
@@ -329,6 +344,7 @@ canvas {
 h2 {
   font-size: 2rem;
   font-weight: bold;
+  color: var(--text) !important;
 }
 
 h3 {
@@ -487,32 +503,32 @@ p.splash-label {
   h6 {
     padding-top: 0.25rem;
     padding-bottom: 0.25rem;
-    color: var(--textFancy);
+    color: var(--textFancy) !important;
   }
 
   h1 {
-    font-size: 1.5rem;
+    font-size: 1.8rem;
     font-weight: bold;
   }
 
   h2 {
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     font-weight: bold;
   }
 
   h3 {
-    font-size: 1.1rem;
+    font-size: 1.3rem;
     font-weight: bold;
   }
 
   h4 {
-    font-size: 1.2rem;
-    font-weight: normal;
+    font-size: 1.1rem;
+    font-weight: bold;
   }
 
   h5 {
     font-size: 1rem;
-    font-weight: normal;
+    font-weight: bold;
   }
 
   ul {
@@ -799,6 +815,80 @@ p.splash-label {
 
 .mb1 {
   margin-bottom: 1rem;
+}
+
+.az-title {
+  margin: 2rem 0 1rem 0;
+  font-weight: bold;
+  text-transform: uppercase;
+  // color: var(--textFancy);
+}
+
+.az-quick-start-items {
+  gap: 0.25rem;
+}
+
+.az-quick-item {
+  user-select: none;
+  border: 1px solid #00000000;
+  border-radius: 4px;
+  padding: 0.5rem 1.5rem;
+  text-align: center;
+  margin-top: 0.25rem;
+  line-height: 1.25rem;
+}
+
+.az-quick-item:hover {
+  cursor: pointer;
+  border: 1px solid #80808040;
+  background-color: #ffffff40;
+}
+
+.az-quick-item:active {
+  cursor: pointer;
+  border: 1px solid #80808040;
+  background-color: #ffffffaa;
+}
+
+.az-quick-icon {
+  font-size: 1.5rem;
+  color: var(--link);
+}
+
+.az-quick-label {
+  margin-top: 0.5rem;
+}
+
+.az-grid {
+  margin-bottom: 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+}
+
+.az-cell {
+  padding: 0.35rem 2rem 0.35rem 0;
+  border-bottom: 1px solid #80808080;
+  line-height: 1.4rem;
+}
+.az-row {
+  display: contents;
+}
+.az-icon {
+  padding-right: 0.5rem;
+  font-size: 14px;
+}
+
+.linky {
+  color: var(--link);
+}
+
+.zcaps {
+  font-size: 18px;
+  text-transform: uppercase;
+}
+
+.heading {
+  margin-bottom: 0;
 }
 
 @media only screen and (max-width: 640px) {

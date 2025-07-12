@@ -15,8 +15,9 @@ export default defineComponent({
   name: 'LineFilterSlider',
   props: {
     initialValue: { type: Number, required: true },
+    tooltip: { type: Boolean, default: true },
   },
-  data: () => {
+  data: self => {
     return {
       sliderValue: 0,
       options: {
@@ -24,8 +25,8 @@ export default defineComponent({
         indicator: true,
         min: 0,
         max: 100,
-        'tooltip-always': true,
-        tooltip: true,
+        'tooltip-always': self.tooltip,
+        tooltip: self.tooltip,
         data: [
           0,
           1,

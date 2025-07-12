@@ -14,13 +14,14 @@ export default defineComponent({
   props: {
     stops: { type: Array, required: true },
     initialValue: { type: Number, required: true },
+    tooltip: { type: Boolean, default: true },
   },
-  data: () => {
+  data: self => {
     return {
       sliderValue: 1,
       options: {
-        // tooltip: false,
-        'tooltip-always': true,
+        tooltip: self.tooltip,
+        'tooltip-always': self.tooltip,
         min: 0,
         size: 'is-small',
         max: 100,

@@ -1,6 +1,7 @@
 import micromatch from 'micromatch'
-import pako from 'pako'
 import naturalSort from 'javascript-natural-sort'
+
+import { gUnzip } from '@/js/util'
 
 import {
   DirectoryEntry,
@@ -14,7 +15,7 @@ enum FileSystemType {
   FETCH,
   CHROME,
   GITHUB,
-  AZURE,
+  FLASK,
 }
 
 naturalSort.insensitive = true
@@ -38,7 +39,7 @@ class HTTPFileSystem {
   private fsHandle: FileSystemAPIHandle | null
   private store: any
   private isGithub: boolean
-  private isOMX: boolean
+  private isFlask: boolean
   private type: FileSystemType
 
   constructor(project: FileSystemConfig, store?: any) {
@@ -48,12 +49,12 @@ class HTTPFileSystem {
     this.fsHandle = project.handle || null
     this.store = store || null
     this.isGithub = !!project.isGithub
-    this.isOMX = !!project.omx
+    this.isFlask = !!project.flask
 
     this.type = FileSystemType.FETCH
     if (this.fsHandle) this.type = FileSystemType.CHROME
     if (this.isGithub) this.type = FileSystemType.GITHUB
-    if (this.isOMX) this.type = FileSystemType.AZURE
+    if (this.isFlask) this.type = FileSystemType.FLASK
 
     this.baseUrl = project.baseURL
     if (!project.baseURL.endsWith('/')) this.baseUrl += '/'
@@ -110,7 +111,7 @@ class HTTPFileSystem {
         return this._getFileFromChromeFileSystem(scaryPath)
       case FileSystemType.GITHUB:
         return this._getFileFromGitHub(scaryPath)
-      case FileSystemType.AZURE:
+      case FileSystemType.FLASK:
         return this._getFileFromAzure(scaryPath)
       case FileSystemType.FETCH:
       default:
@@ -120,7 +121,6 @@ class HTTPFileSystem {
 
   private async _getFileFetchResponse(scaryPath: string): Promise<Response> {
     const path = this.cleanURL(scaryPath)
-    // console.log(path)
     const headers: any = {}
 
     // const credentials = globalStore.state.credentials[this.urlId]
@@ -150,7 +150,6 @@ class HTTPFileSystem {
     let url = `${this.baseUrl}list/${this.slug}?prefix=${prefix}`
     const fullUrl = new URL(url).href
 
-    console.log({ fullUrl })
     const headers: any = {}
     // const credentials = globalStore.state.credentials[this.urlId]
 
@@ -161,7 +160,6 @@ class HTTPFileSystem {
         localStorage.setItem(`auth-token-${this.slug}`, token)
         headers['AZURETOKEN'] = token
       } else {
-        console.log('bye')
         return { dirs: [], files: [], handles: {} } as DirectoryEntry
       }
     }
@@ -179,7 +177,6 @@ class HTTPFileSystem {
         headers['AZURETOKEN'] = token
         return await this._getDirectoryFromAzure(stillScaryPath)
       } else {
-        console.log('bye2')
         return { dirs: [], files: [], handles: {} } as DirectoryEntry
       }
     }
@@ -191,7 +188,6 @@ class HTTPFileSystem {
     }
 
     const json = (await response.json()) as DirectoryEntry
-    console.log(json)
     return json
   }
 
@@ -209,7 +205,6 @@ class HTTPFileSystem {
     let url = `${this.baseUrl}file/${this.slug}?prefix=${prefix}`
     const fullUrl = new URL(url).href
 
-    console.log(fullUrl)
     const headers: any = {}
     // const credentials = globalStore.state.credentials[this.urlId]
     // if (this.needsAuth) { headers['Authorization'] = `Basic ${credentials}`}
@@ -281,7 +276,6 @@ class HTTPFileSystem {
 
     const bits = path.split('/').filter(m => !!m)
     if (bits.length < 2) {
-      console.log('no.')
       return new Promise((resolve, reject) => {
         resolve(null as any)
       })
@@ -400,7 +394,7 @@ class HTTPFileSystem {
     const buffer = await blob.arrayBuffer()
 
     // recursively gunzip until it can gunzip no more:
-    const unzipped = this.gUnzip(buffer)
+    const unzipped = await gUnzip(buffer)
     const text = new TextDecoder('utf-8').decode(unzipped)
 
     return JSON.parse(text)
@@ -425,8 +419,12 @@ class HTTPFileSystem {
       case FileSystemType.FETCH:
         stream = await this._getFileFetchResponse(scaryPath).then(response => response.body)
         return stream as any
+      case FileSystemType.FLASK:
+        const fullUrl = `/file/${this.slug}?prefix=${scaryPath}`
+        stream = await this._getFileFetchResponse(fullUrl).then(response => response.body)
+        return stream as any
       default:
-        throw Error('Not implemented')
+        throw Error(`FileSystemType ${this.type} not implemented`)
     }
   }
 
@@ -442,7 +440,7 @@ class HTTPFileSystem {
     // Use cached version if we have it
     const cachedEntry = CACHE[this.urlId][stillScaryPath]
     if (cachedEntry) {
-      console.log('cached!')
+      // console.log('dir cached!')
       return cachedEntry
     }
 
@@ -459,7 +457,7 @@ class HTTPFileSystem {
         case FileSystemType.GITHUB:
           dirEntry = await this._getDirectoryFromGitHub(stillScaryPath)
           break
-        case FileSystemType.AZURE:
+        case FileSystemType.FLASK:
           dirEntry = await this._getDirectoryFromAzure(stillScaryPath)
           break
         case FileSystemType.FETCH:
@@ -746,20 +744,6 @@ class HTTPFileSystem {
       }
     }
     return { dirs, files, handles: {} }
-  }
-
-  /**
-   * This recursive function gunzips the buffer. It is recursive because
-   * some combinations of subversion, nginx, and various web browsers
-   * can single- or double-gzip .gz files on the wire. It's insane but true.
-   */
-  private gUnzip(buffer: any): Uint8Array {
-    // GZIP always starts with a magic number, hex $8b1f
-    const header = new Uint8Array(buffer.slice(0, 2))
-    if (header[0] === 0x1f && header[1] === 0x8b) {
-      return this.gUnzip(pako.inflate(buffer))
-    }
-    return buffer
   }
 }
 

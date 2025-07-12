@@ -12,7 +12,6 @@ import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 import globalStore from '@/store'
-import { watch } from 'fs'
 
 export interface PieInfo {
   center: number[]
@@ -126,19 +125,22 @@ export default function Component({
   viewId = 0,
   links = {} as any,
   selectedFeatures = [] as any[],
-  transitLines = [] as any[],
+  transitLines = {} as { [id: string]: any },
   stopMarkers = [] as any[],
-  checkedTransitLines = [] as any[],
   mapIsIndependent = false,
   projection = 'EPSG:4326',
   handleClickEvent = null as any,
   pieSlider = 20,
   widthSlider = 50,
+  vizDetails = null as any,
 }) {
   // ------- draw frame begins here -----------------------------
 
   const dark = globalStore.state.isDarkMode
   const locale = globalStore.state.locale
+
+  const power = 1 - (100 - widthSlider) / 100
+  const scale = 0.1
 
   // register setViewState in global view updater so we can respond to external map motion
   REACT_VIEW_HANDLES[viewId] = () => {
@@ -157,43 +159,52 @@ export default function Component({
         source: [...feature.geometry.coordinates[0], feature.properties.sort],
         target: [...feature.geometry.coordinates[1], feature.properties.sort],
         color: feature.properties.currentColor,
-        width: feature.properties.width,
+        width: Math.pow(feature.properties.width, power),
       }
     })
     return linestrings
-  }, [links])
+  }, [links, widthSlider])
 
   // ----------------------------------------------
-  const slices = useMemo(() => {
+  const slices: any[] = useMemo(() => {
+    if (!vizDetails?.demand) return []
+
     // no boarding data? no pies.
-    if (!stopMarkers.length || !('boardings' in stopMarkers[0])) return []
+    if (!stopMarkers.length || stopMarkers[0].boardings == undefined) return []
+
+    // too many pies? show no pies.
+    if (stopMarkers.length > 10000) return []
 
     const fullPies = stopMarkers.map(stop => {
       let selectedLineStopBoardingsCount = 0
       let selectedLineStopAlightingsCount = 0
-      Object.entries(transitLines).forEach(([key, line]) => {
-        const selectedPtLine = Object.values(stop.ptLines).find(
-          (ptLine) => (ptLine as PtLine).name === line.id
-        ) as PtLine | undefined;
-        
-        if (selectedPtLine) {
-          selectedLineStopBoardingsCount += selectedPtLine.b;
-          selectedLineStopAlightingsCount += selectedPtLine.a;
-        }
-      })
-        return {
-          center: stop.xy,
-          radius: 0.00001 * pieSlider * Math.sqrt(selectedLineStopBoardingsCount + selectedLineStopAlightingsCount),
-          slices: [
-            { label: 'boardings', color: 'gold', value: selectedLineStopBoardingsCount },
-            { label: 'alightings', color: 'darkmagenta', value: selectedLineStopAlightingsCount },
-          ],
-        }
+
+      const stopPTLines = stop.ptLines as any
+      if (stopPTLines) {
+        Object.values(stopPTLines).forEach((stopLine: any) => {
+          const selectedPtLine = transitLines[stopLine.name]
+          if (selectedPtLine) {
+            selectedLineStopBoardingsCount += stopLine.b
+            selectedLineStopAlightingsCount += stopLine.a
+          }
+        })
+      }
+
+      return {
+        center: stop.xy,
+        radius:
+          0.00002 *
+          pieSlider *
+          Math.sqrt(selectedLineStopBoardingsCount + selectedLineStopAlightingsCount),
+        slices: [
+          { label: 'boardings', color: 'gold', value: selectedLineStopBoardingsCount },
+          { label: 'alightings', color: 'darkmagenta', value: selectedLineStopAlightingsCount },
+        ],
+      }
     })
     const individualSlices = calculatePieSlicePaths(fullPies)
     return individualSlices
   }, [stopMarkers, pieSlider])
-
 
   function handleClick(event: any) {
     if (handleClickEvent) handleClickEvent(event)
@@ -209,6 +220,7 @@ export default function Component({
   function getTooltip(z: { object: any; index: number; layer: any }) {
     const { object, index, layer } = z
     if (index == -1) return null
+    if (!object) return null
 
     // ---------------
     if (layer.id.startsWith('stop-pie-charts-layer')) {
@@ -295,9 +307,9 @@ export default function Component({
       getColor: (d: any) => d.color,
       getWidth: (d: any) => d.width,
       widthUnits: 'pixels',
-      widthScale: widthSlider / 50,
-      widthMinPixels: 1.5,
-      widthMaxPixels: 50,
+      widthScale: scale, // 1.0, // widthSlider,
+      widthMinPixels: 1,
+      widthMaxPixels: 100,
       pickable: true,
       coordinateSystem,
       opacity: 1,
@@ -330,64 +342,29 @@ export default function Component({
         parameters: { depthTest: false },
       })
     )
-  
+  // -${Math.random()}
+
   // PIE CHARTS
   // if (slices.length) {
-    layers.push(
-      new SolidPolygonLayer({
-        id: `stop-pie-charts-layer-${Math.random()}`,
-        data: slices,
-        getPolygon: (d: any) => d.polygon,
-        getFillColor: (d: any) => d.color,
-        stroked: false,
-        filled: true,
-        pickable: true,
-        opacity: 1,
-        sizeScale: 1,
-        autoHighlight: false,
-        parameters: { depthTest: false },
-      })
-    )
+  layers.push(
+    new SolidPolygonLayer({
+      id: `stop-pie-charts-layer-${pieSlider}-${stopMarkers.length}`,
+      data: slices,
+      getPolygon: (d: any) => d.polygon,
+      getFillColor: (d: any) => d.color,
+      stroked: false,
+      filled: true,
+      pickable: true,
+      extruded: false,
+      opacity: 1,
+      sizeScale: 1,
+      autoHighlight: false,
+      parameters: { depthTest: false },
+    })
+  )
   // }
 
   // STOP ICONS ----------------
-  // if (stopMarkers.length) {
-  if (false) {
-    // rotate stop arrows to match map rotation
-    const mapBearing = globalStore.state.viewState.bearing
-    const stopsMitBearing = stopMarkers.map(stop => {
-      const relativeBearing = mapBearing - stop.bearing
-      return Object.assign({ ...stop }, { bearing: relativeBearing })
-    })
-
-    layers.push(
-      new IconLayer({
-        id: 'stop-icon-layer',
-        data: stopsMitBearing,
-        getPosition: (d: any) => d.xy,
-        getAngle: (d: any) => d.bearing,
-        getIcon: (d: any) => 'marker',
-        getSize: 6,
-        pickable: false,
-        billboard: true,
-        opacity: 1,
-        sizeScale: 1,
-        autoHighlight: false,
-        parameters: { depthTest: false },
-        iconAtlas: `${BASE_URL}icon-stop-triangle.png`,
-        iconMapping: {
-          marker: {
-            x: 0,
-            y: 0,
-            width: 250,
-            height: 121,
-            anchorX: 125,
-            anchorY: 118,
-          },
-        },
-      })
-    )
-  }
 
   // ############
 

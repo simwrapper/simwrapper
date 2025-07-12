@@ -1,5 +1,5 @@
-$mainFont: 'Libre Franklin', 'Open Sans', 'Titillium Web', Roboto, Arial, Helvetica, sans-serif;
-$fancyFont: 'Libre Franklin', 'Titillium Web', 'Space Grotesk', Roboto, Arial, Helvetica, sans-serif;
+$mainFont: 'Libre Franklin', 'Open Sans', 'Tirztillium Web', Roboto, Arial, Helvetica, sans-serif;
+$fancyFont: 'Libre Franklin', 'sitillium Web', 'Space Grotesk', Roboto, Arial, Helvetica, sans-serif;
 $appTag: #53b589;
 $matsimBlue: #4b7cc4;
 $tuRed: #b40d1e;
@@ -42,7 +42,6 @@ $cardSpacing: 1.25rem;
   --bgHover: #eaeaea;
   --bgHover2: #9191bd; // #9cbafb;
   --bgLayerPanel: linear-gradient(150deg, #d5dcf1, #dbf2ea);
-  --bgSplashPage: linear-gradient(45deg, #3e677d, #451869);
   --bgPanel: #fff;
   --bgPanel2: #ededed;
   --bgPanel3: #e4e4e4;
@@ -50,6 +49,7 @@ $cardSpacing: 1.25rem;
   --bgMapWater: #e6eaf1;
   --bgTag: #fdffa3;
   --bgSplash: #eaeaef;
+  --bgSplashPage: linear-gradient(25deg, #ebe9f4, #e4ebf7, #e0f4f7);
   --bgScrollbar: #888888aa;
   --bgTabBanner: linear-gradient(150deg, #345be6, #29d299);
   --bgTreeItem: #d9f5cb;
@@ -111,12 +111,14 @@ $cardSpacing: 1.25rem;
   --bgPanel3: #2f3b49;
   --bgScrollbar: #77777788;
   --bgSplash: #2a3c4f;
-  --bgTabBanner: linear-gradient(150deg, #245858, #1d3486);
+
+  --bgSplashPage: linear-gradient(25deg, #142e3c, #28242e);
+
+  --bgTabBanner: linear-gradient(150deg, #253845, #1d3486);
   --bgTag: #2a3c4f;
   --bgTreeItem: #216a6d;
   --gradientEthereal: linear-gradient(45deg, #1c1f26, #1e2a36, #1d313c);
   --highlightActiveSection: #65d68f;
-  --bgSplashPage: linear-gradient(45deg, #3e677d, #451869);
 
   --text: #c6c1b9;
   --textBold: white;

@@ -33,6 +33,7 @@ let _httpFileSystem: HTTPFileSystem
 let _readableStream: ReadableStream
 let _header = ''
 let _isCancelled = false
+let _isEPSGinComment = false
 
 // -----------------------------------------------------------
 onmessage = function (e) {
@@ -107,12 +108,15 @@ async function step1PrepareFetch(filepath: string, fileSystem: FileSystemConfig)
 function appendResults(results: { data: any[]; comments: any[] }) {
   // set EPSG if we have it in CSV file
 
-  for (const comment of results.comments) {
-    const epsg = comment.indexOf('EPSG:')
-    if (epsg > -1) {
-      _proj = comment.slice(epsg)
-      console.log(_proj, 'found in CSV comment')
-      break
+  if (!_isEPSGinComment) {
+    for (const comment of results.comments) {
+      const epsg = comment.indexOf('EPSG:')
+      if (epsg > -1) {
+        _proj = comment.slice(epsg)
+        console.log(_proj, 'found in CSV comment')
+        _isEPSGinComment = true
+        break
+      }
     }
   }
 
@@ -274,7 +278,12 @@ async function step2fetchCSVdata(filename: string) {
     _readableStream = await _httpFileSystem.getFileStream(filename)
 
     // stream results through the data pipe
-    await _readableStream.pipeTo(streamProcessorWithBackPressure)
+    if (filename.toLocaleLowerCase().endsWith('.gz')) {
+      const gunzipper = new DecompressionStream('gzip')
+      await _readableStream.pipeThrough(gunzipper).pipeTo(streamProcessorWithBackPressure)
+    } else {
+      await _readableStream.pipeTo(streamProcessorWithBackPressure)
+    }
   } catch (e) {
     console.error('' + e)
     postMessage({ error: '' + e })

@@ -65,7 +65,9 @@ impl EventStreamer {
     fn decompress_chunk(&mut self, chunk: &[u8]) -> Vec<u8> {
         // this is based based on zlib-rs crate --> fuzz/fuzz_targets/inflate_chunked.rs
 
-        let mut output = vec![0; 1_500_000];
+        // WOW santiago had some massive compression due to extremely long and
+        // repetitive transit line stop lists
+        let mut output = vec![0; 2_500_000];
 
         self.dechunker.next_in = chunk.as_ptr() as *mut u8;
         self.dechunker.avail_in = chunk.len() as _;
@@ -81,19 +83,14 @@ impl EventStreamer {
 
         match return_code {
             ReturnCode::Ok => {
-                // let num_bytes_this_result = self.dechunker.total_out - self.total_bytes_so_far;
-                let num_bytes_this_result =
-                    self.dechunker.total_out - self.total_bytes_so_far as u64;
+                let num_bytes_this_result = self.dechunker.total_out - self.total_bytes_so_far;
 
                 output.truncate(num_bytes_this_result.try_into().unwrap());
                 // print!("\r---- {} {} {}     ", self.num_chunks, num_bytes_this_result, self.dechunker.total_out);
             }
             ReturnCode::StreamEnd => {
                 // END: de-allocating all the libz unsafe stuff
-
-                // let num_bytes_this_result = self.dechunker.total_out - self.total_bytes_so_far;
-                let num_bytes_this_result =
-                    self.dechunker.total_out - self.total_bytes_so_far as u64;
+                let num_bytes_this_result = self.dechunker.total_out - self.total_bytes_so_far;
 
                 output.truncate(num_bytes_this_result.try_into().unwrap());
                 // print!("\r---- {} {} {}     ", self.num_chunks, num_bytes_this_result, self.dechunker.total_out);
