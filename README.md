@@ -4,7 +4,6 @@ This repo contains the source code for the interactive data visualization tool *
 
 - DOCS available at: https://docs.simwrapper.app/docs
 - VSP TU Berlin also has a departmental SimWrapper site at <https://vsp.berlin/simwrapper>
-- DOCS available at: https://simwrapper.github.io/docs/
 
 This README details build instructions for the website itself.
 

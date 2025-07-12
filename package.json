@@ -107,7 +107,7 @@
     "nprogress": "^0.2.0",
     "numcodecs": "^0.3.2",
     "observable-fns": "^0.6.1",
-    "pako": "^2.1.0",
+    "pako": "^2.0.4",
     "path-browserify": "^1.0.1",
     "plotly.js": "^2.32.0",
     "proj4": "^2.6.2",
