@@ -46,16 +46,16 @@
             .az-cell
               .v-plugin.pointer(:style="`background-color: ${getTabColor(viz.component)}`") {{ viz.component || 'dashboard' }}
               //- this "fake" hidden component is here so the plugin can send us its title
-              component.viz-frame-component(
-                  v-show="false"
-                  :is="viz.component"
-                  :root="myState.svnProject.slug"
-                  :subfolder="myState.subfolder"
-                  :yamlConfig="viz.config"
-                  :thumbnail="true"
-                  :fileApi="myState.svnRoot"
-                  :style="{'pointer-events': 'none'}"
-                  @title="updateTitle(index, $event)")
+              //- component.viz-frame-component(
+              //-     v-show="false"
+              //-     :is="viz.component"
+              //-     :root="myState.svnProject.slug"
+              //-     :subfolder="myState.subfolder"
+              //-     :yamlConfig="viz.config"
+              //-     :thumbnail="true"
+              //-     :fileApi="myState.svnRoot"
+              //-     :style="{'pointer-events': 'none'}"
+              //-     @title="updateTitle(index, $event)")
 
       //- IMAGES here
       .section-images(v-if="Object.keys(vizImages).length")
@@ -147,7 +147,7 @@ import markdown from 'markdown-it'
 import markdownTex from 'markdown-it-texmath'
 import mediumZoom from 'medium-zoom'
 import micromatch from 'micromatch'
-import yaml from 'yaml'
+import YAML from 'yaml'
 
 import globalStore from '@/store'
 import { BreadCrumb, FavoriteLocation, FileSystemConfig, YamlConfigs } from '@/Globals'
@@ -252,6 +252,26 @@ export default defineComponent({
     },
   },
   methods: {
+    async guessTitles() {
+      const re = /\.(yml|yaml)$/
+      for (const viz of this.myState.vizes) {
+        try {
+          if (re.test(viz.config)) {
+            const text =
+              (await this.myState.svnRoot?.getFileText(
+                this.myState.subfolder + '/' + viz.config
+              )) || ''
+            const yaml = YAML.parse(text)
+            if (yaml.title) viz.title = yaml.title
+          }
+        } catch (e) {
+          // oh well
+        } finally {
+          if (viz.title == '..') viz.title = viz.config
+        }
+      }
+    },
+
     async chromeOpenFile(filename: string) {
       const decoded = decodeURIComponent(filename)
       const path = `${this.xsubfolder}/${decoded}`
@@ -359,7 +379,7 @@ export default defineComponent({
     async buildCuratedSummaryView() {
       if (!this.myState.svnRoot) return
 
-      const summaryYaml = yaml.parse(
+      const summaryYaml = YAML.parse(
         await this.myState.svnRoot.getFileText(
           this.myState.subfolder + '/' + this.summaryYamlFilename
         )
@@ -473,6 +493,7 @@ export default defineComponent({
       } finally {
         this.myState.isLoading = false
       }
+      this.guessTitles()
     },
 
     openOutputFolder(folder: string) {

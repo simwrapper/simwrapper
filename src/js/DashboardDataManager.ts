@@ -715,7 +715,6 @@ export default class DashboardDataManager {
         filename.toLocaleLowerCase().endsWith('.xml') ||
         filename.toLocaleLowerCase().endsWith('.xml.gz')
       ) {
-        console.log('WASMING')
         const wasmWorker = new WasmXmlNetworkParser() as any
         const task = Comlink.wrap(wasmWorker) as unknown as any
         const network = await task.parseXML({ path, fsConfig: this.fileApi, options })
@@ -723,7 +722,6 @@ export default class DashboardDataManager {
         return
       }
 
-      console.log('OTHER-IG -------')
       // OTHER: GEOJSON, SHAPEFILE, ...
       const thread = new RoadNetworkLoader() as any
       try {
