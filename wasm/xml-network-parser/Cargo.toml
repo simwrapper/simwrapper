@@ -1,0 +1,16 @@
+[package]
+name = "xml-network-parser"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"] # Required for WASM
+path = "src/xml-network-parser.rs"
+
+[[bin]]
+name = "xml-network-parser"
+path = "src/xml-network-parser.rs"
+
+[dependencies]
+quickxml_to_serde = { version = "0.6", features = ["json_types"] }
+wasm-bindgen = { version ="0.2" , default-features = false }

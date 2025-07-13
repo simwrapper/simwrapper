@@ -18,9 +18,11 @@ import HTTPFileSystem from './HTTPFileSystem'
 import { DataTable, DataTableColumn, DataType, FileSystemConfig, Status } from '@/Globals'
 import { findMatchingGlobInFiles } from '@/js/util'
 import avro from '@/js/avro'
+import * as Comlink from 'comlink'
 
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
+import WasmXmlNetworkParser from '@/workers/WasmXmlNetworkParser.worker.ts?worker'
 import Coords from './Coords'
 
 interface configuration {
@@ -47,7 +49,7 @@ export interface FilterDefinition {
 export interface NetworkLinks {
   source: Float32Array
   dest: Float32Array
-  linkIds: any[]
+  id: any[]
   projection: String
 }
 
@@ -701,13 +703,26 @@ export default class DashboardDataManager {
         reject('Error reading folder: ' + folder)
       }
 
-      // AVRO NETWORK: can't get crummy library to work in a web-worker
+      // AVRO NETWORK
       if (filename.toLocaleLowerCase().endsWith('.avro')) {
         const result = await this._getAvroNetwork(props)
         resolve(result)
         return
       }
 
+      // WASM XML -----------
+      if (
+        filename.toLocaleLowerCase().endsWith('.xml') ||
+        filename.toLocaleLowerCase().endsWith('.xml.gz')
+      ) {
+        const wasmWorker = new WasmXmlNetworkParser() as any
+        const task = Comlink.wrap(wasmWorker) as unknown as any
+        const network = await task.parseXML({ path, fsConfig: this.fileApi, options })
+        resolve(network)
+        return
+      }
+
+      // OTHER: GEOJSON, SHAPEFILE, ...
       const thread = new RoadNetworkLoader() as any
       try {
         thread.onmessage = (e: MessageEvent) => {

@@ -2327,7 +2327,7 @@ const MyComponent = defineComponent({
           const offset = i * 2
           const feature = {
             type: 'Feature',
-            id: network.linkIds[i],
+            id: network.id[i],
             properties: {},
             geometry: {
               type: 'LineString',
@@ -2339,6 +2339,9 @@ const MyComponent = defineComponent({
           }
           boundaries.push(feature)
         }
+        this.avroNetwork = network
+        this.isAvroFile = true
+
         return boundaries
       } catch (e) {
         console.error('' + e)
@@ -2462,6 +2465,8 @@ const MyComponent = defineComponent({
         await this.$nextTick()
         this.incrementLoadProgress()
 
+        this.boundaries = []
+        await this.$nextTick()
         this.boundaries = boundaries
         await this.$nextTick()
         this.incrementLoadProgress()
@@ -2522,17 +2527,21 @@ const MyComponent = defineComponent({
           avroTable[colName] = dataColumn
         }
         // special case: allowedModes needs to be looked up
-        const modeLookup = this.avroNetwork['modes']
-        const allowedModes = avroTable['allowedModes']
-        allowedModes.type = DataType.STRING
-        allowedModes.values = allowedModes.values.map((v: number) => modeLookup[v])
-
+        if (this.avroNetwork.allowedModes) {
+          const modeLookup = this.avroNetwork['modes']
+          const allowedModes = avroTable['allowedModes']
+          allowedModes.type = DataType.STRING
+          allowedModes.values = allowedModes.values.map((v: number) => modeLookup[v])
+          avroTable['modes'] = allowedModes
+          delete avroTable['allowedModes']
+        }
         dataTable = await this.myDataManager.setRowWisePropertyTable(filename, avroTable, config)
 
         // special case: Avro networks have linkId instead of id, jesus christ!! :-()
         if ('linkId' in dataTable && !('id' in dataTable)) {
-          dataTable = { id: dataTable.linkId, ...dataTable }
+          dataTable = { id: dataTable.linkId, ...dataTable } as DataTable
           dataTable.id.name = 'id'
+          delete dataTable['linkId']
         }
 
         // save memory: no longer need the avro input file
@@ -2921,10 +2930,6 @@ const MyComponent = defineComponent({
     },
 
     clearData() {
-      // these lines change the properties of these objects
-      // WITHOUT reassigning them to new objects; this is
-      // essential for the garbage-collection to work properly.
-      // Otherwise we get a 500Mb memory leak on every view :-D
       this.boundaries = []
       this.centroids = []
       this.boundaryDataTable = {}
@@ -2938,6 +2943,10 @@ const MyComponent = defineComponent({
       this.dataCalculatedValues = null
       this.dataCalculatedValueLabel = ''
       this.bgLayers = {}
+      this.cbDatasetJoined = null
+      this.dataNormalizedValues = null
+      this.resizer = null
+      this.myDataManager.clearCache()
     },
 
     updateBgLayers() {
@@ -3137,10 +3146,8 @@ const MyComponent = defineComponent({
       await this.$nextTick()
       await this.loadDatasets()
 
-      // Check URL query parameters
-
       this.datasets = Object.assign({}, this.datasets)
-      this.config.datasets = JSON.parse(JSON.stringify(this.datasets))
+      // this.config.datasets = JSON.parse(JSON.stringify(this.datasets))
       this.vizDetails = Object.assign({}, this.vizDetails)
 
       this.honorQueryParameters()
