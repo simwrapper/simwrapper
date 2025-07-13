@@ -6,7 +6,7 @@ import { FileSystemConfig } from '@/Globals'
 import { parseXML } from '@/js/util'
 import Coords from '@/js/Coords'
 
-// import init, { XmlNetworkParser } from 'xml-network-parser'
+import init, { XmlToJson } from 'xml-network-parser'
 
 const Task = {
   filename: '',
@@ -15,15 +15,143 @@ const Task = {
 
   _cbReporter: null as any,
   _isCancelled: false,
+  _xmlParser: null as any,
+  outStuff: [] as any[],
+  nodeIdOffset: {} as { [id: string]: number },
+  _offset: 0,
+  _crs: '',
+  _nodeCoords: null as Float32Array | null,
+  _cleanLinks: [] as any[],
+  _countLinks: 0,
+
+  async processChunk(chunk: any) {
+    // console.log(chunk)
+
+    // build nodes first ===========================================
+    const nodes = chunk.r?.node as { $id: string; $x: string; $y: string }[]
+    if (nodes) {
+      let numNodes = nodes.length
+      const nodeCoords = new Float32Array(numNodes * 2).fill(NaN)
+      let xy = [0, 0]
+      for (let n = 0; n < numNodes; n++) {
+        this.nodeIdOffset[nodes[n].$id] = this._offset + n * 2
+        xy[0] = parseFloat(nodes[n].$x)
+        xy[1] = parseFloat(nodes[n].$y)
+        if (this._crs) xy = Coords.toLngLat(this._crs, xy)
+        nodeCoords[n * 2] = xy[0]
+        nodeCoords[n * 2 + 1] = xy[1]
+      }
+      // prep for next chunk
+      this.outStuff.push({ nodeCoords })
+      this._offset += 2 * numNodes
+      return
+    }
+
+    // stitch all node arrays together ================================
+    if (!this._nodeCoords) {
+      this._nodeCoords = new Float32Array(this._offset)
+      let nOffset = 0
+      for (const stuff of this.outStuff) {
+        this._nodeCoords.set(stuff.nodeCoords, nOffset)
+        nOffset += stuff.nodeCoords.length
+      }
+      // save some memory
+      this.outStuff = []
+    }
+
+    // build links next ===========================================
+    const links = chunk.r?.link as { $id: string; $from: string; $to: string }[]
+    if (!links) return
+
+    let numLinks = links.length
+
+    const props = {
+      capacity: new Float32Array(numLinks),
+      freespeed: new Float32Array(numLinks),
+      length: new Float32Array(numLinks),
+      oneway: new Float32Array(numLinks),
+      permlanes: new Float32Array(numLinks),
+      id: [],
+      modes: [],
+    } as any
+
+    let defaultProps = Object.keys(props)
+      .filter(p => p !== 'id')
+      .map(p => [p, `$${p}`]) as []
+
+    props.source = new Float32Array(2 * numLinks)
+    props.dest = new Float32Array(2 * numLinks)
+
+    links.forEach((link, i) => {
+      // standard matsim parameters: id,cap,length, etc
+      props.id.push(link.$id)
+      for (const prop of defaultProps) {
+        props[prop[0]][i] = link[prop[1]]
+      }
+
+      // look up source/dest coordinates for each link
+      if (!this._nodeCoords) return
+      let nodeFrom = this.nodeIdOffset[link.$from]
+      let nodeTo = this.nodeIdOffset[link.$to]
+      props.source[i * 2] = this._nodeCoords[nodeFrom]
+      props.source[i * 2 + 1] = this._nodeCoords[nodeFrom + 1]
+      props.dest[i * 2] = this._nodeCoords[nodeTo]
+      props.dest[i * 2 + 1] = this._nodeCoords[nodeTo + 1]
+    })
+    this._countLinks += numLinks
+    this._cleanLinks.push(props)
+  },
+
+  finalAssembly() {
+    // clear some ram first
+    this.nodeIdOffset = {}
+    this._nodeCoords = null
+
+    // stitch all link arrays together ================================
+    console.log('FINAL ASSEMBLY')
+    const network = {} as any
+    let LOffset = 0
+    for (const col of Object.keys(this._cleanLinks[0])) {
+      console.log(`---`, col)
+      if (col == 'source' || col == 'dest') {
+        network[col] = new Float32Array(this._countLinks * 2)
+        LOffset = 0
+        for (const chunk of this._cleanLinks) {
+          network[col].set(chunk[col], LOffset)
+          LOffset += chunk[col].length
+          chunk[col] = null
+        }
+      } else if (ArrayBuffer.isView(this._cleanLinks[0][col])) {
+        network[col] = new Float32Array(this._countLinks)
+        LOffset = 0
+        for (const chunk of this._cleanLinks) {
+          network[col].set(chunk[col], LOffset)
+          LOffset += chunk[col].length
+          chunk[col] = null
+        }
+      } else {
+        network[col] = []
+        for (const chunk of this._cleanLinks) {
+          network[col].push(...chunk[col])
+          chunk[col] = null
+        }
+      }
+    }
+    // final cleanup
+    network.linkAttributes = Object.keys(network)
+    network.crs = 'EPSG:4326'
+
+    return network
+  },
 
   async parseXML(props: { path: string; fsConfig: FileSystemConfig; options?: { crs: string } }) {
     console.log('----starting xml parser')
     const { path, fsConfig, options } = props
 
-    let _crs = options?.crs
+    if (options?.crs) this._crs = options.crs
 
     // await init()
-    // this._xmlParser = new XmlNetworkParser()
+    // this._xmlParser = new XmlToJson()
     // console.log('XML PARSER survived INIT')
 
     this.filename = path
@@ -31,14 +159,12 @@ const Task = {
     this.fileApi = new HTTPFileSystem(fsConfig, globalStore)
 
     let _numChunks = 0
-    let data = 0
 
     let _decoder = new TextDecoder()
     let _leftovers = ''
-    let _offset = 0
 
     // 8MB seems to be the sweet spot for Firefox. Chrome doesn't care
-    const MAX_CHUNK_SIZE = 1024 * 1024 // * 8
+    // const MAX_CHUNK_SIZE = 1024 * 1024 // * 8
 
     // read one chunk at a time. This sends backpressure to the server
     const strategy = new CountQueuingStrategy({ highWaterMark: 1 })
@@ -51,175 +177,10 @@ const Task = {
     let endOfSection = '</nodes>'
 
     let closeNode = ''
-
-    let allNodes = [] as any[]
-    let allLinks = [] as any[]
-
     let promises = [] as any[]
 
-    const buildNodeLookups = (results: any[]) => {
-      let nodeIdOffset: { [id: string]: number } = {}
-      let offset = 0
-
-      const outStuff = [] as any[]
-
-      // build nodes first ===========================================
-
-      for (const chunk of results) {
-        const nodes = chunk.node as { $id: string; $x: string; $y: string }[]
-        if (!nodes) continue
-        let numNodes = nodes.length
-        const nodeIds = []
-        const nodeCoords = new Float32Array(numNodes * 2).fill(NaN)
-
-        let xy = [0, 0]
-
-        for (let n = 0; n < numNodes; n++) {
-          nodeIdOffset[nodes[n].$id] = offset + n * 2
-          xy[0] = parseFloat(nodes[n].$x)
-          xy[1] = parseFloat(nodes[n].$y)
-          if (_crs) xy = Coords.toLngLat(_crs, xy)
-          nodeCoords[n * 2] = xy[0]
-          nodeCoords[n * 2 + 1] = xy[1]
-          nodeIds.push(nodes[n].$id)
-        }
-        // for next chunk
-        outStuff.push({ nodeCoords, nodeIds, nodeIdOffset })
-        offset += 2 * numNodes
-      }
-
-      // stitch all node arrays together ================================
-      const numNodes = offset / 2
-      const znodeCoords = new Float32Array(numNodes * 2)
-      let nOffset = 0
-      for (const stuff of outStuff) {
-        znodeCoords.set(stuff.nodeCoords, nOffset)
-        nOffset += stuff.nodeCoords.length
-      }
-
-      // build links next ===========================================
-      const cleanLinks = [] as any[]
-      let countLinks = 0
-
-      for (const chunk of results) {
-        const links = chunk.link as { $id: string; $from: string; $to: string }[]
-        if (!links) continue
-        let numLinks = links.length
-
-        const props = {
-          capacity: new Float32Array(numLinks),
-          freespeed: new Float32Array(numLinks),
-          length: new Float32Array(numLinks),
-          oneway: new Float32Array(numLinks),
-          permlanes: new Float32Array(numLinks),
-          id: [],
-          modes: [],
-        } as any
-
-        let defaultProps = Object.keys(props)
-          .filter(p => p !== 'id')
-          .map(p => [p, `$${p}`]) as []
-
-        props.source = new Float32Array(2 * numLinks)
-        props.dest = new Float32Array(2 * numLinks)
-
-        links.forEach((link, i) => {
-          // standard matsim parameters: id,cap,length, etc
-          props.id.push(link.$id)
-          for (const prop of defaultProps) {
-            props[prop[0]][i] = link[prop[1]]
-          }
-
-          // look up source/dest coordinates for each link
-          let nodeFrom = nodeIdOffset[link.$from]
-          let nodeTo = nodeIdOffset[link.$to]
-          props.source[i * 2] = znodeCoords[nodeFrom]
-          props.source[i * 2 + 1] = znodeCoords[nodeFrom + 1]
-          props.dest[i * 2] = znodeCoords[nodeTo]
-          props.dest[i * 2 + 1] = znodeCoords[nodeTo + 1]
-        })
-        countLinks += numLinks
-        cleanLinks.push(props)
-      }
-
-      // stitch all link arrays together ================================
-      const network = {} as any
-      let LOffset = 0
-      for (const col of Object.keys(cleanLinks[0])) {
-        if (col == 'source' || col == 'dest') {
-          network[col] = new Float32Array(countLinks * 2)
-          LOffset = 0
-          for (const chunk of cleanLinks) {
-            network[col].set(chunk[col], LOffset)
-            LOffset += chunk[col].length
-          }
-        } else if (ArrayBuffer.isView(cleanLinks[0][col])) {
-          network[col] = new Float32Array(countLinks)
-          LOffset = 0
-          for (const chunk of cleanLinks) {
-            network[col].set(chunk[col], LOffset)
-            LOffset += chunk[col].length
-          }
-        } else {
-          network[col] = []
-          for (const chunk of cleanLinks) {
-            network[col].push(...chunk[col])
-          }
-        }
-      }
-      // final cleanup
-      network.linkAttributes = Object.keys(network)
-      network.crs = 'EPSG:4326'
-
-      return network
-    }
-
-    const processLinkData = () => {
-      // Build bare network with no attributes, just like other networks
-
-      const numLinks = network.linkId.length
-
-      const crs = network.crs || 'EPSG:4326'
-      const needsProjection = crs !== 'EPSG:4326' && crs !== 'WGS84'
-
-      const source: Float32Array = new Float32Array(2 * numLinks)
-      const dest: Float32Array = new Float32Array(2 * numLinks)
-      const linkIds: any = []
-
-      let coordFrom = [0, 0]
-      let coordTo = [0, 0]
-
-      for (let i = 0; i < numLinks; i++) {
-        const linkID = network.linkId[i]
-        const fromOffset = 2 * network.from[i]
-        const toOffset = 2 * network.to[i]
-
-        coordFrom[0] = network.nodeCoordinates[fromOffset]
-        coordFrom[1] = network.nodeCoordinates[1 + fromOffset]
-        coordTo[0] = network.nodeCoordinates[toOffset]
-        coordTo[1] = network.nodeCoordinates[1 + toOffset]
-
-        if (needsProjection) {
-          coordFrom = Coords.toLngLat(crs, coordFrom)
-          coordTo = Coords.toLngLat(crs, coordTo)
-        }
-
-        source[2 * i + 0] = coordFrom[0]
-        source[2 * i + 1] = coordFrom[1]
-        dest[2 * i + 0] = coordTo[0]
-        dest[2 * i + 1] = coordTo[1]
-
-        linkIds[i] = linkID
-      }
-
-      const links = { source, dest, linkIds, projection: 'EPSG:4326' } as any
-
-      // add network attributes back in
-      for (const col of network.linkAttributes) {
-        if (col !== 'linkId') links[col] = network[col]
-      }
-      return links
-    }
+    let _chunkCounter = 0
+    let _xmlStagingArea = ''
 
     // Use a writablestream, which the docs say creates backpressure automatically:
     // https://developer.mozilla.org/en-US/docs/Web/API/WritableStream
@@ -233,11 +194,13 @@ const Task = {
 
             let text = _leftovers + _decoder.decode(entireChunk)
 
-            if (!_crs) {
+            if (!parent._crs) {
+              console.log('NO CRS')
               const crsLine = text.indexOf('coordinateReferenceSystem')
               if (crsLine > -1) {
                 const line = text.slice(crsLine)
-                _crs = line.substring(line.indexOf('>') + 1, line.indexOf('</attribute'))
+                parent._crs = line.substring(line.indexOf('>') + 1, line.indexOf('</attribute'))
+                console.log(parent._crs)
               }
             }
 
@@ -257,20 +220,35 @@ const Task = {
             const xmlBody = text.slice(startNode, lastNode + closeNode.length)
             _leftovers = text.slice(lastNode + closeNode.length)
 
-            promises.push(
-              new Promise<any>(async resolve => {
-                try {
-                  const json = (await parseXML(xmlBody, {
-                    alwaysArray: ['node', 'link', 'attribute'],
-                  })) as any
-                  // console.log(json)
-                  resolve(json)
-                } catch (e) {
-                  console.error('' + e)
-                  reject('' + e)
-                }
-              })
-            )
+            if (xmlBody.length) {
+              _chunkCounter++
+              _xmlStagingArea += xmlBody
+              if (_chunkCounter > 4 || endOfNodes > -1) {
+                const fullXml = `<r>${_xmlStagingArea}</r>`
+                _xmlStagingArea = ''
+                _chunkCounter = 0
+                const json = await parseXML(fullXml, {})
+                parent.processChunk(json)
+
+                // promises.push(
+                //   new Promise<any>(async resolve => {
+                //     try {
+                //       const fullXml = `<r>${_xmlStagingArea}</r>`
+                //       _xmlStagingArea = ''
+                //       _chunkCounter = 0
+                //       // const text = await parent._xmlParser.parse(fullXml)
+                //       const json = await parseXML(fullXml, {})
+                //       // console.log(json)
+                //       // const json = JSON.parse(text)
+                //       resolve(json)
+                //     } catch (e) {
+                //       console.error('' + e)
+                //       reject('' + e)
+                //     }
+                //   })
+                // )
+              }
+            }
 
             // flip to link mode if we got the </nodes> tag
             if (endOfNodes > -1) {
@@ -285,6 +263,24 @@ const Task = {
         },
 
         close() {
+          if (_xmlStagingArea.length) {
+            console.log('CLOSE: GOT SOME LEFTOVER IN STAGING AREA')
+            promises.push(
+              new Promise<any>(async (resolve, reject) => {
+                try {
+                  const fullXml = `<r>${_xmlStagingArea}</r>`
+                  _xmlStagingArea = ''
+                  _chunkCounter = 0
+                  const text = await parent._xmlParser.parse(fullXml)
+                  const json = JSON.parse(text)
+                  resolve(json)
+                } catch (e) {
+                  console.error('' + e)
+                  reject('' + e)
+                }
+              })
+            )
+          }
           console.log('STREAM FINISHED!')
         },
         abort(err) {
@@ -311,11 +307,11 @@ const Task = {
     }
 
     console.log('Total chunks:', _numChunks)
-    const results = await Promise.all(promises)
-    console.log('All promises done')
+    // const results = await Promise.all(promises)
+    // console.log('All promises done')
 
-    const network = buildNodeLookups(results)
-    console.log({ network })
+    const network = this.finalAssembly()
+    // console.log({ network })
     return network
   },
 }

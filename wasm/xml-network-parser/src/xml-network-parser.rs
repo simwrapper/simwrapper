@@ -12,15 +12,12 @@ impl XmlToJson {
     pub fn new() -> Self {
         XmlToJson {
             config: Config::new_with_custom_values(true, "$", "text", NullValue::Null)
-                .add_json_type_override("/root/node", JsonArray::Always(JsonType::Infer))
-                .add_json_type_override("/root/link", JsonArray::Always(JsonType::Infer))
-                .add_json_type_override("/root/node/@id", JsonArray::Infer(JsonType::AlwaysString))
-                .add_json_type_override("/root/link/@id", JsonArray::Infer(JsonType::AlwaysString))
-                .add_json_type_override(
-                    "/root/link/@from",
-                    JsonArray::Infer(JsonType::AlwaysString),
-                )
-                .add_json_type_override("/root/link/@to", JsonArray::Infer(JsonType::AlwaysString)),
+                .add_json_type_override("/r/node", JsonArray::Always(JsonType::Infer))
+                .add_json_type_override("/r/link", JsonArray::Always(JsonType::Infer))
+                .add_json_type_override("/r/node/@id", JsonArray::Infer(JsonType::AlwaysString))
+                .add_json_type_override("/r/link/@id", JsonArray::Infer(JsonType::AlwaysString))
+                .add_json_type_override("/r/link/@to", JsonArray::Infer(JsonType::AlwaysString))
+                .add_json_type_override("/r/link/@from", JsonArray::Infer(JsonType::AlwaysString)),
         }
     }
 

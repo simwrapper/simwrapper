@@ -703,107 +703,28 @@ export default class DashboardDataManager {
         reject('Error reading folder: ' + folder)
       }
 
-      // WASM -----------
-      const wasmWorker = new WasmXmlNetworkParser() as any
-      const task = Comlink.wrap(wasmWorker) as unknown as any
-      const network = await task.parseXML({ path, fsConfig: this.fileApi, options })
-
-      resolve(network)
-      return
-
-      console.log(711, network)
-      // Build bare network with no attributes, just like other networks
-      const numLinks = network.id.length
-
-      const crs = network.crs || 'EPSG:25833' || 'EPSG:4326'
-      // const needsProjection = crs !== 'EPSG:4326' && crs !== 'WGS84'
-
-      const source: Float32Array = new Float32Array(2 * numLinks)
-      const dest: Float32Array = new Float32Array(2 * numLinks)
-      const linkIds: any = []
-
-      let coordFrom = [0, 0]
-      let coordTo = [0, 0]
-
-      for (let i = 0; i < numLinks; i++) {
-        const linkID = network.id[i]
-        const fromOffset = network.from[i]
-        const toOffset = network.to[i]
-
-        coordFrom[0] = n.nodes.x[fromOffset]
-        coordFrom[1] = n.nodes.y[fromOffset]
-        coordTo[0] = n.nodes.x[toOffset]
-        coordTo[1] = n.nodes.y[toOffset]
-
-        // project
-        // coordFrom = Coords.toLngLat(crs, coordFrom)
-        // coordTo = Coords.toLngLat(crs, coordTo)
-
-        source[2 * i + 0] = coordFrom[0]
-        source[2 * i + 1] = coordFrom[1]
-        dest[2 * i + 0] = coordTo[0]
-        dest[2 * i + 1] = coordTo[1]
-
-        linkIds[i] = linkID
-      }
-
-      const links = { source, dest, linkIds, projection: 'EPSG:4326' } as any
-
-      // add network attributes back in
-      const stdAttributes = [
-        'from',
-        'to',
-        'length',
-        'freespeed',
-        'capacity',
-        'permlanes',
-        'oneway',
-        'modes',
-      ]
-      for (const col of stdAttributes) {
-        links[col] = network[col]
-      }
-      console.log({ links })
-      resolve(links)
-    })
-  }
-
-  private async _etchNetwork(props: {
-    subfolder: string
-    filename: string
-    vizDetails: any
-    cbStatus?: any
-    extra?: boolean
-    options: { crs?: string }
-  }) {
-    return new Promise<NetworkLinks>(async (resolve, reject) => {
-      const { subfolder, filename, vizDetails, cbStatus, options } = props
-
-      const path = `/${subfolder}/${filename}`
-      console.log('load network:', path)
-
-      // get folder
-      let folder =
-        path.indexOf('/') > -1 ? path.substring(0, path.lastIndexOf('/')) : this.subfolder
-
-      // get file path search pattern
-      try {
-        const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(folder)
-        let pattern = path.indexOf('/') === -1 ? path : path.substring(path.lastIndexOf('/') + 1)
-        const match = findMatchingGlobInFiles(files, pattern)
-        if (match.length !== 1) reject('File not found: ' + path)
-      } catch (e) {
-        // Could not get directory listing!
-        reject('Error reading folder: ' + folder)
-      }
-
-      // AVRO NETWORK: can't get crummy library to work in a web-worker
+      // AVRO NETWORK
       if (filename.toLocaleLowerCase().endsWith('.avro')) {
         const result = await this._getAvroNetwork(props)
         resolve(result)
         return
       }
 
+      // WASM XML -----------
+      if (
+        filename.toLocaleLowerCase().endsWith('.xml') ||
+        filename.toLocaleLowerCase().endsWith('.xml.gz')
+      ) {
+        console.log('WASMING')
+        const wasmWorker = new WasmXmlNetworkParser() as any
+        const task = Comlink.wrap(wasmWorker) as unknown as any
+        const network = await task.parseXML({ path, fsConfig: this.fileApi, options })
+        resolve(network)
+        return
+      }
+
+      console.log('OTHER-IG -------')
+      // OTHER: GEOJSON, SHAPEFILE, ...
       const thread = new RoadNetworkLoader() as any
       try {
         thread.onmessage = (e: MessageEvent) => {
