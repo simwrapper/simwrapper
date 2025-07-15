@@ -227,6 +227,20 @@ export default defineComponent({
 
 @import '@/styles.scss';
 
+@font-face {
+  font-family: 'Figtree';
+  src: url('/webfonts/figtree-var.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Figtree';
+  src: url('/webfonts/figtree-italic-var.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: italic;
+}
+
 html {
   box-sizing: border-box;
 }
