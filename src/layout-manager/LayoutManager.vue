@@ -270,7 +270,6 @@ export default defineComponent({
 
   watch: {
     '$store.state.activeLeftSection'() {
-      console.log('GOTYOU')
       this.setActiveLeftSection(PANELS[this.$store.state.activeLeftSection])
     },
 

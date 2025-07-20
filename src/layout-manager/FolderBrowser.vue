@@ -15,7 +15,7 @@
 
       .folder-title-stuff.flex-row
         .flex1
-          h2 {{ xsubfolder || cwd || root }}
+          h2 {{ cleanFolderTitle  }}
         .favstar
           p.favorite-icon-this(title="Favorite"
             :class="{'is-thisfolderfavorite': isThisFolderFavorite}"
@@ -52,17 +52,6 @@
             .az-cell.pointer.file-cell(:class="{'sameFilename': viz.title == viz.config}") {{ viz.config }}
             .az-cell
               .v-plugin.pointer(:style="`background-color: ${getTabColor(viz.component)}`") {{ viz.component || 'dashboard' }}
-              //- this "fake" hidden component is here so the plugin can send us its title
-              //- component.viz-frame-component(
-              //-     v-show="false"
-              //-     :is="viz.component"
-              //-     :root="myState.svnProject.slug"
-              //-     :subfolder="myState.subfolder"
-              //-     :yamlConfig="viz.config"
-              //-     :thumbnail="true"
-              //-     :fileApi="myState.svnRoot"
-              //-     :style="{'pointer-events': 'none'}"
-              //-     @title="updateTitle(index, $event)")
 
       //- IMAGES here
       .section-images(v-if="Object.keys(vizImages).length")
@@ -223,6 +212,13 @@ export default defineComponent({
     }
   },
   computed: {
+    cleanFolderTitle() {
+      let name: any = this.xsubfolder || this.cwd || this.root
+      name = name.replaceAll('//', '/')
+      if (name.endsWith('/')) name = name.substring(0, name.length - 1)
+      return name
+    },
+
     isThisFolderFavorite(): any {
       let key = this.root
       if (this.xsubfolder) key += `/${this.xsubfolder}`
