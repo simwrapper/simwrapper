@@ -2541,7 +2541,6 @@ const MyComponent = defineComponent({
         if ('linkId' in dataTable && !('id' in dataTable)) {
           dataTable = { id: dataTable.linkId, ...dataTable } as DataTable
           dataTable.id.name = 'id'
-          delete dataTable['linkId']
         }
 
         // save memory: no longer need the avro input file

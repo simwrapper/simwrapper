@@ -138,6 +138,7 @@ const Task = {
       }
     }
     // final cleanup
+    if (!network.linkIds) network.linkIds = network.id
     network.linkAttributes = Object.keys(network)
     network.crs = 'EPSG:4326'
 
