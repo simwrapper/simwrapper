@@ -63,6 +63,7 @@ export default new Vuex.Store({
     isShowingLeftBar: true,
     isShowingFilesTab: true,
     isDarkMode: true,
+    isShowingBreadcrumbs: true,
     isInitialViewSet: false,
     favoriteLocations: [] as FavoriteLocation[],
     fileHandleAccessRequests: [] as any[],
@@ -151,6 +152,9 @@ export default new Vuex.Store({
     },
     setShowLeftBar(state, value: boolean) {
       state.isShowingLeftBar = value
+    },
+    setShowBreadcrumbs(state, value: boolean) {
+      state.isShowingBreadcrumbs = value
     },
     setTopNavItems(
       state,

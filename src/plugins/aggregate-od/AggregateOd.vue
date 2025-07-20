@@ -345,7 +345,7 @@ const Component = defineComponent({
         }
       }
 
-      this.$emit('title', this.vizDetails.title)
+      this.$emit('title', this.vizDetails)
 
       this.scaleFactor = this.vizDetails.scaleFactor
       this.projection = this.vizDetails.projection

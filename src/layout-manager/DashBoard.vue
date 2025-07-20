@@ -2,10 +2,17 @@
 .dashboard(:class="{wiide, 'is-panel-narrow': isPanelNarrow, 'is-fullscreen-dashboard': isFullScreenDashboard }" :id="viewId")
   .dashboard-content(:class="{wiide, 'is-fullscreen-dashboard': isFullScreenDashboard}" :style="dashWidthCalculator")
 
-    .dashboard-header(v-if="!fullScreenCardId && (title + description)"
-      :class="{wiide, 'is-panel-narrow': isPanelNarrow}")
-      h2 {{ title }}
-      p {{ description }}
+    .dashboard-header.flex-row(v-if="!fullScreenCardId && (title + description)"
+      :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
+    )
+      .dtitles.flex1
+        h2 {{ title }}
+        p {{ description }}
+      .favstar
+        p.favorite-icon(title="Favorite"
+          :class="{'is-favorite': isFavorite}"
+          @click="clickedFavorite"
+        ): i.fa.fa-star
 
     .tabs.is-centered(v-if="subtabs.length")
       ul.tab-row
@@ -89,7 +96,7 @@ import type { PropType } from 'vue'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
-import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
+import { FavoriteLocation, FileSystemConfig, Status, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
@@ -162,6 +169,16 @@ export default defineComponent({
     fileApi(): HTTPFileSystem {
       return new HTTPFileSystem(this.fileSystemConfig)
     },
+    isFavorite(): any {
+      let key = this.root
+      if (this.xsubfolder) key += `/${this.xsubfolder}`
+      if (key.endsWith('/')) key = key.substring(0, key.length - 1)
+
+      const indexOfPathInFavorites = globalStore.state.favoriteLocations.findIndex(
+        f => key == f.fullPath
+      )
+      return indexOfPathInFavorites > -1
+    },
   },
 
   watch: {
@@ -175,6 +192,30 @@ export default defineComponent({
   },
 
   methods: {
+    clickedFavorite() {
+      let hint = `${this.root}/${this.xsubfolder}`
+      let finalFolder = this.xsubfolder || this.root
+      // remove current folder from subfolder
+      const lastSlash = hint.lastIndexOf('/')
+      if (lastSlash > -1) {
+        finalFolder = hint.substring(lastSlash + 1)
+        hint = hint.substring(0, lastSlash)
+      }
+
+      let fullPath = `${this.root}/${this.xsubfolder}`
+      if (fullPath.endsWith('/')) fullPath = fullPath.substring(0, fullPath.length - 1)
+
+      const favorite: FavoriteLocation = {
+        root: this.root,
+        subfolder: this.xsubfolder,
+        label: finalFolder,
+        fullPath,
+        hint,
+      }
+
+      this.$store.commit(this.isFavorite ? 'removeFavorite' : 'addFavorite', favorite)
+    },
+
     /**
      * This only gets triggered when a topsheet has some titles.
      * Remove the dashboard titles and use the ones from the topsheet.
@@ -662,6 +703,7 @@ export default defineComponent({
   .dashboard-content {
     max-width: $dashboardWidth;
     margin: 0 auto 0 auto;
+    margin-top: 1.25rem;
   }
 
   .dashboard-content.wiide {
@@ -674,7 +716,7 @@ export default defineComponent({
 // }
 
 .dashboard-header {
-  margin: 1rem 3rem 1rem 0rem;
+  margin: 0.25rem 2rem 1rem 0rem;
 
   h2 {
     line-height: 2.1rem;
@@ -865,5 +907,23 @@ li.is-not-active b a {
   cursor: pointer;
   color: red;
   background-color: #88888833;
+}
+
+.favorite-icon {
+  margin: auto -0.5rem auto 1rem;
+  opacity: 0.6;
+  font-size: 1.1rem;
+  color: #757bff;
+  // text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
+}
+
+.is-favorite {
+  opacity: 1;
+  color: #4f58ff;
+  text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
+}
+
+.favorite-icon:hover {
+  cursor: pointer;
 }
 </style>

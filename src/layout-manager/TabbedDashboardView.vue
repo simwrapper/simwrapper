@@ -3,23 +3,7 @@
 
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
-  //-- Breadcrumbs, favorite star, project header
-  .tabholder(v-if="isShowingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
-    .tab-holder-container.flex-col.white-text
-      .project-path.flex-row(v-show="!header")
-          bread-crumbs.breadcrumbs(
-              :root="root"
-              :subfolder="xsubfolder"
-              @navigate="onNavigate"
-              @crumbs="updateCrumbs"
-          )
-          p.favorite-icon(v-if="!header"
-              @click="clickedFavorite"
-              title="Favorite"
-              :class="{'is-favorite': isFavorite}"
-            ): i.fa.fa-star
-
-      .project-header(v-if="header" v-html="header")
+  .project-header(v-if="header" v-html="header")
 
   //-- Main area --------------
   .dashboard-finder(:class="{isMultipanel, isZoomed}")
@@ -347,7 +331,7 @@ export default defineComponent({
           }
 
           // always reveal quickview bar unless told not to
-          if (yaml.hideLeftBar === true) {
+          if (yaml.hideLeftBar || yaml.hideSideBar) {
             this.$store.commit('setShowLeftBar', false)
           }
 
@@ -367,8 +351,10 @@ export default defineComponent({
           }
 
           // Breadcrumb-Bar. Delicious!
-          this.isShowingBreadcrumbs = !yaml.hideBreadcrumbs
-          // if (yaml.hideBreadcrumbs) this.isShowingBreadcrumbs = false
+          if (yaml.hideBreadcrumbs || yaml.hideBreadCrumbs) {
+            this.$store.commit('setShowBreadcrumbs', false)
+            this.isShowingBreadcrumbs = false
+          }
 
           // TOP Nav Bar -----------------------------------
           if (yaml.topNavBar) {
@@ -657,7 +643,6 @@ export default defineComponent({
   display: flex;
   flex-direction: column;
   background-image: var(--bgSplashPage);
-  flex-direction: column;
 }
 
 .centered-vessel.wiide {
@@ -675,8 +660,8 @@ export default defineComponent({
 }
 
 .tabholder {
-  z-index: 50;
-  padding: 0.5rem 0rem 0.5rem 0rem;
+  // z-index: 50;
+  // padding: 0.5rem 0rem 0.5rem 0rem;
 }
 
 .tab-holder-container {
@@ -695,13 +680,13 @@ li.is-not-active b a {
   display: flex;
   flex: 1;
   flex-direction: row;
-  padding: 0 0.25rem; // $cardSpacing;
+  padding: 0.5rem 0.25rem 0 0.25rem; // $cardSpacing;
   position: relative;
   overflow-y: auto;
 }
 
 .dashboard-finder.isMultipanel {
-  margin: 0 0.5rem;
+  margin: 0 0rem;
 }
 
 .dashboard-finder.isZoomed {
@@ -712,7 +697,7 @@ li.is-not-active b a {
 .dashboard-right-sections {
   display: flex;
   flex-direction: column;
-  padding: 1.25rem 1.5rem 2rem 0.5rem;
+  padding: 1.25rem 2rem 2rem 1rem;
 }
 
 .dashboard-content {
@@ -725,8 +710,6 @@ li.is-not-active b a {
 }
 
 .dashboard-folder-browser {
-  // margin: 2rem 2rem 1rem 1rem;
-  // padding-top: 1rem;
   flex: 1;
 }
 
@@ -784,7 +767,7 @@ li.is-not-active b a {
 .project-header {
   margin-bottom: 1rem;
   color: var(--text);
-  padding: 1rem 0.5rem;
+  padding: 0rem 1rem;
 
   :deep(h1) {
     font-size: 3rem;

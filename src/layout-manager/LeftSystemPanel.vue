@@ -1,6 +1,11 @@
 <template lang="pug">
 .panel
 
+  .top-panel
+    h4
+      i.fas.fa-database
+      span &nbsp; Data Sources
+
   .middle-panel
 
     .is-chrome(v-if="isChrome")
@@ -49,28 +54,6 @@
         p.root {{ favorite.label }}
           i.fa.fa-times(@click.stop="clickedDeleteFavorite(favorite)")
         p.description {{ favorite.hint || `${favorite.root}${favorite.subfolder}` }}
-
-  //- .bottom-panel
-
-  //-   h3 DOCUMENTATION
-  //-   .items
-  //-     p: a(href="https://simwrapper.github.io/docs" target="_blank") Documentation site
-  //-     p: a(href="https://simwrapper.github.io/docs/examples" target="_blank") Getting started
-  //-     p: a(href="https://simwrapper.github.io/blog" target="_blank") News &amp; updates
-
-  //- .action-panel
-  //-   p.show-hide(@click="$store.commit('setShowLeftBar', false)")
-  //-     i.fas.fa-arrow-left
-  //-     | &nbsp;&nbsp;hide
-    //- p.settings-icon(@click="$store.commit('rotateColors')")
-    //-   i.fas.fa-adjust
-    //-   | &nbsp;&nbsp;{{ globalState.isDarkMode ? 'dark':'light' }}
-    //- p.settings-icon(@click="updateLanguage")
-    //-   i.fas.fa-globe
-    //-   | &nbsp;&nbsp;{{ globalState.locale }}
-    //- p.settings-icon(@click="$emit('split', {root, xsubfolder: subfolder})")
-    //-   i.fas.fa-columns
-    //-   | &nbsp;&nbsp;split
 
 </template>
 
@@ -552,18 +535,16 @@ export default defineComponent({
 .top-panel {
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid #ffffff44;
-  margin: 0 16px;
+  // margin: 0 16px;
 }
 
 h4 {
   background-color: #00000080;
   text-transform: uppercase;
-  text-align: center;
-  padding: 0.25rem 0.5rem;
+  padding: 4px 0.5rem 5px 0.5rem;
+  font-size: 1rem;
   font-weight: bold;
   text-transform: uppercase;
-  color: #ddd;
 }
 
 .middle-panel,
@@ -799,5 +780,18 @@ h3 {
 .spacer {
   background-color: $themeColorPale;
   height: 0.5rem;
+}
+
+.top-panel {
+  display: flex;
+  flex-direction: column;
+  // margin: 8px 1rem 8px 8px;
+
+  h4 {
+    background-color: #060609;
+    color: $colorYellow;
+    padding: 4px 0.5rem;
+    text-align: center;
+  }
 }
 </style>

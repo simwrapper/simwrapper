@@ -144,5 +144,6 @@ export default defineComponent({
 
 #site-nav-bar {
   user-select: none;
+  padding: 0 0.5rem;
 }
 </style>

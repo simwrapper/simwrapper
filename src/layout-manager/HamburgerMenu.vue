@@ -1,20 +1,22 @@
 <template lang="pug">
-.my-navbar.flex-row(@mouseleave="dbCloseQuickMenu")
+.top-hamburger-menu(@mouseleave="dbCloseQuickMenu")
 
-  .brand.flex-row(@click="showSidebarMenu=!showSidebarMenu"
+  .hamburger-menu-icon(@click="showSidebarMenu=!showSidebarMenu"
     :class="{'is-highlighted': showSidebarMenu}"
   )
-    .sidebar-button
-      i.fa.fa-bars
+    i.fa.fa-bars
+      //- i.fas.fa-cog(@click="toggleSettings()")
+
       //- img(:src="imgSidebar")
-    .simwrapper-logo
-      img(:src="imgLogo")
+    //- .simwrapper-logo
+    //-   img(:src="imgLogo")
+    //- p: b SimWrapper
 
-  .title-section.flex1
-    p {{  $store.state.windowTitle }}
+  //- .title-section.flex1
+  //-   p {{  $store.state.windowTitle }}
 
-  .right-section
-    p: i.fas.fa-cog(@click="toggleSettings()")
+  //- .right-section
+  //-   p: i.fas.fa-cog(@click="toggleSettings()")
 
   settings-panel.settings-popup(v-if="showSettings"
     @close="toggleSettings()"
@@ -119,7 +121,7 @@ export default defineComponent({
   },
 
   mounted() {
-    this.dbCloseQuickMenu = debounce(this.closeQuickMenu, 500)
+    this.dbCloseQuickMenu = debounce(this.closeQuickMenu, 750)
   },
 
   methods: {
@@ -217,11 +219,11 @@ export default defineComponent({
 
 $appTag: #32926f;
 
-.my-navbar {
+.top-hamburger-menu {
   user-select: none;
   gap: 1rem;
-  background-image: linear-gradient(30deg, #425bda, #246a4f); // #801bec
-  color: white;
+  // background-image: linear-gradient(30deg, #425bda, #246a4f); // #801bec
+  color: #eee;
   position: relative;
 }
 
@@ -237,13 +239,14 @@ $appTag: #32926f;
   font-size: 16px;
 }
 
-.brand {
-  gap: 1rem;
-  padding: 4px 0.75rem 3px 0.75rem;
+.hamburger-menu-icon {
+  padding: 5px 12px;
   z-index: 10000;
+  margin-top: 1px;
+  margin-right: 2px;
 }
 
-.brand:hover {
+.hamburger-menu-icon:hover {
   background-color: $appTag;
   cursor: pointer;
 }
@@ -277,8 +280,8 @@ $appTag: #32926f;
 
 .settings-popup {
   position: absolute;
-  top: 34px;
-  right: 5px;
+  // top: 34px;
+  // right: 5px;
   background-color: white;
   color: #333;
   padding: 0.5rem 0.5rem 0rem 0.5rem;
@@ -294,11 +297,13 @@ $appTag: #32926f;
 
 .dropdown-holder {
   position: absolute;
-  top: 34px;
+  top: 30px;
   background-color: #eee;
   color: #333;
   filter: $filterShadow;
   padding: 0.25rem 4px 0.25rem 0;
+  z-index: 10002;
+  width: max-content;
 
   a {
     color: #333;
