@@ -41,14 +41,8 @@ onmessage = async function (e) {
   // does user want extra columns
   if (e.data.extraColumns) _extraColumns = true
 
-  // pre-filled buffer?
-  if (e.data.xmlBuffer) {
-    const cargo = await gUnzip(e.data.xmlBuffer)
-    memorySafeXMLParser(new Uint8Array(cargo), {})
-    return
-  }
-
-  if (e.data.crs) {
+  if ('crs' in e.data) {
+    console.log(1)
     _crs = e.data.crs || 'Atlantis'
 
     switch (_networkFormat) {
@@ -63,7 +57,13 @@ onmessage = async function (e) {
         memorySafeXMLParser()
         break
     }
+  } else if (e.data.xmlBuffer) {
+    console.log(5)
+    const cargo = await gUnzip(e.data.xmlBuffer)
+    memorySafeXMLParser(new Uint8Array(cargo), {})
+    return
   } else {
+    console.log(2, e.data)
     const { filePath, fileSystem, vizDetails, options, isFirefox } = e.data
 
     // guess file type from extension
@@ -82,7 +82,9 @@ onmessage = async function (e) {
 }
 
 function guessFileTypeFromExtension(name: string) {
-  const f = name.toLocaleLowerCase()
+  console.log(3, name)
+  const fname = name || _filePath
+  const f = fname.toLocaleLowerCase()
 
   // regex is ugly, but this tests for various extensions with/without .gz suffix
   if (/\.xml(|\.gz)$/.test(f)) return NetworkFormat.MATSIM_XML
@@ -210,7 +212,7 @@ async function parseSFCTANetworkAndPostResults(projection: string) {
 
 async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   // pick up where we left off if user interactively gave us the CRS
-  if (rawData) _rawData = rawData
+  if (rawData && rawData.length) _rawData = rawData
   if (options) _options = options
   if (options?.crs) _crs = options.crs
 
