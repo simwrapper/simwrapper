@@ -760,7 +760,7 @@ const MyComponent = defineComponent({
           demandFiles = analysisPtFolder.files.filter(f => f.includes('pt_pax_volumes.'))
         } catch (e) {
           // we can skip pax loads if file not found
-          console.warn('error', '' + e)
+          console.log('no transit demand file: pt_pax_volumes')
         }
       }
 
@@ -1291,14 +1291,19 @@ const MyComponent = defineComponent({
       // because Avro networks are always EPSG:4326 even if original network is not.
       let transitProjection = this.vizDetails.projection
       if (!transitProjection) {
-        // see if transit network has its own projection
-        let tCRS = networks?.transitXML?.transitSchedule?.attributes?.attribute
-        // sometimes array, sometimes element.
-        if (!tCRS.length) tCRS = [tCRS]
-        tCRS = tCRS.filter((f: any) => f.name === 'coordinateReferenceSystem')
-        if (tCRS.length) {
-          transitProjection = tCRS[0]['#text']
-        } else {
+        try {
+          // see if transit network has its own projection
+          let tCRS = networks?.transitXML?.transitSchedule?.attributes?.attribute
+          // sometimes array, sometimes element.
+          if (!tCRS.length) tCRS = [tCRS]
+          tCRS = tCRS.filter((f: any) => f.name === 'coordinateReferenceSystem')
+          if (tCRS.length) {
+            transitProjection = tCRS[0]['#text']
+          } else {
+            // otherwise use roadnetwork project
+            transitProjection = this.projection
+          }
+        } catch (e) {
           // otherwise use roadnetwork project
           transitProjection = this.projection
         }

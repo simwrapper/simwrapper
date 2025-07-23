@@ -3,7 +3,7 @@ import * as Comlink from 'comlink'
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
-import { parseXML } from '@/js/util'
+import * as JSUtil from '@/js/util'
 import Coords from '@/js/Coords'
 
 import init, { XmlToJson } from 'xml-network-parser'
@@ -24,9 +24,47 @@ const Task = {
   _cleanLinks: [] as any[],
   _countLinks: 0,
 
-  async processChunk(chunk: any) {
-    // console.log(chunk)
+  // re-center / normalize Atlantis coords around 0,0
+  recenterAtlantis() {
+    if (!this._nodeCoords) return
 
+    let x = 0
+    let y = 0
+    let minX = Infinity
+    let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
+
+    for (let n = 0; n < this._nodeCoords.length; n += 2) {
+      x = this._nodeCoords[n]
+      y = this._nodeCoords[n + 1]
+      minX = Math.min(x, minX)
+      maxX = Math.max(x, maxX)
+      minY = Math.min(y, minY)
+      maxY = Math.max(y, maxY)
+    }
+    const centerX = maxX - minX // (maxX + minX) / 2
+    const centerY = maxY - minY // (maxY + minY) / 2
+
+    // * 0.00000904369503 // convert meters to degrees
+    const webMercator =
+      '+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs'
+
+    const coord = [0, 0]
+    for (let n = 0; n < this._nodeCoords.length; n += 2) {
+      coord[0] = this._nodeCoords[n]
+      coord[1] = this._nodeCoords[n + 1]
+      coord[0] -= centerX
+      coord[1] -= centerY
+
+      const lnglat = Coords.toLngLat(webMercator, coord)
+
+      this._nodeCoords[n] = lnglat[0]
+      this._nodeCoords[n + 1] = lnglat[1]
+    }
+  },
+
+  async processChunk(chunk: any) {
     // build nodes first ===========================================
     const nodes = chunk.r?.node as { $id: string; $x: string; $y: string }[]
     if (nodes) {
@@ -57,6 +95,8 @@ const Task = {
       }
       // save some memory
       this.outStuff = []
+      // recenter Atlantis coords around 0,0
+      if (!this._crs) this.recenterAtlantis()
     }
 
     // build links next ===========================================
@@ -64,7 +104,6 @@ const Task = {
     if (!links) return
 
     let numLinks = links.length
-
     const props = {
       capacity: new Float32Array(numLinks),
       freespeed: new Float32Array(numLinks),
@@ -112,7 +151,7 @@ const Task = {
     const network = {} as any
     let LOffset = 0
     for (const col of Object.keys(this._cleanLinks[0])) {
-      console.log(`---`, col)
+      // console.log(`---`, col)
       if (col == 'source' || col == 'dest') {
         network[col] = new Float32Array(this._countLinks * 2)
         LOffset = 0
@@ -189,9 +228,9 @@ const Task = {
       {
         write(entireChunk: Uint8Array) {
           return new Promise(async (resolve, reject) => {
-            // console.log('CHuNK!')
-            if (parent._isCancelled) reject()
             _numChunks++
+            // console.log('CHuNK!', _numChunks)
+            if (parent._isCancelled) reject()
 
             let text = _leftovers + _decoder.decode(entireChunk)
 
@@ -228,7 +267,7 @@ const Task = {
                 const fullXml = `<r>${_xmlStagingArea}</r>`
                 _xmlStagingArea = ''
                 _chunkCounter = 0
-                const json = await parseXML(fullXml, {})
+                const json = await JSUtil.parseXML(fullXml, {})
                 parent.processChunk(json)
 
                 // promises.push(
@@ -253,28 +292,48 @@ const Task = {
 
             // flip to link mode if we got the </nodes> tag
             if (endOfNodes > -1) {
+              console.log('bb')
               searchElement = '<link '
               closeTag = '</link>'
               endOfSection = '</links>'
               closeNode = ''
               _leftovers += linkText
             }
+
+            // and if we have ALL the links of a very small network,
+            // drop the leftovers into the staging area
+            const startLinks = _leftovers.indexOf('<links ')
+            if (startLinks > -1 && _leftovers.indexOf('</links>') > -1) {
+              _xmlStagingArea = _leftovers
+                .substring(_leftovers.indexOf('<link '))
+                .replace('</links>', '')
+                .replace('</network>', '')
+            }
             resolve()
           })
         },
 
         close() {
+          // if (_leftovers) _xmlStagingArea += _leftovers
+
+          // console.log(22, { _xmlStagingArea, _leftovers })
+          // if (_xmlStagingArea.indexOf('</nodes>') > -1)
+          //   _xmlStagingArea = _xmlStagingArea.replace('</nodes>', '')
+          // _xmlStagingArea = _xmlStagingArea.replace('</network>', '')
+
           if (_xmlStagingArea.length) {
             console.log('CLOSE: GOT SOME LEFTOVER IN STAGING AREA')
+            // console.log(_xmlStagingArea)
             promises.push(
               new Promise<any>(async (resolve, reject) => {
                 try {
                   const fullXml = `<r>${_xmlStagingArea}</r>`
+                  console.log({ fullXml })
                   _xmlStagingArea = ''
                   _chunkCounter = 0
-                  const text = await parent._xmlParser.parse(fullXml)
-                  const json = JSON.parse(text)
-                  resolve(json)
+                  const json = (await JSUtil.parseXML(fullXml)) as any
+                  parent.processChunk(json)
+                  // resolve(json)
                 } catch (e) {
                   console.error('' + e)
                   reject('' + e)
