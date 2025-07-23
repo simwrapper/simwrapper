@@ -71,7 +71,7 @@
         .breadcrumb-row(v-if="$store.state.isShowingBreadcrumbs")
           bread-crumbs.flex1(
             :root="panel.props.root || ''"
-            :subfolder="panel.props.xsubfolder || ''"
+            :subfolder="panel.props.xsubfolder || panel.props.subfolder || ''"
             @navigate="onNavigate($event,x,y)"
           )
           //- only show cog if we're first/only panel
@@ -83,7 +83,7 @@
         //- .tile-header.flex-row(v-if="false")
         .tile-header.flex-row(v-if="getShowHeader(panel)")
           .tile-buttons(v-if="panel.component !== 'SplashPage'")
-            .nav-button.is-small(@click="onBack(x,y)")
+            .nav-button.btn-header-back.is-small(@click="onBack(x,y)")
               i.fa.fa-arrow-left
 
           .tile-labels(:class="{'is-singlepanel': !isMultipanel}")
@@ -421,6 +421,7 @@ export default defineComponent({
             let key = Math.random()
             let subfolder = xsubfolder.substring(0, xsubfolder.lastIndexOf('/'))
             if (subfolder.startsWith('/')) subfolder = subfolder.slice(1)
+            xsubfolder = subfolder
             this.panels = [
               [
                 {
@@ -431,6 +432,7 @@ export default defineComponent({
                   props: {
                     root,
                     subfolder,
+                    xsubfolder,
                     yamlConfig: fileNameWithoutPath,
                     thumbnail: false,
                   } as any,
@@ -854,12 +856,19 @@ export default defineComponent({
     },
 
     getTileStyle(panel: any) {
+      const isDark = globalStore.state.isDarkMode
       const style = {
         overflow: this.panelsWithScrollbars.includes(panel.component) ? 'auto' : 'hidden',
       } as any
       if (this.getShowHeader(panel)) {
-        style.border = '0px solid ' + (globalStore.state.isDarkMode ? 'black' : 'white')
-        style.borderWidth = '1px 0.5rem 0.5rem 0.5rem'
+        style.border = '0px solid #4dd4ef90'
+        // style.borderWidth = '1px 1px'
+        // style.borderRadius = '0 0 10px 10px'
+        style.backgroundColor = isDark ? 'black' : 'white'
+        style.color = isDark ? 'white' : 'black'
+        style.margin = '0 0.25rem 0.25rem 0.25rem'
+        style.padding = '0 4px 4px 4px'
+        // 1px 0.5rem 0.5rem 0.5rem'
       }
       return style
     },
@@ -959,8 +968,8 @@ export default defineComponent({
   display: flex;
   flex-direction: row;
   flex: 1;
-  background-color: var(--bgBrowser);
-  // background-image: var(--bgSplashPage);
+  // background-color: var(--bgBold); // black; // var(--bgBrowser);
+  background-image: var(--bgSplashPage);
 }
 
 .left-panel {
@@ -1132,7 +1141,9 @@ export default defineComponent({
   grid-row: 3 / 4;
   grid-column: 1 / 2;
   user-select: none;
-  // margin: 0.5rem 0.5rem 0 0.5rem;
+  margin: 0.25rem 0.25rem 0 0.25rem;
+  border-radius: 5px 5px 0 0;
+  // border-bottom: 1px solid var(--bg);
   background-color: var(--bgBold);
   padding: 2px 5px;
   // background-color: var(--bgDashboardHeader);
@@ -1167,7 +1178,7 @@ export default defineComponent({
   display: flex;
   color: $colorSimWrapperYellow;
   background-color: #11232a;
-  // padding: 2px 0.5rem;
+  padding-right: 0.5rem;
 }
 
 .restore-left-panel-button {
@@ -1270,5 +1281,22 @@ export default defineComponent({
 .left-panel-close-button:active {
   opacity: 1;
   color: #f22;
+}
+
+.btn-header-back {
+  opacity: 0.5;
+  color: var(--link);
+  border: var(--borderThin); //1px solid var(--link);
+  border-radius: 12px;
+  padding: 5px 0 3px 0;
+  font-size: 0.6rem;
+  margin: 2px 3px 2px 1px;
+}
+.btn-header-back:hover {
+  background-color: var(--bg);
+}
+.btn-header-back:active {
+  border: 1px solid var(--linkHover);
+  color: var(--linkHover);
 }
 </style>

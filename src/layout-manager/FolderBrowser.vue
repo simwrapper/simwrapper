@@ -24,7 +24,7 @@
 
       //- FOLDERS: file system folders
       .folder-area(v-if="myState.folders.length")
-        h4.az-title  {{ $t('Folders') }}
+        h4.az-title.folder-title  {{ $t('Folders') }}
         .az-grid.folder-table
           //- .az-cell.heading folder
           //- .az-cell.heading Description
@@ -999,5 +999,8 @@ h3.curate-heading {
   width: max-content;
   font-size: 0.8rem;
   padding: 0px 4px;
+}
+.folder-title {
+  margin-top: 1.5rem;
 }
 </style>

@@ -684,7 +684,6 @@ export default class DashboardDataManager {
   }) {
     return new Promise<NetworkLinks>(async (resolve, reject) => {
       const { subfolder, filename, vizDetails, cbStatus, options } = props
-
       const path = `/${subfolder}/${filename}`
       console.log('load network:', path)
 
