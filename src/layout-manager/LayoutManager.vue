@@ -1142,7 +1142,7 @@ export default defineComponent({
   grid-row: 3 / 4;
   grid-column: 1 / 2;
   user-select: none;
-  margin: 0.25rem 0.25rem 0 0.25rem;
+  margin: 5px 0.25rem 0 0.25rem;
   border-radius: 5px 5px 0 0;
   // border-bottom: 1px solid var(--bg);
   background-color: var(--bgBold);
