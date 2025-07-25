@@ -305,7 +305,6 @@ export default class DashboardDataManager {
       this.networks[path] = this._fetchNetwork({
         subfolder,
         filename,
-        vizDetails,
         cbStatus,
         options,
         extra,
@@ -605,7 +604,7 @@ export default class DashboardDataManager {
   private async _getAvroNetwork(props: {
     subfolder: string
     filename: string
-    vizDetails: any
+    options?: any
     cbStatus?: any
   }): Promise<NetworkLinks> {
     const httpFileSystem = new HTTPFileSystem(this.fileApi)
@@ -677,13 +676,12 @@ export default class DashboardDataManager {
   private async _fetchNetwork(props: {
     subfolder: string
     filename: string
-    vizDetails: any
     cbStatus?: any
     extra?: boolean
     options: { crs?: string }
   }) {
     return new Promise<NetworkLinks>(async (resolve, reject) => {
-      const { subfolder, filename, vizDetails, cbStatus, options } = props
+      const { subfolder, filename, cbStatus, options } = props
       const path = `/${subfolder}/${filename}`
       console.log('load network:', path)
 
@@ -714,11 +712,43 @@ export default class DashboardDataManager {
         filename.toLocaleLowerCase().endsWith('.xml') ||
         filename.toLocaleLowerCase().endsWith('.xml.gz')
       ) {
-        const wasmWorker = new WasmXmlNetworkParser() as any
-        const task = Comlink.wrap(wasmWorker) as unknown as any
-        const network = await task.parseXML({ path, fsConfig: this.fileApi, options })
-        resolve(network)
-        return
+        try {
+          const promise: Promise<any> = new Promise<any>((resolve, reject) => {
+            const wasmWorker = new WasmXmlNetworkParser() // as unknown as any
+            wasmWorker.onmessage = (event: any) => {
+              const data = event.data
+              if ('requestCRS' in data) {
+                const msg = data.requestCRS ? '"Atlantis" coordinates found. ' : ''
+                let crs =
+                  prompt(
+                    `Enter EPSG projection code.\n\n${msg}Enter projection, e.g. EPSG:25832, or cancel to load without a base map.`
+                  ) || 'Atlantis'
+                if (Number.isInteger(parseInt(crs))) crs = `EPSG:${crs}`
+                wasmWorker.postMessage({ confirmedCRS: crs })
+                return
+              }
+              if (data.error) reject(data.error)
+              if (data.status && cbStatus) {
+                cbStatus(data.status)
+                return
+              }
+              resolve(data.network)
+            }
+            wasmWorker.postMessage({
+              path,
+              crs: options.crs || '',
+              fsConfig: this.fileApi,
+              options,
+            })
+          })
+          const network = await promise
+          resolve(network)
+        } catch (e) {
+          console.error(e)
+          reject(e)
+        } finally {
+          return
+        }
       }
 
       // OTHER: GEOJSON, SHAPEFILE, ...
@@ -757,7 +787,6 @@ export default class DashboardDataManager {
         thread.postMessage({
           filePath: path,
           fileSystem: this.fileApi,
-          vizDetails,
           options,
           extraColumns: !!props.extra, // include freespeed, length (off by default!)
           isFirefox, // we need this for now, because Firefox bug #260

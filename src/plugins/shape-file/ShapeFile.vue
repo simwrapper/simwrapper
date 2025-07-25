@@ -2304,6 +2304,11 @@ const MyComponent = defineComponent({
       return features
     },
 
+    updateStatus(text: string) {
+      this.statusText = text
+      this.incrementLoadProgress()
+    },
+
     async loadXMLNetwork(filename: string): Promise<any> {
       if (!this.myDataManager) throw Error('links: no datamanager')
 
@@ -2314,10 +2319,7 @@ const MyComponent = defineComponent({
           filename,
           this.subfolder,
           this.vizDetails,
-          (message: string) => {
-            this.statusText = message
-            this.incrementLoadProgress()
-          }
+          this.updateStatus
           // true // load extra columns
         )
         // convert to geojson
@@ -3135,7 +3137,7 @@ const MyComponent = defineComponent({
 
       // if we still need a centerpoint, calculate it
       if (this.needsInitialMapExtent && !this.vizDetails.center) {
-        this.calculateAndMoveToCenter()
+        await this.calculateAndMoveToCenter()
         this.needsInitialMapExtent = false
       }
 

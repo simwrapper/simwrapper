@@ -48,7 +48,7 @@ const initialViewState = () => {
 const isMainThread = typeof window !== 'undefined'
 const initialLeftSection = isMainThread ? localStorage.getItem('activeLeftSection') || '' : ''
 
-console.log('INITIAL LEFT SECTION', initialLeftSection)
+// console.log('INITIAL LEFT SECTION', initialLeftSection)
 export default new Vuex.Store({
   state: {
     app: 'SimWrapper',
