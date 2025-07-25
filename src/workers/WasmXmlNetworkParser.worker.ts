@@ -35,29 +35,30 @@ const Task = {
     let minY = Infinity
     let maxY = -Infinity
 
+    const f = 1
     for (let n = 0; n < this._nodeCoords.length; n += 2) {
-      x = this._nodeCoords[n]
-      y = this._nodeCoords[n + 1]
+      x = f * this._nodeCoords[n]
+      y = f * this._nodeCoords[n + 1]
       minX = Math.min(x, minX)
       maxX = Math.max(x, maxX)
       minY = Math.min(y, minY)
       maxY = Math.max(y, maxY)
     }
-    const centerX = maxX - minX // (maxX + minX) / 2
-    const centerY = maxY - minY // (maxY + minY) / 2
+    const centerX = (maxX + minX) / 2
+    const centerY = (maxY + minY) / 2
 
+    console.log({ minX, maxX, centerX, minY, maxY, centerY })
     // * 0.00000904369503 // convert meters to degrees
     const webMercator =
       '+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs'
 
     const coord = [0, 0]
     for (let n = 0; n < this._nodeCoords.length; n += 2) {
-      coord[0] = this._nodeCoords[n]
-      coord[1] = this._nodeCoords[n + 1]
-      coord[0] -= centerX
-      coord[1] -= centerY
+      coord[0] = f * this._nodeCoords[n] - centerX
+      coord[1] = f * this._nodeCoords[n + 1] - centerY
 
-      const lnglat = Coords.toLngLat(webMercator, coord)
+      // const lnglat = [coord[0] * factor, coord[1] * factor]
+      const lnglat = coord // Coords.toLngLat(webMercator, coord)
 
       this._nodeCoords[n] = lnglat[0]
       this._nodeCoords[n + 1] = lnglat[1]
@@ -234,7 +235,7 @@ const Task = {
 
             let text = _leftovers + _decoder.decode(entireChunk)
 
-            if (!parent._crs) {
+            if (_numChunks == 1 && !parent._crs) {
               console.log('NO CRS')
               const crsLine = text.indexOf('coordinateReferenceSystem')
               if (crsLine > -1) {
@@ -292,7 +293,6 @@ const Task = {
 
             // flip to link mode if we got the </nodes> tag
             if (endOfNodes > -1) {
-              console.log('bb')
               searchElement = '<link '
               closeTag = '</link>'
               endOfSection = '</links>'
