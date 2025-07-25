@@ -1,5 +1,5 @@
 <template lang="pug">
-.mycomponent(:class="{'is-thumbnail': thumbnail}")
+.c-xmlviewer.flex-col(:class="{'is-thumbnail': thumbnail}")
   b-input.xml-searchbox(
     type="search"
     icon-pack="fas"
@@ -118,7 +118,7 @@ const MyComponent = defineComponent({
       this.loadingText = '' + e
     }
 
-    this.numberOfUnfoldLevel = this.config.unfoldLevel + 1
+    this.numberOfUnfoldLevel = this.config?.unfoldLevel ?? 0 + 1
   },
 
   methods: {
@@ -231,22 +231,6 @@ const MyComponent = defineComponent({
       }
       return found
     },
-
-    // recursiveDelete(array: any[]) {
-    //   for (const [k, v] of Object.entries(array)) {
-    //     let data = v as any[]
-    //     if (data.length < 50) {
-    //     } else {
-    //       for (let i = 49; i < data.length; i++) {
-    //         data.splice(50, 1)
-    //       }
-    //     }
-    //     for (let i = 0; i < 50; i++) {
-    //       array = this.recursiveDelete(data)
-    //     }
-    //   }
-    //   return array
-    // },
   },
 })
 
@@ -256,18 +240,14 @@ export default MyComponent
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.mycomponent {
+.c-xmlviewer {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
   background-color: var(--bgCardFrame);
-}
-
-.mycomponent.is-thumbnail {
-  padding-top: 0;
-  height: $thumbnailHeight;
+  padding: 0.25rem 0.5rem !important;
 }
 
 .viewer {
@@ -291,8 +271,8 @@ export default MyComponent
 
 <style lang="scss">
 .xml-searchbox input {
-  background-color: var(--bgBold);
+  background-color: var(--bgPanel);
   border: 1px solid var(--bgCream3);
-  color: var(--text);
+  color: var(--link);
 }
 </style>

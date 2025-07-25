@@ -78,7 +78,7 @@
     "deck.gl": "^8.8.21",
     "dompurify": "^2.3.6",
     "epsg-index": "^1.2.0",
-    "fast-xml-parser": "^4.4.1",
+    "fast-xml-parser": "^4.5.3",
     "filesize": "^10.1.0",
     "font-awesome": "^4.7.0",
     "geojson": "^0.5.0",
