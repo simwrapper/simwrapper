@@ -711,7 +711,7 @@ export default defineComponent({
         panel.component = 'TabbedDashboardView'
         panel.props.xsubfolder = this.panels[y][x].props.subfolder
         delete panel.props.yamlConfig
-        this.updateURL()
+        this.updateURL({ showFiles: true })
         return
       }
 
@@ -753,7 +753,7 @@ export default defineComponent({
       return true
     },
 
-    updateURL() {
+    updateURL(options?: { showFiles: boolean }) {
       // save the first-most panel URL for highlighting purposes
       this.firstPanelSubfolder = this.panels[0][0]?.props?.xsubfolder || ''
 
@@ -788,7 +788,8 @@ export default defineComponent({
         // Just the folder and viz file itself
         let finalUrl = `${BASE_URL}${root}/${xsubfolder}`
         if (props.config) finalUrl += `/${props.config}`
-        finalUrl += `?tab=files`
+        // back to Folder View if we're going back from a single viz
+        if (options?.showFiles) finalUrl += `?tab=files`
         this.$router.push(finalUrl)
       }
     },
