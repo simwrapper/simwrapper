@@ -10,6 +10,7 @@ dependencies = [
     "build>=1.2.2.post1",
     "click>=8.0",
     "flask>=3.1.0",
+    "flask-compress>=1.18",
     "flask-cors>=5.0.1",
     "flask-restful>=0.3.10",
     "gunicorn>=23.0.0",

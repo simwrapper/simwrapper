@@ -13,6 +13,7 @@ import blosc
 from os.path import exists
 
 from flask import Flask, request, send_from_directory, make_response, Response
+from flask_compress import Compress
 from flask_cors import CORS
 from flask_restful import Resource, Api, reqparse
 from functools import wraps
@@ -33,7 +34,7 @@ STORAGE = {
     "Server": "./",
 }
 STORAGE_ROOTS = {
-    "Server": { "path": "./", "description": os.getcwd()}
+    "Server": { "path": "./", "description": os.getcwd()},
 }
 CONFIG = {"storage": STORAGE_ROOTS}
 
@@ -90,12 +91,30 @@ class File(Resource):
         logger.debug(f'GET {server_id} {request.args["prefix"]}')
 
         prefix = request.args['prefix']
-        path = f"{STORAGE[server_id]}/{prefix}"
+        path = f"{STORAGE[server_id]}{prefix}"
         if sys.platform.startswith("win"): path = path.replace("/", "\\")
         try:
             if not os.path.isfile(path):
                 return f"File not found: {str(e)}", 400
 
+            # Special converter: Shapefile -> GeoJSON
+            # if path.lower().endswith('.shp'):
+            #     print(f'SHP {path} 1')
+            #     gdf = gpd.read_file(path).to_crs(epsg=4326)
+            #     print(f'SHP {path} 2')
+            #     geojson = gdf.to_json()
+            #     path = "temp.geojson"
+            #     # gdf.to_file(path, driver='GeoJSON')
+            #     mimetype= 'application/geo+json'
+            #     print(f'SHP {path} 3')
+            #     response = Response(
+            #          geojson,
+            #          status=200,
+            #          mimetype='application/geo+json'
+            #     )
+            #     return response, 200
+
+            # all otherwise
             with open(path, 'rb') as file:
                 content = file.read()
 
@@ -162,6 +181,7 @@ class Omx(Resource):
 ## SET UP FLASK =============================
 
 app = Flask(__name__, static_folder='static')
+Compress(app)
 CORS(app)
 api = Api(app)
 

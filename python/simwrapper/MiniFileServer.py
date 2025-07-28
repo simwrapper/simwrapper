@@ -26,7 +26,7 @@ pattern = re.compile('.csv|.png|.gz|.jpg|.jpeg|.js|.css|.ico|.gif|.svg|.ttf|.was
 
 SPA_MODE = False
 
-def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
+def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=512*1024):
     '''Like shutil.copyfileobj, but only copy a range of the streams.
 
     Both start and stop are inclusive.
@@ -179,7 +179,7 @@ def find_free_port(port):
         finally:
             s.close()
 
-def run_mini_file_server(maybe_port, cert, key):
+def run_mini_file_server(maybe_port, cert=None, key=None):
     port = find_free_port(maybe_port)
 
     print("\n-----------------------------------------------------------------")
