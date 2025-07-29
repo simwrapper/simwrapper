@@ -16,6 +16,7 @@ let nodeIdOffset = {} as { [id: string]: number }
 let _offset = 0
 let _crs = ''
 let _nodeCoords = null as Float32Array | null
+let _nodeId = [] as string[]
 let _cleanLinks = [] as any[]
 let _countLinks = 0
 let _confirmed = false
@@ -76,7 +77,7 @@ function recenterAtlantis() {
 }
 
 async function processChunk(chunk: any) {
-  postMessage({ status: 'Got chunk ' + _countLinks })
+  // postMessage({ status: 'Got chunk ' + _countLinks })
 
   // build nodes first ===========================================
   const nodes = chunk.r?.node as { $id: string; $x: string; $y: string }[]
@@ -85,9 +86,11 @@ async function processChunk(chunk: any) {
     const nodeCoords = new Float32Array(numNodes * 2).fill(NaN)
     let xy = [0, 0]
     for (let n = 0; n < numNodes; n++) {
-      nodeIdOffset[nodes[n].$id] = _offset + n * 2
-      xy[0] = parseFloat(nodes[n].$x)
-      xy[1] = parseFloat(nodes[n].$y)
+      const node = nodes[n]
+      _nodeId.push(node.$id)
+      nodeIdOffset[node.$id] = _offset + n * 2
+      xy[0] = parseFloat(node.$x)
+      xy[1] = parseFloat(node.$y)
       if (_crs !== 'Atlantis') xy = Coords.toLngLat(_crs, xy)
       nodeCoords[n * 2] = xy[0]
       nodeCoords[n * 2 + 1] = xy[1]
@@ -133,6 +136,8 @@ async function processChunk(chunk: any) {
 
   props.source = new Float32Array(2 * numLinks)
   props.dest = new Float32Array(2 * numLinks)
+  props.from = [] // new Uint32Array(numLinks)
+  props.to = [] // new Uint32Array(numLinks)
 
   links.forEach((link, i) => {
     // standard matsim parameters: id,cap,length, etc
@@ -143,14 +148,15 @@ async function processChunk(chunk: any) {
 
     // look up source/dest coordinates for each link
     if (!_nodeCoords) return
-    // console.log({ nodeIdOffset })
     let nodeFrom = nodeIdOffset[link.$from]
     let nodeTo = nodeIdOffset[link.$to]
-    // console.log({ nodeFrom, nodeTo })
+    if (!nodeFrom) console.log(link.$id, link.$from, link.$to, nodeFrom, nodeTo)
     props.source[i * 2] = _nodeCoords[nodeFrom]
     props.source[i * 2 + 1] = _nodeCoords[nodeFrom + 1]
     props.dest[i * 2] = _nodeCoords[nodeTo]
     props.dest[i * 2 + 1] = _nodeCoords[nodeTo + 1]
+    props.from[i] = nodeFrom / 2 // _nodeId[nodeFrom / 2]
+    props.to[i] = nodeTo / 2 // _nodeId[nodeTo / 2]
   })
   _countLinks += numLinks
   _cleanLinks.push(props)
@@ -159,14 +165,15 @@ async function processChunk(chunk: any) {
 function finalAssembly() {
   // clear some ram first
   nodeIdOffset = {}
-  _nodeCoords = null
+  // _nodeCoords = null
+  const network = {} as any
 
   // if (!_cleanLinks || !_cleanLinks[0]) return
 
   // stitch all link arrays together ================================
 
-  const network = {} as any
   let LOffset = 0
+
   for (const col of Object.keys(_cleanLinks[0])) {
     // console.log(`---`, col)
     if (col == 'source' || col == 'dest') {
@@ -194,9 +201,14 @@ function finalAssembly() {
     }
   }
   // final cleanup
-  if (!network.linkIds) network.linkIds = network.id
+  if (!network.linkId) network.linkId = network.id
   network.linkAttributes = Object.keys(network)
   network.crs = 'EPSG:4326'
+  // node attributes ===============================
+  network.nodeCoordinates = _nodeCoords
+  network.nodeAttributes = ['nodeId']
+  network.nodeId = _nodeId
+
   return network
 }
 
@@ -218,7 +230,6 @@ async function parseXML(props?: {
   let _numChunks = 0
 
   let _decoder = new TextDecoder()
-  let _leftovers = ''
 
   // 8MB seems to be the sweet spot for Firefox. Chrome doesn't care
   // const MAX_CHUNK_SIZE = 1024 * 1024 // * 8
@@ -237,21 +248,35 @@ async function parseXML(props?: {
   let _chunkCounter = 0
   let _xmlStagingArea = ''
 
+  // raw bytes from previous chunk
+  let _preBytes = new Uint8Array()
+  // utf-8 leftover characters from previous chunk
+  let _leftovers = ''
+
   // Use a writablestream, which the docs say creates backpressure automatically:
   // https://developer.mozilla.org/en-US/docs/Web/API/WritableStream
   const streamProcessorWithBackPressure = new WritableStream(
     {
-      write(entireChunk: Uint8Array) {
+      write(incomingChunk: Uint8Array) {
         return new Promise(async (resolve, reject) => {
           _numChunks++
           // console.log('CHuNK!', _numChunks)
           if (_isCancelled) reject()
 
+          // cut off chunk at the last line ending so we never split UTF-8 glyphs
+          let entireChunk = new Uint8Array(_preBytes.length + incomingChunk.length)
+          entireChunk.set(_preBytes)
+          entireChunk.set(incomingChunk, _preBytes.length)
+          const cutoff = entireChunk.lastIndexOf(10)
+          if (cutoff > -1) {
+            _preBytes = entireChunk.slice(cutoff + 1)
+            entireChunk = entireChunk.slice(0, cutoff)
+          }
+
           let text = _leftovers + _decoder.decode(entireChunk)
 
           if (_numChunks == 1) {
             if (!_crs) {
-              console.log('NO CRS')
               const crsLine = text.indexOf('coordinateReferenceSystem')
               if (crsLine > -1) {
                 const line = text.slice(crsLine)

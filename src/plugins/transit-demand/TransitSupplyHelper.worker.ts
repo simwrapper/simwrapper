@@ -21,11 +21,13 @@ onmessage = function (e) {
   projection = params.projection
 
   // if roadXML.network.nodes is missing, let's hope it's an Avro network
-  _avro = !_xml?.roadXML?.network?.nodes && Array.isArray(_xml?.roadXML?.nodeCoordinates)
+  _avro = !_xml?.roadXML?.network?.nodes && _xml?.roadXML?.nodeCoordinates
 
+  console.log({ roads: _xml.roadXML })
+  console.log({ _avro })
   try {
     if (_avro) {
-      avroCreateNodesAndLinksFromXML()
+      avroCreateNodesAndLinks()
     } else {
       createNodesAndLinksFromXML()
       convertCoords()
@@ -39,7 +41,7 @@ onmessage = function (e) {
 }
 
 // -----------------------------------------------------------
-function avroCreateNodesAndLinksFromXML() {
+function avroCreateNodesAndLinks() {
   postMessage({ status: 'Parsing MATSim network...' })
 
   const numLinks = _xml.roadXML.linkId.length

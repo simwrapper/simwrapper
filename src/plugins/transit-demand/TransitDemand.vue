@@ -1069,17 +1069,27 @@ const MyComponent = defineComponent({
 
         const filename = this.vizDetails.network
 
-        const roads =
-          filename.indexOf('.avro') > -1
-            ? // AVRO networks have a separate reader:
-              this.loadAvroRoadNetwork()
-            : // normal MATSim network
-              this.fetchXML({
-                worker: this._roadFetcher,
-                slug: this.fileSystem.slug,
-                filePath: this.myState.subfolder + '/' + this.vizDetails.network,
-                options: { attributeNamePrefix: '' },
-              })
+        const roads = await this.myDataManager.getRoadNetwork(
+          filename,
+          this.subfolder,
+          this.vizDetails,
+          this.updateStatus
+        )
+
+        this.avroNetwork = roads
+
+        // const roads =
+        //   filename.indexOf('.avro') > -1
+        //     ? // AVRO networks have a separate reader:
+        //       this.loadAvroRoadNetwork()
+        //     : // normal MATSim network
+        //       this.fetchXML({
+        //         worker: this._roadFetcher,
+        //         slug: this.fileSystem.slug,
+        //         filePath: this.myState.subfolder + '/' + this.vizDetails.network,
+        //         options: { attributeNamePrefix: '' },
+        //       })
+        // console.log({ roads })
 
         const transit = this.fetchXML({
           worker: this._transitFetcher,
@@ -1330,6 +1340,7 @@ const MyComponent = defineComponent({
         return
       }
 
+      console.log(1341, buffer.data)
       const { network, routeData, stopFacilities, transitLines, mapExtent } = buffer.data
 
       this._network = network

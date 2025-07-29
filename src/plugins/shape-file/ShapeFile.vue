@@ -736,13 +736,20 @@ const MyComponent = defineComponent({
         columns = Object.keys(this.boundaryDataTable)
       }
 
+      // dont show nodes or coordinates
+      const hide = new Set(['id', 'from', 'to', 'source', 'dest', 'nodeCoordinates', 'nodeId'])
+      columns = columns.filter(m => !hide.has(m))
+
       if (this.vizDetails.tooltip?.length) {
         const delim = this.vizDetails.tooltip[0].indexOf(':') > -1 ? ':' : '.'
         columns = this.vizDetails.tooltip.map(tip => tip.substring(tip.indexOf(delim) + 1))
       }
 
+      // nice sort order
+      const sortColumns = ['id', 'from', 'to', ...columns]
+
       let featureProps = ''
-      columns.forEach(column => {
+      sortColumns.forEach(column => {
         if (this.boundaryDataTable[column]) {
           let value = this.boundaryDataTable[column].values[index]
           if (value == null) return
@@ -2263,7 +2270,6 @@ const MyComponent = defineComponent({
       })
 
       const network = records[0]
-
       // Build features with geometry, but no properties yet
       // (properties get added in setFeaturePropertiesAsDataSource)
       const numLinks = network.linkId.length
@@ -2310,43 +2316,59 @@ const MyComponent = defineComponent({
     },
 
     async loadXMLNetwork(filename: string): Promise<any> {
-      if (!this.myDataManager) throw Error('links: no datamanager')
+      if (!this.myDataManager) throw Error('no datamanager')
 
       this.statusText = 'Loading XML network...'
 
+      const features = [] as any[]
+
       try {
-        const network = await this.myDataManager.getRoadNetwork(
+        const network = (await this.myDataManager.getRoadNetwork(
           filename,
           this.subfolder,
           this.vizDetails,
           this.updateStatus
           // true // load extra columns
-        )
-        // convert to geojson
-        const numLinks = network.source.length / 2
-        const boundaries = [] as any[]
+        )) as any // TODO type NetworkLinks is a bit archaic at this point, needs an update
+
+        // Build features with geometry, but no properties yet
+        // (properties get added in setFeaturePropertiesAsDataSource)
+        const numLinks = network.linkId.length
+        const crs = network.crs || 'EPSG:4326'
+        const needsProjection = crs !== 'EPSG:4326' && crs !== 'WGS84'
+
         for (let i = 0; i < numLinks; i++) {
-          const offset = i * 2
-          const feature = {
-            type: 'Feature',
-            id: network.id[i],
-            properties: {},
-            geometry: {
-              type: 'LineString',
-              coordinates: [
-                [network.source[offset], network.source[offset + 1]],
-                [network.dest[offset], network.dest[offset + 1]],
-              ],
-            },
+          const linkID = network.linkId[i]
+          const fromOffset = 2 * network.from[i]
+          const toOffset = 2 * network.to[i]
+          let coordFrom = [
+            network.nodeCoordinates[fromOffset],
+            network.nodeCoordinates[1 + fromOffset],
+          ]
+          let coordTo = [network.nodeCoordinates[toOffset], network.nodeCoordinates[1 + toOffset]]
+
+          if (needsProjection) {
+            coordFrom = Coords.toLngLat(crs, coordFrom)
+            coordTo = Coords.toLngLat(crs, coordTo)
           }
-          boundaries.push(feature)
+
+          const coords = [coordFrom, coordTo]
+
+          const feature = {
+            id: linkID,
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'LineString', coordinates: coords },
+          }
+          features.push(feature)
         }
+
         this.avroNetwork = network
         this.isAvroFile = true
-
-        return boundaries
       } catch (e) {
-        console.error('' + e)
+        this.$emit('error', '' + e)
+      } finally {
+        return features
       }
     },
 
@@ -2583,19 +2605,29 @@ const MyComponent = defineComponent({
       const numFeatures = this.boundaries.length
 
       for (let idx = 0; idx < numFeatures; idx += 256) {
-        const centroid = turf.centerOfMass(this.boundaries[idx])
-        if (centroid?.geometry?.coordinates) {
-          centerLong += centroid.geometry.coordinates[0]
-          centerLat += centroid.geometry.coordinates[1]
-          numCoords += 1
+        try {
+          const centroid = turf.centerOfMass(this.boundaries[idx])
+          if (centroid?.geometry?.coordinates) {
+            centerLong += centroid.geometry.coordinates[0]
+            centerLat += centroid.geometry.coordinates[1]
+            numCoords += 1
+          }
+        } catch (e) {
+          // who cares
         }
       }
 
       centerLong /= numCoords
       centerLat /= numCoords
+      let zoom = 9
 
       console.log('--- CALCULATED CENTER', centerLong, centerLat)
       // console.log('SMC: calculateAndMoveToCenter')
+      if (centerLong == undefined || centerLat == undefined) {
+        centerLong = 30
+        centerLat = 30
+        zoom = 5
+      }
 
       const view = {
         longitude: centerLong,
@@ -2603,7 +2635,7 @@ const MyComponent = defineComponent({
         center: [centerLong, centerLat],
         bearing: 0,
         pitch: 0,
-        zoom: 9,
+        zoom,
         initial: true,
       }
       this.initialView = view
@@ -3152,9 +3184,7 @@ const MyComponent = defineComponent({
       this.vizDetails = Object.assign({}, this.vizDetails)
 
       this.honorQueryParameters()
-
       this.statusText = ''
-
       this.loadBackgroundLayers()
     } catch (e) {
       this.$emit('error', '' + e)
