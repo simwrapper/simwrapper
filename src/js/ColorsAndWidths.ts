@@ -608,6 +608,8 @@ function generateDiffColorsBasedOnNumericValues(props: VizProperties) {
   // *scaleThreshold* is the d3 function that maps numerical values to the color buckets
 
   let domain
+  const hasManualBreakpoints = !!options.colorRamp.breakpoints
+
   if (minDiff < 0) {
     // if min is NEGATIVE, do a diverging split no matter what
     domain = buildDiffDomainBreakpoints({ colorRamp, fixedColors, minDiff, maxDiff })
@@ -644,8 +646,8 @@ function generateDiffColorsBasedOnNumericValues(props: VizProperties) {
   let lowerBound = undefined
   for (let i = 0; i < keys.length; i++) {
     const upperBound = keys[i]
-    const lowerLabel = Math.round(lowerBound * 1)
-    const upperLabel = Math.round(upperBound * 1)
+    const lowerLabel = hasManualBreakpoints ? lowerBound : Math.round(lowerBound * 1)
+    const upperLabel = hasManualBreakpoints ? upperBound : Math.round(upperBound * 1)
     legend.push({
       label: lowerBound !== undefined ? `${lowerLabel} — ${upperLabel}` : `< ${upperLabel}`,
       value: colors[i],
