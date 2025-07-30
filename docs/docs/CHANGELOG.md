@@ -14,6 +14,20 @@ The SimWrapper code repository is open source and you can find the full commit h
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.0.6](https://github.com/simwrapper/simwrapper/compare/v4.0.5...v4.0.6) (2025-07-30)
+
+
+### Bug Fixes
+
+* back button from individual vizes should return to files view ([b7ab059](https://github.com/simwrapper/simwrapper/commit/b7ab059f728a9ecaf4154070a9b679e9bdba4b9d)), closes [#342](https://github.com/simwrapper/simwrapper/issues/342)
+* don't access Google Fonts (breaks offline mode, slow, spying) ([d4d310b](https://github.com/simwrapper/simwrapper/commit/d4d310b372a69ec33aafe3bc73350a64833d877c))
+* **events:** flask app is not streaming large local files (events, xy-time) ([9e7deb8](https://github.com/simwrapper/simwrapper/commit/9e7deb845ea75c8b58b7fa50df072547f0be5d06)), closes [#479](https://github.com/simwrapper/simwrapper/issues/479)
+* **map:** Legend should display precise user-specified manual breakpoints if given ([d4493fd](https://github.com/simwrapper/simwrapper/commit/d4493fd0fd6c9cbfa9a842a1a863b1ab7bad3301))
+* **map:** Load XML networks better and without crashing ([#489](https://github.com/simwrapper/simwrapper/issues/489)) ([27a024f](https://github.com/simwrapper/simwrapper/commit/27a024f2c5f3efdf8a88131a189e634486bf1f40)), closes [#422](https://github.com/simwrapper/simwrapper/issues/422) [#477](https://github.com/simwrapper/simwrapper/issues/477)
+* **map:** Remove background map for Atlantis coordinates ([2994277](https://github.com/simwrapper/simwrapper/commit/299427702219941f71f0d15e62c327d7c5f09484))
+* ui cleanup with improved breadcrumbs and fixed split-panel layout ([4901485](https://github.com/simwrapper/simwrapper/commit/49014856287b59113f7376117fffc9cbc6be3244))
+* **xml:** XML parser failed to parse some files with DOCTYPE headers ([039d4e9](https://github.com/simwrapper/simwrapper/commit/039d4e931dbc15c9083b94ed34f2925c2a94b903))
+
 ### [4.0.5](https://github.com/simwrapper/simwrapper/compare/v4.0.4...v4.0.5) (2025-07-07)
 
 
