@@ -2,9 +2,8 @@ import styles from '@/components/Selector/Selector.module.css'
 
 import React from 'react'
 import { useWindowSize } from '@react-hookz/web'
-import { Button, Menu, Wrapper } from 'react-aria-menubutton'
+// import { Button, Menu, Wrapper } from 'react-aria-menubutton'
 import { MdArrowDropDown } from 'react-icons/md'
-
 import type { OptionComponent } from './models'
 import OptionList from './OptionList'
 

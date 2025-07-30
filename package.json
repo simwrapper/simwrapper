@@ -43,8 +43,8 @@
     "@fortawesome/free-regular-svg-icons": "^6.4.0",
     "@fortawesome/free-solid-svg-icons": "^6.4.0",
     "@fortawesome/vue-fontawesome": "^2.0.10",
-    "@h5web/app": "^11.1.1",
-    "@h5web/h5wasm": "^11.2.0",
+    "@h5web/app": "^14.0.1",
+    "@h5web/h5wasm": "^14.0.1",
     "@js-temporal/polyfill": "^0.4.4",
     "@luma.gl/core": "^8.5.18",
     "@math.gl/polygon": "^3.6.3",
@@ -75,8 +75,7 @@
     "d3-scale-chromatic": "^3.0.0",
     "d3-selection": "^3.0.0",
     "debounce": "^1.2.0",
-    "deck.gl": "^8.8.21",
-    "dompurify": "^2.3.6",
+    "deck.gl": "8.8.27",
     "epsg-index": "^1.3.0",
     "fast-xml-parser": "^4.5.3",
     "filesize": "^10.1.0",
@@ -138,7 +137,7 @@
     "vuera": "^0.2.7",
     "vuex": "^3.1.3",
     "xml-network-parser": "file:wasm/xml-network-parser/pkg",
-    "yaml": "^1.7.2"
+    "yaml": "^2.8.0"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.16.5",
@@ -174,7 +173,6 @@
     "@typescript-eslint/eslint-plugin": "^4.4.1",
     "@typescript-eslint/parser": "^4.4.1",
     "@vitejs/plugin-vue2": "^2.3.1",
-    "@vitest/ui": "^0.34.3",
     "@vue/eslint-config-prettier": "^6.0.0",
     "@vue/eslint-config-typescript": "^7.0.0",
     "@vue/language-plugin-pug": "latest",
@@ -187,12 +185,11 @@
     "patch-package": "^6.4.7",
     "prettier": "^2.4.1",
     "pug": "^3.0.2",
-    "sass": "^1.55.0",
+    "sass": "1.55.0",
     "standard-version": "^9.3.2",
     "threads-plugin": "^1.4.0",
     "typescript": "^4.2.0",
     "unplugin-vue-markdown": "^0.26.2",
-    "vite": "^5.4.11",
-    "vitest": "^0.34.3"
+    "vite": "^6.3.5"
   }
 }

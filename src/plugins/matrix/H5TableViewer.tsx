@@ -6,6 +6,7 @@ import { H5WasmLocalFileProvider, H5WasmProvider } from '@h5web/h5wasm'
 import { getPlugin } from './plugin-utils'
 
 function exportCSV(props: { filename: string; rawData: any; dataset: any; tableName: string }) {
+  console.log(11, props)
   // rawdata will be Float32Array or Float64Array
   let allrows = [] as any[]
   const [numrows, numcols] = props.dataset.shape

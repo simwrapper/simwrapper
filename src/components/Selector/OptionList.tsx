@@ -1,5 +1,4 @@
 import React from 'react'
-import { MenuItem } from 'react-aria-menubutton'
 
 import type { OptionComponent } from './models'
 import styles from './Selector.module.css'
@@ -16,14 +15,14 @@ function OptionList<T extends string>(props: Props<T>) {
     <ul className={styles.list}>
       {optionList.map(option => (
         <li key={option}>
-          <MenuItem
+          <div
             className={styles.option}
             text={option}
             value={option}
             data-selected={option === value || undefined}
           >
-            <Option option={option} />
-          </MenuItem>
+            <div option={option} />
+          </div>
         </li>
       ))}
     </ul>
