@@ -1340,7 +1340,6 @@ const MyComponent = defineComponent({
         return
       }
 
-      console.log(1341, buffer.data)
       const { network, routeData, stopFacilities, transitLines, mapExtent } = buffer.data
 
       this._network = network

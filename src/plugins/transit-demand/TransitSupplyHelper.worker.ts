@@ -23,8 +23,6 @@ onmessage = function (e) {
   // if roadXML.network.nodes is missing, let's hope it's an Avro network
   _avro = !_xml?.roadXML?.network?.nodes && _xml?.roadXML?.nodeCoordinates
 
-  console.log({ roads: _xml.roadXML })
-  console.log({ _avro })
   try {
     if (_avro) {
       avroCreateNodesAndLinks()

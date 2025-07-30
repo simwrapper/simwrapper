@@ -150,7 +150,6 @@ async function processChunk(chunk: any) {
     if (!_nodeCoords) return
     let nodeFrom = nodeIdOffset[link.$from]
     let nodeTo = nodeIdOffset[link.$to]
-    if (!nodeFrom) console.log(link.$id, link.$from, link.$to, nodeFrom, nodeTo)
     props.source[i * 2] = _nodeCoords[nodeFrom]
     props.source[i * 2 + 1] = _nodeCoords[nodeFrom + 1]
     props.dest[i * 2] = _nodeCoords[nodeTo]
