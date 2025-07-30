@@ -133,6 +133,7 @@ export default function Component({
   pieSlider = 20,
   widthSlider = 50,
   vizDetails = null as any,
+  isAtlantis = false,
 }) {
   // ------- draw frame begins here -----------------------------
 
@@ -141,6 +142,8 @@ export default function Component({
 
   const power = 1 - (100 - widthSlider) / 100
   const scale = 0.1
+
+  const hasBackgroundMap = !isAtlantis
 
   // register setViewState in global view updater so we can respond to external map motion
   REACT_VIEW_HANDLES[viewId] = () => {
@@ -293,7 +296,7 @@ export default function Component({
   // Atlantis is pre-converted now in the RoadNetworkLoader to lng/lat
   // projection == 'Atlantis' ? COORDINATE_SYSTEM.METER_OFFSETS : COORDINATE_SYSTEM.DEFAULT
   const coordinateSystem = COORDINATE_SYSTEM.DEFAULT
-  const showBackgroundMap = projection && projection !== 'Atlantis'
+  // const showBackgroundMap = projection && projection !== 'Atlantis'
 
   const layers = [] as any[]
 
@@ -384,9 +387,8 @@ export default function Component({
       onClick={handleClick}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}
     >
-      {showBackgroundMap && (
-        /*
-        // @ts-ignore */
+      {hasBackgroundMap && (
+        /* @ts-ignore */
         <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
       )}
     </DeckGL>

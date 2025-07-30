@@ -71,6 +71,7 @@
         :isRGBA="isRGBA"
         :mapIsIndependent="vizDetails.mapIsIndependent"
         :initialView="initialView"
+        :isAtlantis="isAtlantis"
       )
 
       background-map-on-top(v-if="isLoaded && isAreaMode")
@@ -288,6 +289,7 @@ const MyComponent = defineComponent({
       icons: { blueramp: IconBlueRamp },
       opacitySlider: 50,
       avroNetwork: null as any,
+      isAtlantis: false,
       isAreaMode: false,
       isAvroFile: false,
       isDraggingDivider: 0,
@@ -2336,6 +2338,7 @@ const MyComponent = defineComponent({
         const numLinks = network.linkId.length
         const crs = network.crs || 'EPSG:4326'
         const needsProjection = crs !== 'EPSG:4326' && crs !== 'WGS84'
+        this.isAtlantis = !!network.isAtlantis
 
         for (let i = 0; i < numLinks; i++) {
           const linkID = network.linkId[i]

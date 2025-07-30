@@ -24,6 +24,7 @@
             :widthSlider="widthSlider"
             :transitLines="activeTransitLines"
             :vizDetails="vizDetails"
+            :isAtlantis="isAtlantis"
           )
 
           .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
@@ -295,7 +296,7 @@ const MyComponent = defineComponent({
       loadSteps: 0,
       totalLoadSteps: 7,
       searchText: '',
-      //drag
+      isAtlantis: false,
       isDraggingDivider: 0,
       dragStartWidth: 250,
       legendSectionWidth: 275,
@@ -1069,12 +1070,14 @@ const MyComponent = defineComponent({
 
         const filename = this.vizDetails.network
 
-        const roads = await this.myDataManager.getRoadNetwork(
+        const roads = (await this.myDataManager.getRoadNetwork(
           filename,
           this.subfolder,
           this.vizDetails,
           this.updateStatus
-        )
+        )) as any
+
+        this.isAtlantis = !!roads.isAtlantis
 
         this.avroNetwork = roads
 

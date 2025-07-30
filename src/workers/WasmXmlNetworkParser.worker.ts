@@ -20,6 +20,7 @@ let _nodeId = [] as string[]
 let _cleanLinks = [] as any[]
 let _countLinks = 0
 let _confirmed = false
+let _isAtlantis = false
 
 // ENTRY POINT: -----------------------
 onmessage = async function (e) {
@@ -38,6 +39,8 @@ onmessage = async function (e) {
 function recenterAtlantis() {
   if (!_nodeCoords) return
   postMessage({ status: 'Centering...' })
+
+  _isAtlantis = true
 
   let x = 0
   let y = 0
@@ -203,6 +206,8 @@ function finalAssembly() {
   if (!network.linkId) network.linkId = network.id
   network.linkAttributes = Object.keys(network)
   network.crs = 'EPSG:4326'
+  if (_isAtlantis) network.isAtlantis = true
+
   // node attributes ===============================
   network.nodeCoordinates = _nodeCoords
   network.nodeAttributes = ['nodeId']
