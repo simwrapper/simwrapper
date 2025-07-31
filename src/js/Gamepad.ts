@@ -111,7 +111,7 @@ function gamepadLoop() {
 
   const mapConfig = globalStore.state.viewState
   const factor = 2 ** mapConfig.zoom
-  const zoom = Math.max(3, mapConfig.zoom + 0.06 * dz)
+  const zoom = Math.max(3, mapConfig.zoom - 0.06 * dz)
   let pitch = mapConfig.pitch + dpitch
   pitch = Math.max(0, Math.min(70, pitch))
 
@@ -123,9 +123,9 @@ function gamepadLoop() {
     const bearingRad = (mapConfig.bearing * Math.PI) / 180
     const rotatedDx = dx * Math.cos(bearingRad) - dy * Math.sin(bearingRad)
     const rotatedDy = dx * Math.sin(bearingRad) + dy * Math.cos(bearingRad)
-    longitude = mapConfig.longitude - rotatedDx / factor
+    longitude = mapConfig.longitude + rotatedDx / factor
     longitude = Math.max(-180, Math.min(longitude, 180))
-    latitude = mapConfig.latitude + rotatedDy / factor
+    latitude = mapConfig.latitude - rotatedDy / factor
     latitude = Math.max(-80, Math.min(latitude, 80))
     dbearing = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, dbearing))
   }
