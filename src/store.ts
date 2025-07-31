@@ -17,6 +17,8 @@ import {
 import fileSystems from '@/fileSystemConfig'
 import { MAP_STYLES_ONLINE, MAP_STYLES_OFFLINE } from '@/Globals'
 
+import Gamepad from '@/js/Gamepad'
+
 // ----------------------------------------
 // ViewState has tricky logic, to handle cold-start, view-start,
 // and interactive motion.
@@ -188,8 +190,10 @@ export default new Vuex.Store({
         startup?: boolean
       }
     ) {
-      let honorIt = false
+      // enable gamepad
+      Gamepad.start()
 
+      let honorIt = false
       // always honor a jump request
       if (value.jump) honorIt = true
       // honor an initial request IFF we are in startup state
@@ -353,7 +357,14 @@ export default new Vuex.Store({
       }
     },
   },
-  actions: {},
+  actions: {
+    gamepadSetup() {
+      Gamepad.setup()
+    },
+    gamepadStop() {
+      Gamepad.stop()
+    },
+  },
   modules: {},
   getters: {
     mapStyle: state => {

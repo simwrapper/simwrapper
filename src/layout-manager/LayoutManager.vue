@@ -754,6 +754,9 @@ export default defineComponent({
     },
 
     updateURL(options?: { showFiles: boolean }) {
+      // any navigation, halt the gamepad loop
+      this.$store.dispatch('gamepadStop')
+
       // save the first-most panel URL for highlighting purposes
       this.firstPanelSubfolder = this.panels[0][0]?.props?.xsubfolder || ''
 

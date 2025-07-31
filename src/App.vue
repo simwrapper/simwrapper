@@ -204,12 +204,15 @@ export default defineComponent({
 
     document.addEventListener('keydown', this.toggleUIPanels)
 
+    this.$store.dispatch('gamepadSetup')
+
     // remove the splasher after a bit
     this.splasher = setTimeout(() => {
       this.showSplash = false
     }, 5000)
   },
   beforeDestroy() {
+    this.$store.dispatch('gamepadStop')
     document.removeEventListener('keydown', this.toggleUIPanels)
     window.clearTimeout(this.splasher)
   },
