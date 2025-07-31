@@ -625,60 +625,25 @@ export default class DashboardDataManager {
     })
 
     const network = records[0]
+
+    const numLinks = network.linkId.length
+    const source: Float32Array = new Float32Array(2 * numLinks)
+    const dest: Float32Array = new Float32Array(2 * numLinks)
+
+    for (let i = 0; i < numLinks; i++) {
+      const fromOffset = 2 * network.from[i]
+      const toOffset = 2 * network.to[i]
+      source[2 * i] = network.nodeCoordinates[fromOffset]
+      source[2 * i + 1] = network.nodeCoordinates[1 + fromOffset]
+      dest[2 * i] = network.nodeCoordinates[toOffset]
+      dest[2 * i + 1] = network.nodeCoordinates[1 + toOffset]
+    }
+
+    network.source = source
+    network.dest = dest
+
     return network
   }
-
-  // console.log(Object.keys(network))
-  // // Build bare network with no attributes, just like other networks
-  // // TODO: at some point this should merge with Shapefile reader
-
-  // const numLinks = network.linkId.length
-
-  // const crs = network.crs || 'EPSG:4326'
-  // const needsProjection = crs !== 'EPSG:4326' && crs !== 'WGS84'
-
-  // const source: Float32Array = new Float32Array(2 * numLinks)
-  // const dest: Float32Array = new Float32Array(2 * numLinks)
-  // const linkIds: any = []
-
-  // let coordFrom = [0, 0]
-  // let coordTo = [0, 0]
-
-  // for (let i = 0; i < numLinks; i++) {
-  //   const linkID = network.linkId[i]
-  //   const fromOffset = 2 * network.from[i]
-  //   const toOffset = 2 * network.to[i]
-
-  //   coordFrom[0] = network.nodeCoordinates[fromOffset]
-  //   coordFrom[1] = network.nodeCoordinates[1 + fromOffset]
-  //   coordTo[0] = network.nodeCoordinates[toOffset]
-  //   coordTo[1] = network.nodeCoordinates[1 + toOffset]
-
-  //   if (needsProjection) {
-  //     coordFrom = Coords.toLngLat(crs, coordFrom)
-  //     coordTo = Coords.toLngLat(crs, coordTo)
-  //   }
-
-  //   source[2 * i + 0] = coordFrom[0]
-  //   source[2 * i + 1] = coordFrom[1]
-  //   dest[2 * i + 0] = coordTo[0]
-  //   dest[2 * i + 1] = coordTo[1]
-
-  //   linkIds[i] = linkID
-  // }
-
-  // const nn = { source, dest, linkIds, projection: 'EPSG:4326' } as any
-
-  // // add node attributes
-  // for (const col of ['nodeId', 'nodeCoordinates', 'nodeAttributes']) {
-  //   nn[col] = network[col]
-  // }
-  // // add network attributes back in
-  // for (const col of network.linkAttributes) {
-  //   if (col !== 'linkId') nn[col] = network[col]
-  // }
-  // return nn
-  // }
 
   private async _fetchNetwork(props: {
     subfolder: string

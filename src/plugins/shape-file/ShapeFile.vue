@@ -1567,7 +1567,7 @@ const MyComponent = defineComponent({
         // rowcount specified: join on the column name itself
         dataJoinColumn = columnName
       } else {
-        // nothing specified: let's hope they didn't want to join
+        // nothing specified, let's hope they didn't want to join
         if (this.datasetChoices.length > 1) {
           const boundaries = this.datasetChoices[0]
           if (datasetKey !== boundaries) {
@@ -2256,47 +2256,24 @@ const MyComponent = defineComponent({
 
     async loadAvroNetwork(filename: string) {
       const path = `${this.subfolder}/${filename}`
-      const blob = await this.fileApi.getFileBlob(path)
-
-      const records: any[] = await new Promise((resolve, reject) => {
-        const rows = [] as any[]
-        avro
-          .createBlobDecoder(blob)
-          .on('metadata', (schema: any) => {})
-          .on('data', (row: any) => {
-            rows.push(row)
-          })
-          .on('end', () => {
-            resolve(rows)
-          })
-      })
-
-      const network = records[0]
+      const network = (await this.myDataManager.getRoadNetwork(
+        filename,
+        this.subfolder,
+        this.vizDetails,
+        null,
+        true
+      )) as any
       // Build features with geometry, but no properties yet
       // (properties get added in setFeaturePropertiesAsDataSource)
       const numLinks = network.linkId.length
       const features = [] as any[]
-      const crs = network.crs || 'EPSG:4326'
-      const needsProjection = crs !== 'EPSG:4326' && crs !== 'WGS84'
 
       for (let i = 0; i < numLinks; i++) {
         const linkID = network.linkId[i]
-        const fromOffset = 2 * network.from[i]
-        const toOffset = 2 * network.to[i]
-        let coordFrom = [
-          network.nodeCoordinates[fromOffset],
-          network.nodeCoordinates[1 + fromOffset],
+        const coords = [
+          network.source.slice(i * 2, i * 2 + 2),
+          network.dest.slice(i * 2, i * 2 + 2),
         ]
-        let coordTo = [network.nodeCoordinates[toOffset], network.nodeCoordinates[1 + toOffset]]
-        if (!coordFrom || !coordTo) continue
-
-        if (needsProjection) {
-          coordFrom = Coords.toLngLat(crs, coordFrom)
-          coordTo = Coords.toLngLat(crs, coordTo)
-        }
-
-        const coords = [coordFrom, coordTo]
-
         const feature = {
           id: linkID,
           type: 'Feature',
@@ -2537,7 +2514,7 @@ const MyComponent = defineComponent({
         // create the DataTable right here, we already have everything in memory
         const avroTable: DataTable = {}
 
-        const columns = this.avroNetwork.linkAttributes as string[]
+        const columns = [...this.avroNetwork.linkAttributes, 'from', 'to'] as string[]
         columns.sort()
 
         for (const colName of columns) {

@@ -11,7 +11,7 @@ export default class EventsHandler {
     this.follow = props.follow || ''
     this.network = props.network
     // network i-offset
-    this.network.linkIds.forEach((link: string, i: number) => {
+    this.network.linkId.forEach((link: string, i: number) => {
       this.linkIdLookup[link] = i
     })
   }
