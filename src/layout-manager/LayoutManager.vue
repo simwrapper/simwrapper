@@ -170,7 +170,8 @@ import TabbedDashboardView from './TabbedDashboardView.vue'
 import ProjectNavBar from './ProjectNavBar.vue'
 
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
-import { FileSystemConfig } from '@/Globals'
+import { FileSystemConfig, XML_COMPONENTS } from '@/Globals'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 export interface Section {
   name: string
@@ -440,10 +441,43 @@ export default defineComponent({
               ],
             ]
           }
-
-          // this.$store.commit('setShowLeftBar', false)
           return
         }
+      }
+
+      // XML file?
+      if (lowerCaseFileName.match(/\.(xml|xml\.gz)$/)) {
+        const svnProjects: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+          (a: any) => a.slug === root
+        )
+        if (!svnProjects.length) throw Error('no such project')
+        const fileSystem = svnProjects[0]
+        const fileApi = new HTTPFileSystem(fileSystem, globalStore)
+        let subfolder = xsubfolder.substring(0, xsubfolder.lastIndexOf('/'))
+        if (subfolder.startsWith('/')) subfolder = subfolder.slice(1)
+        xsubfolder = subfolder
+        const probe = `${xsubfolder}/${fileNameWithoutPath}`
+        const answer = await fileApi.probeXmlFileType(probe)
+        if (answer && XML_COMPONENTS[answer]) {
+          let key = Math.random()
+          this.panels = [
+            [
+              {
+                key,
+                component: XML_COMPONENTS[answer],
+                title: '',
+                description: '',
+                props: {
+                  root,
+                  subfolder: xsubfolder,
+                  yamlConfig: fileNameWithoutPath,
+                  thumbnail: false,
+                } as any,
+              },
+            ],
+          ]
+        }
+        return
       }
 
       // Last option: folder browser/dashboard panel

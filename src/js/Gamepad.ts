@@ -30,7 +30,6 @@ function gamepadHandler(event: any, connected: boolean) {
 }
 
 function stop() {
-  console.log('** STOP')
   isLooping = false
   isStopping = true
 }

@@ -145,7 +145,7 @@ import micromatch from 'micromatch'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
-import { FavoriteLocation, FileSystemConfig, YamlConfigs } from '@/Globals'
+import { FavoriteLocation, FileSystemConfig, XML_COMPONENTS, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { pluginComponents } from '@/plugins/pluginRegistry'
 
@@ -399,7 +399,9 @@ export default defineComponent({
       }
     },
 
-    buildShowEverythingView() {
+    async buildShowEverythingView() {
+      const fileSet = new Set(this.myState.files)
+
       // loop on each viz type
       for (const viz of this.globalState.visualizationTypes.values()) {
         // match based on file patterns registered for each viz
@@ -407,6 +409,19 @@ export default defineComponent({
         for (const file of matches) {
           // add thumbnail for each matching file
           this.myState.vizes.push({ component: viz.kebabName, config: file, title: '..' })
+          // remove file from set of unmapped files
+          fileSet.delete(file)
+        }
+      }
+
+      // check for any remaining XML files
+      const xmlFiles = micromatch([...fileSet.keys()], ['*.xml', '*.xml.gz'], { nocase: true })
+      for (const file of xmlFiles) {
+        const answer = await this.myState.svnRoot?.probeXmlFileType(
+          `${this.myState.subfolder}/${file}`
+        )
+        if (answer && XML_COMPONENTS[answer]) {
+          this.myState.vizes.push({ component: XML_COMPONENTS[answer], config: file, title: file })
         }
       }
     },
@@ -629,7 +644,7 @@ export default defineComponent({
       if (this.myState.summary) {
         await this.buildCuratedSummaryView()
       } else {
-        this.buildShowEverythingView()
+        await this.buildShowEverythingView()
       }
 
       // make sure page is rendered before we attach zoom semantics

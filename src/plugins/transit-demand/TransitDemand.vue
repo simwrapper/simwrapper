@@ -41,6 +41,10 @@
             p {{ loadingText }}
             b-progress.load-progress(v-if="loadProgress > 0"
               :value="loadProgress" :rounded="false" type='is-success')
+            .network-options.flex-col(v-if="networkOptions.length" style="margin-top: 4rem")
+              b-button.button(v-for="networkFile of networkOptions" :key="networkFile"
+                @click="selectNetwork(networkFile)"
+              )  {{ networkFile }}
 
       .right-panel-holder(:style="{width: `${legendSectionWidth}px`}")
 
@@ -333,6 +337,7 @@ const MyComponent = defineComponent({
       isMapMoving: false,
       isHighlightingLink: false,
       loadingText: 'MATSim Transit Inspector',
+      networkOptions: [] as string[],
       projection: DEFAULT_PROJECTION,
       routesOnLink: [] as RouteDetails[],
       selectedLinkId: '',
@@ -523,6 +528,14 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    async selectNetwork(filename: string) {
+      console.log(filename)
+      this.vizDetails.network = filename
+      this.networkOptions = []
+      await this.findInputFiles()
+      await this.loadEverything()
+    },
+
     clickedLegend(e: any) {
       console.log('boop!', e)
     },
@@ -742,15 +755,28 @@ const MyComponent = defineComponent({
       // Try the most obvious network filename:
       if (!network) network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
 
-      // if the obvious network file doesn't exist, just grab... the first network file:
+      // if the obvious network file doesn't exist, ask the user:
       if (files.indexOf(network) == -1) {
-        const allNetworks = files.filter(f => f.endsWith('network.xml.gz'))
-        if (allNetworks.length) network = allNetworks[0]
+        const allXML = files.filter(f => f.toLocaleLowerCase().match(/(\.xml|\.gz)$/))
+        const allNetworks = [] as string[]
+        await Promise.all(
+          allXML.map(async (f: any) => {
+            const path = `${this.myState.subfolder}/${f}`
+            const t = await this.fileApi.probeXmlFileType(path)
+            if (t === 'network') allNetworks.push(f)
+          })
+        )
+        console.log('all networks', allNetworks)
+        if (allNetworks.length == 1) network = allNetworks[0]
         else {
-          this.loadingText = 'No road network found.'
+          this.loadingText = 'Choose network file:'
           network = ''
+          this.networkOptions = allNetworks
+          return
+          // findInputFiles will get called again when user clicks on an option
         }
       }
+
       // Demand: use them if we are in an output folder (and they exist)
       let demandFiles = [] as string[]
       if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
@@ -2308,5 +2334,8 @@ h3 {
 .lazy-transit-list {
   background-color: #ffa;
   overflow-y: auto;
+}
+.button:hover {
+  background-color: var(--bgSplash);
 }
 </style>
