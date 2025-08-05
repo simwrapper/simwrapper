@@ -1,4 +1,5 @@
 <template lang="pug">
+
 .link-volume-plot(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}'
         oncontextmenu="return false")
@@ -226,7 +227,7 @@ const MyComponent = defineComponent({
       geojsonData: {
         source: new Float32Array(),
         dest: new Float32Array(),
-        linkIds: [] as any[],
+        linkId: [] as any[],
         projection: '',
       },
       fixedColors: ['#4e79a7'],
@@ -725,7 +726,7 @@ const MyComponent = defineComponent({
           this.updateStatus
         )
 
-        this.numLinks = network.linkIds.length
+        this.numLinks = network.linkId.length
         this.geojsonData = network as any
 
         // Handle Atlantis: no long/lat coordinates
@@ -784,8 +785,8 @@ const MyComponent = defineComponent({
       // Create a LOOKUP array which links this CSV data to the network links
       // loop through all network links, we need the CSV row for each link.
       const getCsvRowNumberFromLinkRowNumber: number[] = []
-      for (let linkRow = 0; linkRow < this.geojsonData.linkIds.length; linkRow++) {
-        const linkId = this.geojsonData.linkIds[linkRow]
+      for (let linkRow = 0; linkRow < this.geojsonData.linkId.length; linkRow++) {
+        const linkId = this.geojsonData.linkId[linkRow]
         const csvRow = tempMapLinkIdToCsvRow[linkId]
         if (csvRow !== undefined) getCsvRowNumberFromLinkRowNumber[linkRow] = csvRow
       }
@@ -801,7 +802,7 @@ const MyComponent = defineComponent({
     },
 
     generateWidthArray() {
-      const numLinks = this.geojsonData.linkIds.length
+      const numLinks = this.geojsonData.linkId.length
       const widths = new Float32Array(numLinks)
 
       const widthValues = this.csvWidth?.dataTable[this.csvWidth.activeColumn]?.values
@@ -859,7 +860,7 @@ const MyComponent = defineComponent({
         ? scaleOrdinal().range(colorsAsRGB)
         : scaleThreshold().range(colorsAsRGB).domain(domain)
 
-      const numLinks = this.geojsonData.linkIds.length
+      const numLinks = this.geojsonData.linkId.length
       const colors = new Uint8Array(4 * numLinks)
 
       const colorPaleGrey = globalStore.state.isDarkMode ? [80, 80, 80, 96] : [212, 212, 212, 40]
