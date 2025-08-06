@@ -69,6 +69,7 @@ function startLoading(props: {
  * @returns FullRowCache, ColumnLookup
  */
 function postResults() {
+  console.log('---posting RESULTS')
   postMessage({ fullRowCache }, [fullRowCache.positions.buffer, fullRowCache.column.buffer])
 }
 
@@ -110,7 +111,6 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
 
   // Figure out which columns to save
   const decoder = new TextDecoder()
-
   let skipLength = 0
   let header = ''
   const initialLines = decoder.decode(unzipped.subarray(0, 1024)).split('\n')
@@ -207,6 +207,7 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
   fullRowCache.positions = new Float32Array(2 * count * numAggregations)
   fullRowCache.column = new Uint8Array(count * numAggregations)
 
+  console.log('---ok on to step 3')
   step3parseCSVdata(sections)
 }
 
@@ -251,7 +252,7 @@ function step3parseCSVdata(sections: Uint8Array[]) {
     postMessage({ error: 'ERROR projection coordinates' })
     return
   }
-  postMessage({ status: 'Trimming results...' })
+  // postMessage({ status: 'Trimming results...' })
 
   // now filter zero-cells out: some rows don't have coordinates, and they
   // will mess up the total calculations

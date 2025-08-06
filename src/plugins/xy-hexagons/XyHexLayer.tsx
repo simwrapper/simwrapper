@@ -37,27 +37,43 @@ export default function Layer({
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
-  REACT_VIEW_HANDLES[viewId] = () => {
-    setViewState(globalStore.state.viewState)
-  }
+  // REACT_VIEW_HANDLES[viewId] = () => {
+  //   console.log('here')
+  //   setViewState(globalStore.state.viewState)
+  // }
 
   // useMemo: row data only gets recalculated what data or highlights change
   const rows = useMemo(() => {
     let rows = [] as any
-    let weights = new Float32Array()
     // is data filtered or not?
     if (highlights.length) {
       return highlights.map((h: any) => h[1])
     } else if (!data || !data.length) {
       return rows
     } else {
-      weights = new Float32Array(data.length)
+      console.log('data length: ', data.length)
+      const weights = new Uint8Array(data.length)
       for (let i = 0; i < data.length; i++) {
         weights[i] = data.column[i] == agg ? 1 : 0
       }
-      return weights
+      const sum = weights.reduce((a, b) => a + b, 0)
+      // console.log('caculated weights no problem')
+      // console.log('length', weights.length)
+      // console.log('positions', data?.positions)
+      // console.log('sum', sum)
+      const coords = new Float32Array(sum * 2)
+      let offset = 0
+      for (let j = 0; j < data.length; j++) {
+        if (weights[j] == 1) {
+          coords[offset] = data?.positions[j * 2]
+          coords[offset + 1] = data?.positions[j * 2 + 1]
+          offset += 2
+        }
+      }
+      // console.log({ coords })
+      return coords
     }
-  }, [data, highlights, agg, radius]) as any
+  }, [data, highlights, agg, radius]) as any[]
 
   function handleViewState(view: any) {
     if (!view.latitude) return
@@ -128,49 +144,66 @@ export default function Layer({
       getSourceColor: dark ? [144, 96, 128] : [192, 192, 240],
       getTargetColor: dark ? [144, 96, 128] : [192, 192, 240],
     }),
-
-    new HexagonLayer(
-      Object.assign(config, {
-        id: 'hexlayer',
-        data: rows,
-        // getPosition: highlights.length
-        //   ? (d: any, _: any) => d
-        //   : (_: any, o: any) => data?.positions.slice(o.index * 2, o.index * 2 + 2),
-        // getColorWeight: (d: any, o: any) => d,
-        // getElevationWeight: (d: any, o: any) => d,
-        colorRange: dark ? colors.slice(1) : colors.reverse().slice(1),
-        colorAggregation: 'SUM',
-        coverage,
-        autoHighlight: true,
-        elevationRange: [0, maxHeight],
-        elevationScale: data && data.length ? 25 : 0,
-        extruded: extrude,
-        gpuAggregation: true,
-        selectedHexStats,
-        // hexagonAggregator: pointToHexbin,
-        pickable: true,
-        opacity: 0.75, // dark && highlights.length ? 0.6 : 0.8,
-        radius,
-        upperPercentile,
-        material,
-        positionFormat: 'XY',
-        updateTriggers: {
-          getElevationWeight: agg,
-          getColorWeight: agg,
-        },
-        transitions: {
-          elevationScale: { type: 'interpolation', duration: 1000 },
-          opacity: { type: 'interpolation', duration: 200 },
-        },
-      })
-    ),
   ]
+
+  if (highlights.length || rows.length)
+    layers.push(
+      new HexagonLayer(
+        Object.assign(config, {
+          id: 'hexlayer',
+          data: highlights.length
+            ? rows
+            : {
+                length: rows.length / 2,
+                attributes: {
+                  getPosition: { value: rows, size: 2 },
+                  getColorWeight: 1,
+                  getElevationWeight: 1,
+                },
+                // getColorWeight: 1.0,
+                // getElevationWeight: 1.0,
+              },
+          // getPosition: highlights.length
+          //   ? (d: any, _: any) => d
+          //   : (_: any, o: any) => data?.positions.slice(o.index * 2, o.index * 2 + 2),
+          // getColorWeight: (d: any, o: any) => d,
+          // getElevationWeight: (d: any, o: any) => d,
+          colorRange: dark ? colors.slice(1) : colors.reverse().slice(1),
+          colorAggregation: 'COUNT',
+          coverage,
+          getColorWeight: 1.0,
+          getElevationWeight: 1.0,
+          autoHighlight: true,
+          elevationRange: [0, 1000], // [0, maxHeight],
+          elevationScale: 15, // data && data.length ? 25 : 0,
+          extruded: true, // extrude,
+          gpuAggregation: true,
+          selectedHexStats,
+          // hexagonAggregator: pointToHexbin,
+          pickable: true,
+          opacity: 0.75, // dark && highlights.length ? 0.6 : 0.8,
+          radius,
+          upperPercentile,
+          material,
+          positionFormat: 'XY',
+          updateTriggers: {
+            getElevationWeight: agg,
+            getColorWeight: agg,
+          },
+          transitions: {
+            elevationScale: { type: 'interpolation', duration: 1000 },
+            opacity: { type: 'interpolation', duration: 200 },
+          },
+        })
+      )
+    )
 
   return (
     <DeckGL
       layers={layers}
       controller={true}
       useDevicePixels={false}
+      initialViewState={globalStore.state.viewState}
       viewState={viewState}
       getTooltip={getTooltip}
       onClick={handleClick}

@@ -243,7 +243,7 @@ const MyComponent = defineComponent({
         agg: this.aggNumber,
         colorRamp: this.colorRamp,
         coverage: 0.65,
-        dark: this.$store.state.isDarkMode,
+        dark: false, // this.$store.state.isDarkMode,
         data: this.requests,
         extrude: this.extrudeTowers,
         highlights: this.highlightedTrips,
@@ -281,7 +281,7 @@ const MyComponent = defineComponent({
     },
     '$store.state.viewState'() {
       if (this.vizDetails.mapIsIndependent) return
-      if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id]()
+      // if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id]()
     },
   },
   methods: {
@@ -668,9 +668,12 @@ const MyComponent = defineComponent({
             msg: `Error loading: ${this.myState.subfolder}/${this.vizDetails.file}`,
           })
         } else {
+          console.log(200)
           const { fullRowCache } = buffer.data
+          console.log(300)
           if (this.gzipWorker) this.gzipWorker.terminate()
           this.dataIsLoaded({ fullRowCache })
+          console.log(400)
         }
       }
 
@@ -684,10 +687,13 @@ const MyComponent = defineComponent({
 
     dataIsLoaded({ fullRowCache }: any) {
       this.requests = fullRowCache
+      this.isLoaded = true
+      console.log(350, this.requests)
 
       this.setMapCenter()
       this.moveLogo()
       this.myState.statusMessage = ''
+      console.log(375)
     },
 
     async loadFiles() {
@@ -732,7 +738,7 @@ const MyComponent = defineComponent({
 
     this.buildThumbnail()
 
-    this.isLoaded = true
+    // this.isLoaded = true
     this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // show first data
   },
 
