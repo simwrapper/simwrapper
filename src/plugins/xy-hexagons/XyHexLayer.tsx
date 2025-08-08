@@ -55,9 +55,9 @@ export default function Layer({
       if (!rowCache) return rows
       const weights = new Float32Array(rowCache.length)
       for (let i = 0; i < rowCache.length; i++) {
-        // zeros mean nothing is there
+        // zero lng/lat means no data
         if (rowCache.positions[i * 2] == 0 && rowCache.positions[i * 2 + 1] == 0) continue
-        weights[i] = rowCache.column[i] == agg ? 1 : 0
+        if (rowCache.column[i] == agg) weights[i] = 1
       }
       return weights
     }

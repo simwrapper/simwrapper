@@ -364,9 +364,7 @@ const MyComponent = defineComponent({
 
     async handleOrigDest(groupName: string, number: number) {
       this.currentGroup = groupName
-      // const groups = Object.keys(this.aggregations)
-      // const groupNumber = groups.indexOf(groupName)
-      this.aggNumber = number // groupNumber * groups.length + number
+      this.aggNumber = number
       this.hexStats = null
       this.multiSelectedHexagons = {}
 
