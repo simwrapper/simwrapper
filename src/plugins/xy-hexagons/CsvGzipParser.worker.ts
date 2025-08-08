@@ -16,11 +16,14 @@ onmessage = function (e) {
 // -----------------------------------------------------------
 
 export interface NewRowCache {
-  positions: Float32Array
-  columnIds: string[]
-  coordColumns: number[]
-  column: Uint8Array
-  length: number
+  [group: string]: {
+    positions: Float32Array
+    column: Uint8Array
+    columnIds: string[]
+    coordColumns: number[]
+    length: number
+    numAggs: number
+  }
 }
 
 interface Aggregations {
@@ -35,13 +38,7 @@ let allAggregations: Aggregations = {}
 let totalLines = 0
 let proj = 'EPSG:4326'
 
-const fullRowCache: NewRowCache = {
-  positions: new Float32Array(0),
-  column: new Uint8Array(0),
-  columnIds: [],
-  coordColumns: [],
-  length: 0,
-}
+const fullRowCache: NewRowCache = {}
 
 /**
  * Begin loading the file, and return status updates
@@ -69,7 +66,9 @@ function startLoading(props: {
  * @returns FullRowCache, ColumnLookup
  */
 function postResults() {
-  postMessage({ fullRowCache }, [fullRowCache.positions.buffer, fullRowCache.column.buffer])
+  const positionBuffers = Object.values(fullRowCache).map(a => a.positions.buffer)
+  const columnBuffers = Object.values(fullRowCache).map(a => a.column.buffer)
+  postMessage({ fullRowCache }, [...positionBuffers, ...columnBuffers])
 }
 
 async function step1fetchFile(filepath: string, fileSystem: FileSystemConfig) {
@@ -175,6 +174,17 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
   for (const group of Object.keys(allAggregations)) {
     const aggregations = allAggregations[group]
     let i = 0
+    let numAggregations = aggregations.length
+
+    fullRowCache[group] = {
+      positions: new Float32Array(2 * totalLines * numAggregations),
+      column: new Uint8Array(totalLines * numAggregations),
+      length: totalLines * numAggregations,
+      numAggs: numAggregations,
+      columnIds: [],
+      coordColumns: [],
+    }
+
     for (const agg of aggregations) {
       numAggregations++
       const xCol = headerColumns.indexOf(agg.x)
@@ -190,22 +200,12 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
         return
       }
 
-      fullRowCache.columnIds.push(`${group}${i}`)
-      fullRowCache.coordColumns.push(...[xCol, yCol]),
-        // rowCache[] = {
-        //   raw: new Float32Array(count * 2),
-        //   weights: new Float32Array(),
-        //   length: count,
-        // }
-
-        i++
+      fullRowCache[group].columnIds.push(`${group}${i}`)
+      fullRowCache[group].coordColumns.push(...[xCol, yCol])
+      // incr aggr number
+      i++
     }
   }
-
-  // now we know the row count and the number of aggregations, so we can size our arrays
-  fullRowCache.length = count * numAggregations
-  fullRowCache.positions = new Float32Array(2 * count * numAggregations)
-  fullRowCache.column = new Uint8Array(count * numAggregations)
 
   step3parseCSVdata(sections)
 }
@@ -219,7 +219,7 @@ function step3parseCSVdata(sections: Uint8Array[]) {
     for (const section of sections) {
       const text = decoder.decode(section)
 
-      const numAggregations = fullRowCache.columnIds.length
+      // const numAggregations = fullRowCache.columnIds.length
       Papa.parse(text, {
         comments: '#',
         header: false,
@@ -227,19 +227,22 @@ function step3parseCSVdata(sections: Uint8Array[]) {
         skipEmptyLines: true,
         delimitersToGuess: ['\t', ';', ',', ' '],
         dynamicTyping: true,
-        step: (results: any, parser: any) => {
+        step: (results: any, _: any) => {
           if (offset % 65536 === 0) {
             console.log(offset)
             postMessage({ status: `Processing CSV: ${Math.floor((100.0 * offset) / totalLines)}%` })
           }
-          for (let agg = 0; agg < numAggregations; agg++) {
-            const wgs84 = Coords.toLngLat(proj, [
-              results.data[fullRowCache.coordColumns[agg * 2] as any],
-              results.data[fullRowCache.coordColumns[1 + agg * 2] as any],
-            ])
-            fullRowCache.positions[offset * 2 * numAggregations + agg * 2] = wgs84[0]
-            fullRowCache.positions[offset * 2 * numAggregations + agg * 2 + 1] = wgs84[1]
-            fullRowCache.column[offset * numAggregations + agg] = agg
+          let coord = [0, 0]
+          for (let group of Object.keys(fullRowCache)) {
+            const rowCache = fullRowCache[group]
+            for (let agg = 0; agg < rowCache.numAggs; agg++) {
+              coord[0] = results.data[rowCache.coordColumns[agg * 2]]
+              coord[1] = results.data[rowCache.coordColumns[agg * 2 + 1]]
+              if (coord[0] && coord[1]) coord = Coords.toLngLat(proj, coord)
+              rowCache.positions[offset * 2 * rowCache.numAggs + agg * 2] = coord[0]
+              rowCache.positions[offset * 2 * rowCache.numAggs + agg * 2 + 1] = coord[1]
+              rowCache.column[offset * rowCache.numAggs + agg] = agg
+            }
           }
           offset += 1
           return results
