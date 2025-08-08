@@ -101,6 +101,13 @@ let fileSystems: FileSystemConfig[] = [
     hidden: true,
   },
   {
+    name: 'e2e-tests',
+    slug: 'e2e-tests',
+    description: 'Playwright test data',
+    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper-testdata',
+    hidden: true,
+  },
+  {
     name: webLiveHostname + ' live folders',
     slug: 'live',
     description: 'Files served using "simwrapper here"',

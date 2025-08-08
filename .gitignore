@@ -22,3 +22,9 @@ yarn-error.log*
 *.sw?
 *.bak
 ~$*
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
