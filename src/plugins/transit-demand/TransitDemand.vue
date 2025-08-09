@@ -1,5 +1,5 @@
 <template lang="pug">
-  .transit-viz(:class="{'hide-thumbnail': !thumbnail}")
+  #transit-viz.transit-viz(:class="{'hide-thumbnail': !thumbnail}")
 
     //- @mousemove.stop
     .main-layout(v-if="!thumbnail"
@@ -1419,7 +1419,8 @@ const MyComponent = defineComponent({
       const latitude = 0.5 * (this._mapExtentXYXY[1] + this._mapExtentXYXY[3])
 
       const span = Math.abs(this._mapExtentXYXY[0] - this._mapExtentXYXY[2])
-      const zoom = Math.floor(Math.log2(360 / span))
+      let zoom = Math.floor(Math.log2(360 / span))
+      if (zoom < 5 || !Number.isFinite(zoom)) zoom = 10
 
       this.$store.commit('setMapCamera', {
         longitude,

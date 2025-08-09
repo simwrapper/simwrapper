@@ -91,8 +91,8 @@ function processTransit() {
   generateStopFacilitiesFromXML()
 
   let uniqueRouteID = 0
-  const transitLines = _xml.transitXML.transitSchedule.transitLine
-  // console.log('transitLines:', transitLines)
+  let transitLines = _xml.transitXML.transitSchedule.transitLine
+  if (!Array.isArray(transitLines)) transitLines = [transitLines]
 
   for (const line of transitLines) {
     // get the GTFS route type from the attributes
