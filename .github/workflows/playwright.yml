@@ -1,9 +1,9 @@
 name: End-to-End Tests
 on:
   push:
-    branches: [main, master, staging]
+    branches: [main, master]
   pull_request:
-    branches: [main, master, staging]
+    branches: [main, master]
 jobs:
   test:
     timeout-minutes: 15
@@ -18,7 +18,7 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
       - name: Run Playwright tests
-        run: npx playwright test
+        run: npx playwright test --workers=2
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
