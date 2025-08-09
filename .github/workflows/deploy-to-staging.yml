@@ -7,9 +7,9 @@ on:
     repository_dispatch:
 
 jobs:
-  # Run playwright e2e tests
+  # Run playwright e2e tests first:
   e2e-tests:
-    timeout-minutes: 15
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,8 +29,9 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-  # Ping staging build if tests passed
+  # Ping staging build -IF- tests passed
   notify-staging:
+    needs: e2e-tests
     runs-on: ubuntu-latest
     steps:
       - name: PING staging
