@@ -25,6 +25,7 @@ export default function Layer({
   colorRamp = 'Viridis' as String,
   dark = false as Boolean,
   data = {} as CompleteMapData,
+  colorDataDigits = 0 as number,
   negativeValues = false as Boolean,
   currentTimeIndex = 0 as number,
   // extrude = true as Boolean,
@@ -90,7 +91,11 @@ export default function Layer({
     const latDisplay = Number.isFinite(lat) ? lat.toFixed(4) : ''
     const lngDisplay = Number.isFinite(lng) ? lng.toFixed(4) : ''
 
-    const tooltipHtml = `<b>${roundedValue} ${unit}</b><br/>${latDisplay} / ${lngDisplay}`
+    const tooltipHtml = `<b>${roundedValue} ${unit}</b><br/>${latDisplay} / ${lngDisplay}<br/>
+    time value: ${data.mapData[currentTimeIndex].time}<br/>
+    metric value: ${data.mapData[currentTimeIndex].values[object.index]}<br/>
+    opacity value: ${data.mapData[currentTimeIndex].opacityValues[object.index]}
+    `
     const tooltipStyle: TooltipStyle = dark
       ? { color: '#ccc', backgroundColor: '#2a3c4f' }
       : { color: '#223', backgroundColor: 'white' }
@@ -122,7 +127,7 @@ export default function Layer({
         length: data.mapData[currentTimeIndex].length,
         attributes: {
           getPosition: { value: data.mapData[currentTimeIndex].centroid, size: 2 },
-          getFillColor: { value: data.mapData[currentTimeIndex].colorData, size: 3 },
+          getFillColor: { value: data.mapData[currentTimeIndex].colorData, size: colorDataDigits },
           // doesn't allow elevation to work if negative values are present. Will think of a better solution for this. - Brendan 15.05.2025
           getElevation: negativeValues
             ? { value: null }
