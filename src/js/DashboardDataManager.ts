@@ -75,6 +75,7 @@ export default class DashboardDataManager {
 
   public kill() {
     for (const worker of this.threads) worker.terminate()
+    this.threads = []
   }
 
   public getFilteredDataset(config: { dataset: string }): { filteredRows: any[] | null } {
@@ -245,12 +246,15 @@ export default class DashboardDataManager {
       dataset: new Promise<DataTable>((resolve, reject) => {
         const thread = new DataFetcherWorker()
         // console.log('NEW WORKER', thread)
-        this.threads.push(thread)
 
         try {
-          thread.postMessage({ config: fullConfig, featureProperties })
-
           thread.onmessage = e => {
+            // wait for ready signal
+            if (e.data.ready) {
+              this.threads.push(thread)
+              thread.postMessage({ config: fullConfig, featureProperties })
+              return
+            }
             thread.terminate()
             if (e.data.error) {
               console.error(e.data.error)
@@ -563,32 +567,41 @@ export default class DashboardDataManager {
     config: { dataset: string },
     options?: { highPrecision?: boolean; subfolder?: string }
   ) {
-    // sometimes we are dealing with subfolder/subtabs, so always fetch file list anew.
-    const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(
-      options?.subfolder || this.subfolder
-    )
+    let dirfiles
+    try {
+      // sometimes we are dealing with subfolder/subtabs, so always fetch file list anew.
+      const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(
+        options?.subfolder || this.subfolder
+      )
+      dirfiles = files
+    } catch (e) {
+      console.error('FAIL! ' + e)
+      throw Error('' + e)
+    }
+
+    let files = dirfiles
 
     return new Promise<DataTable>((resolve, reject) => {
       const thread = new DataFetcherWorker()
-      this.threads.push(thread)
-      // console.log('NEW WORKER', thread)
       try {
-        thread.postMessage({
-          fileSystemConfig: this.fileApi,
-          subfolder: options?.subfolder || this.subfolder,
-          files,
-          config: config,
-          options,
-        })
-
         thread.onmessage = e => {
+          // wait for ready signal and then begin work:
+          if (e.data.ready) {
+            // this.threads.push(thread)
+            thread.postMessage({
+              fileSystemConfig: this.fileApi,
+              subfolder: options?.subfolder || this.subfolder,
+              files,
+              config: config,
+              options,
+            })
+            return
+          }
           thread.terminate()
-          if (!e.data || e.data.error) {
+          if (e.data.error) {
             let msg = '' + (e.data?.error || 'Error loading file')
             msg = msg.replace('[object Response]', 'Error loading file')
-
             if (config?.dataset && msg.indexOf(config.dataset) === -1) msg += `: ${config.dataset}`
-
             reject(msg)
           }
           resolve(e.data)
@@ -606,43 +619,48 @@ export default class DashboardDataManager {
     filename: string
     options?: any
     cbStatus?: any
-  }): Promise<NetworkLinks> {
-    const httpFileSystem = new HTTPFileSystem(this.fileApi)
-    const blob = await httpFileSystem.getFileBlob(`${props.subfolder}/${props.filename}`)
+  }): Promise<NetworkLinks | null> {
+    try {
+      const httpFileSystem = new HTTPFileSystem(this.fileApi)
+      const blob = await httpFileSystem.getFileBlob(`${props.subfolder}/${props.filename}`)
 
-    const records: any[] = await new Promise(async (resolve, reject) => {
-      const rows = [] as any[]
+      const records: any[] = await new Promise(async (resolve, reject) => {
+        const rows = [] as any[]
 
-      avro
-        .createBlobDecoder(blob)
-        .on('metadata', (schema: any) => {})
-        .on('data', (row: any) => {
-          rows.push(row)
-        })
-        .on('end', () => {
-          resolve(rows)
-        })
-    })
+        avro
+          .createBlobDecoder(blob)
+          .on('metadata', (schema: any) => {})
+          .on('data', (row: any) => {
+            rows.push(row)
+          })
+          .on('end', () => {
+            resolve(rows)
+          })
+      })
 
-    const network = records[0]
+      const network = records[0]
 
-    const numLinks = network.linkId.length
-    const source: Float32Array = new Float32Array(2 * numLinks)
-    const dest: Float32Array = new Float32Array(2 * numLinks)
+      const numLinks = network.linkId.length
+      const source: Float32Array = new Float32Array(2 * numLinks)
+      const dest: Float32Array = new Float32Array(2 * numLinks)
 
-    for (let i = 0; i < numLinks; i++) {
-      const fromOffset = 2 * network.from[i]
-      const toOffset = 2 * network.to[i]
-      source[2 * i] = network.nodeCoordinates[fromOffset]
-      source[2 * i + 1] = network.nodeCoordinates[1 + fromOffset]
-      dest[2 * i] = network.nodeCoordinates[toOffset]
-      dest[2 * i + 1] = network.nodeCoordinates[1 + toOffset]
+      for (let i = 0; i < numLinks; i++) {
+        const fromOffset = 2 * network.from[i]
+        const toOffset = 2 * network.to[i]
+        source[2 * i] = network.nodeCoordinates[fromOffset]
+        source[2 * i + 1] = network.nodeCoordinates[1 + fromOffset]
+        dest[2 * i] = network.nodeCoordinates[toOffset]
+        dest[2 * i + 1] = network.nodeCoordinates[1 + toOffset]
+      }
+
+      network.source = source
+      network.dest = dest
+
+      return network
+    } catch (e) {
+      console.error(e)
+      return null
     }
-
-    network.source = source
-    network.dest = dest
-
-    return network
   }
 
   private async _fetchNetwork(props: {
@@ -674,7 +692,8 @@ export default class DashboardDataManager {
 
       // AVRO NETWORK
       if (filename.toLocaleLowerCase().endsWith('.avro')) {
-        const result = await this._getAvroNetwork(props)
+        const result = (await this._getAvroNetwork(props)) as any
+        if (!result) reject('Problem loading network: ' + path)
         resolve(result)
         return
       }

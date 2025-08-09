@@ -23,6 +23,9 @@ onmessage = function (e) {
   fetchData(e.data)
 }
 
+// Let main thread know we are alive and listening
+postMessage({ ready: true })
+
 async function fetchData(props: {
   fileSystemConfig: FileSystemConfig
   subfolder: string
