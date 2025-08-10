@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.1.0](https://github.com/simwrapper/simwrapper/compare/v4.0.6...v4.1.0) (2025-08-10)
+
+
+### Features
+
+* Gamepad map pan/zoom support ([c7a590c](https://github.com/simwrapper/simwrapper/commit/c7a590c4a50eb1f35a32ab9be8580c554a7c0ac3))
+
+
+### Bug Fixes
+
+* **data:** Make sure background data workers are ready before sending them data ([26cd60a](https://github.com/simwrapper/simwrapper/commit/26cd60add28f8a73ba71d800d20eab6ad3c87011))
+* **hexagons:** Improve xy-hexagon performance with large datasets ([bfa80a6](https://github.com/simwrapper/simwrapper/commit/bfa80a64ecf02112ddc137d7845161971b654f1d))
+* **links:** link map not loading MATSIM XML networks ([25e300e](https://github.com/simwrapper/simwrapper/commit/25e300eda6dfad2f8215829aa19c9a1fff904d3a))
+* probe XML filetypes if filenames are not standard *.output_network.xml ([17e60bb](https://github.com/simwrapper/simwrapper/commit/17e60bb1900278ffff47fb915c7ef75113090850))
+* **transit:** load atlantis transit network correctly ([444bbd4](https://github.com/simwrapper/simwrapper/commit/444bbd44002d48f2dd450bc45e5fe366c1cf4aca))
+
 ### [4.0.6](https://github.com/simwrapper/simwrapper/compare/v4.0.5...v4.0.6) (2025-07-30)
 
 
