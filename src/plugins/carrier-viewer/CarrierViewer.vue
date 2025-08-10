@@ -140,9 +140,8 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendColors from '@/components/LegendColors'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import { gUnzip, parseXML, findMatchingGlobInFiles, arrayBufferToBase64 } from '@/js/util'
-
+import DashboardDataManager from '@/js/DashboardDataManager'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
-
 import TourViz from './TourViz'
 
 import {
@@ -161,7 +160,7 @@ import {
 interface NetworkLinks {
   source: Float32Array
   dest: Float32Array
-  linkIds: any[]
+  linkId: any[]
   projection: String
 }
 
@@ -196,8 +195,9 @@ const CarrierPlugin = defineComponent({
     yamlConfig: String,
     config: Object as any,
     thumbnail: Boolean,
+    datamanager: { type: Object as PropType<DashboardDataManager> },
   },
-  data: () => {
+  data() {
     return {
       linkLayerId: Math.floor(1e12 * Math.random()),
 
@@ -227,6 +227,10 @@ const CarrierPlugin = defineComponent({
         thumbnail: true,
         data: [] as any[],
       },
+
+      // DataManager might be passed in from the dashboard; or we might be
+      // in single-view mode, in which case we need to create one for ourselves
+      myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
 
       searchTerm: '',
       searchEnabled: false,
@@ -1011,7 +1015,7 @@ const CarrierPlugin = defineComponent({
 
       // sort by '$id' attribute
       const carrierList = root.carriers.carrier.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-      console.log(carrierList)
+      // console.log(carrierList)
 
       return carrierList
     },
@@ -1019,10 +1023,17 @@ const CarrierPlugin = defineComponent({
     async loadNetwork() {
       this.myState.statusMessage = 'Loading network...'
 
-      if (this.vizDetails.network.indexOf('.xml.') > -1) {
-        // load matsim xml file
-        const path = `${this.myState.subfolder}/${this.vizDetails.network}`
-        const net = await this.fetchNetwork(path, {})
+      if (
+        this.vizDetails.network.indexOf('.xml.') > -1 ||
+        this.vizDetails.network.endsWith('.avro')
+      ) {
+        const net = (await this.myDataManager.getRoadNetwork(
+          this.vizDetails.network,
+          this.subfolder,
+          this.vizDetails,
+          null,
+          true
+        )) as any
 
         this.vizDetails.projection = '' + net.projection
 
@@ -1030,7 +1041,7 @@ const CarrierPlugin = defineComponent({
         this.myState.statusMessage = 'Building network link table'
         const links: { [id: string]: number[] } = {}
 
-        net.linkIds.forEach((linkId: string, i: number) => {
+        net.linkId.forEach((linkId: string, i: number) => {
           links[linkId] = [
             net.source[i * 2],
             net.source[i * 2 + 1],

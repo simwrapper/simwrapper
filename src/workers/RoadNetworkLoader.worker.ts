@@ -42,7 +42,7 @@ onmessage = async function (e) {
   if (e.data.extraColumns) _extraColumns = true
 
   if ('crs' in e.data) {
-    console.log(1)
+    // console.log(1)
     _crs = e.data.crs || 'Atlantis'
 
     switch (_networkFormat) {
@@ -58,12 +58,12 @@ onmessage = async function (e) {
         break
     }
   } else if (e.data.xmlBuffer) {
-    console.log(5)
+    // console.log(5)
     const cargo = await gUnzip(e.data.xmlBuffer)
     memorySafeXMLParser(new Uint8Array(cargo), {})
     return
   } else {
-    console.log(2, e.data)
+    // console.log(2, e.data)
     const { filePath, fileSystem, vizDetails, options, isFirefox } = e.data
 
     // guess file type from extension
@@ -82,7 +82,7 @@ onmessage = async function (e) {
 }
 
 function guessFileTypeFromExtension(name: string) {
-  console.log(3, name)
+  // console.log(3, name)
   const fname = name || _filePath
   const f = fname.toLocaleLowerCase()
 
@@ -449,7 +449,7 @@ function buildLinkChunk(nodes: any, linkIds: any[], links: any[]) {
 
 async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemConfig, options: any) {
   const rawData = await fetchGzip(filePath, fileSystem)
-  console.log({ rawData })
+  // console.log({ rawData })
   if (!rawData) throw 'Failed to unzip/parse'
   const u8 = new Uint8Array(rawData)
   try {
