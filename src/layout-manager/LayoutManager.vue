@@ -245,6 +245,7 @@ export default defineComponent({
       panels: [] as any[][],
       // scrollbars for dashboards and kebab-case name of any plugins that need them:
       panelsWithScrollbars: ['TabbedDashboardView', 'FolderBrowser', 'calc-table'],
+      prevUrl: 'BOOP~~', // unlikely placeholder
       showSettings: false,
       zoomed: false,
     }
@@ -358,7 +359,11 @@ export default defineComponent({
     },
 
     async buildLayoutFromURL() {
+      console.log('//// build layout from url')
       let pathMatch = this.$route.params.pathMatch
+      if (pathMatch == this.prevUrl) return
+
+      this.prevUrl = pathMatch
       if (pathMatch.startsWith('/')) pathMatch = pathMatch.slice(1)
 
       // splash page:

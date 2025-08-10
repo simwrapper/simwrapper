@@ -16,7 +16,7 @@ import { rollup } from 'd3-array'
 import globalStore from '@/store'
 import HTTPFileSystem from './HTTPFileSystem'
 import { DataTable, DataTableColumn, DataType, FileSystemConfig, Status } from '@/Globals'
-import { findMatchingGlobInFiles } from '@/js/util'
+import { findMatchingGlobInFiles, gUnzip, parseXML } from '@/js/util'
 import avro from '@/js/avro'
 import * as Comlink from 'comlink'
 
@@ -663,6 +663,36 @@ export default class DashboardDataManager {
     }
   }
 
+  private async _getEPSGfromConfig() {
+    try {
+      const fApi = new HTTPFileSystem(this.fileApi)
+      const { files } = await fApi.getDirectory(this.subfolder)
+      const outputConfigs = files.filter(
+        f => f.indexOf('config.xml') > -1 || f.indexOf('config_reduced.xml') > -1
+      )
+      if (outputConfigs.length) {
+        for (const xmlConfigFileName of outputConfigs) {
+          try {
+            const raw = await fApi.getFileBlob(`${this.subfolder}/${xmlConfigFileName}`)
+            const buffer = await raw.arrayBuffer()
+            const bytes = await gUnzip(buffer)
+            const text = new TextDecoder().decode(bytes)
+            const configXML = (await parseXML(text)) as any
+            const global = configXML.config.module.filter((f: any) => f.$name === 'global')[0]
+            const crs = global.param.filter((p: any) => p.$name === 'coordinateSystem')[0]
+            const crsValue = crs.$value
+            return crsValue
+          } catch (e) {
+            console.warn('Failed parsing', xmlConfigFileName)
+          }
+        }
+      }
+    } catch (e) {
+      console.error('' + e)
+      return ''
+    }
+  }
+
   private async _fetchNetwork(props: {
     subfolder: string
     filename: string
@@ -698,6 +728,8 @@ export default class DashboardDataManager {
         return
       }
 
+      // ------ side quest: get EPSG from output_config
+      const configEPSG = await this._getEPSGfromConfig()
       // WASM XML -----------
       if (
         filename.toLocaleLowerCase().endsWith('.xml') ||
@@ -709,6 +741,13 @@ export default class DashboardDataManager {
             wasmWorker.onmessage = (event: any) => {
               const data = event.data
               if ('requestCRS' in data) {
+                // No CRS in network. But if we have a CRS in output_config, use that!
+                if (configEPSG && configEPSG !== 'Atlantis') {
+                  data.confirmedCRS = configEPSG
+                  wasmWorker.postMessage({ confirmedCRS: configEPSG })
+                  return
+                }
+                // We need to ask the user.
                 const msg = data.requestCRS ? '"Atlantis" coordinates found. ' : ''
                 let crs =
                   prompt(

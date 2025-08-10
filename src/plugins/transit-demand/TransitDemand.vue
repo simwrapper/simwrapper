@@ -37,12 +37,12 @@
 
           zoom-buttons
 
-          .status-corner(v-if="loadingText")
+          .status-corner.flex-col(v-if="loadingText" :style="{'height': networkOptions.length ? '15rem':'5rem'}")
             p {{ loadingText }}
-            b-progress.load-progress(v-if="loadProgress > 0"
-              :value="loadProgress" :rounded="false" type='is-success')
-            .network-options.flex-col(v-if="networkOptions.length" style="margin-top: 4rem")
-              b-button.button(v-for="networkFile of networkOptions" :key="networkFile"
+            b-progress.load-progress(v-if="loadProgress > 0" :value="loadProgress" :rounded="false" type='is-success')
+            .network-options.flex-col(v-if="networkOptions.length")
+              b-button.xbutton.is-small.center(v-for="networkFile of networkOptions" :key="networkFile"
+              expanded
                 @click="selectNetwork(networkFile)"
               )  {{ networkFile }}
 
@@ -714,10 +714,11 @@ const MyComponent = defineComponent({
       }
 
       // Build the config based on folder contents
-      const title = this.myState.yamlConfig.substring(
-        0,
-        15 + this.myState.yamlConfig.indexOf('transitSchedule')
-      )
+      const title = this.myState.yamlConfig
+      // const title = this.myState.yamlConfig.substring(
+      //   0,
+      //   15 + this.myState.yamlConfig.indexOf('transitSchedule')
+      // )
 
       this.vizDetails = {
         transitSchedule: this.myState.yamlConfig,
@@ -751,11 +752,12 @@ const MyComponent = defineComponent({
         if (avroNetworkFiles.length > 1)
           console.warn('MULTIPLE Avro files found - using first of ', avroNetworkFiles)
       }
+      // Try the most obvious network filename first:
+      if (!network && this.myState.yamlConfig.indexOf('transitSchedule') > -1) {
+        network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
+      }
 
-      // Try the most obvious network filename:
-      if (!network) network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
-
-      // if the obvious network file doesn't exist, ask the user:
+      // if the obvious network file doesn't exist, pick from all networks in this folder:
       if (files.indexOf(network) == -1) {
         const allXML = files.filter(f => f.toLocaleLowerCase().match(/(\.xml|\.gz)$/))
         const allNetworks = [] as string[]
@@ -767,8 +769,10 @@ const MyComponent = defineComponent({
           })
         )
         console.log('all networks', allNetworks)
+        // if there is only ONE network file in this folder, use it
         if (allNetworks.length == 1) network = allNetworks[0]
         else {
+          // give up; ask the user to choose
           this.loadingText = 'Choose network file:'
           network = ''
           this.networkOptions = allNetworks
@@ -1104,21 +1108,7 @@ const MyComponent = defineComponent({
         )) as any
 
         this.isAtlantis = !!roads.isAtlantis
-
         this.avroNetwork = roads
-
-        // const roads =
-        //   filename.indexOf('.avro') > -1
-        //     ? // AVRO networks have a separate reader:
-        //       this.loadAvroRoadNetwork()
-        //     : // normal MATSim network
-        //       this.fetchXML({
-        //         worker: this._roadFetcher,
-        //         slug: this.fileSystem.slug,
-        //         filePath: this.myState.subfolder + '/' + this.vizDetails.network,
-        //         options: { attributeNamePrefix: '' },
-        //       })
-        // console.log({ roads })
 
         const transit = this.fetchXML({
           worker: this._transitFetcher,
@@ -1374,7 +1364,7 @@ const MyComponent = defineComponent({
       this._network = network
       this.routeData = routeData
       this._stopFacilities = stopFacilities
-      this.transitLines = transitLines
+      this.transitLines = Array.isArray(transitLines) ? transitLines : [transitLines]
       this._mapExtentXYXY = mapExtent
 
       this._transitHelper.terminate()
@@ -1417,15 +1407,15 @@ const MyComponent = defineComponent({
 
       const longitude = 0.5 * (this._mapExtentXYXY[0] + this._mapExtentXYXY[2])
       const latitude = 0.5 * (this._mapExtentXYXY[1] + this._mapExtentXYXY[3])
-
       const span = Math.abs(this._mapExtentXYXY[0] - this._mapExtentXYXY[2])
-      let zoom = Math.floor(Math.log2(360 / span))
-      if (zoom < 5 || !Number.isFinite(zoom)) zoom = 10
+      const zoom = span ? Math.floor(Math.log2(360 / span)) : 9
 
       this.$store.commit('setMapCamera', {
         longitude,
         latitude,
         zoom,
+        bearing: 0,
+        pitch: 0,
         initial: true,
       })
 
@@ -2156,15 +2146,14 @@ h3 {
   left: 0;
   right: 0;
   z-index: 15;
-  display: flex;
-  flex-direction: column;
   background-color: var(--bgPanel);
+  vertical-align: center;
   padding: 0.5rem 3rem;
   margin: auto auto;
   width: 25rem;
   height: 5rem;
+  max-height: 20rem;
   border: 3px solid #cccccc80;
-  // filter: $filterShadow;
 
   a {
     color: white;
@@ -2336,7 +2325,15 @@ h3 {
   background-color: #ffa;
   overflow-y: auto;
 }
-.button:hover {
+.xbutton {
+  width: 100%;
+}
+
+.xbutton:hover {
   background-color: var(--bgSplash);
+}
+.network-options {
+  margin-top: 0.5rem;
+  overflow-y: auto;
 }
 </style>

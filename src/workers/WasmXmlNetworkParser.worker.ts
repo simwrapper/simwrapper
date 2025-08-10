@@ -6,13 +6,13 @@ import Coords from '@/js/Coords'
 
 // import init, { XmlToJson } from 'xml-network-parser'
 
-let filename = ''
 let fileApi = {} as HTTPFileSystem
 let _fsConfig = null as FileSystemConfig | null
 let _isCancelled = false
 // let _xmlParser = null as any
 let outStuff = [] as any[]
 let nodeIdOffset = {} as { [id: string]: number }
+let _filename = ''
 let _offset = 0
 let _crs = ''
 let _nodeCoords = null as Float32Array | null
@@ -224,7 +224,7 @@ async function parseXML(props?: {
   console.log('----starting xml parser', props)
   if (props) {
     const { path, fsConfig, options } = props
-    filename = path
+    _filename = path
     _fsConfig = fsConfig
     if (options?.crs) _crs = options.crs
   }
@@ -259,12 +259,11 @@ async function parseXML(props?: {
 
   // Use a writablestream, which the docs say creates backpressure automatically:
   // https://developer.mozilla.org/en-US/docs/Web/API/WritableStream
-  const streamProcessorWithBackPressure = new WritableStream(
+  const streamProcessor = new WritableStream(
     {
       write(incomingChunk: Uint8Array) {
         return new Promise(async (resolve, reject) => {
           _numChunks++
-          // console.log('CHuNK!', _numChunks)
           if (_isCancelled) reject()
 
           // cut off chunk at the last line ending so we never split UTF-8 glyphs
@@ -320,24 +319,6 @@ async function parseXML(props?: {
               _chunkCounter = 0
               const json = await JSUtil.parseXML(fullXml, {})
               processChunk(json)
-
-              // promises.push(
-              //   new Promise<any>(async resolve => {
-              //     try {
-              //       const fullXml = `<r>${_xmlStagingArea}</r>`
-              //       _xmlStagingArea = ''
-              //       _chunkCounter = 0
-              //       // const text = await parent._xmlParser.parse(fullXml)
-              //       const json = await parseXML(fullXml, {})
-              //       // console.log(json)
-              //       // const json = JSON.parse(text)
-              //       resolve(json)
-              //     } catch (e) {
-              //       console.error('' + e)
-              //       reject('' + e)
-              //     }
-              //   })
-              // )
             }
           }
 
@@ -400,14 +381,13 @@ async function parseXML(props?: {
 
   try {
     // get the readable stream from the server
-    const readableStream = await fileApi.getFileStream(filename)
-
+    const readableStream = await fileApi.getFileStream(_filename)
     // stream results through the data pipe
-    if (filename.toLocaleLowerCase().endsWith('.gz')) {
+    if (_filename.toLocaleLowerCase().endsWith('.gz')) {
       const gunzipper = new DecompressionStream('gzip')
-      await readableStream.pipeThrough(gunzipper).pipeTo(streamProcessorWithBackPressure)
+      await readableStream.pipeThrough(gunzipper).pipeTo(streamProcessor)
     } else {
-      await readableStream.pipeTo(streamProcessorWithBackPressure)
+      await readableStream.pipeTo(streamProcessor)
     }
   } catch (e) {
     // ignore crs error, user can try to fix
