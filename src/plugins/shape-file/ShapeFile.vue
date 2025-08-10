@@ -2255,7 +2255,6 @@ const MyComponent = defineComponent({
     },
 
     async loadAvroNetwork(filename: string) {
-      const path = `${this.subfolder}/${filename}`
       const network = (await this.myDataManager.getRoadNetwork(
         filename,
         this.subfolder,

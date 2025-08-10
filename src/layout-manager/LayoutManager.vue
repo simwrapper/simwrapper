@@ -361,8 +361,8 @@ export default defineComponent({
     async buildLayoutFromURL() {
       console.log('//// build layout from url')
       let pathMatch = this.$route.params.pathMatch
-      if (pathMatch == this.prevUrl) return
-
+      // let isNavigateNeeded = pathMatch == this.prevUrl
+      // console.log({ isNavigateNeeded })
       this.prevUrl = pathMatch
       if (pathMatch.startsWith('/')) pathMatch = pathMatch.slice(1)
 
@@ -389,6 +389,7 @@ export default defineComponent({
 
       // split panel?
       if (pathMatch.startsWith('split/')) {
+        // if (!isNavigateNeeded) return
         const payload = pathMatch.substring(6)
         try {
           const content = atob(payload)
@@ -421,6 +422,7 @@ export default defineComponent({
         // be case insensitive for the matching itself
         if (micromatch.isMatch(lowerCaseFileName, vizPlugin.filePatterns)) {
           // plugin matched!
+          // if (!isNavigateNeeded) return
           if (this.panels.length === 1 && this.panels[0].length === 1) {
             this.panels = [[this.panels[0][0]]]
           } else {
@@ -464,6 +466,9 @@ export default defineComponent({
         const probe = `${xsubfolder}/${fileNameWithoutPath}`
         const answer = await fileApi.probeXmlFileType(probe)
         if (answer && XML_COMPONENTS[answer]) {
+          // got a real usable XML!
+          // if (!isNavigateNeeded) return
+          // show it
           let key = Math.random()
           this.panels = [
             [
@@ -495,11 +500,11 @@ export default defineComponent({
       )
       if (!svnProjects.length) throw Error('no such project')
       const fileSystem = svnProjects[0]
-
       const folder = xsubfolder.startsWith('/') ? xsubfolder.slice(1) : xsubfolder
-
       const lastFolder = folder.substring(1 + folder.lastIndexOf('/'))
       const title = lastFolder || fileSystem.name
+
+      globalStore.commit('setShowFilesTab', true)
 
       this.panels = [
         [
