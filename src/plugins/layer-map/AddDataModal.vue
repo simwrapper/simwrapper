@@ -97,15 +97,12 @@ export default defineComponent({
       return new Promise<DataTable>((resolve, reject) => {
         const thread = new DataFetcherWorker()
         try {
-          thread.postMessage(
-            {
-              config: { dataset: name },
-              buffer,
-            },
-            [buffer]
-          )
-
           thread.onmessage = e => {
+            // wait for worker init
+            if (e.data.ready) {
+              thread.postMessage({ config: { dataset: name }, buffer }, [buffer])
+              return
+            }
             thread.terminate()
             resolve(e.data)
           }

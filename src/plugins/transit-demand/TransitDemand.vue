@@ -813,29 +813,9 @@ const MyComponent = defineComponent({
         return networks?.roadXML?.network?.attributes?.attribute['#text']
       }
 
-      // 1. if we have it in storage already, use it
-      const storagePath = `${this.root}/${this.subfolder}`
-      let savedConfig = undefined // localStorage.getItem(storagePath) as any
-
       const goodEPSG = /EPSG:.\d/
 
-      if (savedConfig) {
-        try {
-          const config = JSON.parse(savedConfig)
-
-          if (goodEPSG.test(config.networkProjection)) {
-            return config.networkProjection
-          } else {
-            savedConfig = {}
-          }
-        } catch (e) {
-          console.error('bad saved config in storage', savedConfig)
-          savedConfig = {}
-          // fail! ok try something else
-        }
-      }
-
-      // 2. try to get it from config
+      // 1. try to get it from config
       const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
       const outputConfigs = files.filter(
         f => f.indexOf('.output_config.xml') > -1 || f.indexOf('.output_config_reduced.xml') > -1
@@ -856,10 +836,6 @@ const MyComponent = defineComponent({
 
             const crsValue = crs.$value
 
-            // save it
-            // savedConfig = savedConfig || {}
-            // savedConfig.networkProjection = crsValue
-            // localStorage.setItem(storagePath, JSON.stringify(savedConfig))
             return crsValue
           } catch (e) {
             console.warn('Failed parsing', xmlConfigFileName)
@@ -880,7 +856,6 @@ const MyComponent = defineComponent({
       if (!entry.startsWith('EPSG:')) entry = 'EPSG:' + entry
 
       const networkProjection = entry
-      localStorage.setItem(storagePath, JSON.stringify({ networkProjection }))
       return networkProjection
     },
 

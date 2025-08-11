@@ -141,7 +141,6 @@ export default function Layer({
           id: 'hexlayer',
           data: rows,
           colorRange: dark ? colors.slice(1) : colors.reverse().slice(1),
-          colorAggregation: 'SUM',
           coverage,
           autoHighlight: true,
           elevationRange: [0, maxHeight],
@@ -156,6 +155,8 @@ export default function Layer({
           upperPercentile,
           material,
           positionFormat: 'XY',
+          lowerPercentile: 0.01, // dont show blank (filtered) cells
+          elevationLowerPercentile: 0.01,
           updateTriggers: {
             getElevationWeight: [group, agg],
             getColorWeight: [group, agg],

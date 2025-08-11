@@ -143,7 +143,15 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
   const startOfData = endOfHeader + 1
   const sections = [] as Uint8Array[]
 
-  const SECTIONS = 5
+  // how many lines - count the \n chars
+  let count = 0
+  for (let i = startOfData; i < unzipped.length; i++) if (unzipped[i] === 10) count++
+  // might end last line without EOL marker
+  if (unzipped[unzipped.length - 1] !== 10) count++
+  totalLines = count
+
+  // split into sections if there are more than 1000 lines
+  const SECTIONS = count > 1000 ? 4 : 1
 
   const splitLocs = [] as number[]
   for (let i = 1; i < SECTIONS; i++) {
@@ -154,8 +162,9 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
     }
     splitLocs.push(half)
   }
+  if (!splitLocs.length) splitLocs.push(0)
 
-  // it's possible there is no data in this CSV :eyeroll:
+  // it's also possible there is no data in this CSV :eyeroll:
   if (splitLocs[0] == 0) {
     sections.push(unzipped.subarray(startOfData))
   } else {
@@ -167,19 +176,7 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
     }
   }
 
-  // how many lines - count the \n chars
-  // there must be a better way...?
-  let count = 0
-  for (let i = startOfData; i < unzipped.length; i++) if (unzipped[i] === 10) count++
-
-  // might end last line without EOL marker
-  if (unzipped[unzipped.length - 1] !== 10) count++
-
-  totalLines = count
-
-  console.log({ totalLines })
   // only save the relevant columns to save memory and not die
-
   for (const group of Object.keys(allAggregations)) {
     const aggregations = allAggregations[group]
     let i = 0
