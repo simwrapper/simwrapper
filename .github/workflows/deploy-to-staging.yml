@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - staging
-    repository_dispatch:
 
 jobs:
   # Run playwright e2e tests first:
@@ -15,33 +14,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-      - name: Install simwrapper/serve
-        run: uv tool install simwrapper
-      - name: Install subversion
-        run: sudo apt-get update && sudo apt-get install -y subversion
-      - name: Fetch test data from subversion
-        run: svn checkout https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper-testdata
-      - name: SimWrapper serve files
-        run: cd simwrapper-testdata && screen -dmS fileserver simwrapper serve
       - name: Install dependencies
         run: cd ${{ github.workspace }} && npm ci
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
-      - name: Verify file server is running
-        run: curl -f http://localhost:8000
       - name: Run Playwright tests
-        run: npx playwright test
+        run: npx playwright test --workers=2
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
-      - name: stop file server
-        if: always()
-        run: screen -S fileserver -X quit || true
 
   # Ping staging build -IF- tests passed
   notify-staging:
