@@ -217,7 +217,6 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
 }
 
 function step3parseCSVdata(sections: Uint8Array[], headerColumns: string[]) {
-  console.log('SECTIONS:', sections.length)
   let numActiveWorkers = sections.length
 
   try {
