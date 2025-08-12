@@ -60,6 +60,7 @@
               b-slider-tick(:value="val" :key="val")
 
   playback-controls.bottom-area(v-if="isLoaded && !thumbnail"
+      data-testid="playback-controls"
       @click='toggleSimulation'
       @time='setTime'
       :timeStart = "timeStart"

@@ -2,7 +2,7 @@
 .topsheet.curate-content
   h3.curate-heading(v-if="title")  {{ title }}
 
-  .output-table(v-if="entries.length")
+  .output-table(v-if="entries.length" data-testid="entry-table")
     .row(v-for="row,i in entries" :key="'entry'+i")
       .cell.top-label(:style="row.style") {{ row.title }}
       b-input.b-input-tight.cell.top-value(
@@ -11,10 +11,10 @@
         @input="boxChanged"
       )
 
-  .output-table(v-if="table.length" style="margin-top: 1rem")
+  .output-table(v-if="table.length" style="margin-top: 1rem" data-testid="output-table")
     .row(v-for="row,i in table" :key="'row'+i")
       .cell.top-label(:style="row.style") {{ row.title }}
-      .cell.top-value(:style="row.style") {{ formattedValue(row.value) }}
+      .cell.top-value.output-value(:style="row.style") {{ formattedValue(row.value) }}
 
 </template>
 

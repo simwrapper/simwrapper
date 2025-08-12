@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test'
 
 test('atlantis network loads', async ({ page }) => {
   page.on('dialog', async dialog => {
-    console.log(`--Dialog message: ${dialog.message()}`)
+    // console.log(`--Dialog message: ${dialog.message()}`)
     await dialog.dismiss() // cancel
-    console.log('--Dialog dismissed')
+    // console.log('--Dialog dismissed')
   })
 
   await page.goto('/e2e-tests/atlantis/minibus/input/network.xml')
@@ -14,9 +14,9 @@ test('atlantis network loads', async ({ page }) => {
 
 test('atlantis transit network loads', async ({ page }) => {
   page.on('dialog', async dialog => {
-    console.log(`--Dialog message: ${dialog.message()}`)
+    // console.log(`--Dialog message: ${dialog.message()}`)
     await dialog.dismiss() // cancel
-    console.log('--Dialog dismissed')
+    // console.log('--Dialog dismissed')
   })
 
   await page.goto('/e2e-tests/atlantis/minibus/input/transitSchedule_15min.xml')

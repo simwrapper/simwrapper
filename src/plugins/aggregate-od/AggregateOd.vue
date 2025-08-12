@@ -12,6 +12,7 @@
     .lower-left(v-if="!thumbnail && !loadingText")
       .subheading {{ $t('lineWidths')}}
       scale-slider.scale-slider(
+        data-testid="scale-slider"
         :stops='scaleValues'
         :initialValue='currentScale'
         :tooltip="false"

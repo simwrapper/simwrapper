@@ -726,6 +726,7 @@ const MyComponent = defineComponent({
           this.updateStatus
         )
 
+        console.log(100, network)
         this.numLinks = network.linkId.length
         this.geojsonData = network as any
 

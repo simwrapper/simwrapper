@@ -26,7 +26,7 @@
     .right-panel(v-if="!thumbnail" :darkMode="true")
       h3(style="margin-left: 0.25rem" v-if="carriers.length") {{ $t('carriers') }}
 
-      .carrier-list
+      .carrier-list(data-testid="carrier-list")
         .carrier(v-for="carrier in carriers" :key="carrier.$id"
                  :class="{selected: carrier.$id===selectedCarrier}"
                  @click="handleSelectCarrier(carrier)")

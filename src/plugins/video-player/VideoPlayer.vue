@@ -19,12 +19,8 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 
-// import { videoPlayer } from 'vue-video-player'
-
 import globalStore from '@/store'
 import { FileSystemConfig } from '@/Globals'
-
-// import '~/video.js/dist/video-js.min.css'
 
 const MyComponent = defineComponent({
   name: 'VideoPlayerPlugin',

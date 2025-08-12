@@ -104,7 +104,8 @@ let fileSystems: FileSystemConfig[] = [
     name: 'e2e-tests',
     slug: 'e2e-tests',
     description: 'Playwright test data',
-    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper-testdata',
+    // baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper-testdata',
+    baseURL: 'http://localhost:8000',
     hidden: true,
   },
   {

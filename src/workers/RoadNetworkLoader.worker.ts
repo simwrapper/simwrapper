@@ -203,7 +203,7 @@ async function parseSFCTANetworkAndPostResults(projection: string) {
   }
 
   // all done! post the links
-  const links = { source, dest, linkIds, projection: guessCRS }
+  const links = { source, dest, linkId: linkIds, projection: guessCRS }
 
   postMessage({ links }, [links.source.buffer, links.dest.buffer])
 
@@ -404,7 +404,7 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
     const links = {
       source,
       dest,
-      linkIds,
+      linkId: linkIds,
       freespeed,
       length,
       projection: coordinateReferenceSystem,
@@ -416,7 +416,7 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
       links.length.buffer,
     ])
   } else {
-    const links = { source, dest, linkIds, projection: coordinateReferenceSystem }
+    const links = { source, dest, linkId: linkIds, projection: coordinateReferenceSystem }
     postMessage({ links }, [links.source.buffer, links.dest.buffer])
   }
 }
@@ -538,7 +538,7 @@ async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
     linkIds[i] = feature.id ?? feature.properties.id
   }
 
-  const links = { source, dest, linkIds, projection: 'EPSG:4326' }
+  const links = { source, dest, linkId: linkIds, projection: 'EPSG:4326' }
 
   // all done! post the links
   postMessage({ links }, [links.source.buffer, links.dest.buffer])

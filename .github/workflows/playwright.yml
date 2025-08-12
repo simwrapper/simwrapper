@@ -6,13 +6,19 @@ on:
     branches: [main, master]
 jobs:
   test:
-    timeout-minutes: 15
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
+      - name: Get and serve subversion test data
+        run: |
+          sudo apt-get update && sudo apt-get install -y subversion && \
+          svn checkout https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper-testdata && \
+          python3 -m http.server 8000 & #background
+
       - name: Install dependencies
         run: npm ci
       - name: Install Playwright Browsers

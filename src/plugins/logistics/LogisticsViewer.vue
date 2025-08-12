@@ -55,7 +55,7 @@
 
         h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'Carriers' }}
 
-        .carrier-list
+        .carrier-list(data-testid="carrier-list")
           h5(style="font-weight:bold") {{"Direct Chain Carriers:"}}
           .carrier(v-for="carrier in lspCarriers" :key="carrier"
             :class="{selected: carrier==selectedCarrier}"

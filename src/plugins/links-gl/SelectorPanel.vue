@@ -13,7 +13,7 @@
 
 
   //- Column picker  -- if no slider
-  .panel-item(v-if="!vizDetails.useSlider")
+  .panel-item.selector-column-picker(v-if="!vizDetails.useSlider")
     p: b {{ $t('selectColumn') }}
 
     .dropdown.is-up.full-width(:class="{'is-active': isButtonActive}")
