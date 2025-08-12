@@ -23,7 +23,7 @@ jobs:
       - name: Run fileserver in background screen
         # run: screen -dmS httpserver python -m http.server 8000 --directory simwrapper-testdata && sleep 4
         run: |
-          docker run -d --name http-server -p 8000:8000 \
+          docker run -d --name http-server -p 8000:80 \
             -v ${{ github.workspace}}/simwrapper-testdata:/usr/share/nginx/html:ro \
             nginx:alpine
       - name: Verify file server is running
