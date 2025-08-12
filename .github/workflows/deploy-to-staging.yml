@@ -17,12 +17,14 @@ jobs:
           node-version: lts/*
 
       - name: Install subversion
-        run: sudo apt-get update && sudo apt-get install -y subversion
+        run: sudo apt-get update && sudo apt-get install -y screen subversion
       - name: Fetch test data from subversion
+        run: svn checkout https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper-testdata
+      - name: Run fileserver in background screen
+        run: screen -dmS httpserver python -m http.server 8000 --directory simwrapper-testdata && sleep 4
+      - name: Verify file server is running
         run: |
-          svn checkout https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper-testdata
-          python3 -m http.server 8000 --directory simwrapper-testdata &
-
+          curl -f http://localhost:8000 || exit 1
       - name: Install dependencies
         run: npm ci
       - name: Install Playwright Browsers
@@ -35,6 +37,8 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
+      - name: stop file server
+        run: screen -S httpserver -X quit || true
 
   # Ping staging build -IF- tests passed
   notify-staging:
