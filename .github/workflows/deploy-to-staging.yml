@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - staging
+    repository_dispatch:
 
 jobs:
   # Run playwright e2e tests first:
