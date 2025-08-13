@@ -1,13 +1,25 @@
 import { test, expect } from '@playwright/test'
 
 test('aggregate-od loads berlin data', async ({ page }) => {
-  test.setTimeout(60_000)
   await page.goto('/e2e-tests/agg-od')
 
-  // await page is loaded: control panel with datasets is visible
-  await page.waitForSelector('.scale-slider', { timeout: 60_000 })
-  const sliders = page.locator('.scale-slider')
-  await expect(sliders).toHaveCount(2)
-  const errors = page.locator('.error-text')
-  await expect(errors).toHaveCount(0)
+  // wait for testdata to be populated
+  await page.waitForFunction(() => {
+    //@ts-ignore
+    const testdata = window.__testdata__ as any
+    return !!testdata
+    // (
+    //   testdata &&
+    //   testdata.centroids?.length &&
+    //   testdata.spiderLinks?.length &&
+    //   testdata.geojson?.length
+    // )
+  })
+
+  // check testdata
+  //@ts-ignore
+  const testdata = await page.evaluate(() => window.__testdata__)
+  expect(testdata.centroids.length).toBe(23)
+  expect(testdata.geojson.length).toBe(23)
+  expect(testdata.spiderLinks.length).toBe(390)
 })
