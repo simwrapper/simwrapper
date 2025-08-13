@@ -47,7 +47,7 @@ export default function Layer({
     let rows = [] as any
     // is data filtered or not?
     if (highlights.length) {
-      return highlights.map((h: any) => h[1])
+      return highlights.map((h: any) => h[0])
     } else if (!data || !Object.keys(data).length) {
       return rows
     } else {
@@ -101,17 +101,16 @@ export default function Layer({
 
   const rowCache = data[group]
   const config = highlights.length
-    ? {
-        getPosition: (d: any) => d,
-        getColorWeight: 1.0,
-        getElevationWeight: 1.0,
-      }
+    ? { getPosition: (d: any) => d }
     : {
         getPosition: (_: any, o: any) =>
           rowCache.positions[agg].slice(o.index * 2, o.index * 2 + 2),
-        // getColorWeight: (d: any) => d,
-        // getElevationWeight: (d: any) => d,
       }
+
+  // don't do the shading color think if we just have a few points
+  const numPoints = rowCache?.positions[agg].length / 2 || 0
+  let brightcolors
+  if (numPoints < 20) brightcolors = colors.slice(4, 5)
 
   const layers = [
     new ArcLayer({
@@ -128,40 +127,33 @@ export default function Layer({
     }),
   ]
 
-  if (rowCache)
-    layers.push(
-      new HexagonLayer(
-        Object.assign(config, {
-          id: 'hexlayer',
-          data: rows,
-          colorRange: dark ? colors.slice(1) : colors.reverse().slice(1),
-          coverage,
-          autoHighlight: true,
-          elevationRange: [0, maxHeight],
-          elevationScale: 25, //  rowCache?.length ? 25 : 0,
-          extruded: extrude,
-          gpuAggregation: true,
-          selectedHexStats,
-          // hexagonAggregator: pointToHexbin,
-          pickable: true,
-          opacity: dark && highlights.length ? 0.6 : 0.8,
-          radius,
-          upperPercentile,
-          material,
-          positionFormat: 'XY',
-          // lowerPercentile: 0.01, // dont show blank (filtered) cells
-          // elevationLowerPercentile: 0.01,
-          updateTriggers: {
-            getElevationWeight: [group, agg],
-            getColorWeight: [group, agg],
-          },
-          transitions: {
-            elevationScale: { type: 'interpolation', duration: 1000 },
-            opacity: { type: 'interpolation', duration: 200 },
-          },
-        })
-      )
+  layers.push(
+    new HexagonLayer(
+      Object.assign(config, {
+        id: 'hexlayer',
+        data: rows,
+        colorRange: brightcolors || (dark ? colors.slice(1) : colors.reverse().slice(1)),
+        coverage,
+        autoHighlight: true,
+        elevationRange: [0, maxHeight],
+        elevationScale: 25, //  rowCache?.length ? 25 : 0,
+        extruded: extrude,
+        gpuAggregation: true,
+        selectedHexStats,
+        pickable: true,
+        opacity: dark && highlights.length ? 0.6 : 0.8,
+        radius,
+        upperPercentile,
+        material,
+        positionFormat: 'XY',
+        updateTriggers: {},
+        transitions: {
+          elevationScale: { type: 'interpolation', duration: 1000 },
+          opacity: { type: 'interpolation', duration: 200 },
+        },
+      })
     )
+  )
 
   return (
     <DeckGL

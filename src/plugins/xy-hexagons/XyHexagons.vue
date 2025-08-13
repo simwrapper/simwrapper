@@ -337,20 +337,19 @@ const MyComponent = defineComponent({
       }
 
       // select the anti-view
-      let revAgg = this.aggNumber % 2 ? -1 : 1 // this.aggNumber - 1 : this.aggNumber + 1
+      let revAgg = this.aggNumber + (this.aggNumber % 2 ? -1 : 1) // this.aggNumber - 1 : this.aggNumber + 1
       const arcFilteredRows: any = []
 
       for (const row of pickedObject.object.points) {
         const zoffset = row.index * 2
-        const revoffset = (row.index + revAgg) * 2
 
         const from = [
-          this.requests[this.currentGroup].positions[zoffset],
-          this.requests[this.currentGroup].positions[zoffset + 1],
+          this.requests[this.currentGroup].positions[revAgg][zoffset],
+          this.requests[this.currentGroup].positions[revAgg][zoffset + 1],
         ]
         const to = [
-          this.requests[this.currentGroup].positions[revoffset],
-          this.requests[this.currentGroup].positions[revoffset + 1],
+          this.requests[this.currentGroup].positions[this.aggNumber][zoffset],
+          this.requests[this.currentGroup].positions[this.aggNumber][zoffset + 1],
         ]
 
         arcFilteredRows.push([from, to])
