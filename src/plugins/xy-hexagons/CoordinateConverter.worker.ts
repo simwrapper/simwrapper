@@ -48,9 +48,11 @@ function parseIt(props: {
  * @returns FullRowCache, ColumnLookup
  */
 function postResults() {
-  const positionBuffers = Object.values(fullRowCache).map(a => a.positions.buffer)
-  const columnBuffers = Object.values(fullRowCache).map(a => a.column.buffer)
-  postMessage({ fullRowCache, id: _id }, [...positionBuffers, ...columnBuffers])
+  const buffers = [] as any
+  Object.values(fullRowCache).forEach(group => {
+    group.positions.forEach(p => buffers.push(p.buffer))
+  })
+  postMessage({ fullRowCache, id: _id }, buffers)
 }
 
 /** **** */
@@ -72,16 +74,16 @@ function convertCoordinates() {
     let numAggregations = aggregations.length
 
     fullRowCache[group] = {
-      positions: new Float32Array(2 * totalLines * numAggregations),
-      column: new Uint8Array(totalLines * numAggregations),
-      length: totalLines * numAggregations,
+      // 2x points for x/y coords; each Float32Array is for a unique aggregation
+      positions: Array.from({ length: numAggregations }, () => new Float32Array(2 * totalLines)),
+      length: Array(numAggregations).fill(0), // .from({length: numAggregations}) , // [], // totalLines * numAggregations,
       numAggs: numAggregations,
       columnIds: [],
       coordColumns: [],
     }
 
     for (const agg of aggregations) {
-      numAggregations++
+      // numAggregations++
       const xCol = _headerColumns.indexOf(agg.x)
       const yCol = _headerColumns.indexOf(agg.y)
 
@@ -128,10 +130,14 @@ function convertCoordinates() {
           for (let agg = 0; agg < rowCache.numAggs; agg++) {
             coord[0] = results.data[rowCache.coordColumns[agg * 2]]
             coord[1] = results.data[rowCache.coordColumns[agg * 2 + 1]]
-            if (coord[0] && coord[1]) coord = Coords.toLngLat(_proj, coord)
-            rowCache.positions[offset * 2 * rowCache.numAggs + agg * 2] = coord[0]
-            rowCache.positions[offset * 2 * rowCache.numAggs + agg * 2 + 1] = coord[1]
-            rowCache.column[offset * rowCache.numAggs + agg] = agg
+            if (coord[0] && coord[1]) {
+              const n = rowCache.length[agg]
+              coord = Coords.toLngLat(_proj, coord)
+              rowCache.positions[agg][n * 2] = coord[0]
+              rowCache.positions[agg][n * 2 + 1] = coord[1]
+              rowCache.length[agg] += 1
+            }
+            // rowCache.column[offset * rowCache.numAggs + agg] = agg
           }
         }
         offset += 1

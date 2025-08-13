@@ -609,7 +609,7 @@ const MyComponent = defineComponent({
       const keys = Object.keys(this.requests)
       if (!keys.length) return
 
-      const data = this.requests[keys[0]].positions
+      const data = this.requests[keys[0]].positions[0]
 
       let samples = 0
       let longitude = 0

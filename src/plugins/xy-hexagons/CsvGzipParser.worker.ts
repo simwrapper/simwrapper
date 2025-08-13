@@ -18,11 +18,11 @@ onmessage = function (e) {
 
 export interface NewRowCache {
   [group: string]: {
-    positions: Float32Array
-    column: Uint8Array
+    positions: Float32Array[]
+    length: number[]
+    // column: Uint8Array
     columnIds: string[]
     coordColumns: number[]
-    length: number
     numAggs: number
   }
 }
@@ -69,9 +69,12 @@ function startLoading(props: {
  * @returns FullRowCache, ColumnLookup
  */
 function postResults() {
-  const positionBuffers = Object.values(fullRowCache).map(a => a.positions.buffer)
-  const columnBuffers = Object.values(fullRowCache).map(a => a.column.buffer)
-  postMessage({ fullRowCache }, [...positionBuffers, ...columnBuffers])
+  const buffers = [] as any
+  Object.values(fullRowCache).forEach(group => {
+    group.positions.forEach(p => buffers.push(p.buffer))
+  })
+
+  postMessage({ fullRowCache }, buffers)
 }
 
 async function step1fetchFile(filepath: string, fileSystem: FileSystemConfig) {
@@ -183,9 +186,10 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
     let numAggregations = aggregations.length
 
     fullRowCache[group] = {
-      positions: new Float32Array(2 * totalLines * numAggregations),
-      column: new Uint8Array(totalLines * numAggregations),
-      length: totalLines * numAggregations,
+      // 2x points for x/y coords; each Float32Array is for a unique aggregation
+      positions: [], // Array.from({ length: numAggregations }, () => new Float32Array(2 * totalLines)),
+      // column: new Uint8Array(totalLines * numAggregations),
+      length: [], // totalLines,
       numAggs: numAggregations,
       columnIds: [],
       coordColumns: [],
@@ -268,16 +272,21 @@ function aggregateResults() {
   // for all groups and for all workers
   const groups = Object.keys(fullRowCache)
   for (const group of groups) {
-    let offset = 0
     const groupData = fullRowCache[group]
-    for (let i = 0; i < _workers.length; i++) {
-      const wData = _workers[i] as NewRowCache
-      groupData.column.set(wData[group].column, offset)
-      groupData.positions.set(wData[group].positions, offset * 2)
-      offset += wData[group].length
+    for (let agg = 0; agg < groupData.numAggs; agg++) {
+      // figure out length of real data returned by all workers:
+      const totalLength = _workers.reduce((a, w) => a + w[group].length[agg], 0)
+      groupData.positions.push(new Float32Array(2 * totalLength))
+      let offset = 0
+      for (let i = 0; i < _workers.length; i++) {
+        const wData = _workers[i] as NewRowCache
+        const n = wData[group].length[agg]
+        const filledValues = wData[group].positions[agg].slice(0, n * 2)
+        groupData.positions[agg].set(filledValues, offset * 2)
+        offset += n
+      }
     }
   }
-
   // all done
   postResults()
 }

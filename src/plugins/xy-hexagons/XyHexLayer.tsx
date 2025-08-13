@@ -52,14 +52,7 @@ export default function Layer({
       return rows
     } else {
       const rowCache = data[group]
-      if (!rowCache) return rows
-      const weights = new Float32Array(rowCache.length)
-      for (let i = 0; i < rowCache.length; i++) {
-        // zero lng/lat means no data
-        if (rowCache.positions[i * 2] == 0 && rowCache.positions[i * 2 + 1] == 0) continue
-        if (rowCache.column[i] == agg) weights[i] = 1
-      }
-      return weights
+      return { length: rowCache.positions[agg].length / 2 }
     }
   }, [data, highlights, agg, group, radius]) as any
 
@@ -114,9 +107,10 @@ export default function Layer({
         getElevationWeight: 1.0,
       }
     : {
-        getPosition: (_: any, o: any) => rowCache.positions.slice(o.index * 2, o.index * 2 + 2),
-        getColorWeight: (d: any) => d,
-        getElevationWeight: (d: any) => d,
+        getPosition: (_: any, o: any) =>
+          rowCache.positions[agg].slice(o.index * 2, o.index * 2 + 2),
+        // getColorWeight: (d: any) => d,
+        // getElevationWeight: (d: any) => d,
       }
 
   const layers = [
@@ -144,7 +138,7 @@ export default function Layer({
           coverage,
           autoHighlight: true,
           elevationRange: [0, maxHeight],
-          elevationScale: rowCache?.length ? 25 : 0,
+          elevationScale: 25, //  rowCache?.length ? 25 : 0,
           extruded: extrude,
           gpuAggregation: true,
           selectedHexStats,
@@ -155,8 +149,8 @@ export default function Layer({
           upperPercentile,
           material,
           positionFormat: 'XY',
-          lowerPercentile: 0.01, // dont show blank (filtered) cells
-          elevationLowerPercentile: 0.01,
+          // lowerPercentile: 0.01, // dont show blank (filtered) cells
+          // elevationLowerPercentile: 0.01,
           updateTriggers: {
             getElevationWeight: [group, agg],
             getColorWeight: [group, agg],
