@@ -11,7 +11,7 @@
     tree-view.things(v-if="isLoaded"
       :initialData="viewXml"
       :expandAll="isSearch"
-      :level="1"
+      :level="0"
       :numberOfUnfoldLevel="numberOfUnfoldLevel"
     )
 
@@ -98,7 +98,7 @@ const MyComponent = defineComponent({
     this.debounceSearch = debounce(this.handleSearch, 500)
 
     try {
-      await this.getVizDetails()
+      this.getVizDetails()
       // only continue if we are on a real page and not the file browser
       if (this.thumbnail) return
 
@@ -106,11 +106,7 @@ const MyComponent = defineComponent({
 
       //TODO remove '?xml' correctly
       this.fullXml = answer[1]
-
       this.viewXml = this.fullXml
-
-      // this.viewXml = this.recursiveDelete(this.viewXml)
-
       this.isLoaded = true
     } catch (err) {
       const e = err as any
@@ -122,12 +118,12 @@ const MyComponent = defineComponent({
   },
 
   methods: {
-    async getVizDetails() {
+    getVizDetails() {
       if (this.config) {
         // config came in from the dashboard and is already parsed
         this.vizDetails = { ...this.config }
         this.vizDetails.file = `/${this.subfolder}/${this.config.file}`
-        this.$emit('title', this.vizDetails.title || this.vizDetails.file || 'XML')
+        this.$emit('titles', this.vizDetails.title || this.vizDetails.file || 'XML')
       } else {
         // Otherwise this is an XML file
         const filename = this.yamlConfig ?? ''
@@ -137,8 +133,8 @@ const MyComponent = defineComponent({
           file: this.subfolder + '/' + filename,
         }
       }
-      if (!this.vizDetails.title) this.vizDetails.title = 'XML'
-      this.$emit('title', this.vizDetails.title)
+      // if (!this.vizDetails.title) this.vizDetails.title = 'XML'
+      this.$emit('titles', this.vizDetails.title)
     },
 
     async fetchXml() {
@@ -152,6 +148,12 @@ const MyComponent = defineComponent({
           this.xmlWorker.terminate()
 
           if (message.data.error) reject(message.data.error)
+          if (message.data.resolvedFilename && !this.vizDetails.title) {
+            const slash = message.data.resolvedFilename.lastIndexOf('/')
+            if (slash > -1)
+              this.$emit('titles', 'XML Config: ' + message.data.resolvedFilename.slice(slash + 1))
+          }
+
           resolve(message.data.xml)
         }
 
@@ -270,6 +272,10 @@ export default MyComponent
 </style>
 
 <style lang="scss">
+.xml-searchbox {
+  margin-bottom: 0.5rem;
+}
+
 .xml-searchbox input {
   background-color: var(--bgPanel);
   border: 1px solid var(--bgCream3);

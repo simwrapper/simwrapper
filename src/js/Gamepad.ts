@@ -12,6 +12,7 @@ let dy = 0
 let dz = 0
 let dpitch = 0
 let dbearing = 0
+let axis = 1
 
 function gamepadHandler(event: any, connected: boolean) {
   const gamepad = event.gamepad
@@ -72,6 +73,8 @@ function gamepadLoop() {
   const gamepads = navigator.getGamepads()
   if (!gamepads) return
 
+  // billy likes y-axis inverted
+  axis = globalStore.state.gamepad
   // add friction
   dx = dx * FRICTION
   dy = dy * FRICTION
@@ -90,10 +93,10 @@ function gamepadLoop() {
   // })
 
   // x
-  if (Math.abs(gp?.axes[0] ?? 0) > 0.3) dx += gp?.axes[0] ?? 0
-  // y
-  if (Math.abs(gp?.axes[1] ?? 0) > 0.3) dy += gp?.axes[1] ?? 0
+  if (Math.abs(gp?.axes[0] ?? 0) > 0.3) dx += axis * (gp?.axes[0] ?? 0)
   dx = Math.max(-MAX_MOVE, Math.min(MAX_MOVE, dx))
+  // y
+  if (Math.abs(gp?.axes[1] ?? 0) > 0.3) dy += axis * (gp?.axes[1] ?? 0)
   dy = Math.max(-MAX_MOVE, Math.min(MAX_MOVE, dy))
 
   if (gp?.buttons[7].pressed || gp?.buttons[5].pressed) {
@@ -101,7 +104,7 @@ function gamepadLoop() {
     if (Math.abs(gp?.axes[3] ?? 0) > 0.3) dpitch -= gp?.axes[3] ?? 0
     dpitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, dpitch))
     // bearing
-    if (Math.abs(gp?.axes[2] ?? 0) > 0.3) dbearing += gp?.axes[2] ?? 0
+    if (Math.abs(gp?.axes[2] ?? 0) > 0.3) dbearing -= axis * (gp?.axes[2] ?? 0)
     dbearing = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, dbearing))
   } else {
     // zoom

@@ -221,8 +221,15 @@ export default defineComponent({
      * Remove the dashboard titles and use the ones from the topsheet.
      */
     setCardTitles(card: any, event: any) {
-      card.title = event
-      card.description = ''
+      if (!card || !event) return
+
+      if ('string' == typeof event) {
+        card.title = event
+        card.description = ''
+      } else {
+        if (event.title) card.title = event.title
+        if (event.description) card.description = event.description
+      }
     },
 
     setCardError(card: any, event: any) {

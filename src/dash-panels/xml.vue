@@ -6,6 +6,7 @@ xml-viewer.xml-panel(
   :thumbnail="false"
   :resize="resizeEvent"
   @error="$emit('error', $event)"
+  @titles="$emit('titles', $event)"
 )
 </template>
 

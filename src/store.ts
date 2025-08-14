@@ -49,6 +49,7 @@ const initialViewState = () => {
 
 const isMainThread = typeof window !== 'undefined'
 const initialLeftSection = isMainThread ? localStorage.getItem('activeLeftSection') || '' : ''
+const gamepad = isMainThread ? parseInt(localStorage.getItem('gamepadAxis') || '1') : 1
 
 // console.log('INITIAL LEFT SECTION', initialLeftSection)
 export default new Vuex.Store({
@@ -59,6 +60,7 @@ export default new Vuex.Store({
     breadcrumbs: [] as BreadCrumb[],
     credentials: { fake: 'fake' } as { [url: string]: string },
     dashboardWidth: '',
+    gamepad,
     activeLeftSection: initialLeftSection,
     isFullScreen: false,
     isFullWidth: true,
@@ -355,6 +357,10 @@ export default new Vuex.Store({
         state.windowTitle = title
         document.title = title ? title + ' - SimWrapper' : 'SimWrapper'
       }
+    },
+    setGamepad(state, value: number) {
+      state.gamepad = value
+      if (isMainThread) localStorage.setItem('gamepadAxis', value.toString())
     },
   },
   actions: {

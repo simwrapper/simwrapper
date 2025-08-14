@@ -5,12 +5,13 @@ import { FileSystemConfig } from '@/Globals'
 import { gUnzip, findMatchingGlobInFiles } from '@/js/util'
 
 let _id = ''
+let _resolvedFilename = ''
 
 onmessage = async function (e) {
   _id = e.data.id
   const xml = await fetchXML(e.data.fileSystem, e.data.filePath, e.data.options)
 
-  postMessage({ xml, id: _id })
+  postMessage({ xml, id: _id, resolvedFilename: _resolvedFilename })
 }
 
 async function fetchXML(fileSystem: FileSystemConfig, filepath: string, options: any) {
@@ -30,6 +31,7 @@ async function fetchXML(fileSystem: FileSystemConfig, filepath: string, options:
       if (matchingFiles.length > 1)
         throw Error(`More than one file matched "${zDataset}": ${matchingFiles}`)
       expandedFilename = `${zSubfolder}/${matchingFiles[0]}`
+      _resolvedFilename = expandedFilename
     }
 
     const blob = await httpFileSystem.getFileBlob(expandedFilename)

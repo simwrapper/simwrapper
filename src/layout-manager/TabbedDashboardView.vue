@@ -354,6 +354,9 @@ export default defineComponent({
           if (yaml.hideBreadcrumbs || yaml.hideBreadCrumbs) {
             this.$store.commit('setShowBreadcrumbs', false)
             this.isShowingBreadcrumbs = false
+          } else {
+            this.$store.commit('setShowBreadcrumbs', true)
+            this.isShowingBreadcrumbs = true
           }
 
           // TOP Nav Bar -----------------------------------
