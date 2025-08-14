@@ -7,7 +7,7 @@ test('atlantis network loads', async ({ page }) => {
     // console.log('--Dialog dismissed')
   })
 
-  await page.goto('/e2e-tests/atlantis/minibus/input/network.xml')
+  await page.goto('e2e-tests/atlantis/minibus/input/network.xml')
   await page.waitForSelector('canvas')
   await expect(page.locator('canvas')).toBeVisible()
 })
@@ -19,7 +19,7 @@ test('atlantis transit network loads', async ({ page }) => {
     // console.log('--Dialog dismissed')
   })
 
-  await page.goto('/e2e-tests/atlantis/minibus/input/transitSchedule_15min.xml')
+  await page.goto('e2e-tests/atlantis/minibus/input/transitSchedule_15min.xml')
   await page.waitForSelector('canvas')
 
   const transitLinksLength = await page.evaluate(() => {

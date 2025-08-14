@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 test('calculation tables load', async ({ page }) => {
-  await page.goto('/e2e-tests/calculation-table')
+  await page.goto('e2e-tests/calculation-table')
 
   await page.waitForSelector('[data-testid="entry-table"]')
 

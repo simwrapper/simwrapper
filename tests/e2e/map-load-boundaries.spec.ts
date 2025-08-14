@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 test('map viewer loads shapefiles', async ({ page }) => {
-  await page.goto('/e2e-tests/maps/hamburg')
+  await page.goto('e2e-tests/maps/hamburg')
   await page.waitForSelector('.legend-box')
 
   const rows = page.locator('.row-label')

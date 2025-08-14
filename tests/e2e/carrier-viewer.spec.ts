@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 test('berlin grocery carriers loads', async ({ page }) => {
-  await page.goto('/e2e-tests/carriers/output_carriers.xml.gz')
+  await page.goto('e2e-tests/carriers/output_carriers.xml.gz')
 
   // await page is loaded: control panel with datasets is visible
   await page.waitForSelector('[data-testid="carrier-list"]')

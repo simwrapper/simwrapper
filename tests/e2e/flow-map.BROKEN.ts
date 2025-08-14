@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 // REGULAR flowmap test
 test('flowmap loads basic data', async ({ page }) => {
-  await page.goto('/e2e-tests/flowmap')
+  await page.goto('e2e-tests/flowmap')
 
   await page.waitForSelector('.map-layer')
 })

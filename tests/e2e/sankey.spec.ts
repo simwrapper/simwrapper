@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 test('plotly bar charts load', async ({ page }) => {
-  await page.goto('/e2e-tests/sankey')
+  await page.goto('e2e-tests/sankey')
   await page.waitForSelector('path')
 
   const paths = page.locator('path')

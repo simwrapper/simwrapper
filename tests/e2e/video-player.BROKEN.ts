@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 test('load .MP4 movie in a dashboard', async ({ page }) => {
-  await page.goto('/e2e-tests/video-player')
+  await page.goto('e2e-tests/video-player')
 
   const video = page.locator('video') as any
   await expect(video).toBeVisible()
