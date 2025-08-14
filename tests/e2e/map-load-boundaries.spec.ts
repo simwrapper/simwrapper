@@ -10,7 +10,7 @@ test('map viewer loads shapefiles', async ({ page }) => {
 
 test('map viewer loads AVRO network', async ({ page }) => {
   test.setTimeout(90_000)
-  await page.goto('/e2e-tests/maps/networks/viz-map-network.avro.yaml')
+  await page.goto('e2e-tests/maps/networks/viz-map-network.avro.yaml')
   await page.waitForSelector('.row-label')
 
   const labels = page.locator('.row-label')

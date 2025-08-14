@@ -20,7 +20,7 @@ test('links-gl loads with geojson network', async ({ page }) => {
 
 test('links-gl loads with AVRO network', async ({ page }) => {
   test.setTimeout(90_000)
-  await page.goto('/e2e-tests/emissions/viz-gl-links-3.yaml')
+  await page.goto('e2e-tests/emissions/viz-gl-links-3.yaml')
   await page.waitForSelector('.panel-items', { timeout: 90_000 })
 
   const dataSelector = page.locator('.selector-column-picker')
