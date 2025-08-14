@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.1.1](https://github.com/simwrapper/simwrapper/compare/v4.1.0...v4.1.1) (2025-08-14)
+
+
+### Bug Fixes
+
+* **hexagons:** Big performance increase on large datasets ([0d05446](https://github.com/simwrapper/simwrapper/commit/0d05446e8cac54d22bf5598de9f26d5c324fcdfd))
+* **hexagons:** filter 0-values reliably, and only use one worker if dataset is small ([0285b7e](https://github.com/simwrapper/simwrapper/commit/0285b7e021e1270ef908b93977c4fce709262ae9))
+
 ## [4.1.0](https://github.com/simwrapper/simwrapper/compare/v4.0.6...v4.1.0) (2025-08-10)
 
 
