@@ -251,7 +251,7 @@ const GridMap = defineComponent({
         cellSize: 250,
         opacity: 0.7,
         maxHeight: 0,
-        userColorRamp: 'virdis',
+        userColorRamp: 'viridis',
         center: null as any,
         zoom: 9,
         breakpoints: null as any,
@@ -334,6 +334,9 @@ const GridMap = defineComponent({
     },
 
     mapProps(): MapProps {
+      //@ts-ignore
+      window.__testdata__ = this.data
+
       return {
         viewId: this.id,
         colorRamp: this.colorRamp,
@@ -399,9 +402,11 @@ const GridMap = defineComponent({
         const upper = this.guiConfig['upper bound']
         const lower = this.guiConfig['lower bound']
         // 'cut' values which are outside the bounds
-        value = Math.max(Math.min(value, upper), lower)
-        // rescale value to 0-100 based on the bounds
-        value = ((value - lower) / (upper - lower)) * 100
+        if (upper !== Infinity && lower !== -Infinity) {
+          // rescale value to 0-100 based on the bounds
+          value = Math.max(Math.min(value, upper), lower)
+          value = ((value - lower) / (upper - lower)) * 100
+        }
       } else if (!hasNegValues) {
         // Error handling: If the value is outside the valid range, return a default color.
         if (isNaN(value) || value < 0 || value > 100) {
@@ -1378,6 +1383,9 @@ const GridMap = defineComponent({
   },
 
   beforeDestroy() {
+    //@ts-ignore
+    delete window.__testdata__
+
     // MUST erase the React view handle to prevent gigantic memory leak!
     REACT_VIEW_HANDLES[this.id] = undefined
     delete REACT_VIEW_HANDLES[this.id]
