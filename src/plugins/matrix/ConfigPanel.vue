@@ -40,21 +40,13 @@
 
   //- Map configuration
   .flex-row.map-config(v-if="isMap")
-    ColorMapSelector(
+    BColorSelector(
       :value="mapConfig.colormap",
       :invert="mapConfig.isInvertedColor"
-      @onValueChange="$emit('changeColor', $event)"
-      @onInversionChange="$emit('changeColor', $event)"
+      :scale="mapConfig.scale"
+      @change="$emit('changeColor', $event)"
+      @changeScale="$emit('changeScale', $event)"
     )
-
-    ScaleSelector(
-      :options="COLOR_SCALE_TYPES"
-      :value="mapConfig.scale"
-      @onScaleChange="$emit('changeScale', $event)"
-    )
-
-  //- .flex-column.flex1.drop-hint
-  //-   p.right  Drag/drop an HDF5 file anywhere to open it
 
 </template>
 
@@ -62,9 +54,9 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector'
-import { ColorMap } from '@/components/ColorMapSelector/models'
-import ScaleSelector from '@/components/ScaleSelector/ScaleSelector'
+import BColorSelector from './BColorSelector.vue'
+// import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector'
+// import ScaleSelector from '@/components/ScaleSelector/ScaleSelector'
 import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
 import ComparisonSelector from './ComparisonSelector.vue'
 
@@ -74,7 +66,7 @@ import { ComparisonMatrix, MapConfig } from './MatrixViewer.vue'
 
 const MyComponent = defineComponent({
   name: 'MatrixViewer',
-  components: { ComparisonSelector, ScaleSelector, ColorMapSelector },
+  components: { ComparisonSelector, BColorSelector },
   props: {
     isMap: Boolean,
     comparators: { type: Array as PropType<ComparisonMatrix[]> },
@@ -85,12 +77,10 @@ const MyComponent = defineComponent({
     activeTable: { required: true, type: String },
   },
   data() {
-    const COLOR_SCALE_TYPES = [ScaleType.Linear, ScaleType.Log, ScaleType.SymLog, ScaleType.Sqrt]
     return {
       filename: '',
       filenameShapes: '',
       colormap: 'Viridis',
-      COLOR_SCALE_TYPES,
       currentCatalog: '',
       searchTableTerm: '',
     }

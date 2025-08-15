@@ -24,7 +24,7 @@
     "build": "npm run index && node --max_old_space_size=8192 ./node_modules/vite/bin/vite.js build",
     "wasm": "wasm-pack build ./wasm/matsim-event-streamer --target web",
     "release": "standard-version",
-    "test": "vitest",
+    "test": "playwright test",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "lint": "broken//vue-cli-service lint",

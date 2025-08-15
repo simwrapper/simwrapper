@@ -359,10 +359,7 @@ export default defineComponent({
     },
 
     async buildLayoutFromURL() {
-      console.log('//// build layout from url')
       let pathMatch = this.$route.params.pathMatch
-      // let isNavigateNeeded = pathMatch == this.prevUrl
-      // console.log({ isNavigateNeeded })
       this.prevUrl = pathMatch
       if (pathMatch.startsWith('/')) pathMatch = pathMatch.slice(1)
 

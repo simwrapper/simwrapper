@@ -285,7 +285,7 @@ const MyComponent = defineComponent({
 
       const tableLabel = this.activeTable.replaceAll('&nbsp;', ' ')
       const fileData = FS.readFile('matrix')
-      const blob = new File([fileData], tableLabel, { type: 'application/octet-stream' })
+      const blob = new File([fileData as any], tableLabel, { type: 'application/octet-stream' })
       return blob
     },
 
