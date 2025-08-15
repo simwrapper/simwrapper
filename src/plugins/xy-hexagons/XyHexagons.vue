@@ -91,7 +91,8 @@ import CSVParserWorker from './CsvGzipParser.worker.ts?worker'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import XyHexDeckMap from './XyHexLayer'
+// import XyHexDeckMap from './XyHexLayer'
+import XyHexDeckMap from './XyHexMapComponent.vue'
 import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
 
 import {
@@ -249,7 +250,7 @@ const MyComponent = defineComponent({
         data: this.requests,
         extrude: this.extrudeTowers,
         highlights: this.highlightedTrips,
-        mapIsIndependent: this.vizDetails.mapIsIndependent,
+        mapIsIndependent: this.vizDetails.mapIsIndependent || false,
         maxHeight: this.vizDetails.maxHeight,
         metric: this.buttonLabel,
         radius: this.vizDetails.radius,
@@ -296,21 +297,21 @@ const MyComponent = defineComponent({
       this.flipViewToShowInvertedData({})
     },
 
-    handleHexClick(pickedObject: any, event: any) {
+    handleHexClick(target: any, event: any) {
       if (!event.srcEvent.shiftKey) {
         this.multiSelectedHexagons = {}
         this.hexStats = null
-        this.flipViewToShowInvertedData(pickedObject)
+        this.flipViewToShowInvertedData(target)
         return
       }
 
       // SHIFT!!
-      const index = pickedObject?.object?.index
+      const index = target?.object?.index
       if (index !== undefined) {
         if (index in this.multiSelectedHexagons) {
           delete this.multiSelectedHexagons[index]
         } else {
-          this.multiSelectedHexagons[index] = pickedObject.object.points
+          this.multiSelectedHexagons[index] = target.object.points
         }
         this.hexStats = this.selectedHexagonStatistics()
       }
@@ -340,8 +341,8 @@ const MyComponent = defineComponent({
       let revAgg = this.aggNumber + (this.aggNumber % 2 ? -1 : 1) // this.aggNumber - 1 : this.aggNumber + 1
       const arcFilteredRows: any = []
 
-      for (const row of pickedObject.object.points) {
-        const zoffset = row.index * 2
+      for (const index of pickedObject.object.pointIndices) {
+        const zoffset = index * 2
 
         const from = [
           this.requests[this.currentGroup].positions[revAgg][zoffset],
