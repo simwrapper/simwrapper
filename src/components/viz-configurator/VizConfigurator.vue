@@ -219,16 +219,17 @@ export default defineComponent({
 
       // make a copy so we don't screw up the viz when we edit, and also
       // to put things in a specific order every time:
+      const center = this.$store.state.viewState.center || [
+        this.$store.state.viewState.longitude,
+        this.$store.state.viewState.latitude,
+      ]
       const config = {
         title: this.vizDetails.title,
         description: this.vizDetails.description,
         zoom: Math.round(10 * this.$store.state.viewState.zoom) / 10,
         pitch: Math.round(this.$store.state.viewState.pitch),
         bearing: Math.round(this.$store.state.viewState.bearing),
-        center: [
-          Math.round(100 * this.$store.state.viewState.center[0]) / 100,
-          Math.round(100 * this.$store.state.viewState.center[1]) / 100,
-        ],
+        center: [Math.round(100 * center[0]) / 100, Math.round(100 * center[1]) / 100],
         network: this.vizDetails.network || this.vizDetails.geojsonFile,
         projection: this.vizDetails.projection,
         showDifferences: this.vizDetails.showDifferences,
