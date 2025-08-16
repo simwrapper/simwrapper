@@ -46,7 +46,7 @@ export default defineComponent({
 
   data() {
     return {
-      mymap: null as any, // maplibregl.Map | null,
+      mymap: null as maplibregl.Map | null,
       deckOverlay: null as InstanceType<typeof MapboxOverlay> | null,
       globalState: globalStore.state,
       tooltipHTML: '',
@@ -68,6 +68,30 @@ export default defineComponent({
       this.deckOverlay.setProps({
         layers: this.layers,
       })
+    },
+
+    dark() {
+      const style = `https://tiles.openfreemap.org/styles/${
+        this.globalState.isDarkMode ? 'dark' : 'positron'
+      }`
+      this.mymap?.setStyle(style)
+    },
+
+    'globalState.viewState'() {
+      if (this.mapIsIndependent) return
+      const incoming = this.globalState.viewState as any
+      const center = this.mymap?.getCenter() as any
+      if (
+        incoming.longitude !== center.lng ||
+        incoming.latitude !== center.lat ||
+        incoming.zoom !== this.mymap?.getZoom() ||
+        incoming.pitch !== this.mymap?.getPitch() ||
+        incoming.bearing !== this.mymap?.getBearing()
+      ) {
+        this.mymap?.jumpTo(
+          Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
+        )
+      }
     },
   },
 
@@ -169,6 +193,7 @@ export default defineComponent({
     }`
 
     const container = `map-${this.viewId}`
+    //@ts-ignore
     this.mymap = new maplibregl.Map({
       center: [8.0, 51.017],
       zoom: 6.5,
@@ -183,6 +208,19 @@ export default defineComponent({
         onClick: this.handleClick,
       })
       this.mymap?.addControl(this.deckOverlay)
+    })
+    this.mymap?.on('move', () => {
+      const center = this.mymap?.getCenter() as any
+      const view = {
+        // center: [center.lng, center.lat],
+        latitude: center.lat,
+        longitude: center.lng,
+        zoom: this.mymap?.getZoom(),
+        bearing: this.mymap?.getBearing(),
+        pitch: this.mymap?.getPitch(),
+        jump: true,
+      }
+      globalStore.commit('setMapCamera', view)
     })
   },
 
