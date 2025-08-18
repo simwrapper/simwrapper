@@ -74,7 +74,20 @@ const i18n = {
       origins: 'Origins',
       dest: 'Destinations',
     },
-    de: {},
+    de: {
+      legend: 'Legende:',
+      lineWidth: 'Line width',
+      lineWidths: 'Line widths',
+      hide: 'Hide smaller than',
+      time: 'Filter',
+      duration: 'Duration',
+      circle: 'Centroids',
+      showCentroids: 'Show centroids',
+      showNumbers: 'Show totals',
+      total: 'Totals for',
+      origins: 'Origins',
+      dest: 'Destinations',
+    },
   },
 }
 
@@ -84,13 +97,12 @@ import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
 import { debounce } from 'debounce'
 import { FeatureCollection, Feature } from 'geojson'
-import maplibregl, { MapMouseEvent, PositionOptions } from 'maplibre-gl'
+import maplibregl from 'maplibre-gl'
 import nprogress from 'nprogress'
 import proj4 from 'proj4'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
 
-import { findMatchingGlobInFiles } from '@/js/util'
 import Coords from '@/js/Coords'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LegendBox from './LegendBoxOD.vue'
@@ -99,6 +111,7 @@ import ScaleBox from './ScaleBoxOD.vue'
 import TimeSlider from './TimeSlider.vue'
 import ScaleSlider from '@/components/ScaleSlider.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
+import { findMatchingGlobInFiles } from '@/js/util'
 
 import { ColorScheme, FileSystem, FileSystemConfig, Status, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -124,11 +137,8 @@ interface AggOdYaml {
 }
 
 const TOTAL_MSG = globalStore.state.locale.startsWith('de') ? 'Alle >>' : 'All >>'
-
 const FADED = 0.0 // 0.15
-
 const SCALE_WIDTH = [1, 3, 5, 10, 25, 50, 100, 150, 200, 300, 400, 450, 500, 1000, 5000]
-
 const INPUTS = {
   OD_FLOWS: 'O/D Flows (.csv)',
   SHP_FILE: 'Shapefile .SHP',
@@ -305,7 +315,7 @@ const Component = defineComponent({
 
     setupResizer() {
       this.resizer = new ResizeObserver(() => {
-        if (this.mymap) this.mymap.resize()
+        // if (this.mymap) this.mymap.resize()
       })
 
       const viz = document.getElementById(this.containerId) as HTMLElement
@@ -443,11 +453,13 @@ const Component = defineComponent({
 
     async setupMap() {
       try {
+        const style = `https://tiles.openfreemap.org/styles/${
+          this.globalState.isDarkMode ? 'dark' : 'positron'
+        }`
+        //@ts-ignore
         this.mymap = new maplibregl.Map({
           container: this.mapId,
-          style: globalStore.getters.mapStyle,
-          logoPosition: 'top-right',
-          // attributionControl: false,
+          style,
         })
       } catch (e) {
         console.error('HUH?')
@@ -679,6 +691,7 @@ const Component = defineComponent({
           type: 'symbol',
           layout: {
             'text-field': labels,
+            'text-font': ['Noto Sans Regular'],
             'text-size': 11,
           },
           paint: this.showCentroids ? {} : { 'text-halo-color': 'white', 'text-halo-width': 2 },
@@ -748,7 +761,7 @@ const Component = defineComponent({
       new maplibregl.Popup({ closeOnClick: true })
         .setLngLat(e.lngLat)
         .setHTML(html)
-        .addTo(this.mymap)
+        .addTo(this.mymap as any)
     },
 
     convertRegionColors(geojson: FeatureCollection) {
@@ -1339,22 +1352,28 @@ const Component = defineComponent({
       }
     },
 
-    '$store.state.colorScheme'() {
+    async '$store.state.colorScheme'() {
       this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
       if (!this.mymap) return
 
-      this.mymap.setStyle(globalStore.getters.mapStyle)
+      const style = `https://tiles.openfreemap.org/styles/${
+        this.globalState.isDarkMode ? 'dark' : 'positron'
+      }`
 
-      this.mymap.on('style.load', () => {
-        this.buildCentroids(this.geojson)
-        this.buildSpiderLinks()
-        this.addGeojsonToMap(this.geojson)
-        // this.setupKeyListeners()
-      })
+      const sleep = (milliseconds: number) => {
+        return new Promise(resolve => setTimeout(resolve, milliseconds))
+      }
+
+      this.mymap.setStyle(style)
+      await sleep(1200)
+      this.buildCentroids(this.geojson)
+      this.buildSpiderLinks()
+      this.addGeojsonToMap(this.geojson)
+      // this.setupKeyListeners()
     },
 
     '$store.state.resizeEvents'() {
-      if (this.mymap) this.mymap.resize()
+      // if (this.mymap) this.mymap.resize()
     },
 
     showTimeRange() {
@@ -1489,7 +1508,7 @@ h4 {
 
 .lower-right {
   position: absolute;
-  bottom: 2rem;
+  bottom: 3rem;
   right: 0.5rem;
   display: flex;
   z-index: 1;
@@ -1498,9 +1517,8 @@ h4 {
 .lower-left {
   width: 12rem;
   position: absolute;
-  left: 5px;
-  bottom: 2rem;
-  right: 0.5rem;
+  left: 0.5rem;
+  bottom: 0.5rem;
   display: flex;
   flex-direction: column;
   z-index: 1;
