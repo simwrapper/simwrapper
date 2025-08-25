@@ -2,7 +2,7 @@
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
   xy-hex-deck-map.hex-layer(
-    v-if="!thumbnail && isLoaded"
+    v-if="isLoaded && !thumbnail"
     v-bind="mapProps"
   )
 
@@ -83,7 +83,6 @@ import YAML from 'yaml'
 
 import util from '@/js/util'
 import globalStore from '@/store'
-import { REACT_VIEW_HANDLES } from '@/Globals'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
@@ -282,10 +281,6 @@ const MyComponent = defineComponent({
         )
       }
     },
-    '$store.state.viewState'() {
-      if (this.vizDetails.mapIsIndependent) return
-      if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id]()
-    },
   },
   methods: {
     handleClick(target: any, event: any) {
@@ -362,7 +357,7 @@ const MyComponent = defineComponent({
       this.colorRamp = this.colorRamps[revAgg]
     },
 
-    async handleOrigDest(groupName: string, number: number) {
+    handleOrigDest(groupName: string, number: number) {
       this.currentGroup = groupName
       this.aggNumber = number
       this.hexStats = null
@@ -589,16 +584,12 @@ const MyComponent = defineComponent({
         }
 
         const view = {
-          longitude: this.vizDetails.center[0],
-          latitude: this.vizDetails.center[1],
+          center: this.vizDetails.center,
+          zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
           bearing: 0,
           pitch: 0,
-          zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
           jump: false, // move the map no matter what
         }
-
-        // bounce our map
-        if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id](view)
 
         // Sets the map to the specified data
         this.$store.commit('setMapCamera', Object.assign({}, view))
@@ -689,12 +680,13 @@ const MyComponent = defineComponent({
       })
     },
 
-    dataIsLoaded({ fullRowCache }: any) {
+    async dataIsLoaded({ fullRowCache }: any) {
       this.requests = fullRowCache
 
-      this.setMapCenter()
+      await this.setMapCenter()
       this.moveLogo()
       this.myState.statusMessage = ''
+      this.isLoaded = true
     },
 
     async loadFiles() {
@@ -735,11 +727,7 @@ const MyComponent = defineComponent({
 
     await this.loadFiles()
 
-    // this.mapState.center = this.findCenter(this.rawRequests)
-
     this.buildThumbnail()
-
-    this.isLoaded = true
     this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // show first data
   },
 
@@ -747,9 +735,6 @@ const MyComponent = defineComponent({
     if (this._xmlConfigFetcher) this._xmlConfigFetcher.terminate()
 
     this.resizer?.disconnect()
-    // MUST erase the React view handle to prevent gigantic memory leak!
-    REACT_VIEW_HANDLES[this.id] = undefined
-    delete REACT_VIEW_HANDLES[this.id]
 
     try {
       if (this.gzipWorker) {
