@@ -16,7 +16,7 @@ import globalStore from '@/store'
 export default defineComponent({
   name: 'MyDeckComponent',
   props: {
-    viewId: { type: String, required: true },
+    viewId: { type: Number, required: true },
     dark: { type: Boolean, required: true },
     data: { type: Object, required: true },
     mapIsIndependent: { type: Boolean, required: true },
