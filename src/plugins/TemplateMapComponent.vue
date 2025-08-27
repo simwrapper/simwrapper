@@ -58,15 +58,19 @@ export default defineComponent({
 
     'globalState.viewState'() {
       if (this.mapIsIndependent) return
-
-      this.mymap?.off('move', this.handleMove)
-
       const incoming = this.globalState.viewState as any
-      this.mymap?.jumpTo(
-        Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
-      )
-
-      this.mymap?.on('move', this.handleMove)
+      const center = this.mymap?.getCenter() as any
+      if (
+        incoming.longitude !== center.lng ||
+        incoming.latitude !== center.lat ||
+        incoming.zoom !== this.mymap?.getZoom() ||
+        incoming.pitch !== this.mymap?.getPitch() ||
+        incoming.bearing !== this.mymap?.getBearing()
+      ) {
+        this.mymap?.jumpTo(
+          Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
+        )
+      }
     },
   },
 
