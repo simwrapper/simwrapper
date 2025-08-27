@@ -90,7 +90,7 @@
         :isLoading="isLoading"
       )
 
-      background-map-on-top(v-if="isMapReady")
+      //- background-map-on-top(v-if="isMapReady")
       zoom-buttons(corner="top-left")
 
       //- .zone-announce-area.flex-col
@@ -137,7 +137,7 @@ import { Style, buildRGBfromHexCodes, getColorRampHexCodes } from '@/js/ColorsAn
 
 import { H5WasmLocalFileApi } from './local/h5wasm-local-file-api'
 
-import ZoneLayer from './ZoneLayer'
+import ZoneLayer from './DeckMapComponent.vue'
 import { MapConfig, ZoneSystems } from './MatrixViewer.vue'
 import LegendColors from './LegendColors.vue'
 import type { Matrix } from './H5Provider'
