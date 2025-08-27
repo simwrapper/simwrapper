@@ -133,7 +133,9 @@ Different map types allow different properties. This is an attempt at summarizin
 | | **steps:** Number of steps in the ramp.|
 | | **exponentColors:** Optional true/false. If true, values will be scaled exponentially before being drawn. This is often useful if values are concentrated in small areas, and much higher in value than in typical areas.|
 | | **diff:** Example `col1 - col2` will activate diff mode|
-| | **breakpoints:** Work in progress, comma-separated list of manual breakpoints for data values.|
+| | **relative:** When using diff mode, set relative to `true` to calculate the percent change instead of the raw difference. So when true it would be `(col2-col1)/col1` |
+| | **breakpoints:** Comma-separated list of manual breakpoints for data values. Example: set `steps: 5` and set `breakpoints: -10,-1,1,10` with a diverging color scale to see large and small difference easily. Remember, math requires one less breakpoint value than the number of steps! |
+|`fixedColors`| If you want to manually select colors instead of using the prebuilt color "ramps", create an array of strings for each color. The array must have the same number of elements as the `colorRamp: steps`. Example: `fixedColors: ['firebrick','salmon','silver','dodgerblue','blue']` Any valid CSS color can be used; see the [CSS color names](https://i.pinimg.com/originals/ad/07/fa/ad07fab27cc455481593fe3704cdd800.png) or use [CSS color hex codes](https://i.pinimg.com/originals/85/b4/c4/85b4c4ed24d15bf31f217e380a6946d5.png) e.g. '#f00' for red.<br>Do not include a `ramp` in the `colorRamp` section, it will be ignored. |
 
 <!-- |`filters`| (optional) List of any columns which can be used as category filters by the user interactively. Note that _active filters_ will be shown in the URL bar, so curated maps can be shared via URL.|
 -->
