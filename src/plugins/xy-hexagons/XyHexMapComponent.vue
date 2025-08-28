@@ -71,9 +71,7 @@ export default defineComponent({
     },
 
     dark() {
-      const style = `https://tiles.openfreemap.org/styles/${
-        this.globalState.isDarkMode ? 'dark' : 'positron'
-      }`
+      const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
       this.mymap?.setStyle(style)
     },
 
@@ -188,10 +186,7 @@ export default defineComponent({
   },
 
   async mounted() {
-    const style = `https://tiles.openfreemap.org/styles/${
-      this.globalState.isDarkMode ? 'dark' : 'positron'
-    }`
-
+    const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}`
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
     //@ts-ignore
@@ -260,51 +255,6 @@ export default defineComponent({
     },
   },
 })
-
-// LAYER --------------------------------------------------------
-export function Layer({}) {
-  // manage SimWrapper centralized viewState - for linked maps
-  // const [viewState, setViewState] = useState(globalStore.state.viewState)
-
-  // REACT_VIEW_HANDLES[viewId] = () => {
-  //   setViewState(globalStore.state.viewState)
-  // }
-
-  // useMemo: row data only gets recalculated what data or highlights change
-  // const rows = useMemo(() => {}, [data, highlights, agg, group, radius]) as any
-
-  function handleViewState(view: any) {
-    if (!view.latitude) return
-    if (!view.center) view.center = [0, 0]
-    view.center[0] = view.longitude
-    view.center[1] = view.latitude
-    // setViewState(view)
-
-    // if (!mapIsIndependent) globalStore.commit('setMapCamera', view)
-  }
-
-  // return (
-  // <DeckGL
-  //   layers={layers}
-  //   controller={true}
-  //   useDevicePixels={false}
-  //   viewState={viewState}
-  //   getTooltip={getTooltip}
-  //   onClick={handleClick}
-  //   onViewStateChange={(e: any) => handleViewState(e.viewState)}
-  // >
-  //   {
-  //     /*
-  //     // @ts-ignore */
-  //     <StaticMap
-  //       mapStyle={globalStore.getters.mapStyle}
-  //       preventStyleDiffing={true}
-  //       mapboxApiAccessToken={MAPBOX_TOKEN}
-  //     />
-  //   }
-  // </DeckGL>
-  // )
-}
 </script>
 
 <style lang="scss">

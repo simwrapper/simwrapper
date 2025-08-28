@@ -684,51 +684,6 @@ maplibregl-ctrl-attrib-button {
   color: var(--text);
 }
 
-// .mapboxgl-ctrl-bottom-left {
-//   filter: var(--opacityLogo);
-//   color: var(--bgBold);
-//   bottom: -5px;
-//   left: unset;
-//   right: 36px;
-//   z-index: 0;
-// }
-
-// // Mapbox Improve this Map attribution
-// .mapboxgl-ctrl-bottom-right {
-//   filter: var(--opacityAttribution);
-//   right: 0rem;
-//   bottom: 0rem;
-//   left: unset;
-//   z-index: 0;
-// }
-
-// .mapboxgl-popup-content {
-//   background-color: var(--bgCream4);
-// }
-
-// .mapboxgl-popup-anchor-top .mapboxgl-popup-tip,
-// .mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip,
-// .mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip {
-//   border-bottom-color: var(--bgCream4);
-// }
-// .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip,
-// .mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip,
-// .mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip {
-//   border-top-color: var(--bgCream4);
-// }
-// .mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
-//   border-right-color: var(--bgCream4);
-// }
-// .mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
-//   border-left-color: var(--bgCream4);
-// }
-// .mapboxgl-ctrl.mapboxgl-ctrl-attrib {
-//   background-color: var(--bgCream);
-//   a {
-//     color: var(--textPale);
-//   }
-// }
-
 // SCROLLBARS
 /* width */
 ::-webkit-scrollbar {

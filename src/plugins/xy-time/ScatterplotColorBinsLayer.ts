@@ -58,12 +58,10 @@ export default class ScatterplotColorBinsLayer extends ScatterplotLayer {
 
             for(int i=0; i < MAX_BREAKPOINTS; ++i) {
               if (instanceValue < breakpoints[i]) {
-                // color = vec4(0.1,0.7,0.1,1.0);
                 color = vec4(highlight.colors[i].x, highlight.colors[i].y, highlight.colors[i].z, 1.0);
                 return;
               }
               if (i == numBreakpoints) {
-                // color = vec4(0.5,0.5,0.5,1.0);
                 color = vec4(highlight.colors[i].x, highlight.colors[i].y, highlight.colors[i].z, 1.0);
                 return;
               }
