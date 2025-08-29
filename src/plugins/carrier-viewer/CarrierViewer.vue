@@ -20,7 +20,7 @@
                   :projection="vizDetails.projection"
                   :services="vizDetails.services")
 
-      ZoomButtons(v-if="!thumbnail")
+      ZoomButtons(v-if="!thumbnail" corner="top-left")
       .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
     .right-panel(v-if="!thumbnail" :darkMode="true")
