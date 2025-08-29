@@ -33,7 +33,7 @@
         ["match", ["geometry-type"], ["MultiPolygon", "Polygon"], true, false],
         ["!=", ["get", "brunnel"], "tunnel"]
       ],
-      "paint": {"fill-antialias": false, "fill-color": "rgba(127, 140, 160, 1)"}
+      "paint": {"fill-antialias": false, "fill-color": "rgba(73, 90, 129, 1)"}
     },
     {
       "id": "landcover_ice_shelf",
@@ -375,7 +375,7 @@
           20,
           10
         ],
-        "line-opacity": 0.8
+        "line-opacity": 0.5
       }
     },
     {
@@ -452,7 +452,7 @@
           20,
           1
         ],
-        "line-opacity": 1
+        "line-opacity": 0.5
       }
     },
     {

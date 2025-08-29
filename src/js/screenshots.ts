@@ -3,9 +3,19 @@
 // (1) https://github.com/visgl/deck.gl/issues/4436
 // (2) https://stackoverflow.com/questions/32096540/merge-two-datauris-to-create-a-single-image
 
-import { DeckGLLayer } from '@flowmap.gl/core'
+// import { DeckGLLayer } from '@flowmap.gl/core'
+import { MapboxOverlay } from '~/@deck.gl/mapbox/dist'
 
-export async function savePNG(layer: DeckGLLayer, backgroundCanvas: HTMLCanvasElement) {
+export function saveMapWithOverlay(map: any) {
+  const mapCanvas = map.getCanvas()
+  const dataUrl = mapCanvas.toDataURL('image/png')
+  const link = document.createElement('a')
+  link.download = 'simwrapper-screenshot.png'
+  link.href = dataUrl
+  link.click()
+}
+
+export async function savePNG(layer: any, backgroundCanvas: HTMLCanvasElement) {
   const deckLayerImage = layer.context.deck.canvas.toDataURL('image/png')
   const backgroundImage = backgroundCanvas?.toDataURL('image/png')
 
@@ -72,4 +82,4 @@ function add2canvas(canvas: any, dataURL: string) {
   })
 }
 
-export default { savePNG }
+export default { savePNG, saveMapWithOverlay }

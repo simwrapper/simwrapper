@@ -888,6 +888,13 @@ maplibregl-ctrl-attrib-button {
   margin-bottom: 0;
 }
 
+.scrolly {
+  overflow-y: auto;
+}
+.scrollx {
+  overflow-x: auto;
+}
+
 @media only screen and (max-width: 640px) {
   .breadcrumbs {
     padding-left: 1rem;

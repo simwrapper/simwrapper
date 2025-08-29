@@ -1,6 +1,6 @@
 import { GeoJsonLayer } from '@deck.gl/layers'
 import PathOffsetLayer from '@/layers/PathOffsetLayer'
-import { forwardProps } from '@deck.gl/layers/src/geojson-layer/sub-layer-map'
+import { forwardProps } from '@/../node_modules/@deck.gl/layers/src/geojson-layer/sub-layer-map'
 
 const OFFSET_TYPE = {
   NONE: 0,
@@ -107,32 +107,3 @@ GeojsonOffsetLayer.layerName = 'GeojsonOffsetLayer'
 GeojsonOffsetLayer.defaultProps = {
   getOffset: { type: 'accessor', value: OFFSET_TYPE.RIGHT },
 }
-
-// /** DeckGL **/
-// new deck.DeckGL({
-//   container: 'container',
-//   mapboxApiAccessToken: '',
-//   longitude: -122.408,
-//   latitude: 37.785,
-//   zoom: 16,
-//   pitch: 0,
-//   layers: [
-//     new deck.PathLayer({
-//       data:
-//         'https://raw.githubusercontent.com/uber-common/deck.gl-data/master/website/bart-lines.json',
-//       getPath: d => d.path,
-//       getColor: [0, 0, 0],
-//       getWidth: 50,
-//     }),
-//     new MyPathLayer({
-//       data:
-//         'https://raw.githubusercontent.com/uber-common/deck.gl-data/master/website/bart-lines.json',
-//       getPath: d => d.path,
-//       getColor: [255, 0, 0],
-//       getOffset: (d, { index }) => index % 3,
-//       getWidth: 50,
-//       pickable: true,
-//       autoHighlight: true,
-//     }),
-//   ],
-// })
