@@ -84,7 +84,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendBox from '@/components/viz-configurator/LegendBox.vue'
 import LegendStore from '@/js/LegendStore'
 import TimeSlider from '@/components/TimeSlider.vue'
-import EventMap from './EventDeckMap'
+import EventMap from './EventDeckMap.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import * as Turf from '@turf/turf'
 
@@ -162,7 +162,7 @@ const MyComponent = defineComponent({
         speed: 0.1,
         size: 16,
       },
-      viewId: ('xyt-id-' + Math.floor(1e12 * Math.random())) as any,
+      viewId: Math.floor(1e12 * Math.random()),
       configId: ('gui-config-' + Math.floor(1e12 * Math.random())) as any,
       timeLabels: [0, 1] as any[],
       startTime: 0,

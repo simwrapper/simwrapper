@@ -28,7 +28,7 @@ import vertShader from './icon-layer.glsl.vert?raw'
 import vertShaderOcc from './icon-layer-occupancy.glsl.vert?raw'
 import fragShader from './icon-layer.glsl.frag?raw'
 
-import IconManager from './icon-manager'
+import IconManager from './old-icon-manager'
 
 const DEFAULT_COLOR = [0, 0, 0, 255]
 
