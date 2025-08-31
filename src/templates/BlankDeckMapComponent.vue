@@ -8,7 +8,6 @@
 import { defineComponent, PropType } from 'vue'
 import { ArcLayer } from '@deck.gl/layers'
 import { MapboxOverlay } from '@deck.gl/mapbox'
-// import colormap from 'colormap'
 import maplibregl from 'maplibre-gl'
 
 import globalStore from '@/store'
@@ -18,7 +17,7 @@ export default defineComponent({
   props: {
     viewId: { type: Number, required: true },
     dark: { type: Boolean, required: true },
-    data: { type: Object, required: true },
+    data: { type: Array, required: true },
     mapIsIndependent: { type: Boolean, required: true },
     onClick: { type: Function, required: true },
   },
@@ -44,7 +43,7 @@ export default defineComponent({
 
   watch: {
     layers() {
-      this.deckOverlay.setProps({
+      this.deckOverlay?.setProps({
         layers: this.layers,
       })
     },
@@ -75,15 +74,11 @@ export default defineComponent({
   },
 
   computed: {
-    rowData() {
-      return this.data
-    },
-
     layers(): any[] {
       const layers = [
         new ArcLayer({
           id: 'arc-layer',
-          data: this.rowData,
+          data: this.data,
           getSourcePosition: (d: any) => d[0],
           getTargetPosition: (d: any) => d[1],
           pickable: false,
@@ -119,7 +114,7 @@ export default defineComponent({
   },
 
   beforeDestroy() {
-    this.mymap?.removeControl(this.deckOverlay)
+    if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
 

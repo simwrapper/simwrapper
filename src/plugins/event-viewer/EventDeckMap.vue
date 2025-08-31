@@ -11,7 +11,8 @@ import { DataFilterExtension } from '@deck.gl/extensions'
 import maplibregl from 'maplibre-gl'
 
 import globalStore from '@/store'
-import MovingIconsLayer from '@/layers/moving-icons/old-moving-icons-vehicles-layer'
+import MovingIconsLayer from '@/layers/moving-icons/moving-icons-vehicles-layer'
+import { ColorDepiction } from '@/layers/moving-icons/moving-icons-vehicles-layer'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -55,6 +56,7 @@ export default defineComponent({
 
   watch: {
     layers() {
+      if (!this.deckOverlay) return
       this.deckOverlay.setProps({
         layers: this.layers,
       })
@@ -125,17 +127,7 @@ export default defineComponent({
             id: 'vehicles' + layerIndex,
             iconMoving: 'vehicle',
             iconStill: 'vehicle',
-            isColorOccupancy: true,
-            colorMap: [
-              // 0: no colors: greenish
-              30, 208, 170,
-              // 1: green
-              40, 255, 40,
-              // 2: yellow,
-              240, 240, 64,
-              // 3: red
-              240, 0, 0,
-            ],
+            colorDepiction: ColorDepiction.REL_SPEED,
             getSize: this.dotsize, // searchEnabled ? 56 : 44,
             opacity: 1,
             latitudeCorrectionFactor: this.latitudeCorrectionFactor,
@@ -147,7 +139,6 @@ export default defineComponent({
             billboard: false,
             positionFormat: 'XY',
             pickable: false,
-            depthTest: true,
             autoHighlight: false,
             highlightColor: [255, 255, 255, 140],
             parameters: { depthTest: false },
@@ -188,7 +179,7 @@ export default defineComponent({
   },
 
   beforeDestroy() {
-    this.mymap?.removeControl(this.deckOverlay)
+    if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
 

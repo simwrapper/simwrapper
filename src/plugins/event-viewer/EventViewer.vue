@@ -160,7 +160,7 @@ const MyComponent = defineComponent({
       linkIdLookup: {} as any,
       guiConfig: {
         speed: 0.1,
-        size: 16,
+        size: 12,
       },
       viewId: Math.floor(1e12 * Math.random()),
       configId: ('gui-config-' + Math.floor(1e12 * Math.random())) as any,
@@ -535,9 +535,8 @@ const MyComponent = defineComponent({
         }
         this.vizDetails.center = [lng / cnt, lat / cnt]
         globalStore.commit('setMapCamera', {
-          longitude: lng / cnt || 13.45,
-          latitude: lat / cnt || 52.5,
-          zoom: 10,
+          center: this.vizDetails.center,
+          zoom: 9,
         })
       }
 

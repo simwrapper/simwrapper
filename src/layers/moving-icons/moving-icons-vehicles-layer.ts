@@ -7,9 +7,11 @@
 import { Layer, project32, picking, log, UNIT } from '@deck.gl/core'
 import { SamplerProps, Texture } from '@luma.gl/core'
 import { Model, Geometry } from '@luma.gl/engine'
+import { GL } from '@luma.gl/constants'
 
 import { iconUniforms, IconProps } from './icon-layer-uniforms'
 import vs from './icon-layer.glsl.vert?raw'
+// import vsOcc from './icon-layer-occupancy.glsl.vert?raw'
 import fs from './icon-layer.glsl.frag?raw'
 import IconManager from './icon-manager'
 
@@ -27,6 +29,11 @@ import type {
 } from '@deck.gl/core'
 
 import type { UnpackedIcon, IconMapping, LoadIconErrorContext } from './icon-manager'
+
+export enum ColorDepiction {
+  REL_SPEED = 1,
+  VEH_OCCUPANCY = 2,
+}
 
 type _IconLayerProps<DataT> = {
   data: LayerDataSource<DataT>
@@ -64,8 +71,32 @@ type _IconLayerProps<DataT> = {
    */
   alphaCutoff?: number
 
-  /** Anchor position accessor. */
-  getPosition?: Accessor<DataT, Position>
+  /**
+   * Simulation time in seconds
+   */
+  currentTime?: number
+
+  /**
+   * Latitude affects the icon bearing angle
+   */
+  latitudeCorrectionFactor?: number
+
+  /**
+   * colorDepiction: 1=rel speeds; 2=veh occupancy
+   * @default ColorDepiction.REL_SPEED
+   */
+  colorDepiction?: number
+
+  /** If `true`, the icon is pickable
+   * @default true
+   */
+  pickable?: boolean
+
+  /**
+   * iconStill - this is an ... object
+   */
+  iconStill?: any
+
   /** Icon definition accessor.
    * Should return the icon id if using pre-packed icons (`iconAtlas` + `iconMapping`).
    * Return an object that defines the icon if using auto-packing.
@@ -95,11 +126,52 @@ type _IconLayerProps<DataT> = {
 
   /** Customize the [texture parameters](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texParameter). */
   textureParameters?: SamplerProps | null
+
+  /** Icon color mode - outline vs texture
+   * @default 1
+   */
+  getBColorModes?: Accessor<DataT, number>
+
+  /** Icon color CODE - code maps to a color in shader
+   * @default 0
+   */
+  getColorCode?: Accessor<DataT, number>
+
+  /** Icon offset in the icon pack
+   * @default [0,0]
+   */
+  getBOffsets?: Accessor<DataT, [number, number]>
+
+  /** Icon position in the icon tile pack
+   * @default [0,0,256,256]
+   */
+  getBIconFrames?: Accessor<DataT, [number, number, number, number]>
+
+  /** Icon position in the icon tile pack
+   * @default [0,0,256,256]
+   */
+  getPathStart?: Accessor<DataT, null | [number, number]>
+
+  /** Icon position in the icon tile pack
+   * @default [0,0,256,256]
+   */
+  getPathEnd?: Accessor<DataT, null | [number, number]>
+
+  /** Icon position in the icon tile pack
+   * @default [0,0,256,256]
+   */
+  getTimeStart?: Accessor<DataT, null | number>
+
+  /** Icon position in the icon tile pack
+   * @default [0,0,256,256]
+   */
+  getTimeEnd?: Accessor<DataT, null | number>
 }
 
 export type IconLayerProps<DataT = unknown> = _IconLayerProps<DataT> & LayerProps
 
-const DEFAULT_COLOR: [number, number, number, number] = [0, 0, 0, 255]
+// green-ish
+const DEFAULT_COLOR: [number, number, number, number] = [25, 220, 64, 255]
 
 const defaultProps: DefaultProps<IconLayerProps> = {
   iconAtlas: { type: 'image', value: null, async: true },
@@ -110,17 +182,30 @@ const defaultProps: DefaultProps<IconLayerProps> = {
   sizeMinPixels: { type: 'number', min: 0, value: 0 }, //  min point radius in pixels
   sizeMaxPixels: { type: 'number', min: 0, value: Number.MAX_SAFE_INTEGER }, // max point radius in pixels
   alphaCutoff: { type: 'number', value: 0.05, min: 0, max: 1 },
+  currentTime: { type: 'number', value: 0 },
+  latitudeCorrectionFactor: { type: 'number', value: 0.8 },
+  colorDepiction: { type: 'number', value: ColorDepiction.REL_SPEED },
+  pickable: true,
 
-  getPosition: { type: 'accessor', value: (x: any) => x.position },
   getIcon: { type: 'accessor', value: (x: any) => x.icon },
   getColor: { type: 'accessor', value: DEFAULT_COLOR },
   getSize: { type: 'accessor', value: 1 },
   getAngle: { type: 'accessor', value: 0 },
   getPixelOffset: { type: 'accessor', value: [0, 0] },
-
   onIconError: { type: 'function', value: null, optional: true },
-
   textureParameters: { type: 'object', ignore: true, value: null },
+
+  getBOffsets: { type: 'accessor', value: [0, 0] }, // (x: any) => x.icon },
+  getBIconFrames: { type: 'accessor', value: [0, 0, 256, 256] }, // (x: any) => x.icon },
+  getBColorModes: { type: 'accessor', value: 1 }, // (x: any) => x.icon },
+  getColorCode: { type: 'accessor', value: 0 },
+
+  getPathStart: { type: 'accessor', value: null },
+  getPathEnd: { type: 'accessor', value: null },
+  getTimeStart: { type: 'accessor', value: null },
+  getTimeEnd: { type: 'accessor', value: null },
+
+  iconStill: { type: 'object', value: null, optional: true },
 }
 
 /** Render raster icons at given coordinates. */
@@ -136,6 +221,7 @@ export default class IconLayer<DataT = any, ExtraPropsT extends {} = {}> extends
   }
 
   getShaders() {
+    // const vertShader = this.props.isColorOccupancy == 1 ? vs : vsOcc
     return super.getShaders({ vs, fs, modules: [project32, picking, iconUniforms] })
   }
 
@@ -150,12 +236,21 @@ export default class IconLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     const attributeManager = this.getAttributeManager()
     /* eslint-disable max-len */
     attributeManager!.addInstanced({
-      instancePositions: {
-        size: 3,
-        type: 'float64',
-        fp64: this.use64bitPositions(),
-        transition: true,
-        accessor: 'getPosition',
+      instanceTimestamps: {
+        size: 1,
+        accessor: 'getTimeStart',
+      },
+      instanceTimestampsNext: {
+        size: 1,
+        accessor: 'getTimeEnd',
+      },
+      instanceStartPositions: {
+        size: 2,
+        accessor: 'getPathStart',
+      },
+      instanceEndPositions: {
+        size: 2,
+        accessor: 'getPathEnd',
       },
       instanceSizes: {
         size: 1,
@@ -165,22 +260,19 @@ export default class IconLayer<DataT = any, ExtraPropsT extends {} = {}> extends
       },
       instanceOffsets: {
         size: 2,
-        accessor: 'getIcon',
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        transform: this.getInstanceOffset,
+        defaultValue: [0, 0],
+        accessor: 'getBOffsets',
       },
       instanceIconFrames: {
         size: 4,
-        accessor: 'getIcon',
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        transform: this.getInstanceIconFrame,
+        defaultValue: [0, 0, 256, 256],
+        accessor: 'getBIconFrames',
       },
       instanceColorModes: {
         size: 1,
         type: 'uint8',
-        accessor: 'getIcon',
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        transform: this.getInstanceColorMode,
+        defaultValue: 1,
+        accessor: 'getBColorModes',
       },
       instanceColors: {
         size: this.props.colorFormat.length,
@@ -188,6 +280,11 @@ export default class IconLayer<DataT = any, ExtraPropsT extends {} = {}> extends
         transition: true,
         accessor: 'getColor',
         defaultValue: DEFAULT_COLOR,
+      },
+      instanceColorCodes: {
+        size: 1,
+        accessor: 'getColorCode',
+        defaultValue: 0,
       },
       instanceAngles: {
         size: 1,
@@ -237,6 +334,10 @@ export default class IconLayer<DataT = any, ExtraPropsT extends {} = {}> extends
         (changeFlags.updateTriggersChanged.all || changeFlags.updateTriggersChanged.getIcon))
     ) {
       // Auto packing - getIcon is expected to return an object
+      attributeManager!.invalidate('instanceOffsets')
+      attributeManager!.invalidate('instanceIconFrames')
+      attributeManager!.invalidate('instanceColorModes')
+      attributeManager!.invalidate('instanceColorCodes')
       iconManager.packIcons(data, getIcon as AccessorFunction<any, UnpackedIcon>)
     }
 
@@ -258,9 +359,21 @@ export default class IconLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     this.state.iconManager.finalize()
   }
 
-  draw({ uniforms }): void {
-    const { sizeScale, sizeMinPixels, sizeMaxPixels, sizeUnits, billboard, alphaCutoff } =
-      this.props
+  // draw( { uniforms }): void {
+  draw(): void {
+    const {
+      sizeScale,
+      sizeMinPixels,
+      sizeMaxPixels,
+      sizeUnits,
+      billboard,
+      alphaCutoff,
+      currentTime,
+      latitudeCorrectionFactor,
+      iconStill,
+      pickable,
+      colorDepiction,
+    } = this.props
     const { iconManager } = this.state
 
     const iconsTexture = iconManager.getTexture()
@@ -275,6 +388,12 @@ export default class IconLayer<DataT = any, ExtraPropsT extends {} = {}> extends
         sizeMaxPixels,
         billboard,
         alphaCutoff,
+        currentTime,
+        latitudeCorrectionFactor,
+        iconStillOffsets: this.getInstanceOffset(iconStill),
+        iconStillFrames: this.getInstanceIconFrame(iconStill),
+        pickable,
+        colorDepiction,
       }
 
       model.shaderInputs.setProps({ icon: iconProps })
@@ -319,14 +438,14 @@ export default class IconLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     }
   }
 
-  protected getInstanceOffset(icon: string): number[] {
+  protected getInstanceOffset(icon: string): [number, number] {
     const {
       width,
       height,
       anchorX = width / 2,
       anchorY = height / 2,
     } = this.state.iconManager.getIconMapping(icon)
-    return [width / 2 - anchorX, height / 2 - anchorY]
+    return [width / 2 - anchorX || 0, height / 2 - anchorY || 0]
   }
 
   protected getInstanceColorMode(icon: string): number {
@@ -334,8 +453,8 @@ export default class IconLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     return mapping.mask ? 1 : 0
   }
 
-  protected getInstanceIconFrame(icon: string): number[] {
+  protected getInstanceIconFrame(icon: string): [number, number, number, number] {
     const { x, y, width, height } = this.state.iconManager.getIconMapping(icon)
-    return [x, y, width, height]
+    return [x || 0, y || 0, width || 0, height || 0]
   }
 }
