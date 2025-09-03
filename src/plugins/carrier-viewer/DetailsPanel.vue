@@ -75,7 +75,7 @@ import colorMap from 'colormap'
 
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
-import LegendColors from '@/components/LegendColors'
+import LegendColors from '@/components/LegendColors.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
 

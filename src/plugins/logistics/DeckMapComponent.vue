@@ -256,7 +256,7 @@ export default defineComponent({
         layers: this.layers,
         onClick: this.handleClick,
         onHover: this.getTooltip,
-      })
+      } as any)
       this.mymap?.addControl(this.deckOverlay)
     })
   },
@@ -330,7 +330,7 @@ export default defineComponent({
             parameters: { depthTest: false },
             pickable: true,
             radiusUnits: 'pixels',
-          })
+          } as any)
         )
 
         newLayers.push(
@@ -344,7 +344,7 @@ export default defineComponent({
             parameters: { depthTest: false },
             pickable: true,
             radiusUnits: 'pixels',
-          })
+          } as any)
         )
       } else {
         // Flatten the hubsChains to get individual hubs from each chain
@@ -405,7 +405,7 @@ export default defineComponent({
                 widthMinPixels: 1,
                 widthMaxPixels: 100,
                 transitions: { getWidth: 200 },
-              })
+              } as any)
             )
             newLayers.push(
               //@ts-ignore:
@@ -422,7 +422,7 @@ export default defineComponent({
                 parameters: { depthTest: false },
                 pickable: true,
                 radiusUnits: 'pixels',
-              })
+              } as any)
             )
           }
           newLayers.push(
@@ -438,7 +438,7 @@ export default defineComponent({
               pickable: true,
               radiusUnits: 'pixels',
               // onHover: setHoverInfo,
-            })
+            } as any)
           )
         })
 
@@ -478,7 +478,7 @@ export default defineComponent({
           parameters: { depthTest: false },
           pickable: true,
           radiusUnits: 'pixels',
-        })
+        } as any)
       )
 
       sublayers.push(
@@ -493,7 +493,7 @@ export default defineComponent({
           parameters: { depthTest: false },
           pickable: true,
           radiusUnits: 'pixels',
-        })
+        } as any)
       )
 
       const opacity = this.shipments.length > 1 ? 32 : 255
@@ -596,7 +596,7 @@ export default defineComponent({
               pickable: true,
               autoHighlight: true,
               highlightColor: [255, 255, 255], // [64, 255, 64],
-            })
+            } as any)
           )
         } else if (this.settings.showEachCarrierTour && !this.settings.simplifyTours) {
           subLayers.push(
@@ -620,7 +620,7 @@ export default defineComponent({
               parameters: { depthTest: false },
               updateTriggers: { getWidth: [this.settings.scaleFactor] },
               transitions: { getWidth: 150 },
-            })
+            } as any)
           )
         } else if (this.settings.simplifyTours && this.settings.showEachCarrierTour) {
           subLayers.push(
@@ -644,7 +644,7 @@ export default defineComponent({
               pickable: true,
               autoHighlight: true,
               highlightColor: [255, 255, 255, 160], // [64, 255, 64],
-            })
+            } as any)
           )
         } else {
           subLayers.push(
@@ -668,7 +668,7 @@ export default defineComponent({
               parameters: { depthTest: false },
               updateTriggers: { getWidth: [this.settings.scaleFactor] },
               transitions: { getWidth: 150 },
-            })
+            } as any)
           )
         }
 
@@ -714,7 +714,7 @@ export default defineComponent({
             autoHighlight: true,
             highlightColor: [255, 255, 255],
             visible: this.settings.shipmentDotsOnTourMap,
-          })
+          } as any)
         )
 
         subLayers.push(

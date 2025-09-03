@@ -147,7 +147,7 @@ export default defineComponent({
             getDashArray: [3, 2],
             dashJustified: true,
             extensions: [new PathStyleExtension({ dash: true })],
-          })
+          } as any)
         )
 
         if (this.settings.simplifyTours) {
@@ -177,7 +177,7 @@ export default defineComponent({
               onHover: this.getTooltip,
               //TODO: ONHOVER
               // onHover: setHoverInfo,
-            })
+            } as any)
           )
         } else {
           allLayers.push(
@@ -205,7 +205,7 @@ export default defineComponent({
               transitions: { getWidth: 150 },
               onHover: this.getTooltip,
               // onHover: setHoverInfo,
-            })
+            } as any)
           )
         }
 
@@ -247,7 +247,7 @@ export default defineComponent({
             highlightColor: [255, 255, 255],
             visible: this.settings.shipmentDotsOnTourMap,
             onHover: this.getTooltip,
-          })
+          } as any)
         )
       }
 
@@ -267,7 +267,7 @@ export default defineComponent({
             radiusUnits: 'pixels',
             onHover: this.getTooltip,
             // onHover: setHoverInfo,
-          })
+          } as any)
         )
         allLayers.push(
           //@ts-ignore:
@@ -283,7 +283,7 @@ export default defineComponent({
             radiusUnits: 'pixels',
             onHover: this.getTooltip,
             // onHover: setHoverInfo,
-          })
+          } as any)
         )
 
         const opacity = this.shipments.length > 1 ? 32 : 255
@@ -303,7 +303,7 @@ export default defineComponent({
               radiusUnits: 'pixels',
               onHover: this.getTooltip,
               // onHover: setHoverInfo,
-            })
+            } as any)
           )
         } else {
           allLayers.push(
@@ -327,7 +327,7 @@ export default defineComponent({
               updateTriggers: { getWidth: [this.settings.scaleFactor] },
               transitions: { getWidth: 200 },
               onHover: this.getTooltip,
-            })
+            } as any)
           )
         }
       }
@@ -348,7 +348,7 @@ export default defineComponent({
               radiusUnits: 'pixels',
               onHover: this.getTooltip,
               // onHover: setHoverInfo,
-            })
+            } as any)
           )
         }
       }
@@ -377,7 +377,7 @@ export default defineComponent({
           highlightColor: [255, 255, 255],
           onHover: this.getTooltip,
           // onHover: setHoverInfo,
-        })
+        } as any)
       )
 
       // all done! Phew
@@ -448,7 +448,7 @@ export default defineComponent({
   },
 
   beforeDestroy() {
-    this.mymap?.removeControl(this.deckOverlay)
+    if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
 

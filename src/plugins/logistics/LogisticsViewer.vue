@@ -176,7 +176,7 @@ import colorMap from 'colormap'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import LegendColors from '@/components/LegendColors'
+import LegendColors from '@/components/LegendColors.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import { gUnzip, parseXML, findMatchingGlobInFiles } from '@/js/util'
 import DashboardDataManager from '@/js/DashboardDataManager'
