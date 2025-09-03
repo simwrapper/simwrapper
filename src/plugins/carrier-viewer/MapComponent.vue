@@ -427,10 +427,11 @@ export default defineComponent({
 
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
+    const zoom = (this.globalState.viewState.zoom || 8) as number
     //@ts-ignore
     this.mymap = new maplibregl.Map({
       center,
-      zoom: 7,
+      zoom,
       container,
       style,
     })

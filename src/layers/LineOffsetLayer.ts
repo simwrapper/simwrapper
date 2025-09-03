@@ -25,8 +25,8 @@ const udataUniforms = {
 } as const satisfies ShaderModule
 
 export class LineOffsetLayer extends LineLayer {
-  initializeState(context: any) {
-    super.initializeState(context)
+  initializeState() {
+    super.initializeState()
   }
 
   getShaders() {
@@ -36,9 +36,9 @@ export class LineOffsetLayer extends LineLayer {
     return shaders
   }
 
-  updateState(x: { props: any; oldProps: any; changeFlags: any }) {
-    const { props, oldProps, changeFlags } = x
-    super.updateState({ props, oldProps, changeFlags })
+  updateState(state: any) {
+    const { props, oldProps, changeFlags } = state
+    super.updateState(state)
 
     // refresh uniforms
     const udata = {
@@ -55,4 +55,4 @@ LineOffsetLayer.layerName = 'LineOffsetLayer'
 LineOffsetLayer.defaultProps = {
   bearing: 0,
   offsetDirection: OFFSET_DIRECTION.RIGHT,
-}
+} as any

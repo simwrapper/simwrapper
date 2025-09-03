@@ -43,6 +43,11 @@ vec3 interpolate(in vec3 point1, in vec3 point2, in float timestepFraction) {
   }
 }
 
+// // small random perturbance
+// float rand(vec2 co) {
+//   return 0.05 * (fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453) - 0.5);
+// }
+
 void main(void) {
 
   // Calculate progress:
@@ -62,8 +67,10 @@ void main(void) {
 
   geometry.pickingColor = instancePickingColors;
 
-  vec3 startPosition = vec3(instanceStartPositions, 5.0);
-  vec3 endPosition = vec3(instanceEndPositions, 5.0);
+  // float z = 5.0 + rand(instancePositions.xy);
+
+  vec3 startPosition = vec3(instanceStartPositions, 5);
+  vec3 endPosition = vec3(instanceEndPositions, 5);
 
   // are we stationary/still
   bool still = (instanceStartPositions == instanceEndPositions);
@@ -109,6 +116,7 @@ void main(void) {
   }
   DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
 
+  // get the icon from the iconFrames
   vec2 upperleft = (still ? icon.iconStillFrames.xy : instanceIconFrames.xy);
 
   vTextureCoords = mix(
@@ -140,7 +148,8 @@ void main(void) {
     }
   } else {
   // COLORS: OCCUPANCY
-    vColor = instanceColors;
+    vColor = still ? vec4(0.5,0.5,0.5,1.0) : instanceColors;
+
     if (instanceColorCodes  == 1.0) {
       // green
       // vColor = vec4(0.0, 0.65, 0.0, 1.0);

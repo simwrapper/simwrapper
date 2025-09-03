@@ -49,9 +49,7 @@ export default defineComponent({
     },
 
     dark() {
-      const style = `https://tiles.openfreemap.org/styles/${
-        this.globalState.isDarkMode ? 'dark' : 'positron'
-      }`
+      const style = `/map-styles/${this.dark ? 'dark' : 'positron'}.json`
       this.mymap?.setStyle(style)
     },
 
@@ -88,19 +86,16 @@ export default defineComponent({
     },
   },
 
-  async mounted() {
-    const style = `https://tiles.openfreemap.org/styles/${
-      this.globalState.isDarkMode ? 'dark' : 'positron'
-    }`
-
+  mounted() {
+    const style = `/map-styles/${this.dark ? 'dark' : 'positron'}.json`
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
     //@ts-ignore
     this.mymap = new maplibregl.Map({
-      center,
-      zoom: 7,
       container,
       style,
+      center,
+      zoom: 7,
     })
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {

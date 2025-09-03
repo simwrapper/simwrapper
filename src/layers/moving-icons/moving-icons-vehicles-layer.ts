@@ -7,11 +7,9 @@
 import { Layer, project32, picking, log, UNIT } from '@deck.gl/core'
 import { SamplerProps, Texture } from '@luma.gl/core'
 import { Model, Geometry } from '@luma.gl/engine'
-import { GL } from '@luma.gl/constants'
 
 import { iconUniforms, IconProps } from './icon-layer-uniforms'
 import vs from './icon-layer.glsl.vert?raw'
-// import vsOcc from './icon-layer-occupancy.glsl.vert?raw'
 import fs from './icon-layer.glsl.frag?raw'
 import IconManager from './icon-manager'
 

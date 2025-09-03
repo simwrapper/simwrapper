@@ -1,11 +1,10 @@
-import { LineLayer } from '@deck.gl/layers'
+import { ArcLayer } from '@deck.gl/layers'
 import type { ShaderModule } from '@luma.gl/shadertools'
 
 const defaultProps = {
+  currentTime: { type: 'number', value: 0, min: 0 },
   getTimeStart: { type: 'accessor', value: null },
   getTimeEnd: { type: 'accessor', value: null },
-  // uniforms
-  currentTime: { type: 'number', value: 0, min: 0 },
   searchFlag: { type: 'number', value: 0 },
 } as any
 
@@ -26,7 +25,7 @@ const udataUniforms = {
   },
 } as const satisfies ShaderModule
 
-export default class PathTraceLayer extends LineLayer {
+export default class DrtRequestArcLayer extends ArcLayer {
   getShaders() {
     const shaders = super.getShaders()
     shaders.modules = [...shaders.modules, udataUniforms]
@@ -40,7 +39,7 @@ export default class PathTraceLayer extends LineLayer {
       'vs:#main-start': `\
         if (udata.searchFlag == 1.0) {
           vTime = 999.0;
-        } else if(timeStart > udata.currentTime || timeEnd < udata.currentTime ) {
+        } else if (timeEnd == -1.0 || timeStart > udata.currentTime || timeEnd < udata.currentTime ) {
           vTime = -1.0;
           return;
         } else {
@@ -53,11 +52,11 @@ export default class PathTraceLayer extends LineLayer {
         in float vTime;
       `,
       'fs:#main-start': `\
-        if (udata.searchFlag == 0.0 && vTime == -1.0 ) discard;
+      if (udata.searchFlag == 0.0 && vTime == -1.0 ) discard;
       `,
       // fade the traces in and out
       'fs:DECKGL_FILTER_COLOR': `\
-        if (udata.searchFlag == 0.0 && vTime <= 10.0) color.a *= (vTime / 10.0);
+        if (vTime <= 10.0) color.a *= (vTime / 10.0);
       `,
     }
     return shaders
@@ -89,5 +88,5 @@ export default class PathTraceLayer extends LineLayer {
   }
 }
 
-PathTraceLayer.layerName = 'PathTraceLayer'
-PathTraceLayer.defaultProps = defaultProps
+DrtRequestArcLayer.layerName = 'DrtRequestArcLayer'
+DrtRequestArcLayer.defaultProps = defaultProps
