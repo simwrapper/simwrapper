@@ -77,7 +77,9 @@ import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { gUnzip } from '@/js/util'
 
-import H5TableViewer from './H5TableViewer'
+// import H5TableViewer from './H5TableViewer'
+import H5TableViewer from './ReactWrapper.vue'
+
 import H5MapViewer from './H5MapViewer.vue'
 import ConfigPanel from './ConfigPanel.vue'
 

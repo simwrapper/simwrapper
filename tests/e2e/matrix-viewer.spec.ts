@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 test('matrix viewer loads map: sfcta H5 file', async ({ page }) => {
-  await page.goto('e2e-tests/matrix/OPTERM.h5?zone=500')
+  await page.goto('e2e-tests/matrix/OPTERM.h5?zone=500&dir=row')
   await page.waitForSelector('.zone-value')
 
   const rows = page.locator('.zone-value')

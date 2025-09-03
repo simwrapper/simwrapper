@@ -65,13 +65,13 @@ export default defineComponent({
 
   watch: {
     layers() {
-      this.deckOverlay.setProps({
+      this.deckOverlay?.setProps({
         layers: this.layers,
       })
     },
 
     dark() {
-      const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
+      const style = `/map-styles/${this.dark ? 'dark' : 'positron'}.json`
       this.mymap?.setStyle(style)
     },
 
@@ -145,48 +145,46 @@ export default defineComponent({
           getSourceColor: this.dark ? [144, 96, 128] : [192, 192, 240],
           getTargetColor: this.dark ? [144, 96, 128] : [192, 192, 240],
         }),
-      ]
+      ] as any[]
 
-      layers.push(
-        new HexagonLayer(
-          Object.assign(config, {
-            id: 'hexlayer',
-            data: this.weightedRowData,
-            // beforeId: 'water',
-            colorRange: brightcolors || this.colors, // his.dark ? this.colors.slice(1) : this.colors.reverse().slice(1), //
-            coverage: 0.98, // this.coverage,
-            autoHighlight: true,
-            elevationRange: [0, this.maxHeight],
-            elevationScale: 25,
-            // elevationScale: rowCache?.length ? 25 : 0,
-            extruded: this.extrude,
-            gpuAggregation: false, // need to aggregation on cpu for list of points
-            selectedHexStats: this.selectedHexStats,
-            material,
-            opacity: this.dark && this.highlights.length ? 0.6 : 0.8,
-            pickable: true,
-            pickingRadius: 2,
-            positionFormat: 'XY',
-            radius: this.radius,
-            upperPercentile: this.upperPercentile,
-            updateTriggers: {
-              // getElevationWeight: [this.group, this.agg],
-              // getColorWeight: [this.group, this.agg],
-            },
-            transitions: {
-              elevationScale: { type: 'interpolation', duration: 1000 },
-              opacity: { type: 'interpolation', duration: 200 },
-            },
-            onHover: this.getTooltip,
-          })
-        )
-      )
+      const hexLayerProps = Object.assign(config, {
+        id: 'hexlayer',
+        data: this.weightedRowData,
+        // beforeId: 'water',
+        colorRange: brightcolors || this.colors, // his.dark ? this.colors.slice(1) : this.colors.reverse().slice(1), //
+        coverage: 0.98, // this.coverage,
+        autoHighlight: true,
+        elevationRange: [0, this.maxHeight],
+        elevationScale: 25,
+        // elevationScale: rowCache?.length ? 25 : 0,
+        extruded: this.extrude,
+        gpuAggregation: false, // need to aggregation on cpu for list of points
+        selectedHexStats: this.selectedHexStats,
+        material,
+        opacity: this.dark && this.highlights.length ? 0.6 : 0.8,
+        pickable: true,
+        pickingRadius: 2,
+        positionFormat: 'XY',
+        radius: this.radius,
+        upperPercentile: this.upperPercentile,
+        updateTriggers: {
+          // getElevationWeight: [this.group, this.agg],
+          // getColorWeight: [this.group, this.agg],
+        },
+        transitions: {
+          elevationScale: { type: 'interpolation', duration: 1000 },
+          opacity: { type: 'interpolation', duration: 200 },
+        },
+        onHover: this.getTooltip,
+      }) as any
+
+      layers.push(new HexagonLayer(hexLayerProps))
       return layers
     },
   },
 
   async mounted() {
-    const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}`
+    const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
     //@ts-ignore
@@ -221,7 +219,7 @@ export default defineComponent({
   },
 
   beforeDestroy() {
-    this.mymap?.removeControl(this.deckOverlay)
+    if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
 
