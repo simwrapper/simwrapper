@@ -369,7 +369,7 @@ const MyComponent = defineComponent({
 
       bgLayers: {} as { [name: string]: BackgroundLayer },
 
-      initialView: null as null | { longitude: number; latitude: number; zoom: number },
+      initialView: null as null | { center: [number, number]; zoom: number },
 
       vizDetails: {
         title: '',
@@ -2566,14 +2566,11 @@ const MyComponent = defineComponent({
       }
 
       const view = {
-        longitude: centerLong,
-        latitude: centerLat,
         center: [centerLong, centerLat],
         bearing: 0,
         pitch: 0,
         zoom,
-        initial: true,
-      }
+      } as any
       this.initialView = view
 
       if (!this.vizDetails.mapIsIndependent) {
@@ -2625,8 +2622,6 @@ const MyComponent = defineComponent({
       console.log('CENTER', centerLong, centerLat)
       if (this.needsInitialMapExtent && !this.vizDetails.center) {
         this.$store.commit('setMapCamera', {
-          longitude: centerLong,
-          latitude: centerLat,
           center: [centerLong, centerLat],
           bearing: 0,
           pitch: 0,
@@ -3051,7 +3046,7 @@ const MyComponent = defineComponent({
       ) {
         this.$emit(
           'error',
-          `Invalid map center. This doesn't look like longitude/latitude: ${this.config.center}`
+          `Invalid map center, doesn't look like longitude/latitude: ${this.config.center}`
         )
         const initialView = this.globalState.viewState
         this.vizDetails.center = [initialView.longitude, initialView.latitude]
@@ -3073,13 +3068,12 @@ const MyComponent = defineComponent({
         this.needsInitialMapExtent = false
         const view = {
           center: this.vizDetails.center,
-          longitude: this.vizDetails.center[0],
-          latitude: this.vizDetails.center[1],
           zoom: this.vizDetails.zoom || 9,
           bearing: this.vizDetails.bearing || 0,
           pitch: this.vizDetails.pitch || 0,
           initial: true,
-        }
+        } as any
+
         if (this.vizDetails.mapIsIndependent) {
           this.initialView = view
         } else {

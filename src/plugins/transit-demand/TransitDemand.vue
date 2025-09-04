@@ -1378,7 +1378,7 @@ const MyComponent = defineComponent({
         zoom,
         bearing: 0,
         pitch: 0,
-        initial: true,
+        // initial: true,
       })
 
       const demand = this.vizDetails.demand || this.vizDetails.ptStop2stopFile
