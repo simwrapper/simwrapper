@@ -107,7 +107,7 @@
         p &nbsp;
         p Switch to the table view to inspect the full matrix in tabular or heatmap view.
 
-      .tooltip-area(v-if="tooltip && !isLoading" v-html="tooltip")
+      .tooltip-area(v-if="tooltip && !isLoading" v-html="tooltip" :style="tooltipStyle")
 
       p.tooltip-area(v-if="isLoading" style="padding: 1.25rem"): b LOADING...
 
@@ -206,6 +206,7 @@ const MyComponent = defineComponent({
       statusText: 'Loading...',
       tableKeys: [] as { key: string; name: string }[],
       tooltip: '',
+      tooltipStyle: { top: '0px', left: '0px' },
       useConfig: '',
       zoneID: 'TAZ',
       filterExplanation:
@@ -443,8 +444,8 @@ const MyComponent = defineComponent({
       this.setMapCenter()
     },
 
-    showTooltip(props: { index: number; object: any }) {
-      const { index, object } = props
+    showTooltip(props: { index: number; object: any; x: number; y: number }) {
+      const { index, object, x, y } = props
       const id = object?.properties[this.zoneID]
 
       if (id === undefined) {
@@ -464,6 +465,8 @@ const MyComponent = defineComponent({
         this.tooltip = ''
         return
       }
+
+      this.tooltipStyle = { left: `${x + 12}px`, top: `${y + 12}px` }
 
       // console.log({ value, tableName })
 
@@ -818,7 +821,7 @@ const MyComponent = defineComponent({
         pitch: 0,
         zoom: 9,
         center: [longitude, latitude],
-        initial: true,
+        // initial: true,
       })
 
       return geojson.features as any[]
@@ -894,6 +897,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 }
 
 .left-bar {
+  z-index: 10;
   color: var(--text);
   background-color: var(--bgPanel);
   display: flex;
@@ -1014,9 +1018,9 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .tooltip-area {
   position: absolute;
-  z-index: 30000;
-  left: 0.5rem;
-  bottom: 0.5rem;
+  top: 0;
+  left: 0;
+  z-index: 5;
   padding: 0.5rem;
   background-color: var(--bgBold);
   min-width: 10rem;
@@ -1025,6 +1029,8 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   font-size: 0.9rem;
   user-select: none;
   border: 1px solid #88888855;
+  filter: drop-shadow(2px 4px 5px #0002);
+  opacity: 0.92;
 }
 
 .click-zone-hint {

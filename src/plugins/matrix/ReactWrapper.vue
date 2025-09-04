@@ -34,10 +34,3 @@ export default defineComponent({
   },
 })
 </script>
-
-<style lang="scss">
-.zoop {
-  width: 100%;
-  height: 100%;
-}
-</style>

@@ -47,7 +47,7 @@ export default defineComponent({
 
   watch: {
     layers() {
-      this.deckOverlay.setProps({
+      this.deckOverlay?.setProps({
         layers: this.layers,
       })
     },
@@ -103,7 +103,7 @@ export default defineComponent({
           depthTest: false,
           fp64: false,
         },
-      }) as any
+      } as any)
 
       const layer = new GeoJsonLayer({
         id: 'ZonalLayer',
@@ -130,7 +130,7 @@ export default defineComponent({
           preserveDrawingBuffer: true,
           fp64: false,
         },
-      }) as any
+      } as any)
 
       return [layer, highlightLayer]
     },
@@ -154,13 +154,14 @@ export default defineComponent({
         interleaved: true,
         layers: this.layers,
         onClick: this.handleClick,
+        onHover: this.getTooltip,
       })
       this.mymap?.addControl(this.deckOverlay)
     })
   },
 
   beforeDestroy() {
-    this.mymap?.removeControl(this.deckOverlay)
+    if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
 
@@ -188,8 +189,8 @@ export default defineComponent({
 
     // TOOLTIP ------------------------------------------------------------------
     getTooltip(event: any) {
-      const { index, object } = event
-      if (this.cbTooltip) this.cbTooltip({ index, object })
+      const { index, object, x, y } = event
+      if (this.cbTooltip) this.cbTooltip({ index, object, x, y })
     },
 
     OLDgetTooltip(tip: { x: number; y: number; object: any }) {
