@@ -664,7 +664,7 @@ p.splash-label {
 // MapLibre Logo
 .maplibregl-ctrl-attrib {
   background-color: var(--bg) !important;
-  opacity: 0.8;
+  opacity: 0.5;
   color: var(--text);
 }
 maplibregl-ctrl-attrib-button {
@@ -691,19 +691,19 @@ maplibregl-ctrl-attrib-button {
 }
 
 /* Track */
-::-webkit-scrollbar-track {
-  // background: #00000080;
-}
+// ::-webkit-scrollbar-track {
+//   // background: #00000080;
+// }
 
 /* Handle */
 ::-webkit-scrollbar-thumb {
   background: var(--bgScrollbar);
 }
 
-/* Handle on hover */
-::-webkit-scrollbar-thumb:hover {
-  // background: #ffffff40;
-}
+// /* Handle on hover */
+// ::-webkit-scrollbar-thumb:hover {
+//   // background: #ffffff40;
+// }
 
 .deck-tooltip {
   position: 'static';

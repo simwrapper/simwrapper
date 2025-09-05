@@ -196,6 +196,7 @@ export default defineComponent({
       mdRenderer,
       idFolderTable,
       isNarrow: false,
+      mediumTimeout: null as any,
       resizeObserver: {} as ResizeObserver,
       myState: {
         errorStatus: '',
@@ -650,7 +651,8 @@ export default defineComponent({
       // make sure page is rendered before we attach zoom semantics
       await this.$nextTick()
       try {
-        setTimeout(() => {
+        if (this.mediumTimeout) clearTimeout(this.mediumTimeout)
+        this.mediumTimeout = setTimeout(() => {
           mediumZoom('.medium-zoom', {
             background: '#333344',
           })
@@ -662,6 +664,7 @@ export default defineComponent({
   },
 
   beforeDestroy() {
+    if (this.mediumTimeout) clearTimeout(this.mediumTimeout)
     this.resizeObserver?.disconnect()
   },
 

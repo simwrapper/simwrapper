@@ -66,6 +66,7 @@
         :ref="`dragContainer${x}-${y}`"
         :style="getContainerStyle(panel,x,y)"
       )
+
         //- only show one settings panel
         settings-panel.settings-popup(v-if="showSettings && (!x) && (!y)" @close="showSettings=false")
         .breadcrumb-row(v-if="$store.state.isShowingBreadcrumbs")
@@ -700,6 +701,7 @@ export default defineComponent({
 
     onNavigate(newPanel: { component: string; props: any }, x: number, y: number) {
       this.showSettings = false
+
       if (newPanel.component === 'SplashPage') {
         this.panels[y][x] = { component: 'SplashPage', props: {}, key: Math.random() }
       } else {

@@ -1,5 +1,5 @@
 <template lang="pug">
-.shapefile-viewer(:class="{'hide-thumbnail': !thumbnail}" :style='{"background": urlThumbnail}' oncontextmenu="return false")
+.shapefile-viewer(oncontextmenu="return false")
 
   modal-id-column-picker(v-if="showJoiner"
     v-bind="datasetJoinSelector"
@@ -41,7 +41,7 @@
         .edit-hint(v-if="tooltipDesiredColumns.length" style="text-align: right;")
           a(@click="showTooltipConfigurator=true") Show/hide...
 
-    .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
+    .area-map(:id="`container-${layerId}`")
 
       .tooltip-when-no-legend-present.flex-col(v-if="!showLegend && !statusText && tooltipHtml"
         @mouseover="wantToClearTooltip=false" @mouseout="wantToClearTooltip=true"
@@ -111,9 +111,9 @@
           img.icon-blue-ramp(:src="icons.blueramp")
           b-slider.pie-slider(type="is-success" :tooltip="true" size="is-small"  :min="0" :max="100" v-model="sliderOpacity")
 
-      zoom-buttons(v-if="isLoaded && !thumbnail && !vizDetails.mapIsIndependent")
+      zoom-buttons(v-if="isLoaded && !vizDetails.mapIsIndependent")
 
-      .config-bar(v-if="!thumbnail && !isEmbedded && isLoaded && Object.keys(filters).length"
+      .config-bar(v-if="!isEmbedded && isLoaded && Object.keys(filters).length"
         :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
 
       //- Filter pickers
@@ -356,7 +356,6 @@ const MyComponent = defineComponent({
       isEmbedded: false,
       resizer: null as null | ResizeObserver,
       boundaryFilters: new Float32Array(0),
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
       boundaryJoinLookups: {} as { [column: string]: { [lookup: string | number]: number } },
       datasetValuesColumn: '',
 
@@ -383,7 +382,6 @@ const MyComponent = defineComponent({
         geojsonFile: '',
         projection: '',
         widthFactor: null as any,
-        thumbnail: '',
         sum: false,
         filters: [] as { [filterId: string]: any }[],
         shapes: '' as string | { file: string; join: string },
@@ -466,10 +464,6 @@ const MyComponent = defineComponent({
       if (!filename.endsWith('.yml') && !filename.endsWith('.yaml')) filename = filename + '.yaml'
 
       return filename
-    },
-
-    urlThumbnail(): string {
-      return this.thumbnailUrl
     },
   },
 
@@ -954,22 +948,6 @@ const MyComponent = defineComponent({
         const details = display[section]
         if ((details.dataset || details.diff) && !details.join) {
           details.join = oldJoinFieldPerDataset[details.dataset]
-        }
-      }
-    },
-
-    async buildThumbnail() {
-      if (this.thumbnail && this.vizDetails.thumbnail) {
-        try {
-          const blob = await this.fileApi.getFileBlob(
-            this.subfolder + '/' + this.vizDetails.thumbnail
-          )
-          const buffer = await readBlob.arraybuffer(blob)
-          const base64 = arrayBufferToBase64(buffer)
-          if (base64)
-            this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
-        } catch (e) {
-          console.error(e)
         }
       }
     },
@@ -3054,9 +3032,6 @@ const MyComponent = defineComponent({
         this.vizDetails.zoom = initialView.zoom
         this.config.zoom = initialView.zoom
       }
-
-      this.buildThumbnail()
-      if (this.thumbnail) return
 
       this.buildOldJoinLookups()
 
