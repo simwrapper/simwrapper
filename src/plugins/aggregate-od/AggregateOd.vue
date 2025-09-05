@@ -338,8 +338,8 @@ const Component = defineComponent({
         pitch: this.mymap.getPitch(),
       }
 
-      if (!this.mapIsIndependent) this.$store.commit('setMapCamera', mapCamera)
-      if (!this.isMapMoving) this.isMapMoving = true
+      this.isMapMoving = true
+      if (!this.mapIsIndependent) globalStore.commit('setMapCamera', mapCamera)
     },
 
     async getVizDetails() {
@@ -453,9 +453,7 @@ const Component = defineComponent({
 
     async setupMap() {
       try {
-        const style = `https://tiles.openfreemap.org/styles/${
-          this.globalState.isDarkMode ? 'dark' : 'positron'
-        }`
+        const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
         //@ts-ignore
         this.mymap = new maplibregl.Map({
           container: this.mapId,
@@ -491,23 +489,6 @@ const Component = defineComponent({
       // Start doing stuff AFTER the MapBox library has fully initialized
       this.mymap.on('load', this.mapIsReady)
       this.mymap.on('move', this.handleMapMotion)
-
-      // clean up display just when we're in thumbnail mode
-      if (this.thumbnail) {
-        let baubles = document.getElementsByClassName(
-          'mapboxgl-ctrl mapboxgl-ctrl-attrib mapboxgl-compact'
-        )
-        for (const elem of baubles) elem.setAttribute('style', 'display: none')
-
-        baubles = document.getElementsByClassName('mapboxgl-ctrl mapboxgl-ctrl-group')
-        for (const elem of baubles) elem.setAttribute('style', 'display: none')
-
-        baubles = document.getElementsByClassName('mapboxgl-ctrl-logo')
-        for (const elem of baubles) elem.setAttribute('style', 'display: none')
-      } else {
-        let baubles = document.getElementsByClassName('mapboxgl-ctrl-logo')
-        for (const elem of baubles) elem.setAttribute('style', 'margin-bottom: 3rem;')
-      }
     },
 
     handleEmptyClick(e: any) {
@@ -1010,7 +991,6 @@ const Component = defineComponent({
 
         // Save id somewhere helpful
         if (feature.properties) feature.id = feature.properties[this.idColumn]
-
         try {
           if (feature.geometry.type === 'MultiPolygon') {
             this.convertMultiPolygonCoordinatesToWGS84(feature)
@@ -1326,23 +1306,27 @@ const Component = defineComponent({
   },
   watch: {
     'globalState.viewState'(value: any) {
+      console.log(1)
       if (this.mapIsIndependent) return
       if (!this.mymap || this.isMapMoving || this.thumbnail) {
+        console.log(2)
         this.isMapMoving = false
         return
       }
+      console.log(3)
 
-      const { bearing, longitude, latitude, zoom, pitch } = value
+      const { bearing, center, zoom, pitch } = value
       // sometimes closing a view returns a null map, ignore it!
       if (!zoom) return
 
       try {
+        // don't endless loop
         this.mymap.off('move', this.handleMapMotion)
 
         this.mymap.jumpTo({
-          bearing,
+          center,
           zoom,
-          center: [longitude, latitude],
+          bearing,
           pitch,
         })
         // back on again
@@ -1388,10 +1372,12 @@ const Component = defineComponent({
       this.updateCentroidLabels()
     },
   },
+
   async created() {
     this._mapExtentXYXY = [180, 90, -180, -90]
     this._maximum = 0
   },
+
   async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
     this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
@@ -1415,7 +1401,7 @@ const Component = defineComponent({
 
   beforeDestroy() {
     this.resizer?.disconnect()
-    if (this.csvWorker) this.csvWorker.terminate()
+    this.csvWorker?.terminate()
     //@ts-ignore
     delete window.__testdata__
   },

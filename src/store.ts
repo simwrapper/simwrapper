@@ -206,6 +206,20 @@ export default new Vuex.Store({
       if (honorIt) {
         // remove logic, just keep camera settings
         const { jump, startup, initial, ...camera } = value as any
+        // make sure every combo of center,lat,lng works
+        if (camera.center?.lng) {
+          camera.longitude = camera.center.lng
+          camera.latitude = camera.center.lat
+        }
+        if (camera.center?.[0]) {
+          camera.longitude = camera.center[0]
+          camera.latitude = camera.center[1]
+          camera.center = { lng: camera.longitude, lat: camera.latitude }
+        }
+        if (!camera.center) {
+          camera.center = { lng: camera.longitude, lat: camera.latitude }
+        }
+
         state.viewState = camera
         state.isInitialViewSet = true
       } else {

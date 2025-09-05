@@ -1,8 +1,7 @@
 <template lang="pug">
-.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
+.xy-hexagons(oncontextmenu="return false" :id="`id-${id}`")
 
-  xy-hex-deck-map.hex-layer(
-    v-if="isLoaded && !thumbnail"
+  xy-hex-deck-map.hex-layer(v-if="isLoaded"
     v-bind="mapProps"
   )
 
@@ -148,8 +147,7 @@ const MyComponent = defineComponent({
   data: () => {
     const colorRamps = ['par', 'bathymetry', 'magma', 'chlorophyll']
     return {
-      id: `id-${Math.floor(1e12 * Math.random())}` as any,
-
+      id: Math.floor(1e12 * Math.random()),
       resolvers: {} as { [id: number]: any },
       resolverId: 0,
       _xmlConfigFetcher: {} as any,
@@ -538,21 +536,6 @@ const MyComponent = defineComponent({
       this.$emit('title', t)
     },
 
-    async buildThumbnail() {
-      if (this.thumbnail && this.vizDetails.thumbnail) {
-        try {
-          const blob = await this.fileApi.getFileBlob(
-            this.myState.subfolder + '/' + this.vizDetails.thumbnail
-          )
-          const buffer = await blob.arrayBuffer()
-          const base64 = util.arrayBufferToBase64(buffer)
-          if (base64)
-            this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
-        } catch (e) {
-          console.error(e)
-        }
-      }
-    },
     handleShowSelectionButton() {
       const arrays = Object.values(this.multiSelectedHexagons)
       let points: any[] = []
@@ -576,7 +559,7 @@ const MyComponent = defineComponent({
       return { rows: ll, numHexagons: selectedHexes.length, selectedHexagonIds: selectedHexes }
     },
 
-    async setMapCenter() {
+    setMapCenter() {
       // If user gave us the center, use it
       if (this.vizDetails.center) {
         if (typeof this.vizDetails.center == 'string') {
@@ -588,7 +571,6 @@ const MyComponent = defineComponent({
           zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
           bearing: 0,
           pitch: 0,
-          jump: false, // move the map no matter what
         }
 
         // Sets the map to the specified data
@@ -632,59 +614,46 @@ const MyComponent = defineComponent({
       }
     },
 
-    setupLogoMover() {
-      this.resizer = new ResizeObserver(this.moveLogo)
-      const deckmap = document.getElementById(`id-${this.id}`) as HTMLElement
-      this.resizer.observe(deckmap)
-    },
-
-    moveLogo() {
-      const deckmap = document.getElementById(`id-${this.id}`) as HTMLElement
-      const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
-      if (logo) {
-        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
-        logo.style.right = right
-      }
-    },
-
     async parseCSVFile(filename: string) {
       this.myState.statusMessage = 'Loading file...'
 
       // get the raw unzipped arraybuffer
-      this.gzipWorker = new CSVParserWorker()
+      let worker = new CSVParserWorker()
 
-      this.gzipWorker.onmessage = async (buffer: MessageEvent) => {
-        if (buffer.data.status) {
-          this.myState.statusMessage = buffer.data.status
-        } else if (buffer.data.projection) {
-          console.log('dataset has a #EPSG:projection, using it', buffer.data.projection)
-          this.vizDetails.projection = buffer.data.projection
-        } else if (buffer.data.error) {
-          this.myState.statusMessage = buffer.data.error
+      worker.onmessage = async (message: MessageEvent) => {
+        if (message.data.ready) {
+          worker.postMessage({
+            filepath: filename,
+            fileSystem: this.fileSystem,
+            aggregations: this.vizDetails.aggregations,
+            projection: this.vizDetails.projection,
+          })
+          return
+        }
+        if (message.data.status) {
+          this.myState.statusMessage = message.data.status
+        } else if (message.data.projection) {
+          console.log('dataset has a #EPSG:projection, using it', message.data.projection)
+          this.vizDetails.projection = message.data.projection
+        } else if (message.data.error) {
+          this.myState.statusMessage = message.data.error
           this.$emit('error', {
             type: Status.ERROR,
             msg: `Error loading: ${this.myState.subfolder}/${this.vizDetails.file}`,
           })
         } else {
-          const { fullRowCache } = buffer.data
-          if (this.gzipWorker) this.gzipWorker.terminate()
+          const { fullRowCache } = message.data
+          this.gzipWorker?.terminate()
           this.dataIsLoaded({ fullRowCache })
         }
       }
 
-      this.gzipWorker.postMessage({
-        filepath: filename,
-        fileSystem: this.fileSystem,
-        aggregations: this.vizDetails.aggregations,
-        projection: this.vizDetails.projection,
-      })
+      this.gzipWorker = worker
     },
 
-    async dataIsLoaded({ fullRowCache }: any) {
+    dataIsLoaded({ fullRowCache }: any) {
       this.requests = fullRowCache
-
-      await this.setMapCenter()
-      this.moveLogo()
+      this.setMapCenter()
       this.myState.statusMessage = ''
       this.isLoaded = true
     },
@@ -699,14 +668,11 @@ const MyComponent = defineComponent({
       } catch (e) {
         console.error(e)
         this.myState.statusMessage = '' + e
-        this.$emit('error', {
-          type: Status.ERROR,
-          msg: `Loading/Parsing Error`,
-          desc: 'Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}',
-        })
+        this.$emit('error', `Loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}`)
       }
     },
   },
+
   async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
 
@@ -718,16 +684,11 @@ const MyComponent = defineComponent({
 
     await this.getVizDetails()
 
-    if (this.thumbnail) return
-
-    this.setupLogoMover()
-
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
     this.aggregations = this.vizDetails.aggregations
 
     await this.loadFiles()
 
-    this.buildThumbnail()
     this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // show first data
   },
 
@@ -763,13 +724,6 @@ export default MyComponent
   display: flex;
   flex-direction: column;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') center / cover no-repeat;
-  z-index: -1;
-}
-
-.xy-hexagons.hide-thumbnail {
-  background: none;
-  z-index: 0;
 }
 
 .message {
@@ -843,6 +797,7 @@ export default MyComponent
   background-color: var(--bgPanel);
   padding: 0.5rem 0.5rem;
   filter: drop-shadow(0px 2px 4px #22222233);
+  z-index: 2;
 }
 
 .is-dashboard {

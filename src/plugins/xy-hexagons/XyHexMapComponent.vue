@@ -1,7 +1,7 @@
 <template lang="pug">
 .hex-map.flex-col
   .map-container(:id="`map-${viewId}`")
-  .deck-tooltip(v-html="tooltipHTML" :style="tooltipStyle")
+  .deck-tooltip(v-show="tooltipHTML" v-html="tooltipHTML" :style="tooltipStyle")
 </template>
 
 <script lang="ts">
@@ -13,7 +13,6 @@ import colormap from 'colormap'
 import maplibregl from 'maplibre-gl'
 
 import globalStore from '@/store'
-// import { REACT_VIEW_HANDLES } from '@/Globals'
 import { NewRowCache } from './CsvGzipParser.worker'
 
 const material = {
@@ -26,7 +25,7 @@ const material = {
 export default defineComponent({
   name: 'XYHexMapComponent',
   props: {
-    viewId: { type: String, required: true },
+    viewId: { type: Number, required: true },
     colorRamp: { type: String, required: true },
     coverage: { type: Number, required: true },
     dark: { type: Boolean, required: true },
@@ -77,6 +76,8 @@ export default defineComponent({
 
     'globalState.viewState'() {
       if (this.mapIsIndependent) return
+      if (!this.mymap) return
+
       const incoming = this.globalState.viewState as any
       const center = this.mymap?.getCenter() as any
       if (
@@ -86,9 +87,11 @@ export default defineComponent({
         incoming.pitch !== this.mymap?.getPitch() ||
         incoming.bearing !== this.mymap?.getBearing()
       ) {
-        this.mymap?.jumpTo(
-          Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
-        )
+        try {
+          this.mymap?.jumpTo(incoming)
+        } catch (e) {
+          console.warn('' + e)
+        }
       }
     },
   },
@@ -183,18 +186,18 @@ export default defineComponent({
     },
   },
 
-  async mounted() {
+  mounted() {
     const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
     const container = `map-${this.viewId}`
-    const center = this.globalState.viewState.center as [number, number]
+    const view = this.globalState.viewState
     //@ts-ignore
     this.mymap = new maplibregl.Map({
-      center,
-      zoom: 7,
       container,
       style,
+      ...view,
     })
 
+    //@ts-ignore
     this.mymap.on('style.load', () => {
       this.deckOverlay = new MapboxOverlay({
         interleaved: true,
@@ -203,6 +206,8 @@ export default defineComponent({
       })
       this.mymap?.addControl(this.deckOverlay)
     })
+
+    //@ts-ignore
     this.mymap?.on('move', () => {
       const center = this.mymap?.getCenter() as any
       const view = {

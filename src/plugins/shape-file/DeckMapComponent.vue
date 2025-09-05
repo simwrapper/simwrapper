@@ -97,17 +97,15 @@ export default defineComponent({
     'globalState.viewState'() {
       if (this.mapIsIndependent) return
       const incoming = this.globalState.viewState as any
-      const center = this.mymap?.getCenter() as any
+      const mapcenter = this.mymap?.getCenter() as any
       if (
-        incoming.longitude !== center.lng ||
-        incoming.latitude !== center.lat ||
+        incoming.longitude !== mapcenter.lng ||
+        incoming.latitude !== mapcenter.lat ||
         incoming.zoom !== this.mymap?.getZoom() ||
         incoming.pitch !== this.mymap?.getPitch() ||
         incoming.bearing !== this.mymap?.getBearing()
       ) {
-        this.mymap?.jumpTo(
-          Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
-        )
+        this.mymap?.jumpTo(incoming)
       }
     },
   },
