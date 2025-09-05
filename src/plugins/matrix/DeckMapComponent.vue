@@ -8,6 +8,8 @@ import { defineComponent, PropType } from 'vue'
 import { GeoJsonLayer } from '@deck.gl/layers'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import maplibregl from 'maplibre-gl'
+
+import { debounce } from '@/js/util'
 import globalStore from '@/store'
 
 const DEFAULT_FILL = [32, 64, 128, 255]
@@ -27,6 +29,7 @@ export default defineComponent({
   data() {
     return {
       mymap: null as maplibregl.Map | null,
+      debounceSaveLocation: null as null | Function,
       deckOverlay: null as InstanceType<typeof MapboxOverlay> | null,
       globalState: globalStore.state,
       tooltipHTML: '',
@@ -60,16 +63,15 @@ export default defineComponent({
       const incoming = this.globalState.viewState as any
       const center = this.mymap?.getCenter() as any
       if (
-        incoming.longitude !== center.lng ||
-        incoming.latitude !== center.lat ||
+        incoming.center.lng !== center.lng ||
+        incoming.center.lat !== center.lat ||
         incoming.zoom !== this.mymap?.getZoom() ||
         incoming.pitch !== this.mymap?.getPitch() ||
         incoming.bearing !== this.mymap?.getBearing()
       ) {
-        this.mymap?.jumpTo(
-          Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
-        )
+        this.mymap?.jumpTo(incoming)
       }
+      this.debounceSaveLocation?.(incoming)
     },
   },
 
@@ -135,16 +137,18 @@ export default defineComponent({
   },
 
   async mounted() {
+    this.debounceSaveLocation = debounce(this.saveLocation, 1000)
+
     const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
     const container = `map-${this.viewId}`
-    const center = this.globalState.viewState.center as [number, number]
+    const view = this.globalState.viewState
     // @ts-ignore
     this.mymap = new maplibregl.Map({
-      center,
-      zoom: 7,
       container,
       style,
+      ...view,
     })
+
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
       this.deckOverlay = new MapboxOverlay({
@@ -164,6 +168,11 @@ export default defineComponent({
   },
 
   methods: {
+    // save map location to local storage - but not so often
+    saveLocation(incoming: any) {
+      localStorage.setItem('H5MapViewer_view', JSON.stringify(incoming))
+    },
+
     // CLICK  ---------------------------------------------------------------------
     handleClick(e: any) {
       console.log('click!')
@@ -175,8 +184,7 @@ export default defineComponent({
       // if (this.mapIsIndependent) return
       const center = this.mymap?.getCenter() as any
       const view = {
-        latitude: center.lat,
-        longitude: center.lng,
+        center,
         zoom: this.mymap?.getZoom(),
         bearing: this.mymap?.getBearing(),
         pitch: this.mymap?.getPitch(),

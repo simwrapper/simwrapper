@@ -58,7 +58,7 @@ function MyApp({ blob = null as any, filename = '' }) {
             }
       }
     >
-      <App initialPath="/A: Values" />
+      <App initialPath="/A:Values" />
     </H5WasmLocalFileProvider>
   )
 }

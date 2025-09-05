@@ -181,8 +181,8 @@ export default new Vuex.Store({
     setMapCamera(
       state,
       value: {
-        longitude: number
-        latitude: number
+        longitude?: number
+        latitude?: number
         bearing: number
         pitch: number
         zoom: number
@@ -205,7 +205,7 @@ export default new Vuex.Store({
 
       if (honorIt) {
         // remove logic, just keep camera settings
-        const { jump, startup, initial, ...camera } = value
+        const { jump, startup, initial, ...camera } = value as any
         state.viewState = camera
         state.isInitialViewSet = true
       } else {

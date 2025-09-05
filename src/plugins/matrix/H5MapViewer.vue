@@ -80,7 +80,7 @@
   .right-container
     .map-holder(oncontextmenu="return false")
 
-      zone-layer.zone-layer.fill-it(
+      zone-layer.zone-layer.fill-it(v-if="features.length"
         :viewId="layerId"
         :features="features"
         :clickedZone="clickedZone"
@@ -137,15 +137,13 @@ import { Style, buildRGBfromHexCodes, getColorRampHexCodes } from '@/js/ColorsAn
 
 import { H5WasmLocalFileApi } from './local/h5wasm-local-file-api'
 
-import ZoneLayer from './DeckMapComponent.vue'
-import { MapConfig, ZoneSystems } from './MatrixViewer.vue'
 import LegendColors from './LegendColors.vue'
-import type { Matrix } from './H5Provider'
+import ZoneLayer from './DeckMapComponent.vue'
+import { MapConfig, Matrix, ZoneSystems } from './MatrixViewer.vue'
+import { ScaleType } from '@/components/ColorMapSelector/models-vis'
 
 import dataScalers from './util'
 import { debounce } from '@/js/util'
-
-import { ScaleType } from '@/components/ColorMapSelector/models-vis'
 
 naturalSort.insensitive = true
 
@@ -250,17 +248,6 @@ const MyComponent = defineComponent({
   },
 
   watch: {
-    'globalState.viewState'() {
-      if (!this.isMapReady) return
-
-      const { center, zoom, bearing, pitch } = this.globalState.viewState
-      localStorage.setItem('H5MapViewer_view', JSON.stringify({ center, zoom, bearing, pitch }))
-    },
-
-    'globalState.isDarkMode'() {
-      // this.embedChart()
-    },
-
     activeZone() {
       this.dbExtractH5ArrayData()
       this.updateQuery()
@@ -476,7 +463,8 @@ const MyComponent = defineComponent({
     setMapCenter() {
       const previousView = localStorage.getItem('H5MapViewer_view')
       if (previousView) {
-        this.$store.commit('setMapCamera', JSON.parse(previousView))
+        const view = JSON.parse(previousView)
+        this.$store.commit('setMapCamera', Object.assign(view))
         return
       }
 
@@ -497,7 +485,7 @@ const MyComponent = defineComponent({
         })
         .reduce((a, b) => [a[0] + b[0], a[1] + b[1]], [0, 0])
         .map((p: number) => p / aFewFeatures.length)
-      this.$store.commit('setMapCamera', { longitude: points[0], latitude: points[1], zoom: 7 })
+      this.$store.commit('setMapCamera', { center: points, zoom: 7 })
     },
 
     setPrettyValuesForArray(array: any[]) {
@@ -709,7 +697,7 @@ const MyComponent = defineComponent({
         this.statusText = ''
       }
 
-      if (!this.features) throw Error(`No "features" found in shapes file`)
+      if (!this.features.length) throw Error(`No "features" found in shapes file`)
     },
 
     async loadShapefileFeatures(filename: string) {

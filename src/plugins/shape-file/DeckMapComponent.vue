@@ -233,7 +233,7 @@ export default defineComponent({
       for (const name of Object.keys(this.bgLayers).reverse()) {
         const layerDetails = this.bgLayers[name]
 
-        const bgLayer = new GeoJsonLayer({
+        const bgLayer: any = new GeoJsonLayer({
           id: `background-layer-${name}`,
           data: layerDetails.features,
           getFillColor: (d: any) => d.properties.__fill__,
@@ -253,7 +253,7 @@ export default defineComponent({
           fp64: false,
           parameters: { depthTest: false },
           visible: layerDetails.visible,
-        })
+        } as any)
 
         if (layerDetails.onTop) {
           onTopLayers.push(bgLayer)
@@ -436,7 +436,7 @@ export default defineComponent({
             getFilterValue: (_: any, o: DeckObject) => {
               return theFilter[o.index]
             },
-          })
+          } as any)
         )
       }
 
@@ -487,8 +487,9 @@ export default defineComponent({
   },
 
   beforeDestroy() {
-    this.mymap?.removeControl(this.deckOverlay)
+    if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
+    this.mymap = null
   },
 
   methods: {
@@ -496,8 +497,7 @@ export default defineComponent({
       if (this.mapIsIndependent) return
       const center = this.mymap?.getCenter() as any
       const view = {
-        latitude: center.lat,
-        longitude: center.lng,
+        center: [center.lng, center.lat],
         zoom: this.mymap?.getZoom(),
         bearing: this.mymap?.getBearing(),
         pitch: this.mymap?.getPitch(),
