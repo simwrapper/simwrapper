@@ -37,8 +37,8 @@
           i.fa.fa-signal
           span &nbsp;&nbsp;{{ scaleOptions[selectedScale].text }}
 
-      b-dropdown-item(v-for="sc in Object.keys(scaleOptions)" :key="sc"
-        aria-role="menuitem" :value="sc"
+      b-dropdown-item(v-for="sc in scaleKeys" :key="sc"
+        :value="sc"
       ) {{ scaleOptions[sc].text + scaleOptions[sc].hint }}
 
 </template>
@@ -85,6 +85,13 @@ const MyComponent = defineComponent({
       scaleOptions: scales,
     }
   },
+
+  computed: {
+    scaleKeys() {
+      return Object.keys(this.scaleOptions)
+    },
+  },
+
   mounted() {
     this.colormap = this.value || 'Turbo'
     this.inverted = this.invert
@@ -96,7 +103,6 @@ const MyComponent = defineComponent({
     })
   },
 
-  computed: {},
   watch: {
     value() {
       this.colormap = this.value || 'Turbo'
@@ -123,7 +129,6 @@ const MyComponent = defineComponent({
     },
   },
 })
-
 export default MyComponent
 </script>
 

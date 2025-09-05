@@ -107,7 +107,7 @@
         p &nbsp;
         p Switch to the table view to inspect the full matrix in tabular or heatmap view.
 
-      .tooltip-area(v-if="tooltip && !isLoading" v-html="tooltip" :style="tooltipStyle")
+      .tooltip-area(v-show="tooltip && !isLoading" v-html="tooltip" :style="tooltipStyle")
 
       p.tooltip-area(v-if="isLoading" style="padding: 1.25rem"): b LOADING...
 
@@ -129,7 +129,7 @@ import naturalSort from 'javascript-natural-sort'
 import globalStore from '@/store'
 import { gUnzip } from '@/js/util'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { DEFAULT_PROJECTION, REACT_VIEW_HANDLES } from '@/Globals'
+import { DEFAULT_PROJECTION } from '@/Globals'
 
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
@@ -215,11 +215,6 @@ const MyComponent = defineComponent({
     }
   },
 
-  beforeDestroy() {
-    // MUST delete the React view handles to prevent gigantic memory leaks!
-    delete REACT_VIEW_HANDLES[this.layerId]
-  },
-
   async mounted() {
     const prevLeftBarWidth = localStorage.getItem('matrixLeftPanelWidth')
     this.leftSectionWidth = prevLeftBarWidth ? parseInt(prevLeftBarWidth) : 256
@@ -257,15 +252,9 @@ const MyComponent = defineComponent({
   watch: {
     'globalState.viewState'() {
       if (!this.isMapReady) return
-      if (!REACT_VIEW_HANDLES[this.layerId]) return
 
-      REACT_VIEW_HANDLES[this.layerId]()
-
-      const { latitude, longitude, zoom, bearing, pitch } = this.globalState.viewState
-      localStorage.setItem(
-        'H5MapViewer_view',
-        JSON.stringify({ latitude, longitude, zoom, bearing, pitch })
-      )
+      const { center, zoom, bearing, pitch } = this.globalState.viewState
+      localStorage.setItem('H5MapViewer_view', JSON.stringify({ center, zoom, bearing, pitch }))
     },
 
     'globalState.isDarkMode'() {

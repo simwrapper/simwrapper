@@ -1,7 +1,6 @@
 <template lang="pug">
 .deck-map.flex-col
   .map-container(:id="`map-${viewId}`")
-  //- .deck-tooltip(v-html="tooltipHTML" :style="tooltipStyle")
 </template>
 
 <script lang="ts">
@@ -9,7 +8,6 @@ import { defineComponent, PropType } from 'vue'
 import { GeoJsonLayer } from '@deck.gl/layers'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import maplibregl from 'maplibre-gl'
-
 import globalStore from '@/store'
 
 const DEFAULT_FILL = [32, 64, 128, 255]
@@ -138,10 +136,9 @@ export default defineComponent({
 
   async mounted() {
     const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
-
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
-    //@ts-ignore
+    // @ts-ignore
     this.mymap = new maplibregl.Map({
       center,
       zoom: 7,
@@ -163,6 +160,7 @@ export default defineComponent({
   beforeDestroy() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
+    this.mymap = null
   },
 
   methods: {

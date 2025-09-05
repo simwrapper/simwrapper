@@ -1,9 +1,5 @@
 <template lang="pug">
 .matrix-selector-panel
-  //- .flex-column
-  //-   //- p: b Matrix File
-  //-   b-input.binput.is-small(disabled placeholder="filename.h5" v-model="filename")
-
   //- Data/Map
   .flex-row
     b-field.which-data
@@ -33,7 +29,6 @@
         v-html="matrix"
       )
 
-
   //- COMPARE selector
   .flex-column(style="margin-left: 1rem")
     b-button.is-small.is-white(@click="toggleCompareSelector()" v-html="compareLabel")
@@ -55,17 +50,11 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import BColorSelector from './BColorSelector.vue'
-// import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector'
-// import ScaleSelector from '@/components/ScaleSelector/ScaleSelector'
-import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
 import ComparisonSelector from './ComparisonSelector.vue'
-
-export type ColorScaleType = Exclude<ScaleType, 'gamma'>
-
 import { ComparisonMatrix, MapConfig } from './MatrixViewer.vue'
 
 const MyComponent = defineComponent({
-  name: 'MatrixViewer',
+  name: 'MatrixConfigPanel',
   components: { ComparisonSelector, BColorSelector },
   props: {
     isMap: Boolean,
