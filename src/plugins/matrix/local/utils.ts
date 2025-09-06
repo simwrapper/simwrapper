@@ -162,7 +162,7 @@ export function parseDType(metadata: Metadata): DType {
 
   if (h5tClass === H5TClass.String) {
     const { cset, vlen } = metadata
-    return strType(toCharSet(cset), vlen ? undefined : size)
+    return strType(toCharSet(cset as any), vlen ? undefined : size)
   }
 
   if (h5tClass === H5TClass.Bitfield) {

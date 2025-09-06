@@ -152,10 +152,7 @@ interface IMyState {
 }
 
 import { defineComponent } from 'vue'
-import type { PropType } from 'vue'
-import { get, set, clear } from 'idb-keyval'
 import markdown from 'markdown-it'
-import mediumZoom from 'medium-zoom'
 import micromatch from 'micromatch'
 import yaml from 'yaml'
 
@@ -215,7 +212,7 @@ export default defineComponent({
     'globalState.colorScheme'() {
       // medium-zoom freaks out if color theme is swapped.
       // so let's reload images just in case.
-      this.fetchFolderContents()
+      // this.fetchFolderContents()
     },
     subfolder() {
       this.updateRoute()
@@ -279,12 +276,6 @@ export default defineComponent({
       } else {
         this.buildShowEverythingView()
       }
-
-      // make sure page is rendered before we attach zoom semantics
-      await this.$nextTick()
-      mediumZoom('.medium-zoom', {
-        background: '#444450',
-      })
     },
 
     updateShortcuts() {

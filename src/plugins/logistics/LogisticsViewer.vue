@@ -3,29 +3,29 @@
 
     .container-1
       .main-panel
-        tour-viz.anim(v-if="!thumbnail"
+        deck-map.anim(v-if="vizDetails.projection && !thumbnail"
           :activeTab="activeTab"
-          :shipments="shownShipments"
-          :lspShipmentChains="lspShipmentChains"
-          :carrierTours="carrierTours"
           :carrierServices="carrierServicesAll"
-          :showCompleteHubChain="showCompleteHubChain"
+          :carrierTours="carrierTours"
+          :center="vizDetails.center"
+          :dark="globalState.isDarkMode"
           :depots="shownDepots"
-          :legs="shownLegs"
-          :showHub="showHub"
           :hubLocation="hubLocation"
           :hubName="hubName"
-          :tourHubs="tourHubs"
-          :stopActivities="stopActivities"
-          :dark="globalState.isDarkMode"
-          :center="vizDetails.center"
-          :viewId="linkLayerId"
-          :settings="vizSettings"
+          :legs="shownLegs"
+          :lspShipmentChains="lspShipmentChains"
           :numSelectedTours="selectedTours.length"
           :onClick="handleClick"
           :projection="vizDetails.projection"
+          :settings="vizSettings"
+          :shipments="shownShipments"
+          :showCompleteHubChain="showCompleteHubChain"
+          :showHub="showHub"
+          :stopActivities="stopActivities"
+          :tourHubs="tourHubs"
+          :viewId="linkLayerId"
           )
-        ZoomButtons(v-if="!thumbnail")
+        ZoomButtons(v-if="!thumbnail" corner="top-left")
         .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
       .right-panel(v-if="!thumbnail" :darkMode="true")
@@ -176,7 +176,7 @@ import colorMap from 'colormap'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import LegendColors from '@/components/LegendColors'
+import LegendColors from '@/components/LegendColors.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import { gUnzip, parseXML, findMatchingGlobInFiles } from '@/js/util'
 import DashboardDataManager from '@/js/DashboardDataManager'
@@ -184,9 +184,9 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 import avro from '@/js/avro'
 
-import TourViz from './TourViz'
+import DeckMap from './DeckMapComponent.vue'
 
-import { FileSystemConfig, REACT_VIEW_HANDLES, ColorScheme } from '@/Globals'
+import { FileSystemConfig, ColorScheme } from '@/Globals'
 import { typeOf } from 'mathjs'
 
 interface NetworkLinks {
@@ -268,7 +268,7 @@ const LogisticsPlugin = defineComponent({
   components: {
     LegendColors,
     ToggleButton,
-    TourViz,
+    DeckMap,
     ZoomButtons,
   },
   props: {
@@ -463,11 +463,6 @@ const LogisticsPlugin = defineComponent({
   },
 
   watch: {
-    '$store.state.viewState'() {
-      if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
-      REACT_VIEW_HANDLES[this.linkLayerId]()
-    },
-
     'globalState.isDarkMode'() {
       this.updateLegendColors()
     },
@@ -1949,7 +1944,10 @@ const LogisticsPlugin = defineComponent({
           true
         )) as any
 
-        this.vizDetails.projection = '' + net.projection
+        // this.vizDetails.projection = '' + net.projection
+        this.vizDetails.projection = 'EPSG:4326'
+
+        // this.vizDetails = { ...this.vizDetails }
 
         // build direct lookup of x/y from link-id
         this.myState.statusMessage = 'Building network link table'
@@ -1983,7 +1981,7 @@ const LogisticsPlugin = defineComponent({
             ]
           })
         }
-        this.vizDetails.projection = 'EPSG:31468'
+        this.vizDetails.projection = 'EPSG:4326'
         console.log(links[6000])
 
         return links
@@ -1992,7 +1990,6 @@ const LogisticsPlugin = defineComponent({
         const jsonNetwork = await this.fileApi.getFileJson(
           this.myState.subfolder + '/' + this.vizDetails.network
         )
-
         // geojson is ALWAYS in long/lat
         // this.vizDetails.projection = 'EPSG:4326'
 

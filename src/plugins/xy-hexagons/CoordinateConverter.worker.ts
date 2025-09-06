@@ -151,3 +151,5 @@ function convertCoordinates() {
   }
   postResults()
 }
+
+postMessage({ ready: true })

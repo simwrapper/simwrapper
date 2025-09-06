@@ -10,7 +10,7 @@
     ) &nbsp;›&nbsp;{{ crumb.label }}
   .x-breadcrumbs(v-if="root && !isSplitMode")
     p(v-for="crumb,i in crumbs.slice(1)" :key="`${crumb.root}${crumb.subfolder}`")
-      a(:href="`${BASE_URL}${crumb.root}/${crumb.subfolder}`")
+      a(@click="clickedBreadcrumb(crumb)")
         b(style="color: #a44; margin: 0 4px;") ›
         span {{ crumb.label }}
 

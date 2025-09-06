@@ -162,6 +162,10 @@ export function precise(x: number, precision: number) {
   return format(x, { lowerExp: -6, upperExp: 6, precision })
 }
 
+export function sleep(milliseconds: number) {
+  return new Promise(resolve => setTimeout(resolve, milliseconds))
+}
+
 export default {
   arrayBufferToBase64,
   dataUrlToBytes,
@@ -172,4 +176,5 @@ export default {
   gUnzip,
   parseXML,
   precise,
+  sleep,
 }

@@ -1,5 +1,7 @@
 <template lang="pug">
-.map-component.flex-col(:id="`map-${viewId}`")
+.hex-map.flex-col
+  .map-container(:id="`map-${viewId}`")
+  .deck-tooltip(v-show="tooltipHTML" v-html="tooltipHTML" :style="tooltipStyle")
 </template>
 
 <script lang="ts">
@@ -11,7 +13,6 @@ import colormap from 'colormap'
 import maplibregl from 'maplibre-gl'
 
 import globalStore from '@/store'
-// import { REACT_VIEW_HANDLES } from '@/Globals'
 import { NewRowCache } from './CsvGzipParser.worker'
 
 const material = {
@@ -24,7 +25,7 @@ const material = {
 export default defineComponent({
   name: 'XYHexMapComponent',
   props: {
-    viewId: { type: String, required: true },
+    viewId: { type: Number, required: true },
     colorRamp: { type: String, required: true },
     coverage: { type: Number, required: true },
     dark: { type: Boolean, required: true },
@@ -47,63 +48,92 @@ export default defineComponent({
       mymap: null as maplibregl.Map | null,
       deckOverlay: null as InstanceType<typeof MapboxOverlay> | null,
       globalState: globalStore.state,
+      tooltipHTML: '',
+      tooltipStyle: {
+        position: 'absolute',
+        padding: '4px 8px',
+        display: 'block',
+        top: 0,
+        left: 0,
+        color: this.dark ? '#ccc' : '#223',
+        backgroundColor: this.dark ? '#2a3c4f' : 'white',
+        zIndex: 20000,
+      } as any,
     }
   },
 
   watch: {
     layers() {
-      console.log('hello')
-      this.deckOverlay.setProps({
+      this.deckOverlay?.setProps({
         layers: this.layers,
       })
+    },
+
+    dark() {
+      const style = `/map-styles/${this.dark ? 'dark' : 'positron'}.json`
+      this.mymap?.setStyle(style)
+    },
+
+    'globalState.viewState'() {
+      if (this.mapIsIndependent) return
+      if (!this.mymap) return
+
+      const incoming = this.globalState.viewState as any
+      const center = this.mymap?.getCenter() as any
+      if (
+        incoming.longitude !== center.lng ||
+        incoming.latitude !== center.lat ||
+        incoming.zoom !== this.mymap?.getZoom() ||
+        incoming.pitch !== this.mymap?.getPitch() ||
+        incoming.bearing !== this.mymap?.getBearing()
+      ) {
+        try {
+          this.mymap?.jumpTo(incoming)
+        } catch (e) {
+          console.warn('' + e)
+        }
+      }
     },
   },
 
   computed: {
-    weightedRowData(): Float32Array | number[] {
+    weightedRowData() {
       let rows = [] as any
       // is data filtered or not?
       if (this.highlights.length) {
-        return this.highlights.map((h: any) => h[1])
+        return this.highlights.map((h: any) => h[0])
       } else if (!this.data || !Object.keys(this.data).length) {
         return rows
       } else {
         const rowCache = this.data[this.group]
-        if (!rowCache) return rows
-        const weights = new Float32Array(rowCache.length)
-        for (let i = 0; i < rowCache.length; i++) {
-          // zero lng/lat means no data
-          if (rowCache.positions[i * 2] == 0 && rowCache.positions[i * 2 + 1] == 0) continue
-          if (rowCache.column[i] == this.agg) weights[i] = 1
-        }
-        return weights
+        return { length: rowCache.positions[this.agg].length / 2 }
       }
     },
 
     colors(): any[] {
-      return colormap({
+      const c = colormap({
         colormap: this.colorRamp,
         nshades: 10,
         format: 'rba',
         alpha: 1,
       }).map((c: number[]) => [c[0], c[1], c[2]])
+      if (!this.dark) c.reverse()
+      return c.slice(1)
     },
 
     layers(): any[] {
       const rowCache = this.data[this.group]
       const config = this.highlights.length
-        ? {
-            // highlights mode:
-            getPosition: (d: any) => d,
-            getColorWeight: 1.0,
-            getElevationWeight: 1.0,
-          }
+        ? { getPosition: (d: any) => d }
         : {
-            // normal mode:
-            getPosition: (_: any, o: any) => rowCache.positions.slice(o.index * 2, o.index * 2 + 2),
-            getColorWeight: (d: any) => d,
-            getElevationWeight: (d: any) => d,
+            getPosition: (_: any, o: any) =>
+              rowCache.positions[this.agg].slice(o.index * 2, o.index * 2 + 2),
           }
+
+      // don't do the shading color think if we just have a few points
+      const numPoints = rowCache?.positions[this.agg].length / 2 || 0
+      let brightcolors = null
+      if (numPoints < 10) brightcolors = this.colors.slice(4, 5)
 
       const layers = [
         new ArcLayer({
@@ -118,156 +148,135 @@ export default defineComponent({
           getSourceColor: this.dark ? [144, 96, 128] : [192, 192, 240],
           getTargetColor: this.dark ? [144, 96, 128] : [192, 192, 240],
         }),
-      ]
+      ] as any[]
 
-      if (rowCache)
-        layers.push(
-          new HexagonLayer(
-            Object.assign(config, {
-              id: 'hexlayer',
-              data: this.weightedRowData,
-              beforeId: 'water',
-              colorRange: this.dark ? this.colors.slice(1) : this.colors.reverse().slice(1),
-              coverage: 0.98, // this.coverage,
-              autoHighlight: true,
-              elevationRange: [0, this.maxHeight],
-              elevationScale: rowCache?.length ? 25 : 0,
-              extruded: this.extrude,
-              gpuAggregation: true,
-              selectedHexStats: this.selectedHexStats,
-              // hexagonAggregator: pointToHexbin,
-              pickable: true,
-              opacity: 1.0, // this.dark && this.highlights.length ? 0.6 : 0.8,
-              radius: this.radius,
-              material,
-              positionFormat: 'XY',
-              upperPercentile: this.upperPercentile,
-              lowerPercentile: 1, // dont show blank (filtered) cells
-              elevationLowerPercentile: 1,
-              updateTriggers: {
-                getElevationWeight: [this.group, this.agg],
-                getColorWeight: [this.group, this.agg],
-              },
-              transitions: {
-                elevationScale: { type: 'interpolation', duration: 1000 },
-                opacity: { type: 'interpolation', duration: 200 },
-              },
-              // parameters: { devicePixelRatio: window.devicePixelRatio },
-            })
-          )
-        )
+      const hexLayerProps = Object.assign(config, {
+        id: 'hexlayer',
+        data: this.weightedRowData,
+        // beforeId: 'water',
+        colorRange: brightcolors || this.colors, // his.dark ? this.colors.slice(1) : this.colors.reverse().slice(1), //
+        coverage: 0.98, // this.coverage,
+        autoHighlight: true,
+        elevationRange: [0, this.maxHeight],
+        elevationScale: 25,
+        // elevationScale: rowCache?.length ? 25 : 0,
+        extruded: this.extrude,
+        gpuAggregation: false, // need to aggregation on cpu for list of points
+        selectedHexStats: this.selectedHexStats,
+        material,
+        opacity: this.dark && this.highlights.length ? 0.6 : 0.8,
+        pickable: true,
+        pickingRadius: 2,
+        positionFormat: 'XY',
+        radius: this.radius,
+        upperPercentile: this.upperPercentile,
+        updateTriggers: {
+          // getElevationWeight: [this.group, this.agg],
+          // getColorWeight: [this.group, this.agg],
+        },
+        transitions: {
+          elevationScale: { type: 'interpolation', duration: 1000 },
+          opacity: { type: 'interpolation', duration: 200 },
+        },
+        onHover: this.getTooltip,
+      }) as any
+
+      layers.push(new HexagonLayer(hexLayerProps))
       return layers
     },
   },
 
-  async mounted() {
-    const style = `https://tiles.openfreemap.org/styles/${
-      this.globalState.isDarkMode ? 'dark' : 'positron'
-    }`
-
-    console.log('MOUNTED!!!')
-
+  mounted() {
+    const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
     const container = `map-${this.viewId}`
+    const view = this.globalState.viewState
+    //@ts-ignore
     this.mymap = new maplibregl.Map({
-      center: [8.0, 51.017],
-      zoom: 6.5,
       container,
       style,
+      ...view,
     })
 
-    // this.mymap.setProjection({ name: 'mercator' })
+    //@ts-ignore
     this.mymap.on('style.load', () => {
       this.deckOverlay = new MapboxOverlay({
         interleaved: true,
         layers: this.layers,
+        onClick: this.handleClick,
       })
       this.mymap?.addControl(this.deckOverlay)
+    })
+
+    //@ts-ignore
+    this.mymap?.on('move', () => {
+      const center = this.mymap?.getCenter() as any
+      const view = {
+        // center: [center.lng, center.lat],
+        latitude: center.lat,
+        longitude: center.lng,
+        zoom: this.mymap?.getZoom(),
+        bearing: this.mymap?.getBearing(),
+        pitch: this.mymap?.getPitch(),
+        jump: true,
+      }
+      globalStore.commit('setMapCamera', view)
     })
   },
 
   beforeDestroy() {
-    this.mymap?.removeControl(this.deckOverlay)
+    if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
 
   methods: {
-    getTooltip({ object }: any) {
+    getTooltip(tip: { x: number; y: number; object: any }) {
+      const { x, y, object } = tip
+
       if (!object || !object.position || !object.position.length) {
-        return null
+        this.tooltipStyle.display = 'none'
+        return
       }
+
       const lat = object.position[1]
       const lng = object.position[0]
-      const count = object.points.length
-      return {
-        html: `\
+      const count = object.pointIndices.length
+      const html = `\
         <b>${this.highlights.length ? 'Count' : this.metric}: ${count} </b><br/>
         ${Number.isFinite(lat) ? lat.toFixed(4) : ''} / ${
-          Number.isFinite(lng) ? lng.toFixed(4) : ''
-        }
-      `,
-        style: this.dark
-          ? { color: '#ccc', backgroundColor: '#2a3c4f' }
-          : { color: '#223', backgroundColor: 'white' },
+        Number.isFinite(lng) ? lng.toFixed(4) : ''
       }
+      `
+      this.tooltipStyle.display = 'block'
+      this.tooltipStyle.top = `${y + 12}px`
+      this.tooltipStyle.left = `${x + 12}px`
+      this.tooltipHTML = html
     },
 
     handleClick(target: any, event: any) {
+      this.tooltipStyle.display = 'none'
       if (this.onClick) this.onClick(target, event)
     },
   },
 })
-
-// LAYER --------------------------------------------------------
-export function Layer({}) {
-  // manage SimWrapper centralized viewState - for linked maps
-  // const [viewState, setViewState] = useState(globalStore.state.viewState)
-
-  // REACT_VIEW_HANDLES[viewId] = () => {
-  //   setViewState(globalStore.state.viewState)
-  // }
-
-  // useMemo: row data only gets recalculated what data or highlights change
-  // const rows = useMemo(() => {}, [data, highlights, agg, group, radius]) as any
-
-  function handleViewState(view: any) {
-    if (!view.latitude) return
-    if (!view.center) view.center = [0, 0]
-    view.center[0] = view.longitude
-    view.center[1] = view.latitude
-    // setViewState(view)
-
-    // if (!mapIsIndependent) globalStore.commit('setMapCamera', view)
-  }
-
-  // return (
-  // <DeckGL
-  //   layers={layers}
-  //   controller={true}
-  //   useDevicePixels={false}
-  //   viewState={viewState}
-  //   getTooltip={getTooltip}
-  //   onClick={handleClick}
-  //   onViewStateChange={(e: any) => handleViewState(e.viewState)}
-  // >
-  //   {
-  //     /*
-  //     // @ts-ignore */
-  //     <StaticMap
-  //       mapStyle={globalStore.getters.mapStyle}
-  //       preventStyleDiffing={true}
-  //       mapboxApiAccessToken={MAPBOX_TOKEN}
-  //     />
-  //   }
-  // </DeckGL>
-  // )
-}
 </script>
 
 <style lang="scss">
-.map-component {
-  // position: absolute;
-  // inset: 0 0 0 0;
+.hex-map {
+  position: absolute;
+  inset: 0 0 0 0;
   width: 100%;
   height: 100%;
+}
+.map-container {
+  position: absolute;
+  inset: 0 0 0 0;
+}
+
+.deck-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10000;
+  pointer-events: none;
 }
 </style>

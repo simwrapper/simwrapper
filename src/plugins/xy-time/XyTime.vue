@@ -1,18 +1,18 @@
 <template lang="pug">
 .viz-plugin(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${viewId}`")
 
-  xy-time-deck-map.map-layer(v-if="!thumbnail"
+  xy-time-deck-map.map-layer(v-if="isLoaded && !thumbnail"
     :viewId="viewId"
     :pointLayers="pointLayers"
     :timeFilter="timeFilter"
-    :dark="this.$store.state.isDarkMode"
-    :colors="this.colors"
-    :breakpoints="this.breakpoints"
-    :radius="this.guiConfig.radius"
+    :dark="globalState.isDarkMode"
+    :colors="colors"
+    :breakpoints="breakpoints"
+    :radius="guiConfig.radius"
     :mapIsIndependent="false"
   )
 
-  zoom-buttons(v-if="!thumbnail" corner="bottom")
+  zoom-buttons(v-if="!thumbnail" corner="top-left")
 
   .top-right
     .gui-config(:id="configId")
@@ -34,13 +34,13 @@
   .message(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
 
-  modal-dialog-custom-colorbreakpoint(v-if="this.showCustomBreakpoints"
-    :breakpointsProp="this.breakpoints"
-    :colorsProp="this.colors"
+  modal-dialog-custom-colorbreakpoint(v-if="showCustomBreakpoints"
+    :breakpointsProp="breakpoints"
+    :colorsProp="colors"
     @close="showCustomBreakpoints = false"
-    @updateColor="(colorArray) => this.setLegend(colorArray, this.breakpoints)"
-    @updateBreakpoint="(breakpointArray) => this.setLegend(this.colors, breakpointArray)"
-    @addOrRemoveBreakpoint="(colorArray, breakpointArray) => this.setLegend(colorArray, breakpointArray)"
+    @updateColor="(colorArray) => setLegend(colorArray, breakpoints)"
+    @updateBreakpoint="(breakpointArray) => setLegend(colors, breakpointArray)"
+    @addOrRemoveBreakpoint="(colorArray, breakpointArray) => setLegend(colorArray, breakpointArray)"
   )
 
 </template>
@@ -86,7 +86,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendBox from '@/components/viz-configurator/LegendBox.vue'
 import LegendStore from '@/js/LegendStore'
 import TimeSlider from '@/components/TimeSlider.vue'
-import XyTimeDeckMap from './XyTimeDeckMap'
+import XyTimeDeckMap from './XyMapComponent.vue'
 import XytDataParser from './XytDataParser.worker.ts?worker'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import ModalDialogCustomColorbreakpoint from './ModalDialogCustomColorbreakpoint.vue'
@@ -99,7 +99,6 @@ import {
   FileSystemConfig,
   VisualizationPlugin,
   Status,
-  REACT_VIEW_HANDLES,
 } from '@/Globals'
 
 interface VizDetail {
@@ -147,6 +146,7 @@ const MyComponent = defineComponent({
   },
   data() {
     return {
+      globalState: globalStore.state,
       guiConfig: {
         buckets: 7,
         exponent: 4,
@@ -234,8 +234,6 @@ const MyComponent = defineComponent({
 
     if (this.thumbnail) return
 
-    this.setupLogoMover()
-
     // ----------------------------------------------------
     this.setupGui()
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
@@ -244,10 +242,6 @@ const MyComponent = defineComponent({
   },
   beforeDestroy() {
     this.resizer?.disconnect()
-
-    // MUST erase the React view handle to prevent gigantic memory leak!
-    REACT_VIEW_HANDLES[this.viewId] = undefined
-    delete REACT_VIEW_HANDLES[this.viewId]
 
     try {
       if (this.gzipWorker) {
@@ -283,11 +277,7 @@ const MyComponent = defineComponent({
       return this.thumbnailUrl
     },
   },
-  watch: {
-    '$store.state.viewState'() {
-      if (REACT_VIEW_HANDLES[this.viewId]) REACT_VIEW_HANDLES[this.viewId]()
-    },
-  },
+  watch: {},
   methods: {
     toggleModalDialog() {
       this.showCustomBreakpoints = !this.showCustomBreakpoints
@@ -572,13 +562,21 @@ const MyComponent = defineComponent({
       console.log('ALL DONE', { totalRows, data: data.range, time: this.timeRange })
       this.myState.statusMessage = ''
       this.timeFilter = [this.timeRange[0], this.timeRange[0] + 3599]
-      this.isLoaded = true
       this.range = data.range
-      // if (!this.timeRange[1]) this.timeRange[1] = 1
       if (this.gzipWorker) this.gzipWorker.terminate()
 
       this.setColors()
-      this.moveLogo()
+
+      const coords = this.pointLayers[0].coordinates
+      const lon = coords[0] + coords[coords.length - 2]
+      const lat = coords[1] + coords[coords.length - 1]
+      this.$store.commit('setMapCamera', {
+        center: [0.5 * lon, 0.5 * lat],
+        zoom: 6,
+        bearing: 0,
+        pitch: 0,
+      })
+      this.isLoaded = true
     },
 
     animate() {
@@ -625,9 +623,9 @@ const MyComponent = defineComponent({
             const rgb = match ? match.map(x => parseInt(x, 16)) : [0, 0, 0]
             return [rgb[0], rgb[1], rgb[2]]
           })
-          this.colors = rgbColors
+          this.colors = [...rgbColors]
         } else {
-          this.colors = this.vizDetails.breakpoints.colors
+          this.colors = [...this.vizDetails.breakpoints.colors]
         }
       } else if (
         this.config &&
@@ -639,7 +637,8 @@ const MyComponent = defineComponent({
         this.colors = this.config.breakpoints.colors
       } else {
         // Otherwise, generate colors based on current GUI settings.
-        const usedColorRamp = this.vizDetails.colorRamp || this.guiConfig['color ramp']
+        // const usedColorRamp = this.vizDetails.colorRamp || this.guiConfig['color ramp']
+        const usedColorRamp = this.guiConfig['color ramp']
 
         let colors256 = colormap({
           colormap: usedColorRamp,
@@ -700,7 +699,8 @@ const MyComponent = defineComponent({
       }
 
       // Update legend if data is fully loaded.
-      if (this.isLoaded) this.setLegend(this.colors, this.breakpoints)
+      // if (this.isLoaded) this.setLegend(this.colors, this.breakpoints)
+      this.setLegend(this.colors, this.breakpoints)
     },
 
     setLegend(colors: any[], breakpoints: number[]) {

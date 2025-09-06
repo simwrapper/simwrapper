@@ -2,16 +2,17 @@
 .gl-app(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  trip-viz.anim(v-if="!thumbnail"
+  deck-map.anim(v-if="!thumbnail && isLoaded"
                 :colors = "COLOR_OCCUPANCY"
-                :drtRequests = "$options.drtRequests"
+                :drtRequests = "$options.drtRequests || []"
                 :dark = "globalState.isDarkMode"
-                :leftside = "vizDetails.leftside"
+                :leftside = "vizDetails.leftside || false"
+                :mapIsIndependent="false"
                 :paths = "$options.paths"
                 :settingsShowLayers = "SETTINGS"
                 :searchEnabled = "searchEnabled"
                 :simulationTime = "simulationTime"
-                :traces = "$options.traces"
+                :traces = "$options.traces || []"
                 :vehicleLookup = "vehicleLookup"
                 :viewId = "viewId"
                 :onClick = "handleClick")
@@ -101,15 +102,16 @@ import { ToggleButton } from 'vue-js-toggle-button'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
 import crossfilter from 'crossfilter2'
-import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
 
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
-import LegendColors from './LegendColors'
+import LegendColors from './LegendColors.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import { arrayBufferToBase64, gUnzip } from '@/js/util'
+import DeckMap from './DeckMapComponent.vue'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import {
   ColorScheme,
@@ -120,21 +122,17 @@ import {
   VisualizationPlugin,
   LIGHT_MODE,
   DARK_MODE,
-  REACT_VIEW_HANDLES,
 } from '@/Globals'
-
-import TripViz from './TripViz'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 const MyComponent = defineComponent({
   name: 'VehicleAnimationPlugin',
   i18n,
   components: {
     CollapsiblePanel,
-    SettingsPanel,
+    DeckMap,
     LegendColors,
-    TripViz,
     PlaybackControls,
+    SettingsPanel,
     ToggleButton,
     ZoomButtons,
   },
@@ -146,10 +144,6 @@ const MyComponent = defineComponent({
     thumbnail: Boolean,
   },
   data() {
-    // const COLOR_OCCUPANCY = {
-    //   Car: [85, 255, 85],
-    //   HCV: [240, 110, 30],
-    // } as any
     const COLOR_OCCUPANCY = {
       0: [140, 140, 160],
       1: [65, 220, 65],
@@ -282,13 +276,6 @@ const MyComponent = defineComponent({
     },
   },
   watch: {
-    '$store.state.viewState'() {
-      if (this.vizDetails.mapIsIndependent) return
-
-      if (!REACT_VIEW_HANDLES[this.viewId]) return
-      REACT_VIEW_HANDLES[this.viewId]()
-    },
-
     async 'globalState.authAttempts'() {
       console.log('AUTH CHANGED - Reload')
       if (!this.yamlConfig) this.buildRouteFromUrl()
@@ -392,11 +379,11 @@ const MyComponent = defineComponent({
         }
 
         this.$store.commit('setMapCamera', {
-          longitude: center[0],
-          latitude: center[1],
+          center,
           zoom: this.vizDetails.zoom || 9,
           pitch: 0,
           bearing: 0,
+          jump: true,
         })
       }
 
@@ -508,14 +495,19 @@ const MyComponent = defineComponent({
       return crossfilter(requests)
     },
 
-    async parseVehicles(trips: any[]) {
+    parseVehicles(trips: any[]) {
       const allTrips: any[] = []
       let vehNumber = -1
+
+      let center = [0, 0]
 
       for (const trip of trips) {
         const path = trip.path
         const timestamps = trip.timestamps
         const passengers = trip.passengers
+
+        center[0] += path[0][0]
+        center[1] += path[0][1]
 
         // attach vehicle ID to each segment so we can click
         vehNumber++
@@ -536,6 +528,19 @@ const MyComponent = defineComponent({
 
           allTrips.push(trip)
         }
+      }
+
+      if (!this.vizDetails.center) {
+        center[0] /= trips.length
+        center[1] /= trips.length
+        this.vizDetails.center = center
+        globalStore.commit('setMapCamera', {
+          center,
+          zoom: 9,
+          pitch: 0,
+          bearing: 0,
+          jump: true,
+        })
       }
       return crossfilter(allTrips)
     },
@@ -726,7 +731,7 @@ const MyComponent = defineComponent({
 
     console.log('parsing vehicle motion')
     this.myState.statusMessage = `${this.$t('vehicles')}...`
-    this.paths = await this.parseVehicles(trips)
+    this.paths = this.parseVehicles(trips)
     this.pathStart = this.paths.dimension(d => d.t0)
     this.pathEnd = this.paths.dimension(d => d.t1)
     this.pathVehicle = this.paths.dimension(d => d.v)

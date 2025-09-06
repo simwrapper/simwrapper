@@ -1,5 +1,5 @@
 <template lang="pug">
-.shapefile-viewer(:class="{'hide-thumbnail': !thumbnail}" :style='{"background": urlThumbnail}' oncontextmenu="return false")
+.shapefile-viewer(oncontextmenu="return false")
 
   modal-id-column-picker(v-if="showJoiner"
     v-bind="datasetJoinSelector"
@@ -24,7 +24,7 @@
 
     .new-rightside-info-panel(v-show="showLegend" :style="{width: `${legendSectionWidth}px`}")
 
-      .legend-panel
+      .legend-panel.scrolly
         p(v-if="!legendStore.state?.sections?.length" style="font-size: 1.1rem"): b INFO PANEL
         legend-box(:legendStore="legendStore")
 
@@ -41,7 +41,7 @@
         .edit-hint(v-if="tooltipDesiredColumns.length" style="text-align: right;")
           a(@click="showTooltipConfigurator=true") Show/hide...
 
-    .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
+    .area-map(:id="`container-${layerId}`")
 
       .tooltip-when-no-legend-present.flex-col(v-if="!showLegend && !statusText && tooltipHtml"
         @mouseover="wantToClearTooltip=false" @mouseout="wantToClearTooltip=true"
@@ -52,32 +52,29 @@
       //- drawing-tool.draw-tool(v-if="isLoaded && !thumbnail")
 
       geojson-layer.map-layers(v-if="!needsInitialMapExtent"
-        :viewId="layerId"
-        :fillColors="dataFillColors"
-        :lineColors="dataLineColors"
-        :lineWidths="dataLineWidths"
-        :fillHeights="dataFillHeights"
-        :screenshot="triggerScreenshot"
-        :featureFilter="boundaryFilters"
-        :opacity="(sliderOpacity / 100) * (sliderOpacity / 100)"
-        :pointRadii="dataPointRadii"
+        :bgLayers="bgLayers"
         :cbTooltip="cbTooltip"
         :cbClickEvent="handleClickEvent"
-        :bgLayers="bgLayers"
-        :highlightedLinkIndex="highlightedLinkIndex"
-        :redraw="redraw"
-        :features="boundaries"
         :dark="globalState.isDarkMode"
-        :isRGBA="isRGBA"
-        :mapIsIndependent="vizDetails.mapIsIndependent"
+        :features="boundaries"
+        :featureFilter="boundaryFilters"
+        :fillColors="dataFillColors"
+        :fillHeights="dataFillHeights"
+        :highlightedLinkIndex="highlightedLinkIndex"
         :initialView="initialView"
+        :isRGBA="isRGBA"
         :isAtlantis="isAtlantis"
+        :lineColors="dataLineColors"
+        :lineWidths="dataLineWidths"
+        :mapIsIndependent="!!vizDetails.mapIsIndependent"
+        :opacity="(sliderOpacity / 100) * (sliderOpacity / 100)"
+        :pointRadii="dataPointRadii"
+        :redraw="redraw"
+        :screenshot="triggerScreenshot"
+        :viewId="layerId"
       )
 
-      background-map-on-top(v-if="isLoaded && isAreaMode")
-
       //- :features="useCircles ? centroids: boundaries"
-      //- background-map-on-top(v-if="isLoaded")
 
       //- TOOLTIP MODAL SELECTOR
       .modal.modal-tooltip-picker.flex-col(v-if="showTooltipConfigurator"
@@ -114,9 +111,9 @@
           img.icon-blue-ramp(:src="icons.blueramp")
           b-slider.pie-slider(type="is-success" :tooltip="true" size="is-small"  :min="0" :max="100" v-model="sliderOpacity")
 
-      zoom-buttons(v-if="isLoaded && !thumbnail && !vizDetails.mapIsIndependent")
+      zoom-buttons(v-if="isLoaded && !vizDetails.mapIsIndependent")
 
-      .config-bar(v-if="!thumbnail && !isEmbedded && isLoaded && Object.keys(filters).length"
+      .config-bar(v-if="!isEmbedded && isLoaded && Object.keys(filters).length"
         :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
 
       //- Filter pickers
@@ -148,11 +145,9 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import { group, zip, sum } from 'd3-array'
 
 import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
-import avro from '@/js/avro'
 import readBlob from 'read-blob'
 import reproject from 'reproject'
 import Sanitize from 'sanitize-filename'
@@ -174,12 +169,11 @@ import {
   FileSystemConfig,
   VisualizationPlugin,
   DEFAULT_PROJECTION,
-  REACT_VIEW_HANDLES,
   Status,
 } from '@/Globals'
 
 import { debounce } from '@/js/util'
-import GeojsonLayer from './GeojsonLayer'
+import GeojsonLayer from './DeckMapComponent.vue'
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ColorWidthSymbologizer, { buildRGBfromHexCodes } from '@/js/ColorsAndWidths'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
@@ -362,7 +356,6 @@ const MyComponent = defineComponent({
       isEmbedded: false,
       resizer: null as null | ResizeObserver,
       boundaryFilters: new Float32Array(0),
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
       boundaryJoinLookups: {} as { [column: string]: { [lookup: string | number]: number } },
       datasetValuesColumn: '',
 
@@ -375,7 +368,7 @@ const MyComponent = defineComponent({
 
       bgLayers: {} as { [name: string]: BackgroundLayer },
 
-      initialView: null as null | { longitude: number; latitude: number; zoom: number },
+      initialView: null as null | { center: [number, number]; zoom: number },
 
       vizDetails: {
         title: '',
@@ -389,7 +382,6 @@ const MyComponent = defineComponent({
         geojsonFile: '',
         projection: '',
         widthFactor: null as any,
-        thumbnail: '',
         sum: false,
         filters: [] as { [filterId: string]: any }[],
         shapes: '' as string | { file: string; join: string },
@@ -473,22 +465,16 @@ const MyComponent = defineComponent({
 
       return filename
     },
-
-    urlThumbnail(): string {
-      return this.thumbnailUrl
-    },
   },
 
   watch: {
-    'globalState.viewState'() {
-      // don't pay attention to map motion until we are loaded, to give map center a
-      // fighting chance of being correct
-      if (!this.isLoaded) return
-      if (this.vizDetails.mapIsIndependent) return
-
-      if (REACT_VIEW_HANDLES[this.layerId]) REACT_VIEW_HANDLES[this.layerId]()
-    },
-
+    // 'globalState.viewState'() {
+    //   // don't pay attention to map motion until we are loaded, to give map center a
+    //   // fighting chance of being correct
+    //   if (!this.isLoaded) return
+    //   if (this.vizDetails.mapIsIndependent) return
+    // },
+    //
     // 'globalState.colorScheme'() {
     // // change one element to force a deck.gl redraw
     // this.$nextTick().then(p => {
@@ -551,21 +537,6 @@ const MyComponent = defineComponent({
         this.isEmbedded = true
         this.$store.commit('setShowLeftBar', false)
         this.$store.commit('setFullWidth', true)
-      }
-    },
-
-    setupLogoMover() {
-      this.resizer = new ResizeObserver(this.moveLogo)
-      const deckmap = document.getElementById(`container-${this.layerId}`) as HTMLElement
-      if (deckmap) this.resizer.observe(deckmap)
-    },
-
-    moveLogo() {
-      const deckmap = document.getElementById(`container-${this.layerId}`) as HTMLElement
-      const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
-      if (logo) {
-        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
-        logo.style.right = right
       }
     },
 
@@ -981,22 +952,6 @@ const MyComponent = defineComponent({
       }
     },
 
-    async buildThumbnail() {
-      if (this.thumbnail && this.vizDetails.thumbnail) {
-        try {
-          const blob = await this.fileApi.getFileBlob(
-            this.subfolder + '/' + this.vizDetails.thumbnail
-          )
-          const buffer = await readBlob.arraybuffer(blob)
-          const base64 = arrayBufferToBase64(buffer)
-          if (base64)
-            this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
-        } catch (e) {
-          console.error(e)
-        }
-      }
-    },
-
     getFileSystem(name: string) {
       const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
         (a: FileSystemConfig) => a.slug === name
@@ -1225,11 +1180,6 @@ const MyComponent = defineComponent({
 
       this.prepareTooltipData(props)
 
-      // // Notify Deck.gl of the new tooltip data
-      // if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
-      //   REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
-      // }
-      // console.log('triggering updates')
       this.datasets[datasetId] = dataTable
     },
 
@@ -2450,16 +2400,9 @@ const MyComponent = defineComponent({
           }
         })
 
-        this.moveLogo()
-
         // set feature properties as a data source
         await this.setFeaturePropertiesAsDataSource(filename, [...featureProperties], shapeConfig)
         this.incrementLoadProgress()
-
-        // turn ON line borders if it's a SMALL dataset (user can re-enable)
-        // if (!hasNoLines || boundaries.length < 5000) {
-        // this.dataLineColors = '#4e79a7'
-        // }
 
         // hide polygon/point buttons and opacity if we have no polygons or we do have points
         if (hasPoints || !hasNoPolygons) this.isAreaMode = true
@@ -2468,10 +2411,7 @@ const MyComponent = defineComponent({
         await this.$nextTick()
         this.incrementLoadProgress()
 
-        this.boundaries = []
-        await this.$nextTick()
         this.boundaries = boundaries
-        await this.$nextTick()
         this.incrementLoadProgress()
 
         // generate centroids if we have polygons
@@ -2481,12 +2421,7 @@ const MyComponent = defineComponent({
 
         // Need to wait one tick so Vue inserts the Deck.gl view AFTER center is calculated
         // (not everyone lives in Berlin)
-        await this.$nextTick()
-
-        // // set features INSIDE react component
-        // if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
-        //   REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
-        // }
+        // await this.$nextTick()
       } catch (e) {
         const err = e as any
         const message = err.statusText || 'Could not load'
@@ -2609,14 +2544,11 @@ const MyComponent = defineComponent({
       }
 
       const view = {
-        longitude: centerLong,
-        latitude: centerLat,
         center: [centerLong, centerLat],
         bearing: 0,
         pitch: 0,
         zoom,
-        initial: true,
-      }
+      } as any
       this.initialView = view
 
       if (!this.vizDetails.mapIsIndependent) {
@@ -2668,8 +2600,6 @@ const MyComponent = defineComponent({
       console.log('CENTER', centerLong, centerLat)
       if (this.needsInitialMapExtent && !this.vizDetails.center) {
         this.$store.commit('setMapCamera', {
-          longitude: centerLong,
-          latitude: centerLat,
           center: [centerLong, centerLat],
           bearing: 0,
           pitch: 0,
@@ -3049,7 +2979,7 @@ const MyComponent = defineComponent({
           let onTop = false
           if ('onTop' in layerDetails) onTop = !!layerDetails.onTop
 
-          console.log('FINAL FEATURES', features)
+          // console.log('FINAL FEATURES', features)
 
           const details = {
             features,
@@ -3060,6 +2990,7 @@ const MyComponent = defineComponent({
             onTop,
           }
           this.bgLayers[layerName] = details
+          this.bgLayers = { ...this.bgLayers }
         } catch (e) {
           console.error('' + e)
         }
@@ -3093,7 +3024,7 @@ const MyComponent = defineComponent({
       ) {
         this.$emit(
           'error',
-          `Invalid map center. This doesn't look like longitude/latitude: ${this.config.center}`
+          `Invalid map center, doesn't look like longitude/latitude: ${this.config.center}`
         )
         const initialView = this.globalState.viewState
         this.vizDetails.center = [initialView.longitude, initialView.latitude]
@@ -3102,14 +3033,9 @@ const MyComponent = defineComponent({
         this.config.zoom = initialView.zoom
       }
 
-      this.buildThumbnail()
-      if (this.thumbnail) return
-
       this.buildOldJoinLookups()
 
       this.filterDefinitions = this.parseFilterDefinitions(this.vizDetails.filters)
-
-      this.setupLogoMover()
 
       // if we have a USER-SUPPLIED center, move there now
       // (otherwise we will calc it after the shapes are loaded)
@@ -3117,13 +3043,12 @@ const MyComponent = defineComponent({
         this.needsInitialMapExtent = false
         const view = {
           center: this.vizDetails.center,
-          longitude: this.vizDetails.center[0],
-          latitude: this.vizDetails.center[1],
           zoom: this.vizDetails.zoom || 9,
           bearing: this.vizDetails.bearing || 0,
           pitch: this.vizDetails.pitch || 0,
           initial: true,
-        }
+        } as any
+
         if (this.vizDetails.mapIsIndependent) {
           this.initialView = view
         } else {
@@ -3173,9 +3098,6 @@ const MyComponent = defineComponent({
   },
 
   beforeDestroy() {
-    // MUST delete the React view handles to prevent gigantic memory leaks!
-    delete REACT_VIEW_HANDLES[this.layerId]
-
     this.clearData()
     this.legendStore.clear()
     this.resizer?.disconnect()
@@ -3257,6 +3179,7 @@ export default MyComponent
     top: 2px;
     left: 0;
     right: 0;
+    bottom: 0;
     display: flex;
     flex-direction: column;
     background-color: var(--bgCardFrame);
@@ -3291,8 +3214,9 @@ export default MyComponent
   min-width: 12rem;
   text-align: left;
   background-color: var(--bgCardFrame);
-  border: 1px solid #88888880;
+  border: 1px solid #8888;
   max-height: 50%;
+  filter: drop-shadow(2px 4px 6px #0004);
 }
 
 .the-html {

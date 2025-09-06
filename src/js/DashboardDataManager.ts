@@ -51,6 +51,7 @@ export interface NetworkLinks {
   dest: Float32Array
   id: any[]
   projection: String
+  linkId: any[]
 }
 
 // This tells us if our environment has the Chrome File System Access API, meaning we are in Chrome

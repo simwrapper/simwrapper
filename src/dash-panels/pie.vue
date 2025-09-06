@@ -3,7 +3,6 @@ VuePlotly.myplot(v-if="data[0].values.length"
   :data="data"
   :layout="layout"
   :options="options"
-  :id="id"
 )
 </template>
 

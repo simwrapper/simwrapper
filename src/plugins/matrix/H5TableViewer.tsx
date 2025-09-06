@@ -2,7 +2,7 @@ import '@h5web/app/styles.css'
 
 import React from 'react'
 import { App } from '@h5web/app'
-import { H5WasmLocalFileProvider, H5WasmProvider } from '@h5web/h5wasm'
+import { H5WasmLocalFileProvider } from '@h5web/h5wasm'
 import { getPlugin } from './plugin-utils'
 
 function exportCSV(props: { filename: string; rawData: any; dataset: any; tableName: string }) {
@@ -15,14 +15,10 @@ function exportCSV(props: { filename: string; rawData: any; dataset: any; tableN
   for (let col = 0; col < numcols; col++) zoneNumbers[col] = col + 1
   allrows.push(`${props.tableName},` + zoneNumbers.join(','))
 
-  // then each row
-  for (let row = 0; row < numrows; row++) {
-    let t = `${row + 1},`
-    allrows.push(`${row + 1},`)
-    const slice = props.rawData.subarray(row * numcols, (row + 1) * numcols)
-    t += slice.join(',')
-    allrows.push(t)
-  }
+  // CSV each row
+  props.rawData.split('\n').forEach((row: string, i: number) => {
+    allrows.push(`${i + 1},${row}`)
+  })
 
   const text = allrows.join('\n')
   const blob = new Blob([text], { type: 'text/csv' })
@@ -44,24 +40,25 @@ function MyApp({ blob = null as any, filename = '' }) {
         format !== 'csv'
           ? undefined
           : async () => {
-              // console.log({ blob, format, dataset, selection, filename, builtInExporter })
               let exportFilename = `${filename}.${blob.name}.${dataset.name.slice(
                 dataset.name.indexOf(' ') + 1
               )}.${format}`
               exportFilename = exportFilename.replaceAll('•', '-').replaceAll(' ', '-')
               const tableName = blob.name.replaceAll('•', '-').replaceAll(' ', '')
-              // console.log(exportFilename)
-              exportCSV({
-                tableName,
-                filename: exportFilename,
-                rawData: builtInExporter,
-                dataset,
-              })
+
+              if (builtInExporter) {
+                exportCSV({
+                  tableName,
+                  filename: exportFilename,
+                  rawData: builtInExporter(),
+                  dataset,
+                })
+              }
               return new Promise(() => null)
             }
       }
     >
-      <App initialPath="/A: Values" />
+      <App initialPath="/A:Values" />
     </H5WasmLocalFileProvider>
   )
 }

@@ -1,70 +1,161 @@
-// BC 2021-04-30: this file forked from https://github.com/visgl/deck.gl
-//
+// deck.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /* global document */
-import GL from '@luma.gl/constants'
-import { Texture2D, copyToTexture, cloneTextureFrom } from '@luma.gl/core'
-import { ImageLoader } from '@loaders.gl/images'
+import { Device, Texture, SamplerProps } from '@luma.gl/core'
+import { AsyncTexture } from '@luma.gl/engine'
 import { load } from '@loaders.gl/core'
 import { createIterable } from '@deck.gl/core'
+
+import type { AccessorFunction } from '@deck.gl/core'
 
 const DEFAULT_CANVAS_WIDTH = 1024
 const DEFAULT_BUFFER = 4
 
 const noop = () => {}
 
-const DEFAULT_TEXTURE_PARAMETERS = {
-  [GL.TEXTURE_MIN_FILTER]: GL.LINEAR_MIPMAP_LINEAR,
-  // GL.LINEAR is the default value but explicitly set it here
-  [GL.TEXTURE_MAG_FILTER]: GL.LINEAR,
-  // for texture boundary artifact
-  [GL.TEXTURE_WRAP_S]: GL.CLAMP_TO_EDGE,
-  [GL.TEXTURE_WRAP_T]: GL.CLAMP_TO_EDGE,
+const DEFAULT_SAMPLER_PARAMETERS: SamplerProps = {
+  minFilter: 'linear',
+  mipmapFilter: 'linear',
+  // LINEAR is the default value but explicitly set it here
+  magFilter: 'linear',
+  // minimize texture boundary artifacts
+  addressModeU: 'clamp-to-edge',
+  addressModeV: 'clamp-to-edge',
 }
 
-function nextPowOfTwo(number: number) {
+type IconDef = {
+  /** Width of the icon */
+  width: number
+  /** Height of the icon */
+  height: number
+  /** Horizontal position of icon anchor. Default: half width. */
+  anchorX?: number
+  /** Vertical position of icon anchor. Default: half height. */
+  anchorY?: number
+  /**
+   * Whether the icon is treated as a transparency mask.
+   * If `true`, color defined by `getColor` is applied.
+   * If `false`, pixel color from the icon image is applied.
+   * @default false
+   */
+  mask?: boolean
+}
+
+export type UnpackedIcon = {
+  /** Url to fetch the icon */
+  url: string
+  /** Unique identifier of the icon. Icons of the same id are only fetched once. Fallback to `url` if not specified. */
+  id?: string
+} & IconDef
+
+type PrepackedIcon = {
+  /** Left position of the icon on the atlas */
+  x: number
+  /** Top position of the icon on the atlas */
+  y: number
+} & IconDef
+
+const MISSING_ICON: PrepackedIcon = {
+  x: 0,
+  y: 0,
+  width: 0,
+  height: 0,
+}
+
+export type IconMapping = Record<string, PrepackedIcon>
+
+export type LoadIconErrorContext = {
+  error: Error
+  /** The URL that was trying to fetch */
+  url: string
+  /** The original data object that requested this icon */
+  source: any
+  /** The index of the original data object that requested this icon */
+  sourceIndex: number
+  /** The load options used for the fetch */
+  loadOptions: any
+}
+
+function nextPowOfTwo(number: number): number {
   return Math.pow(2, Math.ceil(Math.log2(number)))
 }
 
 // update comment to create a new texture and copy original data.
-function resizeImage(ctx: any, imageData: any, width: any, height: any) {
-  if (width === imageData.width && height === imageData.height) {
-    return imageData
+function resizeImage(
+  ctx: CanvasRenderingContext2D,
+  imageData: HTMLImageElement | ImageBitmap,
+  maxWidth: number,
+  maxHeight: number
+): {
+  image: HTMLImageElement | HTMLCanvasElement | ImageBitmap
+  width: number
+  height: number
+} {
+  const resizeRatio = Math.min(maxWidth / imageData.width, maxHeight / imageData.height)
+  const width = Math.floor(imageData.width * resizeRatio)
+  const height = Math.floor(imageData.height * resizeRatio)
+
+  if (resizeRatio === 1) {
+    // No resizing required
+    return { image: imageData, width, height }
   }
 
   ctx.canvas.height = height
   ctx.canvas.width = width
 
-  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+  ctx.clearRect(0, 0, width, height)
 
   // image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight
   ctx.drawImage(imageData, 0, 0, imageData.width, imageData.height, 0, 0, width, height)
-
-  return ctx.canvas
+  return { image: ctx.canvas, width, height }
 }
 
-function getIconId(icon: any) {
+function getIconId(icon: UnpackedIcon): string {
   return icon && (icon.id || icon.url)
 }
 
 // resize texture without losing original data
-function resizeTexture(gl: any, texture: any, width: any, height: any) {
-  const oldWidth = texture.width
-  const oldHeight = texture.height
+function resizeTexture(
+  texture: Texture,
+  width: number,
+  height: number,
+  sampler: SamplerProps
+): Texture {
+  const { width: oldWidth, height: oldHeight, device } = texture
 
-  const newTexture = cloneTextureFrom(texture, { width, height })
-  copyToTexture(texture, newTexture, {
-    targetY: 0,
+  const newTexture = device.createTexture({
+    format: 'rgba8unorm',
+    width,
+    height,
+    sampler,
+    mipmaps: true,
+  })
+
+  const commandEncoder = device.createCommandEncoder()
+  commandEncoder.copyTextureToTexture({
+    sourceTexture: texture,
+    destinationTexture: newTexture,
     width: oldWidth,
     height: oldHeight,
   })
+  commandEncoder.finish()
 
-  texture.delete()
+  texture.destroy()
   return newTexture
 }
 
 // traverse icons in a row of icon atlas
 // extend each icon with left-top coordinates
-function buildRowMapping(mapping: any, columns: any, yOffset: any) {
+function buildRowMapping(
+  mapping: IconMapping,
+  columns: {
+    icon: UnpackedIcon
+    xOffset: number
+  }[],
+  yOffset: number
+): void {
   for (let i = 0; i < columns.length; i++) {
     const { icon, xOffset } = columns[i]
     const id = getIconId(icon)
@@ -78,14 +169,6 @@ function buildRowMapping(mapping: any, columns: any, yOffset: any) {
 
 /**
  * Generate coordinate mapping to retrieve icon left-top position from an icon atlas
- * @param icons {Array<Object>} list of icons, each icon requires url, width, height
- * @param buffer {Number} add buffer to the right and bottom side of the image
- * @param xOffset {Number} right position of last icon in old mapping
- * @param yOffset {Number} top position in last icon in old mapping
- * @param rowHeight {Number} rowHeight of the last icon's row
- * @param canvasWidth {Number} max width of canvas
- * @param mapping {object} old mapping
- * @returns {{mapping: {'/icon/1': {url, width, height, ...}},, canvasHeight: {Number}}}
  */
 export function buildMapping({
   icons,
@@ -95,8 +178,32 @@ export function buildMapping({
   yOffset = 0,
   rowHeight = 0,
   canvasWidth,
-}: any) {
-  let columns = []
+}: {
+  /** list of icon definitions */
+  icons: UnpackedIcon[]
+  /** add bleeding buffer to the right and bottom side of the image */
+  buffer: number
+  /** right position of last icon in old mapping */
+  xOffset: number
+  /** top position in last icon in old mapping */
+  yOffset: number
+  /** height of the last icon's row */
+  rowHeight: number
+  /** max width of canvas */
+  canvasWidth: number
+  mapping: IconMapping
+}): {
+  mapping: IconMapping
+  rowHeight: number
+  xOffset: number
+  yOffset: number
+  canvasWidth: number
+  canvasHeight: number
+} {
+  let columns: {
+    icon: UnpackedIcon
+    xOffset: number
+  }[] = []
   // Strategy to layout all the icons into a texture:
   // traverse the icons sequentially, layout the icons from left to right, top to bottom
   // when the sum of the icons width is equal or larger than canvasWidth,
@@ -147,7 +254,17 @@ export function buildMapping({
 
 // extract icons from data
 // return icons should be unique, and not cached or cached but url changed
-export function getDiffIcons(data: any, getIcon: any, cachedIcons: any) {
+export function getDiffIcons(
+  data: any,
+  getIcon: AccessorFunction<any, UnpackedIcon> | null,
+  cachedIcons: Record<string, PrepackedIcon & { url?: string }>
+): Record<
+  string,
+  UnpackedIcon & {
+    source: any
+    sourceIndex: number
+  }
+> | null {
   if (!data || !getIcon) {
     return null
   }
@@ -158,7 +275,7 @@ export function getDiffIcons(data: any, getIcon: any, cachedIcons: any) {
   for (const object of iterable) {
     objectInfo.index++
     const icon = getIcon(object, objectInfo)
-    const id = getIconId(icon)
+    const id = getIconId(icon) as any
 
     if (!icon) {
       throw new Error('Icon is missing.')
@@ -176,73 +293,74 @@ export function getDiffIcons(data: any, getIcon: any, cachedIcons: any) {
 }
 
 export default class IconManager {
-  gl: any
-  onUpdate: () => void
-  onError: (e: any) => any
-  _loadOptions: any
-  _getIcon: any
-  _texture: any
-  _externalTexture: any
-  _mapping: any
-  _pendingCount: number
-  _autoPacking: boolean
-  _xOffset: number
-  _yOffset: number
-  _rowHeight: number
-  _buffer: number
-  _canvasWidth: number
-  _canvasHeight: number
-  _canvas: any
+  device: Device
+
+  private onUpdate: () => void
+  private onError: (context: LoadIconErrorContext) => void
+  private _loadOptions: any = null
+  private _texture: Texture | null = null
+  private _externalTexture: Texture | null = null
+  private _mapping: IconMapping = {}
+  private _samplerParameters: SamplerProps | null = null
+
+  /** count of pending requests to fetch icons */
+  private _pendingCount: number = 0
+
+  private _autoPacking: boolean = false
+
+  // / internal state used for autoPacking
+
+  private _xOffset: number = 0
+  private _yOffset: number = 0
+  private _rowHeight: number = 0
+  private _buffer: number = DEFAULT_BUFFER
+  private _canvasWidth: number = DEFAULT_CANVAS_WIDTH
+  private _canvasHeight: number = 0
+  private _canvas: HTMLCanvasElement | null = null
 
   constructor(
-    gl: any,
+    device: Device,
     {
-      onUpdate = noop, // notify IconLayer when icon texture update
+      onUpdate = noop,
       onError = noop,
+    }: {
+      /** Callback when the texture updates */
+      onUpdate: () => void
+      /** Callback when an error is encountered */
+      onError: (context: LoadIconErrorContext) => void
     }
   ) {
-    this.gl = gl
+    this.device = device
     this.onUpdate = onUpdate
     this.onError = onError
-
-    // load options used for loading images
-    this._loadOptions = null
-    this._getIcon = null
-
-    this._texture = null
-    this._externalTexture = null
-    this._mapping = {}
-    // count of pending requests to fetch icons
-    this._pendingCount = 0
-
-    this._autoPacking = false
-
-    // internal props used when autoPacking applied
-    // right position of last icon
-    this._xOffset = 0
-    // top position of last icon
-    this._yOffset = 0
-    this._rowHeight = 0
-    this._buffer = DEFAULT_BUFFER
-    this._canvasWidth = DEFAULT_CANVAS_WIDTH
-    this._canvasHeight = 0
-    this._canvas = null
   }
 
-  finalize() {
+  finalize(): void {
     this._texture?.delete()
   }
 
-  getTexture() {
+  getTexture(): Texture | null {
     return this._texture || this._externalTexture
   }
 
-  getIconMapping(icon: any) {
-    const id = this._autoPacking ? getIconId(icon) : icon
-    return this._mapping[id] || {}
+  getIconMapping(icon: string | UnpackedIcon): PrepackedIcon {
+    const id = this._autoPacking ? getIconId(icon as UnpackedIcon) : (icon as string)
+    return this._mapping[id] || MISSING_ICON
   }
 
-  setProps({ loadOptions, autoPacking, iconAtlas, iconMapping, data, getIcon }: any) {
+  setProps({
+    loadOptions,
+    autoPacking,
+    iconAtlas,
+    iconMapping,
+    textureParameters,
+  }: {
+    loadOptions?: any
+    autoPacking?: boolean
+    iconAtlas?: Texture | null
+    iconMapping?: IconMapping | null
+    textureParameters?: SamplerProps | null
+  }) {
     if (loadOptions) {
       this._loadOptions = loadOptions
     }
@@ -251,38 +369,31 @@ export default class IconManager {
       this._autoPacking = autoPacking
     }
 
-    if (getIcon) {
-      this._getIcon = getIcon
-    }
-
     if (iconMapping) {
       this._mapping = iconMapping
     }
 
     if (iconAtlas) {
-      this._updateIconAtlas(iconAtlas)
+      this._texture?.destroy()
+      this._texture = null
+      this._externalTexture = iconAtlas
     }
 
-    if (this._autoPacking && (data || getIcon) && typeof document !== 'undefined') {
-      this._canvas = this._canvas || document.createElement('canvas')
-
-      this._updateAutoPacking(data)
+    if (textureParameters) {
+      this._samplerParameters = textureParameters
     }
   }
 
-  get isLoaded() {
+  get isLoaded(): boolean {
     return this._pendingCount === 0
   }
 
-  _updateIconAtlas(iconAtlas: any) {
-    this._texture?.delete()
-    this._texture = null
-    this._externalTexture = iconAtlas
-    this.onUpdate()
-  }
+  packIcons(data: any, getIcon: AccessorFunction<any, UnpackedIcon>): void {
+    if (!this._autoPacking || typeof document === 'undefined') {
+      return
+    }
 
-  _updateAutoPacking(data: any) {
-    const icons = Object.values(getDiffIcons(data, this._getIcon, this._mapping) || {})
+    const icons = Object.values(getDiffIcons(data, getIcon, this._mapping) || {})
 
     if (icons.length > 0) {
       // generate icon mapping
@@ -304,45 +415,72 @@ export default class IconManager {
 
       // create new texture
       if (!this._texture) {
-        this._texture = new Texture2D(this.gl, {
+        this._texture = this.device.createTexture({
+          format: 'rgba8unorm',
+          data: null,
           width: this._canvasWidth,
           height: this._canvasHeight,
-          parameters: DEFAULT_TEXTURE_PARAMETERS,
+          sampler: this._samplerParameters || DEFAULT_SAMPLER_PARAMETERS,
+          mipmaps: true,
         })
       }
 
       if (this._texture.height !== this._canvasHeight) {
-        this._texture = resizeTexture(this.gl, this._texture, this._canvasWidth, this._canvasHeight)
+        this._texture = resizeTexture(
+          this._texture,
+          this._canvasWidth,
+          this._canvasHeight,
+          this._samplerParameters || DEFAULT_SAMPLER_PARAMETERS
+        )
       }
 
       this.onUpdate()
 
       // load images
+      this._canvas = this._canvas || document.createElement('canvas')
       this._loadIcons(icons)
     }
   }
 
-  _loadIcons(icons: any) {
-    const ctx = this._canvas.getContext('2d')
+  private _loadIcons(
+    icons: (UnpackedIcon & {
+      source: any
+      sourceIndex: number
+    })[]
+  ): void {
+    // This method is only called in the auto packing case, where _canvas is defined
+    const ctx = this._canvas!.getContext('2d', {
+      willReadFrequently: true,
+    }) as CanvasRenderingContext2D
 
     for (const icon of icons) {
       this._pendingCount++
-      load(icon.url, ImageLoader, this._loadOptions)
+      load(icon.url, this._loadOptions)
         .then(imageData => {
           const id = getIconId(icon)
-          const { x, y, width, height } = this._mapping[id]
 
-          const data = resizeImage(ctx, imageData, width, height)
+          const iconDef = this._mapping[id]
+          const { x, y, width: maxWidth, height: maxHeight } = iconDef
 
-          this._texture.setSubImageData({
-            data,
-            x,
-            y,
+          const { image, width, height } = resizeImage(
+            ctx,
+            imageData as ImageBitmap,
+            maxWidth,
+            maxHeight
+          )
+
+          this._texture?.copyExternalImage({
+            image,
+            x: x + (maxWidth - width) / 2,
+            y: y + (maxHeight - height) / 2,
             width,
             height,
           })
+          iconDef.width = width
+          iconDef.height = height
 
           // Call to regenerate mipmaps after modifying texture(s)
+          // @ts-ignore
           this._texture.generateMipmap()
 
           this.onUpdate()

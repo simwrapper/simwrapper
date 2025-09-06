@@ -3,15 +3,12 @@ VuePlotly.myplot(
   :data="data"
   :layout="layout"
   :options="options"
-  :id="id"
 )
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import { scaleOrdinal } from 'd3-scale'
-import * as d3scales from 'd3-scale-chromatic'
 
 import VuePlotly from '@/components/VuePlotly.vue'
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'

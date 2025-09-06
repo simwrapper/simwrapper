@@ -2,21 +2,36 @@
 .gl-app(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  trip-viz.anim(v-if="!thumbnail"
-                :center = "vizDetails.center"
+  deck-map.anim(v-if="!thumbnail && isLoaded"
                 :colors = "COLOR_OCCUPANCY"
-                :drtRequests = "$options.drtRequests"
+                :drtRequests = "$options.drtRequests || []"
                 :dark = "globalState.isDarkMode"
+                :leftside = "vizDetails.leftside || false"
+                :mapIsIndependent="false"
                 :paths = "$options.paths"
                 :settingsShowLayers = "SETTINGS"
                 :searchEnabled = "searchEnabled"
                 :simulationTime = "simulationTime"
-                :traces = "$options.traces"
+                :traces = "$options.traces || []"
                 :vehicleLookup = "vehicleLookup"
                 :viewId = "viewId"
-                :onClick = "handleClick"
                 :trafficLayers = "trafficLayers"
-  )
+                :onClick = "handleClick")
+  //- trip-viz.anim(v-if="!thumbnail"
+  //-               :center = "vizDetails.center"
+  //-               :colors = "COLOR_OCCUPANCY"
+  //-               :drtRequests = "$options.drtRequests"
+  //-               :dark = "globalState.isDarkMode"
+  //-               :paths = "$options.paths"
+  //-               :settingsShowLayers = "SETTINGS"
+  //-               :searchEnabled = "searchEnabled"
+  //-               :simulationTime = "simulationTime"
+  //-               :traces = "$options.traces"
+  //-               :vehicleLookup = "vehicleLookup"
+  //-               :viewId = "viewId"
+  //-               :onClick = "handleClick"
+  //-               :trafficLayers = "trafficLayers"
+  //- )
 
   zoom-buttons(v-if="!thumbnail")
 
@@ -94,17 +109,18 @@ import { ToggleButton } from 'vue-js-toggle-button'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
 import crossfilter from 'crossfilter2'
-import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
 
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
-import LegendColors from './LegendColors'
+import LegendColors from './LegendColors.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import EventParser from './eventParser'
 import DashboardDataManager, { NetworkLinks } from '@/js/DashboardDataManager'
 import GzipFetcher from '@/workers/GzipFetcher.worker?worker'
+import DeckMap from './DeckMapComponent.vue'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { arrayBufferToBase64, gUnzip } from '@/js/util'
 
 import {
@@ -119,9 +135,6 @@ import {
   REACT_VIEW_HANDLES,
 } from '@/Globals'
 
-import TripViz from './TripViz'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
-
 const MyComponent = defineComponent({
   name: 'XmasVehicleAnimation',
   i18n,
@@ -129,7 +142,7 @@ const MyComponent = defineComponent({
     CollapsiblePanel,
     SettingsPanel,
     LegendColors,
-    TripViz,
+    DeckMap,
     PlaybackControls,
     ToggleButton,
     ZoomButtons,
@@ -265,13 +278,6 @@ const MyComponent = defineComponent({
     }
   },
   watch: {
-    '$store.state.viewState'() {
-      if (this.vizDetails.mapIsIndependent) return
-
-      if (!REACT_VIEW_HANDLES[this.viewId]) return
-      REACT_VIEW_HANDLES[this.viewId]()
-    },
-
     async 'globalState.authAttempts'() {
       console.log('AUTH CHANGED - Reload')
       if (!this.yamlConfig) this.buildRouteFromUrl()
@@ -328,7 +334,7 @@ const MyComponent = defineComponent({
 
     console.log('parsing vehicle motion')
     this.myState.statusMessage = `${this.$t('vehicles')}...`
-    this.paths = await this.parseVehicles(trips)
+    this.paths = this.parseVehicles(trips)
     this.pathStart = this.paths.dimension((d: any) => d.t0)
     this.pathEnd = this.paths.dimension((d: any) => d.t1)
     this.pathVehicle = this.paths.dimension((d: any) => d.v)
@@ -548,8 +554,6 @@ const MyComponent = defineComponent({
     },
 
     async getVizDetails() {
-      console.log('GETVIZ')
-
       // first get config
       try {
         // might be a project config:
@@ -572,13 +576,23 @@ const MyComponent = defineComponent({
       // initial view
       if (this.vizDetails.theme) this.$store.commit('setTheme', this.vizDetails.theme)
 
-      if (this.vizDetails.center) {
+      // center point
+      let center = this.vizDetails.center as any
+      if (center) {
+        try {
+          if ('string' == typeof center) center = center.split(',').map(Number)
+          this.vizDetails.center = center
+        } catch (e) {
+          this.$emit('error', 'center must be "long,lat"')
+          center = [13.45, 52.5]
+          this.vizDetails.zoom = 3
+        }
+
         this.$store.commit('setMapCamera', {
-          longitude: this.vizDetails.center[0],
-          latitude: this.vizDetails.center[1],
-          zoom: this.vizDetails.zoom || 11,
-          pitch: this.vizDetails.pitch || 20,
-          bearing: this.vizDetails.bearing || 0,
+          center,
+          zoom: this.vizDetails.zoom || 9,
+          pitch: 0,
+          bearing: 0,
           jump: true,
         })
       }
@@ -587,7 +601,7 @@ const MyComponent = defineComponent({
       const t = this.vizDetails.title ? this.vizDetails.title : 'Agent Animation'
       this.$emit('title', t)
 
-      this.buildThumbnail()
+      await this.buildThumbnail()
       this.isLoaded = true
     },
 
@@ -618,14 +632,18 @@ const MyComponent = defineComponent({
       return crossfilter(requests)
     },
 
-    async parseVehicles(trips: any[]) {
+    parseVehicles(trips: any[]) {
       const allTrips: any[] = []
       let vehNumber = -1
+      let center = [0, 0]
 
       for (const trip of trips) {
         const path = trip.path
         const timestamps = trip.timestamps
         const passengers = trip.passengers
+
+        center[0] += path[0][0]
+        center[1] += path[0][1]
 
         // attach vehicle ID to each segment so we can click
         vehNumber++
@@ -643,6 +661,19 @@ const MyComponent = defineComponent({
           })
         }
       }
+      if (!this.vizDetails.center) {
+        center[0] /= trips.length
+        center[1] /= trips.length
+        this.vizDetails.center = center
+        globalStore.commit('setMapCamera', {
+          center,
+          zoom: 9,
+          pitch: 0,
+          bearing: 0,
+          jump: true,
+        })
+      }
+
       return crossfilter(allTrips)
     },
 

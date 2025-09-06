@@ -1,13 +1,13 @@
 <template lang="pug">
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
-      grid-layer(
+      MapComponent(
         v-if="!thumbnail && isLoaded"
         v-bind="mapProps"
         :negativeValues="valuesIncludeNeg"
       )
 
-      background-map-on-top(v-if="isLoaded && guiConfig.height == 0")
+      //- background-map-on-top(v-if="isLoaded && guiConfig.height == 0")
 
       zoom-buttons(v-if="!thumbnail && isLoaded" corner="top-left")
 
@@ -48,7 +48,6 @@ import globalStore from '@/store'
 import util from '@/js/util'
 import { hexToRgb, getColorRampHexCodes, Ramp } from '@/js/ColorsAndWidths'
 
-import { REACT_VIEW_HANDLES } from '@/Globals'
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import Coords from '@/js/Coords'
@@ -59,10 +58,8 @@ import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import ClickThroughTimes from '@/components/ClickThroughTimes.vue'
-
 import TimeSlider from '@/components/TimeSliderV2.vue'
-
-import GridLayer from './GridLayer'
+import MapComponent from './MapComponent.vue'
 
 // interface for each time object inside the mapData Array
 export interface MapData {
@@ -142,7 +139,7 @@ interface StandaloneYAMLconfig {
 }
 
 interface MapProps {
-  viewId: string
+  viewId: number
   colorRamp: String
   coverage: number
   dark: boolean
@@ -190,7 +187,7 @@ const GridMap = defineComponent({
     BackgroundMapOnTop,
     CollapsiblePanel,
     DrawingTool,
-    GridLayer,
+    MapComponent,
     ToggleButton,
     ZoomButtons,
     ClickThroughTimes,
@@ -218,7 +215,7 @@ const GridMap = defineComponent({
       'RdBu',
     ]
     return {
-      id: `id-${Math.floor(1e12 * Math.random())}` as any,
+      id: Math.floor(1e12 * Math.random()),
       standaloneYAMLconfig: {
         title: '',
         description: '',
@@ -344,7 +341,7 @@ const GridMap = defineComponent({
         dark: this.$store.state.isDarkMode,
         data: this.data,
         currentTimeIndex: this.timeToIndex.get(this.currentTime[0]),
-        mapIsIndependent: this.vizDetails.mapIsIndependent,
+        mapIsIndependent: this.vizDetails.mapIsIndependent || false,
         maxHeight: this.guiConfig.height,
         colorDataDigits: this.colorDataDigits,
         userColorRamp: this.guiConfig['color ramp'],
@@ -369,10 +366,10 @@ const GridMap = defineComponent({
     },
   },
   watch: {
-    '$store.state.viewState'() {
-      if (this.vizDetails.mapIsIndependent) return
-      if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id]()
-    },
+    // '$store.state.viewState'() {
+    //   if (this.vizDetails.mapIsIndependent) return
+    //   if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id]()
+    // },
   },
   methods: {
     cbTooltip(tip: { html: any; style: any }, object: any) {
@@ -655,12 +652,10 @@ const GridMap = defineComponent({
         }
 
         // bounce our map
-        if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id](view)
+        // if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id](view)
 
         // Sets the map to the specified data
         this.$store.commit('setMapCamera', view)
-
-        return
       }
     },
 
@@ -1387,8 +1382,8 @@ const GridMap = defineComponent({
     delete window.__testdata__
 
     // MUST erase the React view handle to prevent gigantic memory leak!
-    REACT_VIEW_HANDLES[this.id] = undefined
-    delete REACT_VIEW_HANDLES[this.id]
+    // REACT_VIEW_HANDLES[this.id] = undefined
+    // delete REACT_VIEW_HANDLES[this.id]
 
     this.data = null
 

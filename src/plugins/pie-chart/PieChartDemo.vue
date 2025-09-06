@@ -37,9 +37,6 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import PieThing, { PieInfo } from './PieThing'
 
-import { VuePlugin } from 'vuera'
-Vue.use(VuePlugin)
-
 import {
   FileSystemConfig,
   LIGHT_MODE,
