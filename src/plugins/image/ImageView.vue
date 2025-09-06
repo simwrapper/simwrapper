@@ -11,7 +11,6 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-// import mediumZoom from 'medium-zoom'
 import readBlob from 'read-blob'
 
 import globalStore from '@/store'
