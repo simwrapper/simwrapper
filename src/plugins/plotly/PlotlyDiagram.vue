@@ -5,7 +5,6 @@
     :data="traces"
     :layout="layout"
     :options="options"
-    :id="id"
   )
 
 </template>

@@ -105,7 +105,7 @@
     "observable-fns": "^0.6.1",
     "pako": "^2.0.4",
     "path-browserify": "^1.0.1",
-    "plotly.js": "^2.32.0",
+    "plotly.js": "^2.35.3",
     "proj4": "^2.6.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
