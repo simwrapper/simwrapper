@@ -597,7 +597,7 @@ export default defineComponent({
 
           card.visible = true
           await this.$nextTick()
-          await sleep(225)
+          await sleep(200)
         }
       }
       this.$emit('layoutComplete')
