@@ -468,13 +468,13 @@ const MyComponent = defineComponent({
   },
 
   watch: {
-    'globalState.viewState'() {
-      // don't pay attention to map motion until we are loaded, to give map center a
-      // fighting chance of being correct
-      if (!this.isLoaded) return
-      if (this.vizDetails.mapIsIndependent) return
-    },
-
+    // 'globalState.viewState'() {
+    //   // don't pay attention to map motion until we are loaded, to give map center a
+    //   // fighting chance of being correct
+    //   if (!this.isLoaded) return
+    //   if (this.vizDetails.mapIsIndependent) return
+    // },
+    //
     // 'globalState.colorScheme'() {
     // // change one element to force a deck.gl redraw
     // this.$nextTick().then(p => {

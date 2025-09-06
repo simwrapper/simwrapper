@@ -94,20 +94,20 @@ export default defineComponent({
       this.mymap?.setStyle(style)
     },
 
-    'globalState.viewState'() {
-      if (this.mapIsIndependent) return
-      const incoming = this.globalState.viewState as any
-      const mapcenter = this.mymap?.getCenter() as any
-      if (
-        incoming.longitude !== mapcenter.lng ||
-        incoming.latitude !== mapcenter.lat ||
-        incoming.zoom !== this.mymap?.getZoom() ||
-        incoming.pitch !== this.mymap?.getPitch() ||
-        incoming.bearing !== this.mymap?.getBearing()
-      ) {
-        this.mymap?.jumpTo(incoming)
-      }
-    },
+    // 'globalState.viewState'() {
+    //   if (this.mapIsIndependent) return
+    //   const incoming = this.globalState.viewState as any
+    //   const mapcenter = this.mymap?.getCenter() as any
+    //   if (
+    //     incoming.longitude !== mapcenter.lng ||
+    //     incoming.latitude !== mapcenter.lat ||
+    //     incoming.zoom !== this.mymap?.getZoom() ||
+    //     incoming.pitch !== this.mymap?.getPitch() ||
+    //     incoming.bearing !== this.mymap?.getBearing()
+    //   ) {
+    //     this.mymap?.jumpTo(incoming)
+    //   }
+    // },
   },
 
   computed: {
