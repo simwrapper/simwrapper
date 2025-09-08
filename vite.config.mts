@@ -31,7 +31,19 @@ export default defineConfig(({ command, mode }) => {
     build: { sourcemap: false, target: 'esnext' },
     esbuild: { target: 'esnext' },
     optimizeDeps: {
-      include: ['sax-wasm'],
+      include: [
+        'nanoid',
+        'nerdamer',
+        'numcodecs',
+        'sax-wasm',
+        'shapefile',
+        'shapefile/dbf/boolean',
+        'shapefile/dbf/cancel',
+        'shapefile/dbf/date',
+        'shapefile/dbf/number',
+        'shapefile/dbf/read',
+        'shapefile/dbf/string',
+      ],
     },
     plugins: [
       // vue

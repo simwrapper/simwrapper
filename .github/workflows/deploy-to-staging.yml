@@ -17,8 +17,6 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: cd ${{ github.workspace }} && npm ci
-      - name: npm run build
-        run: npm run build
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
       - name: Run Playwright tests

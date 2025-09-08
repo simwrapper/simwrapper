@@ -89,3 +89,5 @@ async function loadFile() {
 
   return csv
 }
+
+postMessage({ ready: true })

@@ -1102,10 +1102,14 @@ const Component = defineComponent({
         return
       }
 
-      this.csvWorker = new CSVWorker()
-      this.csvWorker.onmessage = (event: MessageEvent) => {
+      const csvWorker = new CSVWorker()
+      csvWorker.onmessage = (event: MessageEvent) => {
         const message = event.data
-        if (message.status) {
+
+        // make sure worker is responsive before we ask it to work
+        if (message.ready) {
+          csvWorker.postMessage({ fileSystem: this.fileSystem, filePath: csvFilename })
+        } else if (message.status) {
           this.loadingText = message.status
         } else if (message.error) {
           this.csvWorker?.terminate()
@@ -1120,8 +1124,7 @@ const Component = defineComponent({
           this.finishedLoadingData(message)
         }
       }
-
-      this.csvWorker.postMessage({ fileSystem: this.fileSystem, filePath: csvFilename })
+      this.csvWorker = csvWorker
     },
 
     async finishedLoadingData(message: any) {
@@ -1306,14 +1309,11 @@ const Component = defineComponent({
   },
   watch: {
     'globalState.viewState'(value: any) {
-      console.log(1)
       if (this.mapIsIndependent) return
       if (!this.mymap || this.isMapMoving || this.thumbnail) {
-        console.log(2)
         this.isMapMoving = false
         return
       }
-      console.log(3)
 
       const { bearing, center, zoom, pitch } = value
       // sometimes closing a view returns a null map, ignore it!

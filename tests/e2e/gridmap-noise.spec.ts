@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 test('gridmap loads lausitz noise data with proper colors', async ({ page }) => {
   await page.goto('e2e-tests/lausitz')
 
-  await page.waitForSelector('input', { timeout: 90_000 })
+  await page.getByText('radius').waitFor({ timeout: 90000 })
 
   const inputs = page.locator('input')
   await expect(inputs).toHaveCount(4)

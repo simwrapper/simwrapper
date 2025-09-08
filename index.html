@@ -11,13 +11,20 @@
 
     <link rel="icon" href="/images/SW_favicon.png" />
 
-    <link href="/css/font-awesome-5.7.1.css" rel="stylesheet" />
-    <link href="/images/SW_favicon.png" rel="icon" type="image/png" />
-
+    <!-- load some stylesheets lazily -->
     <link
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@mdi/font@5.8.55/css/materialdesignicons.min.css"
+      href="/css/font-awesome-5.7.1.css"
+      media="print"
+      onload="this.media='all'"
     />
+    <link
+      rel="stylesheet"
+      href="/css/materialdesignicons.css"
+      media="print"
+      onload="this.media='all'"
+    />
+    <link href="/images/SW_favicon.png" rel="icon" type="image/png" />
 
     <!-- descriptive things -->
     <title>SimWrapper</title>
@@ -26,17 +33,9 @@
     <meta content="From the VSP team at TU-Berlin" name="twitter:description" />
     <meta content="From the VSP team at TU-Berlin" name="og:description" />
     <meta content="https://vsp.berlin/simwrapper" name="og:url" />
-    <!-- <meta
-      content="https://github.com/matsim-vsp/covid-sim/raw/master/src/assets/images/v1-thumb.png"
-      name="og:image"
-    /> -->
     <meta content="summary_large_image" name="twitter:card" />
     <meta content="@billyinberlin" name="twitter:site" />
     <meta content="@billyinberlin" name="twitter:creator" />
-    <!-- <meta
-      content="https://github.com/matsim-vsp/covid-sim/raw/master/src/assets/images/v1-thumb.png"
-      name="twitter:image"
-    /> -->
 
     <!-- github pages hack: allows single-page-app to handle arbitrary URLs -->
     <script>

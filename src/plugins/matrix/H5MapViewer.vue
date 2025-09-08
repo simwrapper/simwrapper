@@ -35,7 +35,7 @@
     //- LEGEND -------------------------------------------
     .panel-area.flex-col(v-if="colorThresholds && colorThresholds.breakpoints")
       .flex-row(style="margin-bottom: 2px")
-        h4.flex1 Legend
+        h4.flex1.legend-header Legend
         button.is-small.button(style="padding: 0 0.25rem; border: none" @click="isEditingLegend = !isEditingLegend")
           i.fa(:class="isEditingLegend ? 'fa-check':'fa-edit'")
           span &nbsp;{{ isEditingLegend ? 'done':'edit' }}
