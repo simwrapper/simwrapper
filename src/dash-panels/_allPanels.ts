@@ -29,7 +29,7 @@ export const panelLookup: { [key: string]: AsyncComponent } = {
 
   // full-screen map visualizations:
   carriers: defineAsyncComponent(() => import('./carriers.vue')),
-  flowmap: defineAsyncComponent(() => import('./flowmap.vue')),
+  // flowmap: defineAsyncComponent(() => import('./flowmap.vue')),
   links: defineAsyncComponent(() => import('./links.vue')),
   map: defineAsyncComponent(() => import('./area-map.vue')),
   layers: defineAsyncComponent(() => import('./layermap.vue')),
