@@ -1,7 +1,6 @@
 <template lang="pug">
 .my-component(
   oncontextmenu="return false"
-
 )
 
   pie-thing.pie-thing(
@@ -35,7 +34,7 @@ import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import PieThing, { PieInfo } from './PieThing'
+// import PieThing, { PieInfo } from './PieThing'
 
 import {
   FileSystemConfig,
@@ -50,7 +49,7 @@ const PiePlugin = defineComponent({
   i18n,
   components: {
     ZoomButtons,
-    PieThing,
+    // PieThing,
   },
   props: {
     root: { type: String, required: true },
@@ -64,7 +63,7 @@ const PiePlugin = defineComponent({
       linkLayerId: Math.floor(1e12 * Math.random()),
       sliderValue: 50,
       scale: 50,
-      allPies: [] as PieInfo[],
+      allPies: [] as any[], //  PieInfo[],
     }
   },
   computed: {
