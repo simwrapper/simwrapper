@@ -11,6 +11,7 @@
     "Janek Laudan <laudan@vsp.tu-berlin.de>",
     "Johanna Bänsch <j.baensch@tu-berlin.de>"
   ],
+  "packageManager": "npm@10.9.2",
   "scripts": {
     "deploy-sandag": "bash scripts/deploy-ghpages.sh simwrapper/sandag /",
     "deploy-vsp": "bash scripts/deploy-ghpages.sh matsim-vsp/simwrapper simwrapper",

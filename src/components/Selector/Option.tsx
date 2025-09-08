@@ -1,19 +1,18 @@
-import { type UseInteractionsReturn, useListItem } from '@floating-ui/react';
-import { type PropsWithChildren } from 'react';
+import { type UseInteractionsReturn, useListItem } from '@floating-ui/react'
+import { type PropsWithChildren } from 'react'
 
-import toolbarStyles from '../../Toolbar.module.css';
+import toolbarStyles from '@/components/ColorMapSelector/Toolbar.module.css'
 
 interface Props {
-  activeIndex: number | null;
-  selectedIndex: number;
-  getItemProps: UseInteractionsReturn['getItemProps'];
-  onSelect: (index: number) => void;
+  activeIndex: number | null
+  selectedIndex: number
+  getItemProps: UseInteractionsReturn['getItemProps']
+  onSelect: (index: number) => void
 }
 
 function Option(props: PropsWithChildren<Props>) {
-  const { activeIndex, selectedIndex, children, getItemProps, onSelect } =
-    props;
-  const { ref, index } = useListItem();
+  const { activeIndex, selectedIndex, children, getItemProps, onSelect } = props
+  const { ref, index } = useListItem()
 
   return (
     <button
@@ -28,7 +27,7 @@ function Option(props: PropsWithChildren<Props>) {
     >
       {children}
     </button>
-  );
+  )
 }
 
-export default Option;
+export default Option

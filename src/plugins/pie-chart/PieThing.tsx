@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { StaticMap } from 'react-map-gl'
+// import { StaticMap } from 'react-map-gl'
 import DeckGL from '@deck.gl/react'
 import { SolidPolygonLayer } from '@deck.gl/layers'
 import { color } from 'd3-color'

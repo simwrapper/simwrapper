@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+// import React, { useState, useMemo, useEffect, useRef } from 'react'
 import DeckGL from '@deck.gl/react'
 import { DataFilterExtension } from '@deck.gl/extensions'
 
-import { StaticMap, MapRef } from 'react-map-gl'
+// import { StaticMap, MapRef } from 'react-map-gl'
 
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 import globalStore from '@/store'

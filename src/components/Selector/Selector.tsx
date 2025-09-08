@@ -1,61 +1,55 @@
-import {
-  FloatingList,
-  useClick,
-  useInteractions,
-  useListNavigation,
-} from '@floating-ui/react';
-import { type ReactNode, useId, useRef, useState } from 'react';
-import { MdArrowDropDown } from 'react-icons/md';
+import { FloatingList, useClick, useInteractions, useListNavigation } from '@floating-ui/react'
+import { type ReactNode, useId, useRef, useState } from 'react'
+import { MdArrowDropDown } from 'react-icons/md'
 
-import toolbarStyles from '../../Toolbar.module.css';
-import { useFloatingDismiss, useFloatingMenu } from '../hooks';
-import { getAllOptions } from '../utils';
-import Option from './Option';
-import styles from './Selector.module.css';
+import toolbarStyles from '@/components/ColorMapSelector/Toolbar.module.css'
+// import { useFloatingDismiss, useFloatingMenu } from '../hooks'
+// import { getAllOptions } from '../utils'
+import Option from './Option'
+import styles from './Selector.module.css'
 
 interface Props<T> {
-  label?: string;
-  value: T;
-  disabled?: boolean;
-  onChange: (value: T) => void;
-  options: Record<string, T[]> | T[];
-  renderOption: (option: T) => ReactNode;
+  label?: string
+  value: T
+  disabled?: boolean
+  onChange: (value: T) => void
+  options: Record<string, T[]> | T[]
+  renderOption: (option: T) => ReactNode
 }
 
 function Selector<T extends string>(props: Props<T>) {
-  const { label, value, disabled, onChange, options, renderOption } = props;
+  const { label, value, disabled, onChange, options, renderOption } = props
 
-  const { context, refs, floatingStyles } = useFloatingMenu();
-  const { open: isOpen, floatingId, onOpenChange: toggle } = context;
+  const { context, refs, floatingStyles } = {} as any
+  const { open: isOpen, floatingId, onOpenChange: toggle } = context
 
-  const labelId = useId();
-  const referenceId = useId();
-  const currentOptionId = useId();
-  const listRef = useRef<(HTMLButtonElement | null)[]>([]);
+  const labelId = useId()
+  const referenceId = useId()
+  const currentOptionId = useId()
+  const listRef = useRef<(HTMLButtonElement | null)[]>([])
 
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const [selectedIndex, setSelectedIndex] = useState(() => {
-    return getAllOptions(options).indexOf(value);
-  });
+    return 0
+    // return getAllOptions(options).indexOf(value)
+  })
 
-  const { getReferenceProps, getFloatingProps, getItemProps } = useInteractions(
-    [
-      useClick(context),
-      useFloatingDismiss(context),
-      useListNavigation(context, {
-        listRef,
-        activeIndex,
-        loop: true,
-        focusItemOnHover: false,
-        onNavigate: setActiveIndex,
-      }),
-    ],
-  );
+  const { getReferenceProps, getFloatingProps, getItemProps } = useInteractions([
+    useClick(context),
+    useFloatingDismiss(context),
+    useListNavigation(context, {
+      listRef,
+      activeIndex,
+      loop: true,
+      focusItemOnHover: false,
+      onNavigate: setActiveIndex,
+    }),
+  ])
 
   function handleSelect(index: number, option: T) {
-    setSelectedIndex(index);
-    toggle(false);
-    onChange(option);
+    setSelectedIndex(index)
+    toggle(false)
+    onChange(option)
   }
 
   return (
@@ -97,13 +91,13 @@ function Selector<T extends string>(props: Props<T>) {
         >
           <FloatingList elementsRef={listRef}>
             {Array.isArray(options) ? (
-              options.map((option) => (
+              options.map(option => (
                 <Option
                   key={option}
                   activeIndex={activeIndex}
                   selectedIndex={selectedIndex}
                   getItemProps={getItemProps}
-                  onSelect={(index) => handleSelect(index, option)}
+                  onSelect={index => handleSelect(index, option)}
                 >
                   {renderOption(option)}
                 </Option>
@@ -113,13 +107,13 @@ function Selector<T extends string>(props: Props<T>) {
                 {Object.entries(options).map(([groupLabel, groupOptions]) => (
                   <li key={groupLabel}>
                     <span className={styles.groupLabel}>{groupLabel}</span>
-                    {groupOptions.map((option) => (
+                    {groupOptions.map(option => (
                       <Option
                         key={option}
                         activeIndex={activeIndex}
                         selectedIndex={selectedIndex}
                         getItemProps={getItemProps}
-                        onSelect={(index) => handleSelect(index, option)}
+                        onSelect={index => handleSelect(index, option)}
                       >
                         {renderOption(option)}
                       </Option>
@@ -132,7 +126,7 @@ function Selector<T extends string>(props: Props<T>) {
         </div>
       )}
     </>
-  );
+  )
 }
 
-export default Selector;
+export default Selector
