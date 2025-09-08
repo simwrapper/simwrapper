@@ -352,7 +352,6 @@ const MyComponent = defineComponent({
       transitLines: [] as TransitLine[],
       highlightedTransitLineIds: new Set(),
 
-      _roadFetcher: {} as any,
       _transitFetcher: {} as any,
       _transitHelper: {} as any,
 
@@ -361,7 +360,6 @@ const MyComponent = defineComponent({
 
       resolvers: {} as { [id: number]: any },
       resolverId: 0,
-      xmlWorker: null as null | Worker,
       crossFilters: [] as {
         cfDemand: crossfilter.Crossfilter<any>
         cfDemandLink: crossfilter.Dimension<any, any>
@@ -1274,7 +1272,6 @@ const MyComponent = defineComponent({
       this.incrementLoadProgress()
 
       // spawn transit helper web worker
-      this._transitHelper = new TransitSupplyWorker()
 
       this._transitHelper.onmessage = (buffer: MessageEvent) => {
         this.receivedProcessedTransit(buffer)
@@ -1836,7 +1833,6 @@ const MyComponent = defineComponent({
     this.debounceHandleSearchText = debounce(this.handleSearchText, 350)
     this.clearData()
 
-    this._roadFetcher = new NewXmlFetcher()
     this._transitFetcher = new NewXmlFetcher()
     this._transitHelper = new TransitSupplyWorker()
 
@@ -1857,14 +1853,11 @@ const MyComponent = defineComponent({
   },
 
   beforeDestroy() {
+    console.log('DESTROYING')
     this.clearData()
 
-    if (this.xmlWorker) this.xmlWorker.terminate()
-    if (this._roadFetcher) this._roadFetcher.terminate()
-    if (this._transitFetcher) this._transitFetcher.terminate()
-    if (this._transitHelper) this._transitHelper.terminate()
-
-    this.$store.commit('setFullScreen', false)
+    this._transitFetcher?.terminate()
+    this._transitHelper?.terminate()
   },
 })
 

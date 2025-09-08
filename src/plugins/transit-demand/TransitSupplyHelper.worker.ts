@@ -8,11 +8,11 @@ let projection!: string
 let _xml!: any
 let _avro: boolean = false
 
-const _network: any = { nodes: {}, links: {} }
-const _routeData: { [index: string]: RouteDetails } = {}
-const _stopFacilities: { [index: string]: NetworkNode } = {}
-const _transitLines: { [index: string]: TransitLine } = {}
-const _mapExtentXYXY = [180, 90, -180, -90]
+let _network: any = { nodes: {}, links: {} }
+let _routeData: { [index: string]: RouteDetails } = {}
+let _stopFacilities: { [index: string]: NetworkNode } = {}
+let _transitLines: { [index: string]: TransitLine } = {}
+let _mapExtentXYXY = [180, 90, -180, -90]
 
 // -----------------------------------------------------------
 onmessage = function (e) {
@@ -32,10 +32,21 @@ onmessage = function (e) {
     }
     const answer = processTransit()
     postMessage(answer)
+
+    cleanup()
   } catch (e) {
     console.error('' + e)
     postMessage({ error: e })
   }
+}
+
+function cleanup() {
+  _xml = null
+  _network.nodes = {}
+  _network.links = {}
+  _routeData = {}
+  _stopFacilities = {}
+  _transitLines = {}
 }
 
 // -----------------------------------------------------------
