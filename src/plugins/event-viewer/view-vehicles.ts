@@ -102,9 +102,7 @@ export default class EventsHandler {
                 this.network.length[linkNum] /
                 (event.time - prevEvent.time) /
                 this.network.freespeed[linkNum]
-              colorCode = relSpeed
-              // if (relSpeed < 0.4) colorCode = 2
-              // if (relSpeed < 0.2) colorCode = 3
+              colorCode = Math.min(1.0, relSpeed)
             }
 
             // times

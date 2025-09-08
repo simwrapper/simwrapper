@@ -3,7 +3,6 @@ VuePlotly.yplot(
   :data="data"
   :layout="layout"
   :options="options"
-  :id="id"
 )
 </template>
 

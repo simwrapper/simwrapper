@@ -1,5 +1,5 @@
 <template lang="pug">
-.plotly-plot(:id="plotlyId" :ref="plotlyId")
+.plotly-plot(v-if="plotlyId" :id="plotlyId" :ref="plotlyId")
 </template>
 
 <script lang="ts">
@@ -17,7 +17,8 @@ export default defineComponent({
   },
   data: () => {
     return {
-      plotlyId: '_plotly_',
+      plotlyId: `plotly-${plotlyCounter++}`,
+      myPlot: null as any,
     }
   },
   watch: {
@@ -32,23 +33,23 @@ export default defineComponent({
     },
   },
   async mounted() {
-    plotlyCounter += 1
-    this.plotlyId = `plotly-${plotlyCounter}`
-
     await this.$nextTick()
-
     Plotly.react(this.plotlyId, this.data, this.layout, this.options)
 
-    const myPlot = document.getElementById(this.plotlyId) as any
-    myPlot.on('plotly_click', (data: any) => {
-      console.log('Plotly: CLICK!', data)
-      this.$emit('click', data)
-    })
+    this.myPlot = this.$refs[this.plotlyId]
+    this.myPlot.on('plotly_click', this.handleClick)
   },
+
+  beforeDestroy() {
+    this.myPlot.removeAllListeners()
+    Plotly.purge(this.$refs[this.plotlyId])
+  },
+
   methods: {
     handleClick(click: any) {
-      console.log(click)
+      this.$emit('click', click)
     },
+
     async updatePlot() {
       try {
         await this.$nextTick()

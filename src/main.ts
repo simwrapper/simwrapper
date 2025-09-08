@@ -19,9 +19,6 @@ library.add(fas)
 Vue.component('font-awesome-icon', FontAwesomeIcon)
 
 // Vue Plugins -------------------
-import { VuePlugin } from 'vuera'
-Vue.use(VuePlugin)
-
 Vue.use(Buefy, {
   defaultIconPack: 'mdi',
   defaultInputHasCounter: false,

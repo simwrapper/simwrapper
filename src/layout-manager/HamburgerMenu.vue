@@ -5,18 +5,6 @@
     :class="{'is-highlighted': showSidebarMenu}"
   )
     i.fa.fa-bars
-      //- i.fas.fa-cog(@click="toggleSettings()")
-
-      //- img(:src="imgSidebar")
-    //- .simwrapper-logo
-    //-   img(:src="imgLogo")
-    //- p: b SimWrapper
-
-  //- .title-section.flex1
-  //-   p {{  $store.state.windowTitle }}
-
-  //- .right-section
-  //-   p: i.fas.fa-cog(@click="toggleSettings()")
 
   settings-panel.settings-popup(v-if="showSettings"
     @close="toggleSettings()"
@@ -46,9 +34,9 @@
 
     .space
       .xsection Tools
-      .x-item(@click="go('/map')")
-        p: i.x-menu-icon.fas.fa-map
-        p Map Builder
+      //- .x-item(@click="go('/map')")
+      //-   p: i.x-menu-icon.fas.fa-map
+      //-   p Map Builder
       .x-item(@click="go('/matrix')")
         p: i.x-menu-icon.fas.fa-th
         p Matrix Viewer

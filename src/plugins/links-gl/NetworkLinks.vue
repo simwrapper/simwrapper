@@ -4,7 +4,7 @@
         :style='{"background": urlThumbnail}'
         oncontextmenu="return false")
 
-  .plot-container(v-if="!thumbnail" :id="`container-${linkLayerId}`")
+  .plot-container(v-if="!thumbnail")
     link-gl-layer.map-area(
         :viewId="linkLayerId"
         :links="geojsonData"
@@ -108,7 +108,7 @@ import globalStore from '@/store'
 import { MAP_STYLES_OFFLINE, DataTableColumn, DataTable, DataType, LookupDataset } from '@/Globals'
 // import FilterPanel from './BadFilterPanel.vue'
 import SelectorPanel from './SelectorPanel.vue'
-import LinkGlLayer from './LinkLayer'
+import LinkGlLayer from './DeckMapComponent.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
@@ -117,14 +117,7 @@ import LegendStore from '@/js/LegendStore'
 import Coords from '@/js/Coords'
 import { arrayBufferToBase64 } from '@/js/util'
 
-import {
-  ColorScheme,
-  FileSystem,
-  FileSystemConfig,
-  VisualizationPlugin,
-  Status,
-  REACT_VIEW_HANDLES,
-} from '@/Globals'
+import { ColorScheme, FileSystem, FileSystemConfig, VisualizationPlugin, Status } from '@/Globals'
 
 import { LineColorDefinition } from '@/components/viz-configurator/LineColors.vue'
 import { LineWidthDefinition } from '@/components/viz-configurator/LineWidths.vue'
@@ -219,7 +212,7 @@ const MyComponent = defineComponent({
       currentUIFilterDefinitions: {} as any,
       datasets: {} as { [id: string]: DataTable },
       isButtonActiveColumn: false,
-      linkLayerId: `linklayer-${Math.floor(1e12 * Math.random())}` as any,
+      linkLayerId: Math.floor(1e12 * Math.random()),
       scaleWidth: 0,
       numLinks: 0,
       showTimeRange: false,
@@ -318,9 +311,6 @@ const MyComponent = defineComponent({
   watch: {
     '$store.state.viewState'() {
       if (this.vizDetails.mapIsIndependent) return
-
-      if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
-      REACT_VIEW_HANDLES[this.linkLayerId]()
     },
 
     '$store.state.colorScheme'() {
@@ -647,9 +637,9 @@ const MyComponent = defineComponent({
       }
 
       // bounce our map
-      if (REACT_VIEW_HANDLES[this.linkLayerId]) {
-        REACT_VIEW_HANDLES[this.linkLayerId](view)
-      }
+      // if (REACT_VIEW_HANDLES[this.linkLayerId]) {
+      //   REACT_VIEW_HANDLES[this.linkLayerId](view)
+      // }
     },
 
     async setMapCenter() {
@@ -687,21 +677,6 @@ const MyComponent = defineComponent({
       })
     },
 
-    setupLogoMover() {
-      this.resizer = new ResizeObserver(this.moveLogo)
-      const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
-      this.resizer.observe(deckmap)
-    },
-
-    moveLogo() {
-      const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
-      const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
-      if (logo) {
-        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
-        logo.style.right = right
-      }
-    },
-
     async updateStatus(message: string) {
       this.myState.statusMessage = message
     },
@@ -726,7 +701,6 @@ const MyComponent = defineComponent({
           this.updateStatus
         )
 
-        console.log(100, network)
         this.numLinks = network.linkId.length
         this.geojsonData = network as any
 
@@ -739,8 +713,6 @@ const MyComponent = defineComponent({
         this.setMapCenter() // this could be off main thread
 
         this.myState.statusMessage = ''
-
-        this.moveLogo()
 
         this.$emit('isLoaded', true)
 
@@ -764,10 +736,10 @@ const MyComponent = defineComponent({
     },
 
     handleNewDataset(props: DatasetDefinition) {
-      console.log('NEW dataset', props)
+      // console.log('NEW dataset', props)
       const { key, dataTable, filename } = props
       const uniqueKey = this.generateUniqueDatasetKeyFromFilename(key)
-      console.log('UNIQUE', key, uniqueKey)
+      // console.log('UNIQUE', key, uniqueKey)
 
       // We need a lookup so we can find the CSV row that matches each link row.
       // A normal hashmap lookup is too slow, so we'll create an array containing
@@ -1064,8 +1036,6 @@ const MyComponent = defineComponent({
       return
     }
 
-    this.setupLogoMover()
-
     // load network; when it is done it will call the loadCSVs afterwards.
     this.loadNetwork()
   },
@@ -1073,7 +1043,6 @@ const MyComponent = defineComponent({
   beforeDestroy() {
     this.resizer?.disconnect()
     // MUST delete the React view handle to prevent gigantic memory leak!
-    delete REACT_VIEW_HANDLES[this.linkLayerId]
 
     try {
       for (const worker of this.dataLoaderWorkers) worker.terminate()
@@ -1132,9 +1101,10 @@ export default MyComponent
   display: flex;
   flex-direction: column;
   font-size: 0.8rem;
-  pointer-events: auto;
+  pointer-events: none;
   margin: auto 0.5rem 2px 7px;
   filter: drop-shadow(0px 2px 4px #22222233);
+  z-index: 5;
 }
 
 .status-message {
@@ -1144,6 +1114,7 @@ export default MyComponent
   background-color: var(--bgPanel);
   font-size: 1.2rem;
   line-height: 1.5rem;
+  z-index: 10;
 }
 
 .right-side {
@@ -1162,7 +1133,7 @@ export default MyComponent
   background-color: var(--bgPanel);
   border-radius: 3px;
   overflow: visible;
-  // overflow-x: hidden;
+  pointer-events: auto;
 }
 
 .panel-item {

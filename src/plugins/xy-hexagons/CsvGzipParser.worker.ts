@@ -1,11 +1,8 @@
 /**
  * Load a gzip file, parse its contents and return a set of ArrayBuffers for display.
  */
-import Papa from '@simwrapper/papaparse'
-
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import Coords from '@/js/Coords'
 
 import { gUnzip, findMatchingGlobInFiles } from '@/js/util'
 import CoordinateWorker from './CoordinateConverter.worker.ts?worker'
@@ -73,7 +70,6 @@ function postResults() {
   Object.values(fullRowCache).forEach(group => {
     group.positions.forEach(p => buffers.push(p.buffer))
   })
-
   postMessage({ fullRowCache }, buffers)
 }
 
@@ -226,9 +222,21 @@ function step3parseCSVdata(sections: Uint8Array[], headerColumns: string[]) {
   try {
     for (let i = 0; i < sections.length; i++) {
       _workers.push(new CoordinateWorker())
-    }
-    for (let i = 0; i < sections.length; i++) {
       _workers[i].onmessage = (m: MessageEvent) => {
+        if (m.data.ready) {
+          _workers[i].postMessage(
+            {
+              id: i,
+              aggregations: allAggregations,
+              projection: proj,
+              header: headerColumns,
+              bytes: sections[i],
+            },
+            [sections[i].buffer]
+          )
+          return
+        }
+
         if (m.data.error) {
           postMessage({ error: m.data.error })
           return
@@ -248,16 +256,6 @@ function step3parseCSVdata(sections: Uint8Array[], headerColumns: string[]) {
           }
         }
       }
-      _workers[i].postMessage(
-        {
-          id: i,
-          aggregations: allAggregations,
-          projection: proj,
-          header: headerColumns,
-          bytes: sections[i],
-        },
-        [sections[i].buffer]
-      )
     }
   } catch (e) {
     console.log('' + e)
@@ -290,3 +288,5 @@ function aggregateResults() {
   // all done
   postResults()
 }
+
+postMessage({ ready: true })

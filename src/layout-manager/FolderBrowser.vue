@@ -8,7 +8,19 @@
 
   //- main content
   .stripe.details(v-else)
-   .vessel(:id="idFolderTable" :class="{narrow: isNarrow}")
+   //- show zoomed image
+   .image-zoom.flex-col(v-if="isZoomedImage" @click="isZoomedImage=null")
+      image-view.image-zoom(
+        :root="myState.svnProject.slug"
+        :subfolder="myState.subfolder"
+        :yamlConfig="isZoomedImage.config"
+        :fileApi="myState.svnRoot"
+        :style="{'pointer-events': 'auto'}"
+      )
+      p: b {{ isZoomedImage.title }}
+
+   //- show everthing else
+   .vessel(v-show="!isZoomedImage" :id="idFolderTable" :class="{narrow: isNarrow}")
 
     //- these are sections defined by viz-summary.yml etc
     .curated-sections()
@@ -140,7 +152,6 @@ import type { PropType } from 'vue'
 import katex from 'katex'
 import markdown from 'markdown-it'
 import markdownTex from 'markdown-it-texmath'
-import mediumZoom from 'medium-zoom'
 import micromatch from 'micromatch'
 import YAML from 'yaml'
 
@@ -196,6 +207,7 @@ export default defineComponent({
       mdRenderer,
       idFolderTable,
       isNarrow: false,
+      isZoomedImage: null as any,
       resizeObserver: {} as ResizeObserver,
       myState: {
         errorStatus: '',
@@ -362,7 +374,11 @@ export default defineComponent({
       const viz = this.myState.vizes[vizNumber]
 
       // special case: images don't click thru
-      if (viz.component === 'image-view') return
+      if (viz.component === 'image-view') {
+        this.isZoomedImage = viz
+        // !this.isZoomedImage
+        return
+      }
 
       if (!this.myState.svnProject) return
 
@@ -618,8 +634,6 @@ export default defineComponent({
   },
   watch: {
     'globalState.colorScheme'() {
-      // medium-zoom freaks out if color theme is swapped.
-      // so let's reload images just in case.
       this.fetchFolderContents()
     },
     xsubfolder() {
@@ -645,18 +659,6 @@ export default defineComponent({
         await this.buildCuratedSummaryView()
       } else {
         await this.buildShowEverythingView()
-      }
-
-      // make sure page is rendered before we attach zoom semantics
-      await this.$nextTick()
-      try {
-        setTimeout(() => {
-          mediumZoom('.medium-zoom', {
-            background: '#333344',
-          })
-        }, 250)
-      } catch (e) {
-        // oh well
       }
     },
   },
@@ -860,13 +862,17 @@ h3.curate-heading {
   z-index: 1;
   text-align: center;
   margin: 0 0;
-  padding: 0 0;
+  padding: 8px 2px 2px 2px;
   display: flex;
   flex-direction: column;
   cursor: pointer;
   vertical-align: top;
-  background-color: var(--bgBold);
+  border: 1px solid #0000;
+}
+
+.viz-image-grid-item:hover {
   border: var(--borderSymbology);
+  cursor: zoom-in;
 }
 
 .viz-image-frame {
@@ -880,7 +886,7 @@ h3.curate-heading {
 
   p {
     margin: auto 0 0 0;
-    background-color: var(--bgBold);
+    // background-color: var(--bgBold);
     font-size: 1rem;
     font-weight: bold;
     line-height: 1.2rem;
@@ -898,9 +904,9 @@ h3.curate-heading {
   transition: box-shadow 0.1s ease-in-out;
 }
 
-.viz-image-frame-component {
-  background-color: var(--bgPanel);
-}
+// .viz-image-frame-component {
+//   background-color: #00000000;
+// }
 
 .v-filename {
   margin: 0 0;
@@ -1015,7 +1021,15 @@ h3.curate-heading {
   font-size: 0.8rem;
   padding: 0px 4px;
 }
+
 .folder-title {
   margin-top: 1.5rem;
+}
+
+.image-zoom {
+  cursor: zoom-out;
+  text-align: center;
+  height: 80dvh;
+  max-width: 100%;
 }
 </style>

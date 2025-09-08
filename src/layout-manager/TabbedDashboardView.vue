@@ -16,9 +16,8 @@
         @click="switchLeftTab(tab,index)"
       )
         a(v-if="dashboards[tab].header"
-          :href="`${$route.path}?tab=${index+1}`"
+          @click="switchLeftTab(tab,index)"
         ) {{ dashboards[tab].header.tab }}
-        //- a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
 
     //-- The actual dashboard for this tab (if there is one) ------------------
     .dashboard-content(
@@ -662,10 +661,10 @@ export default defineComponent({
   border-bottom-color: var(--bgDashboard);
 }
 
-.tabholder {
-  // z-index: 50;
-  // padding: 0.5rem 0rem 0.5rem 0rem;
-}
+// .tabholder {
+//   // z-index: 50;
+//   // padding: 0.5rem 0rem 0.5rem 0rem;
+// }
 
 .tab-holder-container {
   margin: 0 $cardSpacing;

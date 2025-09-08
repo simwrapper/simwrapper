@@ -11,12 +11,10 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-// import mediumZoom from 'medium-zoom'
 import readBlob from 'read-blob'
 
 import globalStore from '@/store'
 import { ColorScheme, FileSystem, FileSystemConfig, VisualizationPlugin } from '@/Globals'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 const MyComponent = defineComponent({
   name: 'ImageViewPlugin',
@@ -128,12 +126,4 @@ export default MyComponent
   max-height: $thumbnailHeight;
   overflow: hidden;
 }
-
-.medium-zoom {
-  padding: 0.25rem 0.25rem;
-}
-
-// .invert-colors {
-//   filter: invert(100%);
-// }
 </style>

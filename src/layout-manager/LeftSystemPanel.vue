@@ -123,10 +123,8 @@ interface IMyState {
 }
 
 import { defineComponent } from 'vue'
-import type { PropType } from 'vue'
 import { get, set, clear } from 'idb-keyval'
 import markdown from 'markdown-it'
-import mediumZoom from 'medium-zoom'
 import micromatch from 'micromatch'
 
 import globalStore from '@/store'
@@ -181,15 +179,6 @@ export default defineComponent({
   watch: {
     'globalState.svnProjects'() {
       this.updateShortcuts()
-    },
-    'globalState.colorScheme'() {
-      // medium-zoom freaks out if color theme is swapped.
-      // so let's reload images just in case.
-      // this.fetchFolderContents()
-    },
-    subfolder() {
-      return
-      // if (this.subfolder) this.updateRoute()
     },
     'globalState.authAttempts'() {
       this.authenticationChanged()
@@ -264,19 +253,12 @@ export default defineComponent({
       } else {
         this.buildShowEverythingView()
       }
-
-      // make sure page is rendered before we attach zoom semantics
-      await this.$nextTick()
-      mediumZoom('.medium-zoom', {
-        background: '#444450',
-      })
     },
 
     updateShortcuts() {
       const roots = this.globalState.svnProjects.filter(
         source => !source.hidden && !source.slug.startsWith('fs')
       )
-
       this.allRoots = roots
     },
 

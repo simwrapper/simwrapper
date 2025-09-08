@@ -1,8 +1,7 @@
 <template lang="pug">
-.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
+.xy-hexagons(oncontextmenu="return false" :id="`id-${id}`")
 
-  xy-hex-deck-map.hex-layer(
-    v-if="!thumbnail && isLoaded"
+  xy-hex-deck-map.hex-layer(v-if="isLoaded"
     v-bind="mapProps"
   )
 
@@ -83,7 +82,6 @@ import YAML from 'yaml'
 
 import util from '@/js/util'
 import globalStore from '@/store'
-import { REACT_VIEW_HANDLES } from '@/Globals'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
@@ -91,7 +89,8 @@ import CSVParserWorker from './CsvGzipParser.worker.ts?worker'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import XyHexDeckMap from './XyHexLayer'
+// import XyHexDeckMap from './XyHexLayer'
+import XyHexDeckMap from './XyHexMapComponent.vue'
 import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
 
 import {
@@ -148,8 +147,7 @@ const MyComponent = defineComponent({
   data: () => {
     const colorRamps = ['par', 'bathymetry', 'magma', 'chlorophyll']
     return {
-      id: `id-${Math.floor(1e12 * Math.random())}` as any,
-
+      id: Math.floor(1e12 * Math.random()),
       resolvers: {} as { [id: number]: any },
       resolverId: 0,
       _xmlConfigFetcher: {} as any,
@@ -249,7 +247,7 @@ const MyComponent = defineComponent({
         data: this.requests,
         extrude: this.extrudeTowers,
         highlights: this.highlightedTrips,
-        mapIsIndependent: this.vizDetails.mapIsIndependent,
+        mapIsIndependent: this.vizDetails.mapIsIndependent || false,
         maxHeight: this.vizDetails.maxHeight,
         metric: this.buttonLabel,
         radius: this.vizDetails.radius,
@@ -281,10 +279,6 @@ const MyComponent = defineComponent({
         )
       }
     },
-    '$store.state.viewState'() {
-      if (this.vizDetails.mapIsIndependent) return
-      if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id]()
-    },
   },
   methods: {
     handleClick(target: any, event: any) {
@@ -296,21 +290,21 @@ const MyComponent = defineComponent({
       this.flipViewToShowInvertedData({})
     },
 
-    handleHexClick(pickedObject: any, event: any) {
+    handleHexClick(target: any, event: any) {
       if (!event.srcEvent.shiftKey) {
         this.multiSelectedHexagons = {}
         this.hexStats = null
-        this.flipViewToShowInvertedData(pickedObject)
+        this.flipViewToShowInvertedData(target)
         return
       }
 
       // SHIFT!!
-      const index = pickedObject?.object?.index
+      const index = target?.object?.index
       if (index !== undefined) {
         if (index in this.multiSelectedHexagons) {
           delete this.multiSelectedHexagons[index]
         } else {
-          this.multiSelectedHexagons[index] = pickedObject.object.points
+          this.multiSelectedHexagons[index] = target.object.points
         }
         this.hexStats = this.selectedHexagonStatistics()
       }
@@ -340,8 +334,8 @@ const MyComponent = defineComponent({
       let revAgg = this.aggNumber + (this.aggNumber % 2 ? -1 : 1) // this.aggNumber - 1 : this.aggNumber + 1
       const arcFilteredRows: any = []
 
-      for (const row of pickedObject.object.points) {
-        const zoffset = row.index * 2
+      for (const index of pickedObject.object.pointIndices) {
+        const zoffset = index * 2
 
         const from = [
           this.requests[this.currentGroup].positions[revAgg][zoffset],
@@ -361,7 +355,7 @@ const MyComponent = defineComponent({
       this.colorRamp = this.colorRamps[revAgg]
     },
 
-    async handleOrigDest(groupName: string, number: number) {
+    handleOrigDest(groupName: string, number: number) {
       this.currentGroup = groupName
       this.aggNumber = number
       this.hexStats = null
@@ -542,21 +536,6 @@ const MyComponent = defineComponent({
       this.$emit('title', t)
     },
 
-    async buildThumbnail() {
-      if (this.thumbnail && this.vizDetails.thumbnail) {
-        try {
-          const blob = await this.fileApi.getFileBlob(
-            this.myState.subfolder + '/' + this.vizDetails.thumbnail
-          )
-          const buffer = await blob.arrayBuffer()
-          const base64 = util.arrayBufferToBase64(buffer)
-          if (base64)
-            this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
-        } catch (e) {
-          console.error(e)
-        }
-      }
-    },
     handleShowSelectionButton() {
       const arrays = Object.values(this.multiSelectedHexagons)
       let points: any[] = []
@@ -580,7 +559,7 @@ const MyComponent = defineComponent({
       return { rows: ll, numHexagons: selectedHexes.length, selectedHexagonIds: selectedHexes }
     },
 
-    async setMapCenter() {
+    setMapCenter() {
       // If user gave us the center, use it
       if (this.vizDetails.center) {
         if (typeof this.vizDetails.center == 'string') {
@@ -588,16 +567,11 @@ const MyComponent = defineComponent({
         }
 
         const view = {
-          longitude: this.vizDetails.center[0],
-          latitude: this.vizDetails.center[1],
+          center: this.vizDetails.center,
+          zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
           bearing: 0,
           pitch: 0,
-          zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
-          jump: false, // move the map no matter what
         }
-
-        // bounce our map
-        if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id](view)
 
         // Sets the map to the specified data
         this.$store.commit('setMapCamera', Object.assign({}, view))
@@ -640,60 +614,48 @@ const MyComponent = defineComponent({
       }
     },
 
-    setupLogoMover() {
-      this.resizer = new ResizeObserver(this.moveLogo)
-      const deckmap = document.getElementById(`id-${this.id}`) as HTMLElement
-      this.resizer.observe(deckmap)
-    },
-
-    moveLogo() {
-      const deckmap = document.getElementById(`id-${this.id}`) as HTMLElement
-      const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
-      if (logo) {
-        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
-        logo.style.right = right
-      }
-    },
-
     async parseCSVFile(filename: string) {
       this.myState.statusMessage = 'Loading file...'
 
       // get the raw unzipped arraybuffer
-      this.gzipWorker = new CSVParserWorker()
+      let worker = new CSVParserWorker()
 
-      this.gzipWorker.onmessage = async (buffer: MessageEvent) => {
-        if (buffer.data.status) {
-          this.myState.statusMessage = buffer.data.status
-        } else if (buffer.data.projection) {
-          console.log('dataset has a #EPSG:projection, using it', buffer.data.projection)
-          this.vizDetails.projection = buffer.data.projection
-        } else if (buffer.data.error) {
-          this.myState.statusMessage = buffer.data.error
+      worker.onmessage = async (message: MessageEvent) => {
+        if (message.data.ready) {
+          worker.postMessage({
+            filepath: filename,
+            fileSystem: this.fileSystem,
+            aggregations: this.vizDetails.aggregations,
+            projection: this.vizDetails.projection,
+          })
+          return
+        }
+        if (message.data.status) {
+          this.myState.statusMessage = message.data.status
+        } else if (message.data.projection) {
+          console.log('dataset has a #EPSG:projection, using it', message.data.projection)
+          this.vizDetails.projection = message.data.projection
+        } else if (message.data.error) {
+          this.myState.statusMessage = message.data.error
           this.$emit('error', {
             type: Status.ERROR,
             msg: `Error loading: ${this.myState.subfolder}/${this.vizDetails.file}`,
           })
         } else {
-          const { fullRowCache } = buffer.data
-          if (this.gzipWorker) this.gzipWorker.terminate()
+          const { fullRowCache } = message.data
+          this.gzipWorker?.terminate()
           this.dataIsLoaded({ fullRowCache })
         }
       }
 
-      this.gzipWorker.postMessage({
-        filepath: filename,
-        fileSystem: this.fileSystem,
-        aggregations: this.vizDetails.aggregations,
-        projection: this.vizDetails.projection,
-      })
+      this.gzipWorker = worker
     },
 
     dataIsLoaded({ fullRowCache }: any) {
       this.requests = fullRowCache
-
       this.setMapCenter()
-      this.moveLogo()
       this.myState.statusMessage = ''
+      this.isLoaded = true
     },
 
     async loadFiles() {
@@ -706,14 +668,11 @@ const MyComponent = defineComponent({
       } catch (e) {
         console.error(e)
         this.myState.statusMessage = '' + e
-        this.$emit('error', {
-          type: Status.ERROR,
-          msg: `Loading/Parsing Error`,
-          desc: 'Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}',
-        })
+        this.$emit('error', `Loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}`)
       }
     },
   },
+
   async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
 
@@ -725,20 +684,11 @@ const MyComponent = defineComponent({
 
     await this.getVizDetails()
 
-    if (this.thumbnail) return
-
-    this.setupLogoMover()
-
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
     this.aggregations = this.vizDetails.aggregations
 
     await this.loadFiles()
 
-    // this.mapState.center = this.findCenter(this.rawRequests)
-
-    this.buildThumbnail()
-
-    this.isLoaded = true
     this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // show first data
   },
 
@@ -746,9 +696,6 @@ const MyComponent = defineComponent({
     if (this._xmlConfigFetcher) this._xmlConfigFetcher.terminate()
 
     this.resizer?.disconnect()
-    // MUST erase the React view handle to prevent gigantic memory leak!
-    REACT_VIEW_HANDLES[this.id] = undefined
-    delete REACT_VIEW_HANDLES[this.id]
 
     try {
       if (this.gzipWorker) {
@@ -777,13 +724,6 @@ export default MyComponent
   display: flex;
   flex-direction: column;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') center / cover no-repeat;
-  z-index: -1;
-}
-
-.xy-hexagons.hide-thumbnail {
-  background: none;
-  z-index: 0;
 }
 
 .message {
@@ -857,6 +797,7 @@ export default MyComponent
   background-color: var(--bgPanel);
   padding: 0.5rem 0.5rem;
   filter: drop-shadow(0px 2px 4px #22222233);
+  z-index: 2;
 }
 
 .is-dashboard {

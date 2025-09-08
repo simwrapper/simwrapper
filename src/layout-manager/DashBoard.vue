@@ -65,7 +65,7 @@
           :id="card.id"
           :class="{'is-loaded': card.isLoaded}"
         )
-          component.dash-card(
+          component.dash-card(v-if="card.visible"
             :is="getCardComponent(card)"
             :fileSystemConfig="fileSystemConfig"
             :subfolder="row.subtabFolder || xsubfolder"
@@ -96,6 +96,8 @@ import type { PropType } from 'vue'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
+import { sleep } from '@/js/util'
+
 import { FavoriteLocation, FileSystemConfig, Status, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
@@ -141,6 +143,7 @@ export default defineComponent({
       fullScreenCardId: '',
       resizers: {} as { [id: string]: any },
       infoToggle: {} as { [id: string]: boolean },
+      isDestroying: false,
       isFullScreenDashboard: false,
       isResizing: false,
       opacity: {} as any,
@@ -571,6 +574,7 @@ export default defineComponent({
           Vue.set(this.opacity, card.id, 0.5)
           Vue.set(this.infoToggle, card.id, false)
           Vue.set(card, 'errors', [] as string[])
+          Vue.set(card, 'visible', false)
 
           // Card header could be hidden
           if (!card.title && !card.description) card.showHeader = false
@@ -581,6 +585,20 @@ export default defineComponent({
 
         this.rows.push({ id: rowId, cards, subtabFolder })
         this.rowFlexWeights.push(flexWeight)
+      }
+      this.slowRollTheCardAppearances()
+    },
+
+    async slowRollTheCardAppearances() {
+      for (const row of this.rows) {
+        for (const card of row.cards) {
+          // cancel if user ditches the page
+          if (this.isDestroying) return
+
+          card.visible = true
+          await this.$nextTick()
+          await sleep(200)
+        }
       }
       this.$emit('layoutComplete')
     },
@@ -687,8 +705,10 @@ export default defineComponent({
       this.$emit('error', 'Error setting up dashboard, check YAML?')
     }
   },
+
   beforeDestroy() {
     this.resizers = {}
+    this.isDestroying = true
     this.narrowPanelObserver?.disconnect()
     window.removeEventListener('resize', this.resizeAllCards)
   },

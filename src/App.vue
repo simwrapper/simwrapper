@@ -662,49 +662,26 @@ p.splash-label {
 }
 
 // MapLibre Logo
-.mapboxgl-ctrl-bottom-left {
-  filter: var(--opacityLogo);
-  color: var(--bgBold);
-  bottom: -5px;
-  left: unset;
-  right: 36px;
-  z-index: 0;
+.maplibregl-ctrl-attrib {
+  background-color: var(--bg) !important;
+  opacity: 0.5;
+  color: var(--text);
+}
+maplibregl-ctrl-attrib-button {
+  color: white !important;
+  background-color: white !important;
 }
 
-// Mapbox Improve this Map attribution
-.mapboxgl-ctrl-bottom-right {
-  filter: var(--opacityAttribution);
-  right: 0rem;
-  bottom: 0rem;
-  left: unset;
-  z-index: 0;
-}
-
-.mapboxgl-popup-content {
-  background-color: var(--bgCream4);
-}
-
-.mapboxgl-popup-anchor-top .mapboxgl-popup-tip,
-.mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip,
-.mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip {
-  border-bottom-color: var(--bgCream4);
-}
-.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip,
-.mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip,
-.mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip {
-  border-top-color: var(--bgCream4);
-}
-.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
-  border-right-color: var(--bgCream4);
-}
-.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
-  border-left-color: var(--bgCream4);
-}
-.mapboxgl-ctrl.mapboxgl-ctrl-attrib {
-  background-color: var(--bgCream);
+.maplibregl-ctrl-attrib-inner {
+  color: var(--text);
   a {
-    color: var(--textPale);
+    color: var(--text);
   }
+}
+
+.maplibregl-popup-content {
+  background-color: var(--bgCream4);
+  color: var(--text);
 }
 
 // SCROLLBARS
@@ -714,19 +691,19 @@ p.splash-label {
 }
 
 /* Track */
-::-webkit-scrollbar-track {
-  // background: #00000080;
-}
+// ::-webkit-scrollbar-track {
+//   // background: #00000080;
+// }
 
 /* Handle */
 ::-webkit-scrollbar-thumb {
   background: var(--bgScrollbar);
 }
 
-/* Handle on hover */
-::-webkit-scrollbar-thumb:hover {
-  // background: #ffffff40;
-}
+// /* Handle on hover */
+// ::-webkit-scrollbar-thumb:hover {
+//   // background: #ffffff40;
+// }
 
 .deck-tooltip {
   position: 'static';
@@ -909,6 +886,13 @@ p.splash-label {
 
 .heading {
   margin-bottom: 0;
+}
+
+.scrolly {
+  overflow-y: auto;
+}
+.scrollx {
+  overflow-x: auto;
 }
 
 @media only screen and (max-width: 640px) {

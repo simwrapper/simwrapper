@@ -5,7 +5,7 @@
 
   .container-1
     .main-panel
-      tour-viz.anim(v-if="!thumbnail"
+      DeckMapComponent.anim(v-if="!thumbnail"
                   :activeTab="activeTab"
                   :shipments="shownShipments"
                   :depots="shownDepots"
@@ -18,9 +18,9 @@
                   :numSelectedTours="selectedTours.length"
                   :onClick="handleClick"
                   :projection="vizDetails.projection"
-                  :services="vizDetails.services"
-                  )
-      ZoomButtons(v-if="!thumbnail")
+                  :services="vizDetails.services")
+
+      ZoomButtons(v-if="!thumbnail" corner="top-left")
       .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
     .right-panel(v-if="!thumbnail" :darkMode="true")
@@ -38,7 +38,7 @@
       b-field.detail-buttons(v-if="selectedCarrier" size="is-small")
 
         b-radio-button(v-model="activeTab" native-value="shipments" size="is-small" type="is-warning")
-          span {{ $t('JOBS') }}
+          span {{ $t('jobs') }}
         b-radio-button(v-model="activeTab" native-value="tours" size="is-small" type="is-warning")
           span {{ $t('tours') }}
         b-radio-button(v-model="activeTab" native-value="vehicles" size="is-small" type="is-warning")
@@ -48,13 +48,13 @@
 
       .detail-area
         .shipments(v-if="activeTab=='shipments' && !vizDetails.services")
-            span {{ $t('JOBS')}}: {{ shipments.length}}
+            span {{ $t('jobs')}}: {{ shipments.length}}
             .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
                 @click="handleSelectShipment(shipment)"
                 :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"
             ) {{ `${shipment.$id}: ${shipment.$from}-${shipment.$to}` }}
         .shipments(v-if="activeTab=='shipments' && vizDetails.services")
-            span {{ $t('JOBS')}}: {{ shipments.length}}
+            span {{ $t('jobs')}}: {{ shipments.length}}
             .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
                 @click="handleSelectShipment(shipment)"
                 :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"
@@ -106,6 +106,7 @@ const i18n = {
       vehicles: 'VEHICLES',
       services: 'SERVICES',
       shipments: 'JOBS',
+      jobs: 'JOBS',
       tours: 'TOURS',
       pickup: 'Pickup',
       delivery: 'Delivery',
@@ -119,9 +120,14 @@ const i18n = {
       vehicles: 'FAHRZEUGE',
       services: 'BETRIEBE',
       shipments: 'AUFTRÄGE',
+      jobs: 'JOBS',
       tours: 'TOUREN',
       pickup: 'Abholung',
       delivery: 'Lieferung',
+      flatten: 'Simple&nbsp;tours',
+      shipmentDots: 'Show shipments',
+      scaleSize: 'Widths',
+      scaleFactor: 'Width',
     },
   },
 }
@@ -137,12 +143,12 @@ import colorMap from 'colormap'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import LegendColors from '@/components/LegendColors'
+import LegendColors from '@/components/LegendColors.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import { gUnzip, parseXML, findMatchingGlobInFiles, arrayBufferToBase64 } from '@/js/util'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
-import TourViz from './TourViz'
+import DeckMapComponent from './MapComponent.vue'
 
 import {
   FileSystem,
@@ -184,9 +190,9 @@ const CarrierPlugin = defineComponent({
   name: 'CarrierPlugin',
   i18n,
   components: {
+    DeckMapComponent,
     LegendColors,
     ToggleButton,
-    TourViz,
     ZoomButtons,
   },
   props: {
