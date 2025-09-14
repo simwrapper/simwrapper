@@ -4,14 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  AggregateFlow,
-  Cluster,
-  ClusterNode,
-  LocationTotals,
-} from '@flowmap.gl/data';
+import { AggregateFlow, Cluster, ClusterNode, LocationTotals } from '@flowmap.gl/data'
 
-export type LayerProps = Record<string, unknown>;
+export type LayerProps = Record<string, unknown>
 
 export enum PickingType {
   LOCATION = 'location',
@@ -19,39 +14,39 @@ export enum PickingType {
   // LOCATION_AREA = 'location-area',
 }
 
-export type DeckGLLayer = Record<string, any>;
+export type DeckGLLayer = Record<string, any>
 
 export interface PickingInfo<T> {
-  layer: DeckGLLayer;
-  index: number;
-  picked: boolean;
-  object: T | undefined;
-  x: number;
-  y: number;
-  coordinate: [number, number];
-  event: MouseEvent | undefined;
+  layer: DeckGLLayer
+  index: number
+  picked: boolean
+  object: T | undefined
+  x: number
+  y: number
+  coordinate: [number, number]
+  event: MouseEvent | undefined
 }
 
 export interface LocationPickingInfoObject<L> {
-  id: string | number;
-  type: PickingType.LOCATION;
-  location: L | ClusterNode;
-  name: string;
-  totals: LocationTotals;
-  circleRadius: number;
+  id: string | number
+  type: PickingType.LOCATION
+  location: any
+  name: string
+  totals: any
+  circleRadius: number
 }
 
-export type LocationPickingInfo<L> = PickingInfo<LocationPickingInfoObject<L>>;
+export type LocationPickingInfo<L> = PickingInfo<LocationPickingInfoObject<L>>
 
 export interface FlowPickingInfoObject<L, F> {
-  type: PickingType.FLOW;
-  flow: F | AggregateFlow;
-  origin: L | ClusterNode;
-  dest: L | ClusterNode;
-  count: number;
+  type: PickingType.FLOW
+  flow: any
+  origin: any
+  dest: any
+  count: number
 }
 
-export type FlowPickingInfo<L, F> = PickingInfo<FlowPickingInfoObject<L, F>>;
+export type FlowPickingInfo<L, F> = PickingInfo<FlowPickingInfoObject<L, F>>
 
 // export interface LocationAreaPickingInfo extends PickingInfo<PickingInfoData> {
 //   type: PickingType.LOCATION_AREA;
@@ -61,7 +56,7 @@ export type FlowPickingInfo<L, F> = PickingInfo<FlowPickingInfoObject<L, F>>;
 export type FlowmapLayerPickingInfo<L, F> =
   | LocationPickingInfo<L>
   // | LocationAreaPickingInfo
-  | FlowPickingInfo<L, F>;
+  | FlowPickingInfo<L, F>
 
 // import {FeatureCollection, GeometryObject} from 'geojson';
 // export type LocationProperties = Record<string, unknown>;

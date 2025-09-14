@@ -9,7 +9,7 @@
             v-bind="mapProps"
           )
 
-        zoom-buttons(v-if="!thumbnail")
+        zoom-buttons(v-if="!thumbnail" corner="top-left")
 
         .bottom-panel(v-if="!thumbnail")
           h1 {{`Hours ${slider.filterStartHour} - ${slider.filterEndHour}` }}
@@ -23,14 +23,14 @@
             @hourSelected="filterByHour"
           )
     .right-side-panel
-      .metric-label {{  $t('metrics') }}:
+      .metric-label Metrics
       .metric-buttons
         button.button.is-small.metric-button(
           v-for="metric,i in vizDetails.metrics" :key="i"
           :style="{'color': 'white' , 'border': isDarkMode ? `1px solid white` : `1px solid #2A3C4F`, 'border-radius': '4px', 'backgroundColor': isDarkMode ? '#2a3c4f': '#2a3c4f'}" @click="handleClickedMetric(metric)"
           ) {{metric.label}}
       br
-      .metric-label {{  $t('color scheme') }}:
+      .metric-label Color scheme
       b-select.form-select(aria-labelledby="lil-gui-name-2" v-model="vizDetails.colorScheme" class="is-small" )
         option(value="Blues") Blues
         option(value="BluGrn") BluGrn
@@ -491,7 +491,7 @@ const MyComponent = defineComponent({
       let results: any = {}
       try {
         const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
-        console.log(this.myState)
+        // console.log(this.myState)
         const transitSchedule = files.filter(
           f => f.endsWith('transitSchedule.xml.gz') && !f.startsWith('._')
         )
@@ -624,6 +624,7 @@ const MyComponent = defineComponent({
     },
 
     async configureData(datasetInfo: any) {
+      console.log({ datasetInfo })
       // Use config columns for origin/dest/flow -- if they exist
       this.vizDetails.colorScheme = datasetInfo.colorScheme
       this.vizDetails.selectedMetricLabel = datasetInfo.flow
@@ -631,7 +632,7 @@ const MyComponent = defineComponent({
       const oColumn = datasetInfo.origin || 'origin'
       const dColumn = datasetInfo.destination || 'destination'
       const flowColumn = datasetInfo.flow || 'flow'
-      const hourColumn = 'departureHour'
+      const hourColumn = datasetInfo.hour || 'departureHour'
 
       try {
         this.vizDetails.dataset = datasetInfo.dataset
@@ -651,24 +652,15 @@ const MyComponent = defineComponent({
         const hours = data[hourColumn].values
 
         const flows = [] as any[]
+        const invert = 'inverse' == datasetInfo.valueTransform?.enum?.[0]
         for (let i = 0; i < origin.length; i++) {
-          //
           try {
-            if (datasetInfo.valueTransform.enum[0] == 'inverse') {
-              flows.push({
-                o: `${origin[i]}`,
-                d: `${destination[i]}`,
-                v: 1 / count[i],
-                h: hours[i],
-              })
-            } else {
-              flows.push({
-                o: `${origin[i]}`,
-                d: `${destination[i]}`,
-                v: count[i],
-                h: hours[i],
-              })
-            }
+            flows.push({
+              o: `${origin[i]}`,
+              d: `${destination[i]}`,
+              v: invert ? 1 / count[i] : count[i],
+              h: hours[i],
+            })
           } catch {
             // missing data; ignore
           }

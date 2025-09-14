@@ -9,7 +9,7 @@ import { defineComponent, PropType } from 'vue'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import maplibregl from 'maplibre-gl'
 import globalStore from '@/store'
-import { FlowmapLayer, FlowmapLayerPickingInfo, PickingType } from '@flowmap.gl/layers'
+import { FlowmapLayer } from '@/layers/flowmap/FlowmapLayer'
 
 export default defineComponent({
   name: 'FlowmapDeckComponent',
@@ -78,14 +78,13 @@ export default defineComponent({
           data: { locations: this.locations, flows: this.flows },
           id: 'my-flowmap-' + this.viewId,
           getLocationId: (location: any) => location.id,
-          getLocationLat: (location: any) => location.lat,
-          getLocationLon: (location: any) => location.lon,
           getLocationName: (location: any) => location.id,
+          getLocationLon: (location: any) => location.lon,
+          getLocationLat: (location: any) => location.lat,
           getFlowOriginId: (flow: any) => flow.o,
           getFlowDestId: (flow: any) => flow.d,
           getFlowMagnitude: (flow: any) => flow.v || null,
           adaptiveScalesEnabled: true,
-          parameters: { depthTest: false },
           colorScheme: this.vizDetails.colorScheme,
           animationEnabled: this.vizDetails.animationEnabled,
           clusteringEnabled: this.vizDetails.clustering,
@@ -95,6 +94,7 @@ export default defineComponent({
           drawOutline: false,
           fadeEnabled: true,
           opacity: 1,
+          parameters: { depthTest: true },
           pickable: true,
           onHover: this.getTooltip,
         })
@@ -145,6 +145,11 @@ export default defineComponent({
     },
 
     getTooltip(tip: { x: number; y: number; object: any }) {
+      if (!tip?.object) {
+        this.tooltipHTML = ''
+        return
+      }
+
       const { x, y, object } = tip
 
       if (!object || !object.position || !object.position.length) {

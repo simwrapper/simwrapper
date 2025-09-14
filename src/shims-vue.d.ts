@@ -13,6 +13,11 @@ declare module '*.frag' {
   export default content
 }
 
+declare module '*.glsl' {
+  const content: string
+  export default content
+}
+
 // import markdown files directly, they become vue components using vue-plugin-md
 declare module '*.md' {
   import { ComponentOptions } from 'vue'
@@ -21,7 +26,6 @@ declare module '*.md' {
 }
 
 declare module '@/js/avro'
-declare module 'react-aria-menubutton'
 declare module 'colormap'
 declare module 'convert-seconds'
 declare module 'd3-color'

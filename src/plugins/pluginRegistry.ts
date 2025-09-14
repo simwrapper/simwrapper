@@ -83,11 +83,11 @@ const plugins = [
     filePatterns: ['**/viz-od*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./aggregate-od/AggregateOd.vue')),
   },
-  // {
-  //   kebabName: 'flowmap',
-  //   filePatterns: ['**/viz-flowmap*.y?(a)ml'],
-  //   component: defineAsyncComponent(() => import('./flowmap/Flowmap.vue')),
-  // },
+  {
+    kebabName: 'flowmap',
+    filePatterns: ['**/viz-flowmap*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./flowmap/Flowmap.vue')),
+  },
   {
     kebabName: 'matrix',
     filePatterns: ['**/viz-matrix*.y?(a)ml', '**/*.h5', '**/*.omx'],

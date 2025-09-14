@@ -4,10 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-console.log('hello');
-
-import {CompositeLayer} from '@deck.gl/core';
-import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
+import { CompositeLayer } from '@deck.gl/core'
+import { ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import {
   FilterState,
   FlowLinesLayerAttributes,
@@ -25,46 +23,36 @@ import {
   getOuterCircleRadiusByIndex,
   isFlowmapData,
   isFlowmapDataProvider,
-} from '@flowmap.gl/data';
-// import AnimatedFlowLinesLayer from './AnimatedFlowLinesLayer';
-// import FlowCirclesLayer from './FlowCirclesLayer';
-import FlowLinesLayer from './FlowLinesLayer';
-import {
-  FlowmapLayerPickingInfo,
-  LayerProps,
-  PickingInfo,
-  PickingType,
-} from './types';
+} from '@flowmap.gl/data'
 
-export type FlowmapLayerProps<
-  L extends Record<string, any>,
-  F extends Record<string, any>,
-> = {
-  data?: FlowmapData<L, F>;
-  dataProvider?: FlowmapDataProvider<L, F>;
-  filter?: FilterState;
-  locationsEnabled?: boolean;
-  locationTotalsEnabled?: boolean;
-  locationLabelsEnabled?: boolean;
-  adaptiveScalesEnabled?: boolean;
-  animationEnabled?: boolean;
-  clusteringEnabled?: boolean;
-  clusteringLevel?: number;
-  fadeEnabled?: boolean;
-  fadeOpacityEnabled?: boolean;
-  clusteringAuto?: boolean;
-  darkMode?: boolean;
-  fadeAmount?: number;
-  colorScheme?: string | string[];
-  highlightColor?: string | number[];
-  maxTopFlowsDisplayNum?: number;
-  onHover?: (
-    info: FlowmapLayerPickingInfo<L, F> | undefined,
-    event: SourceEvent,
-  ) => void;
-  onClick?: (info: FlowmapLayerPickingInfo<L, F>, event: SourceEvent) => void;
-} & Partial<FlowmapDataAccessors<L, F>> &
-  LayerProps;
+import AnimatedFlowLinesLayer from './AnimatedFlowLinesLayer'
+import FlowCirclesLayer from './FlowCirclesLayer'
+import FlowLinesLayer from './FlowLinesLayer'
+import { FlowmapLayerPickingInfo, LayerProps, PickingInfo, PickingType } from './types'
+
+export type FlowmapLayerProps<L extends Record<string, any>, F extends Record<string, any>> = {
+  data?: any
+  dataProvider?: any
+  filter?: any
+  locationsEnabled?: boolean
+  locationTotalsEnabled?: boolean
+  locationLabelsEnabled?: boolean
+  adaptiveScalesEnabled?: boolean
+  animationEnabled?: boolean
+  clusteringEnabled?: boolean
+  clusteringLevel?: number
+  fadeEnabled?: boolean
+  fadeOpacityEnabled?: boolean
+  clusteringAuto?: boolean
+  darkMode?: boolean
+  fadeAmount?: number
+  colorScheme?: string | string[]
+  highlightColor?: string | number[]
+  maxTopFlowsDisplayNum?: number
+  onHover?: any
+  onClick?: any
+} & Partial<any> &
+  LayerProps
 
 const PROPS_TO_CAUSE_LAYER_DATA_UPDATE: string[] = [
   'filter',
@@ -83,7 +71,7 @@ const PROPS_TO_CAUSE_LAYER_DATA_UPDATE: string[] = [
   'colorScheme',
   'highlightColor',
   'maxTopFlowsDisplayNum',
-];
+]
 
 enum HighlightType {
   LOCATION = 'location',
@@ -91,33 +79,33 @@ enum HighlightType {
 }
 
 type HighlightedLocationObject = {
-  type: HighlightType.LOCATION;
-  coords: [number, number];
-  radius: number;
-};
+  type: HighlightType.LOCATION
+  coords: [number, number]
+  radius: number
+}
 
 type HighlightedFlowObject = {
-  type: HighlightType.FLOW;
-  lineAttributes: FlowLinesLayerAttributes;
-};
+  type: HighlightType.FLOW
+  lineAttributes: any
+}
 
-type HighlightedObject = HighlightedLocationObject | HighlightedFlowObject;
+type HighlightedObject = HighlightedLocationObject | HighlightedFlowObject
 
 type State<L extends Record<string, any>, F extends Record<string, any>> = {
-  accessors: FlowmapAggregateAccessors<L, F>;
-  dataProvider: FlowmapDataProvider<L, F>;
-  layersData: LayersData | undefined;
-  highlightedObject: HighlightedObject | undefined;
-  pickingInfo: FlowmapLayerPickingInfo<L, F> | undefined;
-  lastHoverTime: number | undefined;
-  lastClickTime: number | undefined;
-};
+  accessors: any
+  dataProvider: any
+  layersData: any
+  highlightedObject: HighlightedObject | undefined
+  pickingInfo: FlowmapLayerPickingInfo<L, F> | undefined
+  lastHoverTime: number | undefined
+  lastClickTime: number | undefined
+}
 
-export type SourceEvent = {srcEvent: MouseEvent};
+export type SourceEvent = { srcEvent: MouseEvent }
 
-export default class FlowmapLayer<
+export class FlowmapLayer<
   L extends Record<string, any>,
-  F extends Record<string, any>,
+  F extends Record<string, any>
 > extends CompositeLayer {
   static defaultProps = {
     darkMode: true,
@@ -135,78 +123,82 @@ export default class FlowmapLayer<
     colorScheme: 'Teal',
     highlightColor: 'orange',
     maxTopFlowsDisplayNum: 5000,
-  };
-  state: State<L, F> | undefined;
+  }
+
+  //@ts-ignore
+  state: any
 
   public constructor(props: FlowmapLayerProps<L, F>) {
     super({
       ...props,
-      onHover: (info: PickingInfo<any>, event: SourceEvent) => {
-        const startTime = Date.now();
+      onHover: (info: any, event: any) => {
+        const startTime = Date.now()
         this.setState({
           highlightedObject: this._getHighlightedObject(info),
           lastHoverTime: startTime,
-        });
+        })
 
-        const {onHover} = props;
+        const { onHover } = props
         if (onHover) {
-          this._getFlowmapLayerPickingInfo(info).then((info) => {
+          this._getFlowmapLayerPickingInfo(info).then(info => {
             if ((this.state?.lastHoverTime ?? 0) <= startTime) {
-              this.setState({pickingInfo: info});
-              onHover(info, event);
+              this.setState({ pickingInfo: info })
+              onHover(info, event)
             } else {
               // Skipping, because this is not the latest hover event
             }
-          });
+          })
         }
       },
-      onClick: (info: PickingInfo<any>, event: SourceEvent) => {
-        const {onClick} = props;
-        const startTime = Date.now();
+
+      //@ts-ignore
+      onClick: (info: any, event: SourceEvent) => {
+        const { onClick } = props
+        const startTime = Date.now()
         this.setState({
           lastClickTime: startTime,
-        });
+        })
         if (onClick) {
-          this._getFlowmapLayerPickingInfo(info).then((info) => {
+          this._getFlowmapLayerPickingInfo(info).then(info => {
             if ((this.state?.lastClickTime ?? 0) <= startTime) {
-              this.setState({pickingInfo: info});
+              this.setState({ pickingInfo: info })
               if (info) {
-                onClick(info, event);
+                onClick(info, event)
               }
             } else {
               // Skipping, because this is not the latest hover event
             }
-          });
+          })
         }
       },
-    });
+    })
   }
 
   initializeState() {
     this.state = {
-      accessors: new FlowmapAggregateAccessors<L, F>(this.props),
+      accessors: new FlowmapAggregateAccessors(this.props as any),
       dataProvider: this._getOrMakeDataProvider(),
       layersData: undefined,
       highlightedObject: undefined,
       pickingInfo: undefined,
       lastHoverTime: undefined,
       lastClickTime: undefined,
-    };
+    }
   }
 
-  getPickingInfo({info}: Record<string, any>) {
+  getPickingInfo({ info }: Record<string, any>) {
     // This is for onHover event handlers set on the <DeckGL> component
     if (!info.object) {
-      const object = this.state?.pickingInfo?.object;
+      const object = this.state?.pickingInfo?.object
       if (object) {
         return {
           ...info,
           object,
           picked: true,
-        };
+        }
       }
     }
-    return info;
+    return info
   }
 
   // private _updateAccessors() {
@@ -215,61 +207,58 @@ export default class FlowmapLayer<
   // }
 
   private _getOrMakeDataProvider() {
-    const {data, dataProvider} = this.props;
-    if (isFlowmapDataProvider<L, F>(dataProvider)) {
-      return dataProvider;
-    } else if (isFlowmapData<L, F>(data)) {
-      const dataProvider = new LocalFlowmapDataProvider<L, F>(this.props);
-      dataProvider.setFlowmapData(data);
-      return dataProvider;
+    //@ts-ignore
+    const { data, dataProvider } = this.props as any
+    if (isFlowmapDataProvider(dataProvider)) {
+      return dataProvider
+    } else if (isFlowmapData(data)) {
+      const dataProvider = new LocalFlowmapDataProvider(this.props as any)
+      dataProvider.setFlowmapData(data as any)
+      return dataProvider
     }
-    throw new Error(
-      'FlowmapLayer: data must be a FlowmapDataProvider or FlowmapData',
-    );
+    throw new Error('FlowmapLayer: data must be a FlowmapDataProvider or FlowmapData')
   }
 
   private _updateDataProvider() {
-    this.setState({dataProvider: this._getOrMakeDataProvider()});
+    this.setState({ dataProvider: this._getOrMakeDataProvider() })
   }
 
   shouldUpdateState(params: Record<string, any>): boolean {
-    const {changeFlags} = params;
+    const { changeFlags } = params
     // if (this._viewportChanged()) {
     //   return true;
     // }
     if (changeFlags.viewportChanged) {
-      return true;
+      return true
     }
-    return super.shouldUpdateState(params);
+    return super.shouldUpdateState(params as any)
     // TODO: be smarter on when to update
     // (e.g. ignore viewport changes when adaptiveScalesEnabled and clustering are false)
   }
 
-  updateState({oldProps, props, changeFlags}: Record<string, any>): void {
+  updateState({ oldProps, props, changeFlags }: Record<string, any>): void {
     if (changeFlags.propsChanged) {
       // this._updateAccessors();
     }
     if (changeFlags.dataChanged) {
-      this._updateDataProvider();
+      this._updateDataProvider()
     }
     if (changeFlags.viewportChanged || changeFlags.dataChanged) {
-      this.setState({highlightedObject: undefined});
+      this.setState({ highlightedObject: undefined })
     }
 
     if (
       changeFlags.viewportChanged ||
       changeFlags.dataChanged ||
       (changeFlags.propsChanged &&
-        PROPS_TO_CAUSE_LAYER_DATA_UPDATE.some(
-          (prop) => oldProps[prop] !== props[prop],
-        ))
+        PROPS_TO_CAUSE_LAYER_DATA_UPDATE.some(prop => oldProps[prop] !== props[prop]))
     ) {
-      const {dataProvider} = this.state || {};
+      const { dataProvider } = this.state || {}
       if (dataProvider) {
-        dataProvider.setFlowmapState(this._getFlowmapState());
-        dataProvider.updateLayersData((layersData: LayersData | undefined) => {
-          this.setState({layersData, highlightedObject: undefined});
-        }, changeFlags);
+        dataProvider.setFlowmapState(this._getFlowmapState())
+        dataProvider.updateLayersData((layersData: any) => {
+          this.setState({ layersData, highlightedObject: undefined })
+        }, changeFlags)
       }
     }
   }
@@ -291,7 +280,7 @@ export default class FlowmapLayer<
       colorScheme,
       highlightColor,
       maxTopFlowsDisplayNum,
-    } = this.props;
+    } = this.props as any
     return {
       locationsEnabled,
       locationTotalsEnabled,
@@ -308,24 +297,25 @@ export default class FlowmapLayer<
       colorScheme,
       highlightColor,
       maxTopFlowsDisplayNum,
-    };
+    }
   }
 
   private _getFlowmapState() {
     return {
       viewport: pickViewportProps(this.context.viewport),
+      //@ts-ignore
       filter: this.props.filter,
       settings: this._getSettingsState(),
-    };
+    }
   }
 
   private async _getFlowmapLayerPickingInfo(
-    info: Record<string, any>,
+    info: Record<string, any>
   ): Promise<FlowmapLayerPickingInfo<L, F> | undefined> {
-    const {index, sourceLayer} = info;
-    const {dataProvider, accessors} = this.state || {};
+    const { index, sourceLayer } = info
+    const { dataProvider, accessors } = this.state || {}
     if (!dataProvider || !accessors) {
-      return undefined;
+      return undefined
     }
     const commonInfo = {
       ...info,
@@ -336,20 +326,12 @@ export default class FlowmapLayer<
       y: info.y,
       coordinate: info.coordinate,
       event: info.event,
-    };
-    if (
-      sourceLayer instanceof FlowLinesLayer //  ||
-      // sourceLayer instanceof AnimatedFlowLinesLayer
-    ) {
-      const flow =
-        index === -1 ? undefined : await dataProvider.getFlowByIndex(index);
+    }
+    if (sourceLayer instanceof FlowLinesLayer || sourceLayer instanceof AnimatedFlowLinesLayer) {
+      const flow = index === -1 ? undefined : await dataProvider.getFlowByIndex(index)
       if (flow) {
-        const origin = await dataProvider.getLocationById(
-          accessors.getFlowOriginId(flow),
-        );
-        const dest = await dataProvider.getLocationById(
-          accessors.getFlowDestId(flow),
-        );
+        const origin = await dataProvider.getLocationById(accessors.getFlowOriginId(flow))
+        const dest = await dataProvider.getLocationById(accessors.getFlowDestId(flow))
         if (origin && dest) {
           return {
             ...commonInfo,
@@ -360,54 +342,45 @@ export default class FlowmapLayer<
               dest: dest,
               count: accessors.getFlowMagnitude(flow),
             },
-          };
+          }
+        }
+      }
+    } else if (sourceLayer instanceof FlowCirclesLayer) {
+      const location = index === -1 ? undefined : await dataProvider.getLocationByIndex(index)
+
+      if (location) {
+        const id = accessors.getLocationId(location)
+        const name = accessors.getLocationName(location)
+        const totals = await dataProvider.getTotalsForLocation(id)
+        const { circleAttributes } = this.state?.layersData || {}
+        if (totals && circleAttributes) {
+          const circleRadius = getOuterCircleRadiusByIndex(circleAttributes, info.index)
+          return {
+            ...commonInfo,
+            object: {
+              type: PickingType.LOCATION,
+              location,
+              id,
+              name,
+              totals,
+              circleRadius: circleRadius,
+            },
+          }
         }
       }
     }
-    // } else if (sourceLayer instanceof FlowCirclesLayer) {
-    //   const location =
-    //     index === -1 ? undefined : await dataProvider.getLocationByIndex(index);
 
-    //   if (location) {
-    //     const id = accessors.getLocationId(location);
-    //     const name = accessors.getLocationName(location);
-    //     const totals = await dataProvider.getTotalsForLocation(id);
-    //     const {circleAttributes} = this.state?.layersData || {};
-    //     if (totals && circleAttributes) {
-    //       const circleRadius = getOuterCircleRadiusByIndex(
-    //         circleAttributes,
-    //         info.index,
-    //       );
-    //       return {
-    //         ...commonInfo,
-    //         object: {
-    //           type: PickingType.LOCATION,
-    //           location,
-    //           id,
-    //           name,
-    //           totals,
-    //           circleRadius: circleRadius,
-    //         },
-    //       };
-    //     }
-    //   }
-    // }
-
-    return undefined;
+    return undefined
   }
 
-  private _getHighlightedObject(
-    info: Record<string, any>,
-  ): HighlightedObject | undefined {
-    const {index, sourceLayer} = info;
-    if (index < 0) return undefined;
-    if (
-      sourceLayer instanceof FlowLinesLayer // ||
-      // sourceLayer instanceof AnimatedFlowLinesLayer
-    ) {
-      const {lineAttributes} = this.state?.layersData || {};
+  private _getHighlightedObject(info: Record<string, any>): HighlightedObject | undefined {
+    const { index, sourceLayer } = info
+    if (index < 0) return undefined
+    if (sourceLayer instanceof FlowLinesLayer || sourceLayer instanceof AnimatedFlowLinesLayer) {
+      const { lineAttributes } = this.state?.layersData || {}
       if (lineAttributes) {
-        let attrs = getFlowLineAttributesByIndex(lineAttributes, index);
+        let attrs = getFlowLineAttributesByIndex(lineAttributes, index)
+        //@ts-ignore
         if (this.props.fadeOpacityEnabled) {
           attrs = {
             ...attrs,
@@ -421,37 +394,37 @@ export default class FlowmapLayer<
                 ]),
               },
             },
-          };
+          }
         }
         return {
           type: HighlightType.FLOW,
           lineAttributes: attrs,
-        };
+        }
       }
-      // } else if (sourceLayer instanceof FlowCirclesLayer) {
-      //   const {circleAttributes} = this.state?.layersData || {};
-      //   if (circleAttributes) {
-      //     return {
-      //       type: HighlightType.LOCATION,
-      //       coords: getLocationCoordsByIndex(circleAttributes, index),
-      //       radius: getOuterCircleRadiusByIndex(circleAttributes, index),
-      //     };
-      //   }
+    } else if (sourceLayer instanceof FlowCirclesLayer) {
+      const { circleAttributes } = this.state?.layersData || {}
+      if (circleAttributes) {
+        return {
+          type: HighlightType.LOCATION,
+          coords: getLocationCoordsByIndex(circleAttributes, index),
+          radius: getOuterCircleRadiusByIndex(circleAttributes, index),
+        }
+      }
     }
-    return undefined;
+    return undefined
   }
 
   renderLayers(): Array<any> {
-    const layers = [];
+    const layers = []
     if (this.state?.layersData) {
-      const {layersData, highlightedObject} = this.state;
-      const {circleAttributes, lineAttributes, locationLabels} =
-        layersData || {};
+      const { layersData, highlightedObject } = this.state
+      const { circleAttributes, lineAttributes, locationLabels } = layersData || {}
       if (circleAttributes && lineAttributes) {
-        const flowmapColors = getFlowmapColors(this._getSettingsState());
+        const flowmapColors = getFlowmapColors(this._getSettingsState())
         const outlineColor = colorAsRgba(
-          flowmapColors.outlineColor || (this.props.darkMode ? '#000' : '#fff'),
-        );
+          //@ts-ignore
+          flowmapColors.outlineColor || (this.props.darkMode ? '#000' : '#fff')
+        )
         const commonLineLayerProps = {
           data: lineAttributes,
           parameters: {
@@ -459,7 +432,11 @@ export default class FlowmapLayer<
             // prevent z-fighting at non-zero bearing/pitch
             depthTest: false,
           },
-        };
+        }
+
+        // ---- FLOW LINES
+
+        //@ts-ignore
         if (this.props.animationEnabled) {
           layers.push(
             // @ts-ignore
@@ -470,8 +447,8 @@ export default class FlowmapLayer<
                 drawOutline: false,
                 thicknessUnit: 20,
               }),
-            }),
-          );
+            })
+          )
         } else {
           layers.push(
             new FlowLinesLayer({
@@ -481,21 +458,26 @@ export default class FlowmapLayer<
                 drawOutline: true,
                 outlineColor: outlineColor,
               }),
-            }),
-          );
+            })
+          )
         }
-        // layers.push(
-        //   new FlowCirclesLayer(
-        //     this.getSubLayerProps({
-        //       id: 'circles',
-        //       data: circleAttributes,
-        //       emptyColor: this.props.darkMode
-        //         ? [0, 0, 0, 255]
-        //         : [255, 255, 255, 255],
-        //       outlineEmptyMix: 0.4,
-        //     }),
-        //   ),
-        // );
+
+        // CIRCLES LAYER ---------------
+
+        layers.push(
+          new FlowCirclesLayer(
+            this.getSubLayerProps({
+              id: 'circles',
+              data: circleAttributes,
+              //@ts-ignore
+              emptyColor: this.props.darkMode ? [0, 0, 0, 255] : [255, 255, 255, 255],
+              outlineEmptyMix: 0.4,
+            })
+          )
+        )
+
+        // HIGHLIGHT ----------------
+
         if (highlightedObject) {
           switch (highlightedObject.type) {
             case HighlightType.LOCATION:
@@ -512,12 +494,13 @@ export default class FlowmapLayer<
                     getLineWidth: 2,
                     radiusUnits: 'pixels',
                     getRadius: (d: HighlightedLocationObject) => d.radius,
+                    //@ts-ignore
                     getLineColor: colorAsRgba(this.props.highlightColor),
                     getPosition: (d: HighlightedLocationObject) => d.coords,
                   }),
-                }),
-              );
-              break;
+                })
+              )
+              break
             case HighlightType.FLOW:
               layers.push(
                 new FlowLinesLayer({
@@ -526,18 +509,22 @@ export default class FlowmapLayer<
                     data: highlightedObject.lineAttributes,
                     drawOutline: true,
                     pickable: false,
+                    //@ts-ignore
                     outlineColor: colorAsRgba(this.props.highlightColor),
                     outlineThickness: 1,
                     parameters: {
                       depthTest: false,
                     },
                   }),
-                }),
-              );
-              break;
+                })
+              )
+              break
           }
         }
       }
+
+      // LABELS ------------------
+
       if (locationLabels) {
         layers.push(
           new TextLayer(
@@ -547,13 +534,13 @@ export default class FlowmapLayer<
               maxWidth: 1000,
               pickable: false,
               fontFamily: 'Helvetica',
-              getPixelOffset: (d: string, {index}: {index: number}) => {
-                const r = getOuterCircleRadiusByIndex(circleAttributes, index);
-                return [0, r + 5];
+              getPixelOffset: (d: string, { index }: { index: number }) => {
+                const r = getOuterCircleRadiusByIndex(circleAttributes, index)
+                return [0, r + 5]
               },
-              getPosition: (d: string, {index}: {index: number}) => {
-                const pos = getLocationCoordsByIndex(circleAttributes, index);
-                return pos;
+              getPosition: (d: string, { index }: { index: number }) => {
+                const pos = getLocationCoordsByIndex(circleAttributes, index)
+                return pos
               },
               getText: (d: string) => d,
               getSize: 10,
@@ -561,18 +548,18 @@ export default class FlowmapLayer<
               getAngle: 0,
               getTextAnchor: 'middle',
               getAlignmentBaseline: 'top',
-            }),
-          ),
-        );
+            })
+          )
+        )
       }
     }
 
-    return layers;
+    return layers
   }
 }
 
-function pickViewportProps(viewport: Record<string, any>): ViewportProps {
-  const {width, height, longitude, latitude, zoom, pitch, bearing} = viewport;
+function pickViewportProps(viewport: Record<string, any>) {
+  const { width, height, longitude, latitude, zoom, pitch, bearing } = viewport
   return {
     width,
     height,
@@ -581,5 +568,7 @@ function pickViewportProps(viewport: Record<string, any>): ViewportProps {
     zoom,
     pitch,
     bearing,
-  };
+  }
 }
+
+export default FlowmapLayer

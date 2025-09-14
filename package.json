@@ -11,7 +11,6 @@
     "Janek Laudan <laudan@vsp.tu-berlin.de>",
     "Johanna Bänsch <j.baensch@tu-berlin.de>"
   ],
-  "packageManager": "npm@10.9.2",
   "scripts": {
     "deploy-sandag": "bash scripts/deploy-ghpages.sh simwrapper/sandag /",
     "deploy-vsp": "bash scripts/deploy-ghpages.sh matsim-vsp/simwrapper simwrapper",
@@ -35,9 +34,13 @@
   "optionalDependencies": {
     "fsevents": "*"
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "dependencies": {
     "@deck.gl/extensions": "^9.1.14",
     "@deck.gl/mapbox": "^9.1.14",
+    "@flowmap.gl/data": "^8.0.2",
     "@fortawesome/fontawesome-svg-core": "^6.4.0",
     "@fortawesome/free-brands-svg-icons": "^6.4.0",
     "@fortawesome/free-regular-svg-icons": "^6.4.0",
