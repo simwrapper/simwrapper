@@ -9,9 +9,9 @@
             v-bind="mapProps"
           )
 
-        zoom-buttons(v-if="!thumbnail" corner="top-left")
+        zoom-buttons(corner="top-left")
 
-        .bottom-panel(v-if="!thumbnail")
+        .bottom-panel(v-if="hasHours")
           h1 {{`Hours ${slider.filterStartHour} - ${slider.filterEndHour}` }}
           .button-row
             time-slider.time-slider(v-if="isLoaded"
@@ -91,15 +91,16 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
-import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
-import ZoomButtons from '@/components/ZoomButtons.vue'
+import * as Turf from '@turf/turf'
+import YAML from 'yaml'
+
+import globalStore from '@/store'
 import { FileSystemConfig } from '@/Globals'
+import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
+import ZoomButtons from '@/components/ZoomButtons.vue'
 import FlowMapLayer from '@/plugins/flowmap/FlowmapDeckMapComponent.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
-import globalStore from '@/store'
-import YAML from 'yaml'
 import util from '@/js/util'
 import TimeSlider from '@/plugins/flowmap/FlowMapTimeSlider.vue'
 import Coords from '@/js/Coords'
@@ -120,7 +121,7 @@ interface Flow {
 
 const MyComponent = defineComponent({
   name: 'FlowMap',
-  components: { FlowMapLayer, VizConfigurator, ZoomButtons, TimeSlider },
+  components: { FlowMapLayer, ZoomButtons, TimeSlider },
   // i18n,
   props: {
     config: Object,
@@ -179,6 +180,7 @@ const MyComponent = defineComponent({
   data() {
     return {
       isLoaded: false,
+      hasHours: true,
       stopFacilities: {} as {
         attributes?: any
         transitStops?: any
@@ -254,6 +256,7 @@ const MyComponent = defineComponent({
         network: '',
         dataset: '',
         colorScheme: '',
+        loadTransit: false,
         metrics: [
           {
             label: '',
@@ -261,10 +264,17 @@ const MyComponent = defineComponent({
             origin: '',
             destination: '',
             flow: '',
-            transformValue: '',
+            transformValue: '' as any,
             colorScheme: '',
           },
         ],
+        // these are deprecated, should now be in metrics[] instead:
+        boundaries: '',
+        boundariesJoinCol: '',
+        origin: '',
+        destination: '',
+        flow: '',
+        // metrics
         selectedMetric: {},
         selectedMetricLabel: '',
         highlightColor: 'orange',
@@ -304,11 +314,6 @@ const MyComponent = defineComponent({
 
       if (this.vizDetails.title) this.$emit('title', this.vizDetails.title)
 
-      if (this.thumbnail) {
-        this.buildThumbnail()
-        return
-      }
-
       if (this.needsInitialMapExtent && (this.vizDetails.center || this.vizDetails.zoom)) {
         this.$store.commit('setMapCamera', {
           center: this.vizDetails.center,
@@ -326,11 +331,26 @@ const MyComponent = defineComponent({
       // or the flowmap gets sad if dataset loads faster than boundaries do.
       await this.loadBoundaries()
 
+      // old configs don't have "metrics" section:
+      if (!this.vizDetails.metrics) {
+        this.vizDetails.metrics = [
+          {
+            dataset: this.vizDetails.dataset,
+            origin: this.vizDetails.origin,
+            destination: this.vizDetails.destination,
+            flow: this.vizDetails.flow,
+            label: this.vizDetails.flow,
+            colorScheme: 'Warm',
+          } as any,
+        ]
+      }
+
       this.vizDetails = Object.assign({}, this.vizDetails)
       this.vizDetails.selectedMetricLabel = this.vizDetails.metrics[0].flow
       this.vizDetails.selectedMetric = this.vizDetails.metrics[0]
       this.slider.labels = ['test', 'test']
       this.slider = Object.assign({}, this.slider)
+
       await this.configureData(this.vizDetails.metrics[0])
 
       this.$emit('isLoaded')
@@ -491,31 +511,63 @@ const MyComponent = defineComponent({
     },
 
     async loadBoundaries() {
+      // transit mode: load transit schedule to determine point locations
+      if (this.vizDetails.loadTransit) {
+        await this.loadTransitBoundaries()
+        return
+      }
+
+      // normal mode: user supplies us a geojson
+      await this.loadGeojsonBoundaries()
+    },
+
+    async loadGeojsonBoundaries() {
+      const fullPath = `${this.subfolder}/${this.vizDetails.boundaries}`
+      const json = await this.fileApi.getFileJson(fullPath)
+      // this.myDataManager.registerFeatures(fullPath, json.features, {})
+      this.stopFacilities = json.features
+      for (const feature of json.features) {
+        try {
+          const centroid = Turf.centerOfMass(feature)
+          this.centroids.push({
+            id: `${
+              feature.properties[
+                this.vizDetails.boundariesJoinCol || feature.id || feature.properties.id
+              ]
+            }`,
+            lon: centroid?.geometry?.coordinates[0] || 0,
+            lat: centroid?.geometry?.coordinates[1] || 0,
+          })
+        } catch (e) {
+          console.warn('skipping feature:', feature)
+        }
+      }
+      this.setMapCenter()
+    },
+
+    async loadTransitBoundaries() {
       let results: any = {}
       try {
         const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
-        // console.log(this.myState)
         const transitSchedule = files.filter(
           f => f.endsWith('transitSchedule.xml.gz') && !f.startsWith('._')
         )
         this.stopFacilities = transitSchedule
 
         if (!transitSchedule) {
-          // this.loadingText = 'No road network found.'
           console.error('no transit schedule found.')
           this.vizDetails.stopFacilitiesFile = ''
         } else {
           this.vizDetails.stopFacilitiesFile = transitSchedule[0]
-          const data = this.fetchXML({
+          results = await this.fetchXML({
             worker: this._roadFetcher,
             slug: this.fileSystem.slug,
             filePath: this.myState.subfolder + '/' + this.vizDetails.stopFacilitiesFile,
             options: { attributeNamePrefix: '' },
           })
 
-          results = await Promise.all([data])
-          if (results[0] && results[0].transitSchedule) {
-            this.stopFacilities = results[0].transitSchedule
+          if (results && results.transitSchedule) {
+            this.stopFacilities = results.transitSchedule
           } else {
             console.error("fetched xml didn't have transit schedule")
           }
@@ -525,7 +577,6 @@ const MyComponent = defineComponent({
         console.error(e)
         return
       }
-      // this.stopFacilities = results[0].network.nodes.node
       this.calculateCentroids()
       this.setMapCenter()
     },
@@ -627,7 +678,6 @@ const MyComponent = defineComponent({
     },
 
     async configureData(datasetInfo: any) {
-      console.log({ datasetInfo })
       // Use config columns for origin/dest/flow -- if they exist
       this.vizDetails.colorScheme = datasetInfo.colorScheme
       this.vizDetails.selectedMetricLabel = datasetInfo.flow
@@ -652,7 +702,9 @@ const MyComponent = defineComponent({
         const origin = data[oColumn].values
         const destination = data[dColumn].values
         const count = data[flowColumn].values
-        const hours = data[hourColumn].values
+
+        this.hasHours = hourColumn in data
+        const hours = this.hasHours ? data[hourColumn].values : null
 
         const flows = [] as any[]
         const invert = 'inverse' == datasetInfo.valueTransform?.enum?.[0]
@@ -662,7 +714,7 @@ const MyComponent = defineComponent({
               o: `${origin[i]}`,
               d: `${destination[i]}`,
               v: invert ? 1 / count[i] : count[i],
-              h: hours[i],
+              h: this.hasHours ? hours[i] : 0,
             })
           } catch {
             // missing data; ignore
@@ -670,7 +722,7 @@ const MyComponent = defineComponent({
         }
         this.flows = flows
         this.filteredFlows = this.flows
-        this.setupHourlyTotals()
+        if (this.hasHours) this.setupHourlyTotals()
         this.isLoaded = true
       } catch (e) {
         console.log('' + e)
