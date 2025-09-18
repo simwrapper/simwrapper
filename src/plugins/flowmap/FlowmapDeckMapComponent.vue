@@ -8,6 +8,8 @@
 import { defineComponent, PropType } from 'vue'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import maplibregl from 'maplibre-gl'
+import { debounce } from 'debounce'
+
 import globalStore from '@/store'
 import { FlowmapLayer } from '@/layers/flowmap/FlowmapLayer'
 
@@ -28,16 +30,15 @@ export default defineComponent({
       mymap: null as maplibregl.Map | null,
       deckOverlay: null as InstanceType<typeof MapboxOverlay> | null,
       globalState: globalStore.state,
+      debounceTooltip: null as any,
       tooltipHTML: '',
       tooltipStyle: {
         position: 'absolute',
-        padding: '4px 8px',
-        display: 'block',
         top: 0,
         left: 0,
-        color: this.dark ? '#ccc' : '#223',
-        backgroundColor: this.dark ? '#2a3c4f' : 'white',
-        zIndex: 20000,
+        pointerEvents: 'none',
+        padding: '0.25rem',
+        'z-index': 0,
       } as any,
     }
   },
@@ -104,6 +105,8 @@ export default defineComponent({
   },
 
   mounted() {
+    this.debounceTooltip = debounce(this.clearTooltip, 1000)
+
     const style = `/map-styles/${this.dark ? 'dark' : 'positron'}.json`
     const container = `map-${this.viewId}`
     const view = this.globalState.viewState
@@ -130,6 +133,10 @@ export default defineComponent({
   },
 
   methods: {
+    clearTooltip() {
+      this.tooltipHTML = ''
+    },
+
     handleMove() {
       if (this.mapIsIndependent) return
       const center = this.mymap?.getCenter() as any
@@ -145,24 +152,24 @@ export default defineComponent({
     },
 
     getTooltip(tip: { x: number; y: number; object: any }) {
-      if (!tip?.object) {
-        this.tooltipHTML = ''
+      this.debounceTooltip()
+      if (!tip || !tip.object) {
         return
       }
 
       const { x, y, object } = tip
 
-      if (!object || !object.position || !object.position.length) {
-        this.tooltipStyle.display = 'none'
-        return
+      let html = `\
+        <b>${object.type || 'id'}: ${object.id || ''}</b> \
+      `
+
+      if (object.type == 'flow') {
+        html += `<br/>
+          Station&nbsp;IDs:&nbsp;${object?.origin.id}&nbsp;→&nbsp;${object?.dest.id}<br />
+          ${this.vizDetails.selectedMetricLabel}: ${object.count || 0}
+        `
       }
 
-      const lat = object.position[1]
-      const lng = object.position[0]
-      const html = `\
-        <b>tooltip</b> \
-      `
-      this.tooltipStyle.display = 'block'
       this.tooltipStyle.top = `${y + 12}px`
       this.tooltipStyle.left = `${x + 12}px`
       this.tooltipHTML = html
@@ -190,10 +197,8 @@ export default defineComponent({
 }
 
 .deck-tooltip {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 10000;
-  pointer-events: none;
+  background-color: var(--bgPanel);
+  color: var(--text);
+  filter: drop-shadow(0px 2px 4px #0004);
 }
 </style>

@@ -109,13 +109,13 @@ export default class AnimatedFlowLinesLayer<F> extends Layer {
     attributeManager?.addInstanced({
       instanceSourcePositions: {
         size: 3,
-        type: 'float32',
+        type: 'float64',
         transition: true,
         accessor: 'getSourcePosition',
       },
       instanceTargetPositions: {
         size: 3,
-        type: 'float32',
+        type: 'float64',
         transition: true,
         accessor: 'getTargetPosition',
       },

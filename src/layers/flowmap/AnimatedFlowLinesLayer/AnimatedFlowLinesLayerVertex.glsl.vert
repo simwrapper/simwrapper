@@ -58,7 +58,7 @@ void main(void) {
 
   // extrude
   vec3 offset = vec3(
-    getExtrusionOffset(target.xy - source.xy, positions.y, widthPixels),
+    getExtrusionOffset(target.xy - source.xy, positions.y, widthPixels * 2.),
     0.0);
   DECKGL_FILTER_SIZE(offset, geometry);
   gl_Position = p + vec4(project_pixel_size_to_clipspace(offset.xy), 0.0, 0.0);

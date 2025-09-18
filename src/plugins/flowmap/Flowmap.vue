@@ -27,11 +27,14 @@
       .metric-buttons
         button.button.is-small.metric-button(
           v-for="metric,i in vizDetails.metrics" :key="i"
-          :style="{'color': 'white' , 'border': isDarkMode ? `1px solid white` : `1px solid #2A3C4F`, 'border-radius': '4px', 'backgroundColor': isDarkMode ? '#2a3c4f': '#2a3c4f'}" @click="handleClickedMetric(metric)"
+          @click="handleClickedMetric(metric)"
           ) {{metric.label}}
       br
       .metric-label Color scheme
-      b-select.form-select(aria-labelledby="lil-gui-name-2" v-model="vizDetails.colorScheme" class="is-small" )
+      b-select.form-select.is-small(
+        v-model="vizDetails.colorScheme"
+        @input="vizDetails = {...vizDetails}"
+      )
         option(value="Blues") Blues
         option(value="BluGrn") BluGrn
         option(value="BluYl") BluYl
@@ -693,8 +696,6 @@ export default MyComponent
   // display: flex;
   flex: 8;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') center / cover no-repeat;
-  z-index: -1;
 }
 
 .deck-map {
@@ -721,6 +722,8 @@ export default MyComponent
   border-radius: 0;
   width: 100%;
   flex: 1;
+  color: var(--text);
+  background-color: var(--bgDashboard);
 }
 
 .metric-button:hover {
@@ -798,15 +801,17 @@ export default MyComponent
 
 .bottom-panel {
   position: absolute;
-  bottom: 1rem;
+  bottom: 0.25rem;
+  left: 0.25rem;
   font-size: 0.8rem;
   width: 50%;
   pointer-events: auto;
-  margin: auto auto 0rem 0rem;
-  padding: 0.25rem;
+  padding: 0.25rem 0 0 0.25rem;
   filter: drop-shadow(0px 2px 4px #22222233);
   background-color: var(--bgPanel);
-
+  z-index: 2;
+  border-radius: 4px;
+  opacity: 0.95;
   p {
     margin-right: 1rem;
   }
