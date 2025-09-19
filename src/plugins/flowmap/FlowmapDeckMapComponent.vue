@@ -170,6 +170,7 @@ export default defineComponent({
         `
       }
 
+      this.tooltipStyle.display = 'block'
       this.tooltipStyle.top = `${y + 12}px`
       this.tooltipStyle.left = `${x + 12}px`
       this.tooltipHTML = html
