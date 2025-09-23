@@ -31,7 +31,7 @@ function exportCSV(props: { filename: string; rawData: any; dataset: any; tableN
   URL.revokeObjectURL(url)
 }
 
-function MyApp({ blob = null as any, filename = '' }) {
+function MyApp({ blob = null as any, filename = '', initialPath = '/A:Values' }) {
   return (
     <H5WasmLocalFileProvider
       file={blob}
@@ -58,7 +58,7 @@ function MyApp({ blob = null as any, filename = '' }) {
             }
       }
     >
-      <App initialPath="/A:Values" />
+      <App initialPath={initialPath} />
     </H5WasmLocalFileProvider>
   )
 }

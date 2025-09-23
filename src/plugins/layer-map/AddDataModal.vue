@@ -55,7 +55,7 @@ import { DataTable } from '@/Globals'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkWorker from '@/workers/RoadNetworkLoader.worker.ts?worker'
-import { loadGeoPackageFromBuffer } from '@/plugins/shape-file/ShapeFile.vue'
+import Geotools from '@/js/geo-utils'
 
 export default defineComponent({
   name: 'AddDataModal',
@@ -188,7 +188,7 @@ export default defineComponent({
     },
 
     async loadGeopackage(file: any, buffer: ArrayBuffer) {
-      const geojson = await loadGeoPackageFromBuffer(buffer)
+      const geojson = await Geotools.loadGeoPackageFromBuffer(buffer)
       return geojson
     },
 

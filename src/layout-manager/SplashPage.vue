@@ -21,9 +21,9 @@
       .az-quick-item.flex-col(@click="go('/matrix')")
         .az-quick-icon: i.fa.fa-th
         .az-quick-label Matrix<br>viewer
-      .az-quick-item.flex-col(@click="go('/map')")
-        //- .az-quick-icon: i.fa.fa-plus
-        //- .az-quick-label Map builder<br>(beta)
+      //- .az-quick-item.flex-col(@click="go('/map')")
+      //-  . az-quick-icon: i.fa.fa-plus
+      //-   .az-quick-label Map builder<br>(beta)
       .az-quick-item.flex1.spacer &nbsp;
 
       settings-panel.settings-popup(v-if="showSettings" @close="showSettings=false")
