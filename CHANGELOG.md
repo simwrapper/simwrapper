@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file. See [standa
 
 * **gridmap:** Gridmap "fixedColors" from config being ignored; all white ([1e91945](https://github.com/simwrapper/simwrapper/commit/1e91945fd8a1cc272d86f9d82178f668f76709d1))
 * **map:** export YAML sometimes breaks when center mis-specified ([10375b7](https://github.com/simwrapper/simwrapper/commit/10375b73551d428f5ed59a9bbc5ac870246eefb9))
+* Update deck.gl, plot.ly, and remove Vuera to improve stability ([c884e37](https://github.com/simwrapper/simwrapper/commit/c884e37d4d2b8c4714e2b806927afbcf4657a1ae))
 
 ### [4.1.1](https://github.com/simwrapper/simwrapper/compare/v4.1.0...v4.1.1) (2025-08-14)
 
