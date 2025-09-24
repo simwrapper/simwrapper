@@ -1,8 +1,8 @@
 <template lang="pug">
 .matrix-viewer
-  config-panel(v-if="activeTable"
+  config-panel(v-show="activeTable"
     :isMap="isMap"
-    :hasShapes="!!shapes"
+    :hasShapes="hasShapes"
     :mapConfig="mapConfig"
     :comparators="comparators"
     :compareLabel="compareLabel"
@@ -15,6 +15,7 @@
     @changeScale="changeScale"
     @compare="compareToBase"
     @toggleComparePicker="toggleComparePicker"
+    @hasShapes="hasShapes=$event"
   )
 
   .getting-matrices(v-if="isGettingMatrices")
@@ -51,6 +52,7 @@
       :tazToOffsetLookup="h5zoneLookup"
       @nozones="isMap=false"
       @changeRowWise="changeRowWise"
+      @hasShapes="hasShapes=$event"
     )
 
     H5TableViewer.fill-it.h5-table-viewer(v-if="h5fileBlob && !isMap"
@@ -141,6 +143,7 @@ const MyComponent = defineComponent({
       config: null as any,
       comparators: [] as ComparisonMatrix[],
       compareLabel: 'Compare...',
+      hasShapes: false,
       isDragging: false,
       isMap: true,
       isGettingMatrices: false,
@@ -160,7 +163,7 @@ const MyComponent = defineComponent({
 
       matrices: {} as { [key: string]: Matrix },
       matrixSize: 0,
-      shapes: null as null | any[],
+      shapes: [] as any[],
       useConfig: '',
       vizDetails: {
         title: '',
@@ -197,7 +200,7 @@ const MyComponent = defineComponent({
     this.h5baseBlob = null
     this.h5zoneLookup = {}
     this.matrices = {}
-    this.shapes = null
+    this.shapes = []
     this.zoneSystems = { byID: {}, bySize: {} }
   },
 
@@ -221,7 +224,9 @@ const MyComponent = defineComponent({
     this.$emit('isLoaded')
 
     this.comparators = this.setupComparisons()
+
     this.shapes = await this.loadShapes()
+    if (this.shapes.length) this.hasShapes = true
 
     try {
       await this.initH5Files()
@@ -299,7 +304,6 @@ const MyComponent = defineComponent({
     },
 
     async buildH5Blob() {
-      console.log('HERE 1122')
       // we are going to fabricate an HDF5 file with the current matrix content!
       const buffer = await this.h5Main.buildH5Buffer({
         size: Math.floor(Math.sqrt(this.matrices.main.data.length)),
@@ -458,8 +462,8 @@ const MyComponent = defineComponent({
       this.updateQuery()
     },
 
-    async loadShapes() {
-      if (!this.vizDetails.shapes || !this.fileApi) return null
+    async loadShapes(): Promise<any[]> {
+      if (!this.vizDetails.shapes || !this.fileApi) return []
 
       // User passed in a geojson and column ID; use them.
       this.statusText = `Loading: ${this.vizDetails.shapes.file}...`
@@ -475,7 +479,7 @@ const MyComponent = defineComponent({
         this.$emit('error', 'Error loading ' + path)
         console.error('' + e)
       }
-      return null
+      return []
     },
 
     async loadYamlConfig() {
@@ -680,7 +684,7 @@ const MyComponent = defineComponent({
       if (initialTable) await this.changeMatrix(initialTable)
 
       // no shapes yet? Just show matrix table
-      if (!this.shapes) {
+      if (!this.shapes.length) {
         this.isMap = false
       }
     },

@@ -162,7 +162,7 @@ const MyComponent = defineComponent({
     filenameShapes: String,
     thumbnail: Boolean,
     isInvertedColor: Boolean,
-    shapes: { type: Array, required: false },
+    shapes: { type: Array, required: true },
     mapConfig: { type: Object as PropType<MapConfig>, required: true },
     zoneSystems: { type: Object as PropType<ZoneSystems>, required: true },
     tazToOffsetLookup: {
@@ -405,7 +405,7 @@ const MyComponent = defineComponent({
     },
 
     async setupBoundaries() {
-      if (this.shapes) {
+      if (this.shapes.length) {
         // Shapes may already be dropped in from drag/drop
         this.features = this.shapes
         this.zoneID = this.userSuppliedZoneID || 'TAZ'
@@ -417,6 +417,7 @@ const MyComponent = defineComponent({
         await this.loadBoundariesBasedOnMatrixSize()
       }
 
+      if (this.features.length) this.$emit('hasShapes', true)
       this.setMapCenter()
     },
 

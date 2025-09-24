@@ -15,7 +15,7 @@
         span &nbsp;Map
 
 
-  p.hint-boundaries.flex1(v-if="!hasShapes")
+  p.hint-boundaries.flex1(v-show="!hasShapes")
     i.fa.fa-exclamation-triangle &nbsp;
     | Drag/drop a zonal boundary file to enable map view
 
@@ -119,7 +119,6 @@ $bgDarkerCyan: #def3ec;
   padding: 0.5rem;
   background-color: var(--bg);
   border-bottom: 1px solid #bbbbcc88;
-  z-index: 200;
 }
 
 .flex-column {
@@ -165,7 +164,8 @@ $bgDarkerCyan: #def3ec;
 .hint-boundaries {
   font-size: 0.9rem;
   margin-top: 0.3rem;
-  margin-right: 1rem;
+  margin-right: 0.8rem;
   text-align: right;
+  opacity: 0.8;
 }
 </style>
