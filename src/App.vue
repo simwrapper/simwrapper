@@ -666,6 +666,8 @@ p.splash-label {
   background-color: var(--bg) !important;
   opacity: 0.5;
   color: var(--text);
+  margin: 1px 3px 0px 1px !important;
+  border-radius: 2px !important;
 }
 maplibregl-ctrl-attrib-button {
   color: white !important;

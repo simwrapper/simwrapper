@@ -7,13 +7,20 @@
                       @click="$emit('setMap',false)")
         i.fa.fa-border-none
         span &nbsp;Data
-      b-button.button.is-small(:type="isMap ? 'is-info' : 'is-info is-outlined'"
-                      @click="$emit('setMap',true)")
+      b-button.button.is-small(v-if="hasShapes"
+        :type="isMap ? 'is-info' : 'is-info is-outlined'"
+        @click="$emit('setMap',true)"
+      )
         i.fa.fa-map
         span &nbsp;Map
 
+
+  p.hint-boundaries.flex1(v-show="!hasShapes")
+    i.fa.fa-exclamation-triangle &nbsp;
+    | Drag/drop a zonal boundary file to enable map view
+
   //- TABLE Name
-  b-dropdown.dropdown-table-selector(
+  b-dropdown.dropdown-table-selector(v-if="hasShapes"
     @change="$emit('changeMatrix', $event)"
     scrollable max-height="400" trap-focus
   )
@@ -30,7 +37,7 @@
       )
 
   //- COMPARE selector
-  .flex-column(style="margin-left: 1rem")
+  .flex-column(v-if="hasShapes" style="margin-left: 1rem")
     b-button.is-small.is-white(@click="toggleCompareSelector()" v-html="compareLabel")
 
   //- Map configuration
@@ -60,6 +67,7 @@ const MyComponent = defineComponent({
     isMap: Boolean,
     comparators: { type: Array as PropType<ComparisonMatrix[]> },
     compareLabel: String,
+    hasShapes: { required: true, type: Boolean },
     catalog: { required: true, type: Array as PropType<string[]> },
     mapConfig: { type: Object as PropType<MapConfig> },
     selectedZone: Number,
@@ -111,7 +119,6 @@ $bgDarkerCyan: #def3ec;
   padding: 0.5rem;
   background-color: var(--bg);
   border-bottom: 1px solid #bbbbcc88;
-  z-index: 200;
 }
 
 .flex-column {
@@ -152,5 +159,13 @@ $bgDarkerCyan: #def3ec;
   margin: 0 0 0 auto;
   color: var(--textBold);
   font-size: 0.9rem;
+}
+
+.hint-boundaries {
+  font-size: 0.9rem;
+  margin-top: 0.3rem;
+  margin-right: 0.8rem;
+  text-align: right;
+  opacity: 0.8;
 }
 </style>

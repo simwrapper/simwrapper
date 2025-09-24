@@ -213,6 +213,7 @@ $appTag: #32926f;
   // background-image: linear-gradient(30deg, #425bda, #246a4f); // #801bec
   color: #eee;
   position: relative;
+  z-index: 1000;
 }
 
 .simwrapper-logo {
@@ -290,8 +291,8 @@ $appTag: #32926f;
   color: #333;
   filter: $filterShadow;
   padding: 0.25rem 4px 0.25rem 0;
-  z-index: 10002;
   width: max-content;
+  z-index: 20000;
 
   a {
     color: #333;

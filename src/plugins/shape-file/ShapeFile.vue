@@ -148,13 +148,11 @@ import type { PropType } from 'vue'
 
 import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
-import readBlob from 'read-blob'
 import reproject from 'reproject'
 import Sanitize from 'sanitize-filename'
 import YAML from 'yaml'
 
 import GMNS from '@simwrapper/gmns'
-import * as Gpkg from '@ngageoint/geopackage'
 
 import * as d3ScaleChromatic from 'd3-scale-chromatic'
 import * as d3Interpolate from 'd3-interpolate'
@@ -173,6 +171,7 @@ import {
 } from '@/Globals'
 
 import { debounce } from '@/js/util'
+import Geotools from '@/js/geo-utils'
 import GeojsonLayer from './DeckMapComponent.vue'
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ColorWidthSymbologizer, { buildRGBfromHexCodes } from '@/js/ColorsAndWidths'
@@ -212,48 +211,6 @@ export interface BackgroundLayer {
   borderColor: number[]
   visible: boolean
   onTop: boolean
-}
-
-const BASE_URL = import.meta.env.BASE_URL
-
-export async function loadGeoPackageFromBuffer(buffer: ArrayBuffer) {
-  Gpkg.setSqljsWasmLocateFile(file => BASE_URL + file)
-  const bArray = new Uint8Array(buffer)
-
-  const geoPackage = await Gpkg.GeoPackageAPI.open(bArray)
-
-  const tables = geoPackage.getFeatureTables()
-  console.log('GEOPACKAGE contains:', tables)
-  const tableName = tables[0]
-
-  // get the feature dao
-  const featureDao = geoPackage.getFeatureDao(tableName)
-  const tableInfo = geoPackage.getInfoForTable(featureDao)
-  // console.log({ featureDao, tableInfo })
-
-  const crs = `${tableInfo.srs.organization}:${tableInfo.srs.id}`
-  console.log('GEOPACKAGE crs:', crs)
-
-  const features = []
-  const tableElements = featureDao.queryForEach()
-  for (const row of tableElements) {
-    const { the_geom, geom, ...properties } = row
-    const geometryData = the_geom ?? geom
-    if (!geometryData) continue
-
-    const geoJsonGeometry = new Gpkg.GeometryData(geometryData as any)
-    const geojson = geoJsonGeometry.toGeoJSON()
-    const wgs84 = reproject.toWgs84(geojson, crs, Coords.allEPSGs)
-
-    features.push({
-      type: 'Feature',
-      properties,
-      geometry: wgs84,
-    })
-  }
-
-  geoPackage.close()
-  return features
 }
 
 const MyComponent = defineComponent({
@@ -2307,7 +2264,7 @@ const MyComponent = defineComponent({
       const url = `${this.subfolder}/${filename}`
       const blob = await this.fileApi.getFileBlob(url)
       const buffer = await blob.arrayBuffer()
-      const geo = loadGeoPackageFromBuffer(buffer)
+      const geo = Geotools.loadGeoPackageFromBuffer(buffer)
       return geo
     },
 
@@ -2653,8 +2610,6 @@ const MyComponent = defineComponent({
         this.$emit('error', `Error loading shapefile ${url}`)
         return []
       }
-
-      // geojson.features = geojson.features.slice(0, 10000)
 
       // See if there is a .prj file with projection information
       let projection = DEFAULT_PROJECTION

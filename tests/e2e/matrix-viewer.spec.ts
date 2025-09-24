@@ -1,5 +1,16 @@
 import { test, expect } from '@playwright/test'
 
+// test('matrix viewer drag/drop geojson and matrix', async ({ page }) => {
+//   await page.goto('e2e-tests/matrix/OPTERM.h5?zone=500&dir=row')
+//   // legend header appears after dataset is fully loaded and colors calculated
+//   // await page.waitForSelector('.legend-headxxxer')
+
+//   const rows = page.locator('.zone-value')
+//   await expect(rows).toHaveCount(2476)
+//   await expect(rows.nth(0)).toHaveText('Value')
+//   await expect(rows.nth(1)).toHaveText('3.5')
+// })
+
 test('matrix viewer loads map: sfcta H5 file', async ({ page }) => {
   await page.goto('e2e-tests/matrix/OPTERM.h5?zone=500&dir=row')
   // legend header appears after dataset is fully loaded and colors calculated

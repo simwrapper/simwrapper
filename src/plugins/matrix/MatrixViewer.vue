@@ -1,7 +1,8 @@
 <template lang="pug">
 .matrix-viewer
-  config-panel(v-if="activeTable"
+  config-panel(v-show="activeTable"
     :isMap="isMap"
+    :hasShapes="hasShapes"
     :mapConfig="mapConfig"
     :comparators="comparators"
     :compareLabel="compareLabel"
@@ -14,6 +15,7 @@
     @changeScale="changeScale"
     @compare="compareToBase"
     @toggleComparePicker="toggleComparePicker"
+    @hasShapes="hasShapes=$event"
   )
 
   .getting-matrices(v-if="isGettingMatrices")
@@ -30,7 +32,7 @@
   )
 
     .status-text(v-if="statusText")
-      h4 {{ statusText }}
+      h4(v-html="statusText")
 
     H5Map-viewer.fill-it(v-if="isMap && matrixSize"
       :fileApi="fileApi"
@@ -50,6 +52,7 @@
       :tazToOffsetLookup="h5zoneLookup"
       @nozones="isMap=false"
       @changeRowWise="changeRowWise"
+      @hasShapes="hasShapes=$event"
     )
 
     H5TableViewer.fill-it.h5-table-viewer(v-if="h5fileBlob && !isMap"
@@ -69,13 +72,14 @@
 import { defineComponent } from 'vue'
 
 import YAML from 'yaml'
+import * as Comlink from 'comlink'
 import { debounce } from 'debounce'
 
 import globalStore from '@/store'
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { gUnzip } from '@/js/util'
-import * as Comlink from 'comlink'
+import Geotools from '@/js/geo-utils'
 
 import ConfigPanel from './ConfigPanel.vue'
 import H5TableViewer from './H5TableReactWrapper.vue'
@@ -139,6 +143,7 @@ const MyComponent = defineComponent({
       config: null as any,
       comparators: [] as ComparisonMatrix[],
       compareLabel: 'Compare...',
+      hasShapes: false,
       isDragging: false,
       isMap: true,
       isGettingMatrices: false,
@@ -158,7 +163,7 @@ const MyComponent = defineComponent({
 
       matrices: {} as { [key: string]: Matrix },
       matrixSize: 0,
-      shapes: null as null | any[],
+      shapes: [] as any[],
       useConfig: '',
       vizDetails: {
         title: '',
@@ -195,7 +200,7 @@ const MyComponent = defineComponent({
     this.h5baseBlob = null
     this.h5zoneLookup = {}
     this.matrices = {}
-    this.shapes = null
+    this.shapes = []
     this.zoneSystems = { byID: {}, bySize: {} }
   },
 
@@ -219,7 +224,9 @@ const MyComponent = defineComponent({
     this.$emit('isLoaded')
 
     this.comparators = this.setupComparisons()
+
     this.shapes = await this.loadShapes()
+    if (this.shapes.length) this.hasShapes = true
 
     try {
       await this.initH5Files()
@@ -372,7 +379,7 @@ const MyComponent = defineComponent({
 
     async initH5Files() {
       if (!this.yamlConfig) {
-        this.statusText = `Drop an HDF5 matrix file and GeoJSON boundary file here to view it`
+        this.statusText = `<h3>MATRIX VIEWER</h3><br/>Drop an <b>OMX/HDF5</b> matrix file here<br/><br/>or a <b>GeoJSON/GeoPackage/Shapefile.zip</b> zonal boundary<br/>file to view it on a map`
         return
       }
       if (!this.fileSystem) return
@@ -455,8 +462,8 @@ const MyComponent = defineComponent({
       this.updateQuery()
     },
 
-    async loadShapes() {
-      if (!this.vizDetails.shapes || !this.fileApi) return null
+    async loadShapes(): Promise<any[]> {
+      if (!this.vizDetails.shapes || !this.fileApi) return []
 
       // User passed in a geojson and column ID; use them.
       this.statusText = `Loading: ${this.vizDetails.shapes.file}...`
@@ -472,7 +479,7 @@ const MyComponent = defineComponent({
         this.$emit('error', 'Error loading ' + path)
         console.error('' + e)
       }
-      return null
+      return []
     },
 
     async loadYamlConfig() {
@@ -611,11 +618,11 @@ const MyComponent = defineComponent({
         const file0 = files.item(0)
         if (!file0) return
 
-        if (/(geojson|geojson\.gz)$/.test(file0.name.toLocaleLowerCase())) {
-          console.log('GeoJSON!')
+        if (/(gpkg|json|json\.gz|zip|geojson|geojson\.gz)$/.test(file0.name.toLocaleLowerCase())) {
+          console.log('boundaries!')
           this.handleDroppedBoundaries(file0)
         } else {
-          console.log('Not GeoJSON!')
+          console.log('Not boundaries!')
           this.handleDroppedMatrix(file0)
         }
       } catch (e) {
@@ -652,7 +659,7 @@ const MyComponent = defineComponent({
       this.h5MainWorker = new H5ProviderWorker()
       this.h5Main = Comlink.wrap(this.h5MainWorker) as unknown
       // this opens file, sets up the dimensions and matrix catalog
-      this.h5Main.open({
+      await this.h5Main.open({
         file,
         subfolder: '',
         filename: this.filename,
@@ -662,12 +669,24 @@ const MyComponent = defineComponent({
       this.filename = file.name || 'File'
       this.$emit('title', this.filename)
       this.setCompareLabel(file.name)
+
+      this.catalog = await this.h5Main.getCatalog()
+      this.matrixSize = await this.h5Main.getSize()
       this.statusText = ''
 
+      this.statusText = 'Building lookup table'
+      await this.$nextTick()
       this.h5zoneLookup = await this.buildTAZLookup()
 
-      const initialTable = localStorage.getItem('matrix-initial-table') || this.h5Main?.catalog[0]
+      this.statusText = ''
+
+      const initialTable = localStorage.getItem('matrix-initial-table') || this.catalog[0]
       if (initialTable) await this.changeMatrix(initialTable)
+
+      // no shapes yet? Just show matrix table
+      if (!this.shapes.length) {
+        this.isMap = false
+      }
     },
 
     async handleDroppedBoundaries(file: File) {
@@ -676,10 +695,26 @@ const MyComponent = defineComponent({
       await this.$nextTick()
 
       try {
-        const buffer = await file.arrayBuffer()
-        const rawtext = await gUnzip(buffer)
-        const text = new TextDecoder('utf-8').decode(rawtext)
-        const geojson = JSON.parse(text)
+        const name = file.name.toLocaleLowerCase()
+        let features = [] as any[]
+        // GeoPackage
+        if (name.endsWith('.gpkg')) {
+          const buffer = await file.arrayBuffer()
+          features = await Geotools.loadGeoPackageFromBuffer(buffer)
+        }
+        // Shapefile as .ZIP
+        else if (name.endsWith('.zip')) {
+          const buffer = await file.arrayBuffer()
+          features = await Geotools.loadShapefileFromBuffers({ zip: buffer })
+        }
+        // GeoJSON
+        else if (name.indexOf('json') > -1) {
+          const buffer = await file.arrayBuffer()
+          const rawtext = await gUnzip(buffer)
+          const text = new TextDecoder().decode(rawtext)
+          const geojson = JSON.parse(text)
+          features = geojson?.features
+        }
 
         const id = await new Promise<string>(resolve => {
           const m = prompt('ID / TAZ Column', 'TAZ') || 'TAZ'
@@ -687,10 +722,16 @@ const MyComponent = defineComponent({
         })
 
         this.filenameShapes = file.name || 'File'
-        this.shapes = geojson.features
+        this.shapes = features
         this.zoneID = id
-        this.statusText = this.h5fileBlob ? '' : `Shapes loaded. Drop an HDF5 file here to view it`
+        await this.$nextTick()
         this.isMap = true
+        this.statusText = ''
+        if (!this.h5fileBlob) {
+          this.statusText = `Shapes loaded. Now drop an HDF5 file here to view it`
+        } else {
+          this.changeMatrix(this.activeTable)
+        }
       } catch (e) {
         console.error('' + e)
       }
