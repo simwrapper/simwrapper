@@ -4,7 +4,7 @@ vue-good-table.plugin-panel(
       :class="[globalState.isDarkMode ? 'darktable' : 'lighttable', hideHeader ? 'hide-header' : '', this.config.style, ...this.alignmentClasses]"
       :columns="columns"
       :rows="rows"
-      :fixed-header="true"
+      :fixed-header="false"
       :pagination-options="paginationOptions"
       styleClass="vgt-table striped bordered condensed")
 </template>
@@ -207,6 +207,7 @@ export default defineComponent({
         this.columns.push({
           label: key.charAt(0).toUpperCase() + key.slice(1),
           field,
+          originalField: key,
           hidden: false,
           filterOptions: {
             enabled: true,
@@ -257,23 +258,28 @@ export default defineComponent({
         }
       }
 
-      // Show/hide option
-      if (Object.keys(this.config).includes('show') && Object.keys(this.config).includes('hide')) {
+      const showSet = Array.isArray(this.config.show)
+        ? new Set(this.config.show.map((s: string) => s.toString().toLowerCase()))
+        : null
+
+      const hideSet = Array.isArray(this.config.hide)
+        ? new Set(this.config.hide.map((s: string) => s.toString().toLowerCase()))
+        : null
+
+      // Show/hide option (case-insensitiv)
+      if (showSet || hideSet) {
         for (let i = 0; i < this.columns.length; i++) {
-          if (!this.config.show.includes(this.columns[i].field)) {
-            this.columns[i].hidden = true
-          }
-        }
-      } else if (Object.keys(this.config).includes('show')) {
-        for (let i = 0; i < this.columns.length; i++) {
-          if (!this.config.show.includes(this.columns[i].field)) {
-            this.columns[i].hidden = true
-          }
-        }
-      } else if (Object.keys(this.config).includes('hide')) {
-        for (let i = 0; i < this.columns.length; i++) {
-          if (this.config.hide.includes(this.columns[i].field)) {
-            this.columns[i].hidden = true
+          const rawKey =
+            (this.columns[i] as any).originalField ??
+            (typeof this.columns[i].field === 'string' ? this.columns[i].field : '')
+          const keyLc = rawKey.toString().toLowerCase()
+
+          if (showSet) {
+            // if show is defined: hide everything that is NOT in show
+            this.columns[i].hidden = !showSet.has(keyLc)
+          } else if (hideSet) {
+            // if only hide is defined: hide everything that is in hide
+            this.columns[i].hidden = hideSet.has(keyLc)
           }
         }
       }
@@ -610,6 +616,18 @@ export default defineComponent({
 }
 
 .col-right-10 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(10) {
+  text-align: right;
+}
+
+.col-right-11 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(11) {
+  text-align: right;
+}
+
+.col-right-12 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(12) {
+  text-align: right;
+}
+
+.col-right-13 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(13) {
   text-align: right;
 }
 </style>
