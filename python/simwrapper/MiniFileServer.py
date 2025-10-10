@@ -22,7 +22,7 @@ except ImportError:
 current_dir = os.getcwd()
 package_dir = os.path.dirname(__file__)
 
-pattern = re.compile('.csv|.png|.gz|.jpg|.jpeg|.js|.css|.ico|.gif|.svg|.ttf|.wasm|.woff|.woff2|.eot', re.IGNORECASE)
+pattern = re.compile('.css|.csv|.gif|.gz|.jpg|.jpeg|.js|.json|.ico|.md|.png|.svg|.ttf|.wasm|.woff|.woff2|.eot', re.IGNORECASE)
 
 SPA_MODE = False
 
