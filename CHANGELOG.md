@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.1.4](https://github.com/simwrapper/simwrapper/compare/v4.1.3...v4.1.4) (2025-10-10)
+
+
+### Bug Fixes
+
+* use local definitions of light/dark map modes (dark/positron) ([26a76dc](https://github.com/simwrapper/simwrapper/commit/26a76dc82f09f4ac339abdf788f3111994ee1dfc))
+
 ### [4.1.3](https://github.com/simwrapper/simwrapper/compare/v4.1.2...v4.1.3) (2025-10-10)
 
 
