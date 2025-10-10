@@ -199,7 +199,7 @@ def serve_static_files(path):
     if path.startswith('omx/'): return "Not Found", 404
 
     # List of file extensions that should be served as static files
-    static_extensions = ['.js', '.css', '.csv', '.dbf', '.png', '.jpg', '.jpeg', '.gif', '.gz', '.svg', '.ico', '.wasm', '.woff', '.woff2', '.ttf', '.eot', '.yaml', '.zip']
+    static_extensions = ['.css', '.csv', '.dbf', '.png', '.jpg', '.jpeg', '.js', '.json', '.gif', '.gz', '.md', '.svg', '.ico', '.wasm', '.woff', '.woff2', '.ttf', '.eot', '.yaml', '.zip']
 
     # Check if the requested file has a static file extension
     if any(path.endswith(ext) for ext in static_extensions):
