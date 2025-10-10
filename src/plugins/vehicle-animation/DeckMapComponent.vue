@@ -215,7 +215,9 @@ export default defineComponent({
     },
 
     dark() {
-      const style = `/map-styles/${this.dark ? 'dark' : 'positron'}.json`
+      const style = `${BASE_URL}map-styles/${
+        this.globalState.isDarkMode ? 'dark' : 'positron'
+      }.json` as any
       this.mymap?.setStyle(style)
     },
 
@@ -238,7 +240,7 @@ export default defineComponent({
   },
 
   mounted() {
-    const style = `/map-styles/${this.dark ? 'dark' : 'positron'}.json`
+    const style = `${BASE_URL}map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
     const zoom = (this.globalState.viewState.zoom || 8) as number

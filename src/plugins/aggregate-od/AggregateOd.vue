@@ -135,7 +135,7 @@ interface AggOdYaml {
   hideSmallerThan?: number
   mapIsIndependent?: boolean
 }
-
+const BASE_URL = import.meta.env.BASE_URL
 const TOTAL_MSG = globalStore.state.locale.startsWith('de') ? 'Alle >>' : 'All >>'
 const FADED = 0.0 // 0.15
 const SCALE_WIDTH = [1, 3, 5, 10, 25, 50, 100, 150, 200, 300, 400, 450, 500, 1000, 5000]
@@ -453,7 +453,9 @@ const Component = defineComponent({
 
     async setupMap() {
       try {
-        const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
+        const style = `${BASE_URL}map-styles/${
+          this.globalState.isDarkMode ? 'dark' : 'positron'
+        }.json`
         //@ts-ignore
         this.mymap = new maplibregl.Map({
           container: this.mapId,
@@ -1340,9 +1342,9 @@ const Component = defineComponent({
       this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
       if (!this.mymap) return
 
-      const style = `https://tiles.openfreemap.org/styles/${
+      const style = `${BASE_URL}map-styles/${
         this.globalState.isDarkMode ? 'dark' : 'positron'
-      }`
+      }.json`
 
       const sleep = (milliseconds: number) => {
         return new Promise(resolve => setTimeout(resolve, milliseconds))

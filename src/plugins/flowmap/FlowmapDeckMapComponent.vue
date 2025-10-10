@@ -13,6 +13,8 @@ import { debounce } from 'debounce'
 import globalStore from '@/store'
 import { FlowmapLayer } from '@/layers/flowmap/FlowmapLayer'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 export default defineComponent({
   name: 'FlowmapDeckComponent',
   props: {
@@ -51,7 +53,9 @@ export default defineComponent({
     },
 
     dark() {
-      const style = `/map-styles/${this.dark ? 'dark' : 'positron'}.json`
+      const style = `${BASE_URL}map-styles/${
+        this.globalState.isDarkMode ? 'dark' : 'positron'
+      }.json` as any
       this.mymap?.setStyle(style)
     },
 
@@ -107,7 +111,9 @@ export default defineComponent({
   mounted() {
     this.debounceTooltip = debounce(this.clearTooltip, 1000)
 
-    const style = `/map-styles/${this.dark ? 'dark' : 'positron'}.json`
+    const style = `${BASE_URL}map-styles/${
+      this.globalState.isDarkMode ? 'dark' : 'positron'
+    }.json` as any
     const container = `map-${this.viewId}`
     const view = this.globalState.viewState
     //@ts-ignore

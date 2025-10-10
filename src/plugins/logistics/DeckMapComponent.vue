@@ -16,6 +16,8 @@ import { PathStyleExtension } from '@deck.gl/extensions'
 import globalStore from '@/store'
 import MapTooltip from './MapTooltip.vue'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 // -------------------------------------------------------------
 // Tour viz has several layers, top to bottom:
 //
@@ -114,9 +116,9 @@ export default defineComponent({
     },
 
     dark() {
-      let style
+      let style: any
       if (this.projection && this.projection !== 'Atlantis') {
-        style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json` as any
+        style = `${BASE_URL}map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
       } else {
         style = { version: 8, sources: {}, layers: [] }
       }
@@ -233,9 +235,9 @@ export default defineComponent({
   },
 
   mounted() {
-    let style
+    let style: any
     if (this.projection && this.projection !== 'Atlantis') {
-      style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json` as any
+      style = `${BASE_URL}map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
     } else {
       style = { version: 8, sources: {}, layers: [] }
     }

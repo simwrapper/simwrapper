@@ -67,7 +67,9 @@ export default defineComponent({
       if (this.projection == 'Atlantis') {
         style = { version: 8, sources: {}, layers: [] }
       } else {
-        style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json` as any
+        style = `${BASE_URL}map-styles/${
+          this.globalState.isDarkMode ? 'dark' : 'positron'
+        }.json` as any
       }
       this.mymap?.setStyle(style)
     },
@@ -155,7 +157,9 @@ export default defineComponent({
     if (this.projection == 'Atlantis') {
       style = { version: 8, sources: {}, layers: [] }
     } else {
-      style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json` as any
+      style = `${BASE_URL}map-styles/${
+        this.globalState.isDarkMode ? 'dark' : 'positron'
+      }.json` as any
     }
 
     const container = `map-${this.viewId}`

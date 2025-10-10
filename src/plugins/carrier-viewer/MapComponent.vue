@@ -24,6 +24,8 @@ import PathLayer from '@/layers/PathOffsetLayer'
 import globalStore from '@/store'
 import MapTooltip from './MapTooltip.vue'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 interface Shipment {
   $id: string
   fromX: number
@@ -97,9 +99,9 @@ export default defineComponent({
     },
 
     dark() {
-      const style = `https://tiles.openfreemap.org/styles/${
+      const style = `${BASE_URL}map-styles/${
         this.globalState.isDarkMode ? 'dark' : 'positron'
-      }`
+      }.json`
       this.mymap?.setStyle(style)
     },
 
@@ -421,9 +423,7 @@ export default defineComponent({
   },
 
   async mounted() {
-    const style = `https://tiles.openfreemap.org/styles/${
-      this.globalState.isDarkMode ? 'dark' : 'positron'
-    }`
+    const style = `${BASE_URL}map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
 
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]

@@ -14,6 +14,8 @@ import * as timeConvert from 'convert-seconds'
 
 import globalStore from '@/store'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 const dataFilter = new DataFilterExtension({ filterSize: 1 })
 
 export default defineComponent({
@@ -62,15 +64,13 @@ export default defineComponent({
 
   watch: {
     layers() {
-      this.deckOverlay.setProps({
+      this.deckOverlay?.setProps({
         layers: this.layers,
       })
     },
 
     dark() {
-      const style = `https://tiles.openfreemap.org/styles/${
-        this.globalState.isDarkMode ? 'dark' : 'positron'
-      }`
+      const style = `${BASE_URL}map-styles/${this.dark ? 'dark' : 'positron'}.json`
       this.mymap?.setStyle(style)
     },
   },
@@ -104,7 +104,7 @@ export default defineComponent({
           getRadius: this.radius,
           highlightColor: [255, 255, 255, 192],
           opacity: 1,
-          parameters: { depthTest: false },
+          parameters: { depthTest: false } as any,
           pickable: true,
           radiusScale: 1,
           stroked: false,
@@ -116,7 +116,7 @@ export default defineComponent({
           },
           // hide layers that are entirely outside the time window filter:
           visible: !outOfRange,
-        })
+        } as any)
       })
       return layers
     },
@@ -140,10 +140,7 @@ export default defineComponent({
   },
 
   async mounted() {
-    const style = `https://tiles.openfreemap.org/styles/${
-      this.globalState.isDarkMode ? 'dark' : 'positron'
-    }`
-
+    const style = `${BASE_URL}map-styles/${this.dark ? 'dark' : 'positron'}.json`
     const container = this.viewId
     const center = this.globalState.viewState.center as [number, number]
     //@ts-ignore
@@ -165,7 +162,7 @@ export default defineComponent({
   },
 
   beforeDestroy() {
-    this.mymap?.removeControl(this.deckOverlay)
+    if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
 

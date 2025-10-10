@@ -15,6 +15,8 @@ import { COORDINATE_SYSTEM } from '@deck.gl/core'
 import globalStore from '@/store'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 export interface PieInfo {
   center: number[]
   radius: number
@@ -64,17 +66,17 @@ export default defineComponent({
 
   watch: {
     layers() {
-      this.deckOverlay.setProps({
+      this.deckOverlay?.setProps({
         layers: this.layers,
       })
     },
 
     'globalState.isDarkMode'() {
-      let style
+      let style: any
       if (this.isAtlantis) {
         style = { version: 8, sources: {}, layers: [] }
       } else {
-        style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json` as any
+        style = `${BASE_URL}map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
       }
       this.mymap?.setStyle(style)
     },
@@ -193,12 +195,12 @@ export default defineComponent({
           antialiasing: true,
           autoHighlight: false,
           offsetDirection: OFFSET_DIRECTION.RIGHT,
-          parameters: { depthTest: true },
+          parameters: { depthTest: true } as any,
           transitions: {
             getColor: 200,
             getWidth: 200,
           },
-        })
+        } as any)
       )
 
       // YELLOW HIGHLIGHT LINES ---------
@@ -218,7 +220,7 @@ export default defineComponent({
             autoHighlight: false,
             offsetDirection: OFFSET_DIRECTION.RIGHT,
             parameters: { depthTest: true },
-          })
+          } as any)
         )
 
       // PIE CHARTS
@@ -244,11 +246,11 @@ export default defineComponent({
   },
 
   mounted() {
-    let style
+    let style: any
     if (this.isAtlantis) {
       style = { version: 8, sources: {}, layers: [] }
     } else {
-      style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json` as any
+      style = `${BASE_URL}map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
     }
 
     const container = `map-${this.viewId}`

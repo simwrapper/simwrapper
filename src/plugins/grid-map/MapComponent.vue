@@ -14,6 +14,8 @@ import colormap from 'colormap'
 import globalStore from '@/store'
 import { CompleteMapData } from './GridMap.vue'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 type TooltipStyle = {
   color: string
   backgroundColor: string
@@ -64,15 +66,15 @@ export default defineComponent({
 
   watch: {
     layers() {
-      this.deckOverlay.setProps({
+      this.deckOverlay?.setProps({
         layers: this.layers,
       })
     },
 
     dark() {
-      const style = `https://tiles.openfreemap.org/styles/${
+      const style = `${BASE_URL}map-styles/${
         this.globalState.isDarkMode ? 'dark' : 'positron'
-      }`
+      }.json` as any
       this.mymap?.setStyle(style)
     },
 
@@ -128,7 +130,7 @@ export default defineComponent({
                 ? { value: null }
                 : { value: this.data.mapData[this.currentTimeIndex].values, size: 1 },
             },
-          },
+          } as any,
           beforeId: this.maxHeight ? undefined : 'water',
           colorRange: this.dark ? this.colors.slice(1) : this.colors.reverse().slice(1),
           coverage: 1,
@@ -154,9 +156,9 @@ export default defineComponent({
   },
 
   mounted() {
-    const style = `https://tiles.openfreemap.org/styles/${
+    const style = `${BASE_URL}map-styles/${
       this.globalState.isDarkMode ? 'dark' : 'positron'
-    }`
+    }.json` as any
 
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
@@ -179,7 +181,7 @@ export default defineComponent({
   },
 
   beforeDestroy() {
-    this.mymap?.removeControl(this.deckOverlay)
+    if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
 

@@ -15,6 +15,8 @@ import maplibregl from 'maplibre-gl'
 import globalStore from '@/store'
 import { NewRowCache } from './CsvGzipParser.worker'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 const material = {
   ambient: 0.64,
   diffuse: 0.6,
@@ -70,7 +72,7 @@ export default defineComponent({
     },
 
     dark() {
-      const style = `/map-styles/${this.dark ? 'dark' : 'positron'}.json`
+      const style = `${BASE_URL}map-styles/${this.dark ? 'dark' : 'positron'}.json`
       this.mymap?.setStyle(style)
     },
 
@@ -187,7 +189,7 @@ export default defineComponent({
   },
 
   mounted() {
-    const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
+    const style = `${BASE_URL}map-styles/${this.dark ? 'dark' : 'positron'}.json`
     const container = `map-${this.viewId}`
     const view = this.globalState.viewState
     //@ts-ignore

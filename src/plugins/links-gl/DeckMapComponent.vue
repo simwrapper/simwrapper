@@ -16,6 +16,8 @@ import globalStore from '@/store'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 import { DataTableColumn, LookupDataset, DataType } from '@/Globals'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 export default defineComponent({
   name: 'LinksglDeckMapComponent',
   props: {
@@ -58,15 +60,15 @@ export default defineComponent({
 
   watch: {
     layers() {
-      this.deckOverlay.setProps({
+      this.deckOverlay?.setProps({
         layers: this.layers,
       })
     },
 
     dark() {
-      const style = `https://tiles.openfreemap.org/styles/${
+      const style = `${BASE_URL}map-styles/${
         this.globalState.isDarkMode ? 'dark' : 'positron'
-      }`
+      }.json`
       this.mymap?.setStyle(style)
     },
 
@@ -150,7 +152,7 @@ export default defineComponent({
         },
         parameters: {
           depthTest: false,
-        },
+        } as any,
       })
 
       const showBackgroundMap = this.projection && this.projection !== 'Atlantis'
@@ -160,9 +162,9 @@ export default defineComponent({
   },
 
   async mounted() {
-    const style = `https://tiles.openfreemap.org/styles/${
+    const style = `${BASE_URL}map-styles/${
       this.globalState.isDarkMode ? 'dark' : 'positron'
-    }`
+    }.json` as any
 
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
@@ -185,7 +187,7 @@ export default defineComponent({
   },
 
   beforeDestroy() {
-    this.mymap?.removeControl(this.deckOverlay)
+    if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
 

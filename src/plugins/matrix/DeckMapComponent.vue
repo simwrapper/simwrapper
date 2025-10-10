@@ -12,6 +12,7 @@ import maplibregl from 'maplibre-gl'
 import { debounce } from '@/js/util'
 import globalStore from '@/store'
 
+const BASE_URL = import.meta.env.BASE_URL
 const DEFAULT_FILL = [32, 64, 128, 255]
 
 export default defineComponent({
@@ -54,7 +55,9 @@ export default defineComponent({
     },
 
     'globalState.isDarkMode'() {
-      const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
+      const style = `${BASE_URL}map-styles/${
+        this.globalState.isDarkMode ? 'dark' : 'positron'
+      }.json`
       this.mymap?.setStyle(style)
     },
 
@@ -139,7 +142,7 @@ export default defineComponent({
   async mounted() {
     this.debounceSaveLocation = debounce(this.saveLocation, 1000)
 
-    const style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
+    const style = `${BASE_URL}map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
     const container = `map-${this.viewId}`
     const view = this.globalState.viewState
     // @ts-ignore

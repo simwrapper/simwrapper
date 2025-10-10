@@ -18,6 +18,8 @@ import Screenshots from '@/js/screenshots'
 
 import type { BackgroundLayer } from './ShapeFile.vue'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 interface DeckObject {
   index: number
   target: number[]
@@ -85,9 +87,9 @@ export default defineComponent({
     },
 
     dark() {
-      let style
+      let style: any
       if (this.hasBackgroundMap) {
-        style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json` as any
+        style = `${BASE_URL}map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
       } else {
         style = { version: 8, sources: {}, layers: [] }
       }
@@ -448,9 +450,9 @@ export default defineComponent({
   },
 
   mounted() {
-    let style
+    let style: any
     if (this.hasBackgroundMap) {
-      style = `/map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json` as any
+      style = `${BASE_URL}map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
     } else {
       style = { version: 8, sources: {}, layers: [] }
     }
