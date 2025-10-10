@@ -14,6 +14,46 @@ The SimWrapper code repository is open source and you can find the full commit h
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.1.3](https://github.com/simwrapper/simwrapper/compare/v4.1.2...v4.1.3) (2025-10-10)
+
+
+### Bug Fixes
+
+* CSV table layout ([9924fb7](https://github.com/simwrapper/simwrapper/commit/9924fb769bb7ca09c659ca3ebbd769c1d2984e76))
+
+### [4.1.2](https://github.com/simwrapper/simwrapper/compare/v4.1.1...v4.1.2) (2025-09-24)
+
+
+### Bug Fixes
+
+* **gridmap:** Gridmap "fixedColors" from config being ignored; all white ([1e91945](https://github.com/simwrapper/simwrapper/commit/1e91945fd8a1cc272d86f9d82178f668f76709d1))
+* **map:** export YAML sometimes breaks when center mis-specified ([10375b7](https://github.com/simwrapper/simwrapper/commit/10375b73551d428f5ed59a9bbc5ac870246eefb9))
+* Update deck.gl, plot.ly, and remove Vuera to improve stability ([c884e37](https://github.com/simwrapper/simwrapper/commit/c884e37d4d2b8c4714e2b806927afbcf4657a1ae))
+
+### [4.1.1](https://github.com/simwrapper/simwrapper/compare/v4.1.0...v4.1.1) (2025-08-14)
+
+
+### Bug Fixes
+
+* **hexagons:** Big performance increase on large datasets ([0d05446](https://github.com/simwrapper/simwrapper/commit/0d05446e8cac54d22bf5598de9f26d5c324fcdfd))
+* **hexagons:** filter 0-values reliably, and only use one worker if dataset is small ([0285b7e](https://github.com/simwrapper/simwrapper/commit/0285b7e021e1270ef908b93977c4fce709262ae9))
+
+## [4.1.0](https://github.com/simwrapper/simwrapper/compare/v4.0.6...v4.1.0) (2025-08-10)
+
+
+### Features
+
+* Gamepad map pan/zoom support ([c7a590c](https://github.com/simwrapper/simwrapper/commit/c7a590c4a50eb1f35a32ab9be8580c554a7c0ac3))
+
+
+### Bug Fixes
+
+* **data:** Make sure background data workers are ready before sending them data ([26cd60a](https://github.com/simwrapper/simwrapper/commit/26cd60add28f8a73ba71d800d20eab6ad3c87011))
+* **hexagons:** Improve xy-hexagon performance with large datasets ([bfa80a6](https://github.com/simwrapper/simwrapper/commit/bfa80a64ecf02112ddc137d7845161971b654f1d))
+* **links:** link map not loading MATSIM XML networks ([25e300e](https://github.com/simwrapper/simwrapper/commit/25e300eda6dfad2f8215829aa19c9a1fff904d3a))
+* probe XML filetypes if filenames are not standard *.output_network.xml ([17e60bb](https://github.com/simwrapper/simwrapper/commit/17e60bb1900278ffff47fb915c7ef75113090850))
+* **transit:** load atlantis transit network correctly ([444bbd4](https://github.com/simwrapper/simwrapper/commit/444bbd44002d48f2dd450bc45e5fe366c1cf4aca))
+
 ### [4.0.6](https://github.com/simwrapper/simwrapper/compare/v4.0.5...v4.0.6) (2025-07-30)
 
 
