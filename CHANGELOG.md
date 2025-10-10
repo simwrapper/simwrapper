@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.1.3](https://github.com/simwrapper/simwrapper/compare/v4.1.2...v4.1.3) (2025-10-10)
+
+
+### Bug Fixes
+
+* CSV table layout ([9924fb7](https://github.com/simwrapper/simwrapper/commit/9924fb769bb7ca09c659ca3ebbd769c1d2984e76))
+
 ### [4.1.2](https://github.com/simwrapper/simwrapper/compare/v4.1.1...v4.1.2) (2025-09-24)
 
 
