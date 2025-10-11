@@ -12,6 +12,8 @@ try:
 except:
     print("OOPS! Error importing required libraries.")
     print('try "pip3 install avro matsim-tools pyproj"')
+    print(' or "uv add avro matsim-tools pyproj"')
+    sys.exit(1)
 
 if len(sys.argv) != 3:
     print(
