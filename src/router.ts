@@ -9,6 +9,14 @@ const BASE_URL = import.meta.env.BASE_URL
 
 const routes = [
   {
+    path: BASE_URL + 'embed',
+    component: () => import('@/layout-manager/EmbedView.vue'),
+    props: (route: Route) => ({
+      root: '',
+      subfolder: '',
+    }),
+  },
+  {
     path: BASE_URL + 'matrix',
     component: () => import('@/plugins/matrix/MatrixViewer.vue'),
     props: (route: Route) => ({
