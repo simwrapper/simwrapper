@@ -13,6 +13,7 @@ import maplibregl from 'maplibre-gl'
 import * as timeConvert from 'convert-seconds'
 
 import globalStore from '@/store'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -29,6 +30,7 @@ export default defineComponent({
     colors: { type: Array as PropType<number[][]>, required: true },
     breakpoints: { type: Array as PropType<number[]>, required: true },
     radius: { type: Number, required: true },
+    bgLayers: { type: Object as PropType<BackgroundLayers> },
     pointLayers: {
       type: Array as PropType<
         {
@@ -77,8 +79,14 @@ export default defineComponent({
 
   computed: {
     layers(): any[] {
+      const xlayers = [] as any[]
+
+      const extraLayers = this.bgLayers?.layers()
+      if (extraLayers) xlayers.push(...extraLayers.layersBelow)
+
       // add a scatterplotlayer for each set of points in pointLayers
-      const layers = this.pointLayers.map((points, layerIndex) => {
+
+      const pointLayers = this.pointLayers.map((points, layerIndex) => {
         // The entire layer can be hidden if all of its points
         // are beyond the timeFilter range that is being shown.
         const outOfRange =
@@ -118,7 +126,13 @@ export default defineComponent({
           visible: !outOfRange,
         } as any)
       })
-      return layers
+
+      xlayers.push(...pointLayers)
+
+      // ON-TOP layers
+      if (extraLayers) xlayers.push(...extraLayers.layersOnTop)
+
+      return xlayers
     },
 
     'globalState.viewState'() {

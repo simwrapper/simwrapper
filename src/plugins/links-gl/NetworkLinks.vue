@@ -19,6 +19,7 @@
         :scaleWidth="scaleWidth"
         :projection="vizDetails.projection"
         :mapIsIndependent="vizDetails.mapIsIndependent"
+        :bgLayers="backgroundLayers"
     )
 
     zoom-buttons(v-if="!thumbnail")
@@ -123,6 +124,7 @@ import { LineColorDefinition } from '@/components/viz-configurator/LineColors.vu
 import { LineWidthDefinition } from '@/components/viz-configurator/LineWidths.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 const LOOKUP_COLUMN = '_LINK_OFFSET_'
 
@@ -173,6 +175,8 @@ const MyComponent = defineComponent({
           width: {} as any,
         },
       },
+
+      backgroundLayers: null as null | BackgroundLayers,
 
       YAMLrequirementsLinks: {
         // csvFile: '',
@@ -1038,6 +1042,18 @@ const MyComponent = defineComponent({
 
     // load network; when it is done it will call the loadCSVs afterwards.
     this.loadNetwork()
+
+    // background layers
+    try {
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
+      await this.backgroundLayers.initialLoad()
+    } catch (e) {
+      this.$emit('error', 'Error loading background layers')
+    }
   },
 
   beforeDestroy() {

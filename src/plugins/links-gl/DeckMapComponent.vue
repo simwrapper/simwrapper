@@ -15,6 +15,7 @@ import { format } from 'mathjs'
 import globalStore from '@/store'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 import { DataTableColumn, LookupDataset, DataType } from '@/Globals'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -37,6 +38,7 @@ export default defineComponent({
     newWidths: { type: Float32Array as PropType<Float32Array>, required: true },
     projection: { type: String },
     scaleWidth: { type: Number, required: true },
+    bgLayers: { type: Object as PropType<BackgroundLayers> },
   },
 
   data() {
@@ -116,48 +118,53 @@ export default defineComponent({
       // projection == 'Atlantis' ? COORDINATE_SYSTEM.METER_OFFSETS : COORDINATE_SYSTEM.DEFAULT
       const coordinateSystem = COORDINATE_SYSTEM.DEFAULT
 
-      //@ts-ignore
-      const layer = new LineOffsetLayer({
-        id: 'linkLayer',
-        data: {
-          length: this.links.source.length / 2,
-          attributes: {
-            getSourcePosition: { value: this.links.source, size: 2 },
-            getTargetPosition: { value: this.links.dest, size: 2 },
-            getColor: { value: this.newColors, size: 4 },
-            getWidth: { value: this.newWidths, size: 1 },
+      const layers = [] as any[]
+
+      const extraLayers = this.bgLayers?.layers()
+      if (extraLayers) layers.push(...extraLayers.layersBelow)
+
+      layers.push(
+        new LineOffsetLayer({
+          id: 'linkLayer',
+          data: {
+            length: this.links.source.length / 2,
+            attributes: {
+              getSourcePosition: { value: this.links.source, size: 2 },
+              getTargetPosition: { value: this.links.dest, size: 2 },
+              getColor: { value: this.newColors, size: 4 },
+              getWidth: { value: this.newWidths, size: 1 },
+            },
           },
-        },
-        widthUnits: 'pixels',
-        widthScale: this.widthDivisor,
-        widthMinPixels: 0.25,
-        widthMaxPixels: 50,
-        pickable: true,
-        coordinateSystem,
-        opacity: 1,
-        autoHighlight: true,
-        highlightColor: [255, 0, 224],
-        offsetDirection: OFFSET_DIRECTION.RIGHT,
-        onHover: this.getTooltip,
-        updateTriggers: {
-          getSourcePosition: [this.links.source],
-          getTargetPosition: [this.links.dest],
-          getColor: [this.newColors, this.dark],
-          getWidth: [this.newWidths],
-        },
-        transitions: {
-          getColor: 250,
-          getWidth: 250,
-          widthScale: 250,
-        },
-        parameters: {
-          depthTest: false,
-        } as any,
-      })
+          widthUnits: 'pixels',
+          widthScale: this.widthDivisor,
+          widthMinPixels: 0.25,
+          widthMaxPixels: 50,
+          pickable: true,
+          coordinateSystem,
+          opacity: 1,
+          autoHighlight: true,
+          highlightColor: [255, 0, 224],
+          offsetDirection: OFFSET_DIRECTION.RIGHT,
+          onHover: this.getTooltip,
+          updateTriggers: {
+            getSourcePosition: [this.links.source],
+            getTargetPosition: [this.links.dest],
+            getColor: [this.newColors, this.dark],
+            getWidth: [this.newWidths],
+          },
+          transitions: {
+            getColor: 250,
+            getWidth: 250,
+            widthScale: 250,
+          },
+          parameters: { depthTest: false },
+        } as any)
+      )
 
-      const showBackgroundMap = this.projection && this.projection !== 'Atlantis'
+      // ON-TOP layers
+      if (extraLayers) layers.push(...extraLayers.layersOnTop)
 
-      return [layer]
+      return layers
     },
   },
 

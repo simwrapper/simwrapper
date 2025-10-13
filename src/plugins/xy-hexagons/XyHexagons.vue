@@ -92,6 +92,7 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 // import XyHexDeckMap from './XyHexLayer'
 import XyHexDeckMap from './XyHexMapComponent.vue'
 import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 import {
   ColorScheme,
@@ -174,6 +175,9 @@ const MyComponent = defineComponent({
       colorRamp: colorRamps[0],
       globalState: globalStore.state,
       currentGroup: '',
+
+      backgroundLayers: null as null | BackgroundLayers,
+
       vizDetails: {
         title: '',
         description: '',
@@ -253,6 +257,7 @@ const MyComponent = defineComponent({
         radius: this.vizDetails.radius,
         selectedHexStats: this.hexStats,
         upperPercentile: 100,
+        bgLayers: this.backgroundLayers,
         onClick: this.handleClick,
       }
     },
@@ -688,6 +693,18 @@ const MyComponent = defineComponent({
     this.aggregations = this.vizDetails.aggregations
 
     await this.loadFiles()
+
+    // background layers
+    try {
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
+      await this.backgroundLayers.initialLoad()
+    } catch (e) {
+      this.$emit('error', 'Error loading background layers')
+    }
 
     this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // show first data
   },

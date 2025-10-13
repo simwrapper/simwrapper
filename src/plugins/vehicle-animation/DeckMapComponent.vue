@@ -14,6 +14,7 @@ import globalStore from '@/store'
 import DrtRequestLayer from './DrtRequestLayer'
 import MovingIconsLayer, { ColorDepiction } from '@/layers/moving-icons/moving-icons-vehicles-layer'
 import PathTraceLayer from '@/layers/PathTraceLayer'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -76,6 +77,7 @@ export default defineComponent({
     traces: { type: Array as PropType<any[]>, required: true },
     vehicleLookup: { type: Array as PropType<any[]>, required: true },
     viewId: { type: Number, required: true },
+    bgLayers: { type: Object as PropType<BackgroundLayers> },
   },
 
   data() {
@@ -114,6 +116,9 @@ export default defineComponent({
 
     layers(): any[] {
       const layers = [] as any[]
+
+      const extraLayers = this.bgLayers?.layers()
+      if (extraLayers) layers.push(...extraLayers.layersBelow)
 
       if (this.settingsShowLayers.routes)
         layers.push(
@@ -193,6 +198,9 @@ export default defineComponent({
             searchFlag: this.searchEnabled ? 1.0 : 0.0,
           } as any)
         )
+
+      // ON-TOP layers
+      if (extraLayers) layers.push(...extraLayers.layersOnTop)
 
       return layers
     },

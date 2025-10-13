@@ -14,6 +14,7 @@ import maplibregl from 'maplibre-gl'
 
 import globalStore from '@/store'
 import { NewRowCache } from './CsvGzipParser.worker'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -43,6 +44,7 @@ export default defineComponent({
     onClick: { type: Function, required: true },
     agg: { type: Number, required: true },
     group: { type: String, required: true },
+    bgLayers: { type: Object as PropType<BackgroundLayers> },
   },
 
   data() {
@@ -137,7 +139,12 @@ export default defineComponent({
       let brightcolors = null
       if (numPoints < 10) brightcolors = this.colors.slice(4, 5)
 
-      const layers = [
+      const layers = [] as any[]
+
+      const extraLayers = this.bgLayers?.layers()
+      if (extraLayers) layers.push(...extraLayers.layersBelow)
+
+      layers.push(
         new ArcLayer({
           id: 'arc-layer',
           data: this.highlights,
@@ -149,8 +156,8 @@ export default defineComponent({
           getWidth: 1,
           getSourceColor: this.dark ? [144, 96, 128] : [192, 192, 240],
           getTargetColor: this.dark ? [144, 96, 128] : [192, 192, 240],
-        }),
-      ] as any[]
+        })
+      )
 
       const hexLayerProps = Object.assign(config, {
         id: 'hexlayer',
@@ -184,6 +191,10 @@ export default defineComponent({
       }) as any
 
       layers.push(new HexagonLayer(hexLayerProps))
+
+      // ON-TOP layers
+      if (extraLayers) layers.push(...extraLayers.layersOnTop)
+
       return layers
     },
   },

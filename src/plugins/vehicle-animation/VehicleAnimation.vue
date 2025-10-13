@@ -8,14 +8,16 @@
                 :dark = "globalState.isDarkMode"
                 :leftside = "vizDetails.leftside || false"
                 :mapIsIndependent="false"
-                :paths = "$options.paths"
+                :paths = "$options.paths || []"
                 :settingsShowLayers = "SETTINGS"
                 :searchEnabled = "searchEnabled"
                 :simulationTime = "simulationTime"
                 :traces = "$options.traces || []"
                 :vehicleLookup = "vehicleLookup"
                 :viewId = "viewId"
-                :onClick = "handleClick")
+                :onClick = "handleClick"
+                :bgLayers="backgroundLayers"
+  )
 
   h3.loadmsg(v-if="!isLoaded") {{ myState.statusMessage }}
 
@@ -112,6 +114,7 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import { arrayBufferToBase64, gUnzip } from '@/js/util'
 import DeckMap from './DeckMapComponent.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 import {
   ColorScheme,
@@ -174,6 +177,8 @@ const MyComponent = defineComponent({
       }),
 
       legendRequests: [{ type: LegendItemType.line, color: [255, 0, 255], value: 0, label: '' }],
+
+      backgroundLayers: null as null | BackgroundLayers,
 
       vizDetails: {
         network: '',
@@ -756,6 +761,18 @@ const MyComponent = defineComponent({
     this.myState.statusMessage = ''
 
     document.addEventListener('visibilitychange', this.handleVisibilityChange, false)
+
+    // background layers
+    try {
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
+      await this.backgroundLayers.initialLoad()
+    } catch (e) {
+      this.$emit('error', 'Error loading background layers')
+    }
 
     this.myState.isRunning = true
     this.timeElapsedSinceLastFrame = Date.now()

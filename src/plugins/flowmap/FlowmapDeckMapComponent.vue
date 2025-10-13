@@ -12,6 +12,7 @@ import { debounce } from 'debounce'
 
 import globalStore from '@/store'
 import { FlowmapLayer } from '@/layers/flowmap/FlowmapLayer'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -25,6 +26,7 @@ export default defineComponent({
     locations: { type: Array, required: true },
     flows: { type: Array, required: true },
     elapsed: { type: Number, required: true },
+    bgLayers: { type: Object as PropType<BackgroundLayers> },
   },
 
   data() {
@@ -78,6 +80,10 @@ export default defineComponent({
   computed: {
     layers(): any[] {
       const layers = [] as any[]
+
+      const extraLayers = this.bgLayers?.layers()
+      if (extraLayers) layers.push(...extraLayers.layersBelow)
+
       layers.push(
         new FlowmapLayer({
           data: { locations: this.locations, flows: this.flows },
@@ -104,6 +110,10 @@ export default defineComponent({
           onHover: this.getTooltip,
         })
       )
+
+      // ON-TOP layers
+      if (extraLayers) layers.push(...extraLayers.layersOnTop)
+
       return layers
     },
   },

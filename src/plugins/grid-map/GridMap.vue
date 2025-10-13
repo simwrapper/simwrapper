@@ -60,6 +60,7 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import ClickThroughTimes from '@/components/ClickThroughTimes.vue'
 import TimeSlider from '@/components/TimeSliderV2.vue'
 import MapComponent from './MapComponent.vue'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 // interface for each time object inside the mapData Array
 export interface MapData {
@@ -153,6 +154,7 @@ interface MapProps {
   colorDataDigits: number
   upperPercentile: number
   cbTooltip?: any
+  bgLayers?: null | BackgroundLayers
 }
 
 const i18n = {
@@ -239,6 +241,8 @@ const GridMap = defineComponent({
       globalMinValue: Number.NEGATIVE_INFINITY,
       valuesIncludeNeg: false as boolean,
       tooltip: null as null | { html: any; style: any },
+      backgroundLayers: null as null | BackgroundLayers,
+
       vizDetails: {
         title: '',
         description: '',
@@ -349,6 +353,7 @@ const GridMap = defineComponent({
         opacity: this.guiConfig.opacity,
         upperPercentile: 100,
         cbTooltip: this.cbTooltip,
+        bgLayers: this.backgroundLayers,
       }
     },
     textColor(): any {
@@ -1375,6 +1380,18 @@ const GridMap = defineComponent({
     // this.buildThumbnail()
     this.isLoaded = true
     this.setMapCenter()
+
+    // background layers
+    try {
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
+      await this.backgroundLayers.initialLoad()
+    } catch (e) {
+      this.$emit('error', 'Error loading background layers')
+    }
   },
 
   beforeDestroy() {

@@ -135,7 +135,12 @@ const plugins = [
   },
   {
     kebabName: 'logistics',
-    filePatterns: ['**/*lsps.xml*', '**/viz-logistic*.y?(a)ml*'],
+    filePatterns: [
+      '**/*lsps.xml*',
+      '**/viz-logistic*.y?(a)ml*',
+      '**/viz-lsps*.y?(a)ml*',
+      '**/viz-logistik*.y?(a)ml*',
+    ],
     component: defineAsyncComponent(() => import('./logistics/LogisticsViewer.vue')),
   },
 ]

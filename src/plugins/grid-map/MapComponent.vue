@@ -13,6 +13,7 @@ import colormap from 'colormap'
 
 import globalStore from '@/store'
 import { CompleteMapData } from './GridMap.vue'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -43,6 +44,7 @@ export default defineComponent({
     upperPercentile: { type: Number, required: true },
     cbTooltip: { type: Function, required: true },
     onClick: { type: Function, required: false },
+    bgLayers: { type: Object as PropType<BackgroundLayers> },
   },
 
   data() {
@@ -114,7 +116,12 @@ export default defineComponent({
     },
 
     layers(): any[] {
-      const layers = [
+      const layers = []
+
+      const extraLayers = this.bgLayers?.layers()
+      if (extraLayers) layers.push(...extraLayers.layersBelow)
+
+      layers.push(
         new GridCellLayer({
           id: 'gridlayer',
           data: {
@@ -149,8 +156,12 @@ export default defineComponent({
             // fixes the z-fighting problem but makes some issues with the opacity...
             // depthTest: false,
           },
-        }),
-      ]
+        })
+      )
+
+      // ON-TOP layers
+      if (extraLayers) layers.push(...extraLayers.layersOnTop)
+
       return layers
     },
   },

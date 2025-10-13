@@ -104,6 +104,7 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import util from '@/js/util'
 import TimeSlider from '@/plugins/flowmap/FlowMapTimeSlider.vue'
 import Coords from '@/js/Coords'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 interface Label {
   leftPct: string
@@ -151,6 +152,7 @@ const MyComponent = defineComponent({
     mapProps() {
       return {
         viewId: this.viewId,
+        bgLayers: this.backgroundLayers,
         locations: this.centroids,
         flows: this.filteredFlows,
         dark: this.$store.state.isDarkMode,
@@ -194,6 +196,8 @@ const MyComponent = defineComponent({
       needsInitialMapExtent: true,
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+
+      backgroundLayers: null as BackgroundLayers | null,
 
       resolvers: {} as { [id: number]: any },
       resolverId: 0,
@@ -352,6 +356,18 @@ const MyComponent = defineComponent({
       this.slider = Object.assign({}, this.slider)
 
       await this.configureData(this.vizDetails.metrics[0])
+
+      // background layers
+      try {
+        this.backgroundLayers = new BackgroundLayers({
+          vizDetails: this.vizDetails,
+          fileApi: this.fileApi,
+          subfolder: this.subfolder,
+        })
+        await this.backgroundLayers.initialLoad()
+      } catch (e) {
+        this.$emit('error', 'Error loading background layers')
+      }
 
       this.$emit('isLoaded')
 

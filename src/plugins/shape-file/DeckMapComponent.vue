@@ -15,8 +15,7 @@ import globalStore from '@/store'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 import GeojsonOffsetLayer from '@/layers/GeojsonOffsetLayer'
 import Screenshots from '@/js/screenshots'
-
-import type { BackgroundLayer } from './ShapeFile.vue'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -30,7 +29,7 @@ export default defineComponent({
   name: 'GeojsonDeckComponent',
   props: {
     features: { type: Array },
-    bgLayers: { type: Object as PropType<{ [name: string]: BackgroundLayer }>, required: true },
+    bgLayers: { type: Object as PropType<BackgroundLayers> },
     cbTooltip: { type: Function, required: true },
     cbClickEvent: { type: Function, required: true },
     dark: { type: Boolean, required: true },
@@ -224,47 +223,6 @@ export default defineComponent({
     },
 
     // ================= LAYERS ================
-    // ================= LAYERS ================
-
-    extraLayers() {
-      const backgroundLayers = [] as any[]
-      const onTopLayers = [] as any[]
-
-      for (const name of Object.keys(this.bgLayers).reverse()) {
-        const layerDetails = this.bgLayers[name]
-
-        const bgLayer: any = new GeoJsonLayer({
-          id: `background-layer-${name}`,
-          data: layerDetails.features,
-          getFillColor: (d: any) => d.properties.__fill__,
-          getLineColor: layerDetails.borderColor,
-          getLineWidth: layerDetails.borderWidth,
-          getText: (d: any) => d.properties.label,
-          getTextSize: 12,
-          getTextColor: [255, 255, 255, 255],
-          getTextBackgroundColor: [0, 0, 0, 255],
-          pointType: 'circle+text',
-          textFontWeight: 'bold',
-          lineWidthUnits: 'pixels',
-          autohighlight: false,
-          opacity: layerDetails.opacity,
-          pickable: false,
-          stroked: layerDetails.borderWidth ? true : false,
-          fp64: false,
-          parameters: { depthTest: false },
-          visible: layerDetails.visible,
-        } as any)
-
-        if (layerDetails.onTop) {
-          onTopLayers.push(bgLayer)
-        } else {
-          // try this for now
-          bgLayer.beforeId = 'water'
-          backgroundLayers.push(bgLayer)
-        }
-      }
-      return { backgroundLayers, onTopLayers }
-    },
 
     lineLayers() {
       // POLYGON BORDER LAYER
@@ -336,7 +294,10 @@ export default defineComponent({
     },
 
     layers() {
-      const finalLayers = [...this.extraLayers.backgroundLayers]
+      const finalLayers = []
+
+      const extraLayers = this.bgLayers?.layers()
+      if (extraLayers) finalLayers.push(...extraLayers.layersBelow)
 
       // MAIN GEOJSON LAYER
       if (this.lineLayers.hasPolygons) {
@@ -441,7 +402,8 @@ export default defineComponent({
       }
 
       // ON-TOP layers
-      finalLayers.concat(this.extraLayers.onTopLayers)
+      if (extraLayers) finalLayers.push(...extraLayers.layersOnTop)
+
       // all done! whoosh!!
       return finalLayers
     },

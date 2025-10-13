@@ -5,6 +5,7 @@
       .main-panel
         deck-map.anim(v-if="vizDetails.projection && !thumbnail"
           :activeTab="activeTab"
+          :bgLayers="backgroundLayers"
           :carrierServices="carrierServicesAll"
           :carrierTours="carrierTours"
           :center="vizDetails.center"
@@ -189,6 +190,8 @@ import DeckMap from './DeckMapComponent.vue'
 import { FileSystemConfig, ColorScheme } from '@/Globals'
 import { typeOf } from 'mathjs'
 
+import BackgroundLayers from '@/js/BackgroundLayers'
+
 interface NetworkLinks {
   source: Float32Array
   dest: Float32Array
@@ -336,6 +339,8 @@ const LogisticsPlugin = defineComponent({
       toggleVehicles: true,
       toggleShipments: true,
       toggleServices: true,
+
+      backgroundLayers: null as BackgroundLayers | null,
 
       detailContent: '',
       linksCsvData: null as any,
@@ -2162,6 +2167,17 @@ const LogisticsPlugin = defineComponent({
 
     if (this.lspChainTours.length) this.selectAllTours()
     this.selectedCarrier = this.getFirstCarrierFromSelectedLsp(this.lsps[0])
+
+    try {
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
+      await this.backgroundLayers.initialLoad()
+    } catch (e) {
+      this.$emit('error', 'Error loading background layers')
+    }
   },
 
   beforeDestroy() {

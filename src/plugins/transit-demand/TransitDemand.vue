@@ -25,6 +25,7 @@
             :transitLines="activeTransitLines"
             :vizDetails="vizDetails"
             :isAtlantis="isAtlantis"
+            :bgLayers="backgroundLayers"
           )
 
           .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
@@ -135,6 +136,7 @@ import { FileSystem, FileSystemConfig, ColorScheme, VisualizationPlugin } from '
 import GzipWorker from '@/workers/GzipFetcher.worker?worker'
 import IconPieChart from './assets/icon-pie-chart.png'
 import IconBlueRamp from './assets/icon-blue-ramp.png'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
 const COLOR_CATEGORIES = 10
@@ -289,6 +291,7 @@ const MyComponent = defineComponent({
         piechart: IconPieChart,
         blueramp: IconBlueRamp,
       },
+      backgroundLayers: null as null | BackgroundLayers,
 
       loadProgress: 0,
       loadSteps: 0,
@@ -1848,6 +1851,18 @@ const MyComponent = defineComponent({
 
     // If we don't have a network file yet, try and find one
     if (!this.vizDetails.network) await this.findInputFiles()
+
+    // background layers
+    try {
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
+      await this.backgroundLayers.initialLoad()
+    } catch (e) {
+      this.$emit('error', 'Error loading background layers')
+    }
 
     this.loadEverything()
   },

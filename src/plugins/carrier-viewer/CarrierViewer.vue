@@ -7,6 +7,7 @@
     .main-panel
       DeckMapComponent.anim(v-if="!thumbnail"
                   :activeTab="activeTab"
+                  :bgLayers="backgroundLayers"
                   :shipments="shownShipments"
                   :depots="shownDepots"
                   :legs="shownLegs"
@@ -18,7 +19,7 @@
                   :numSelectedTours="selectedTours.length"
                   :onClick="handleClick"
                   :projection="vizDetails.projection"
-                  :services="vizDetails.services")
+                  :services="vizDetails.services || false")
 
       ZoomButtons(v-if="!thumbnail" corner="top-left")
       .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
@@ -149,6 +150,7 @@ import { gUnzip, parseXML, findMatchingGlobInFiles, arrayBufferToBase64 } from '
 import DashboardDataManager from '@/js/DashboardDataManager'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 import DeckMapComponent from './MapComponent.vue'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 import {
   FileSystem,
@@ -240,6 +242,8 @@ const CarrierPlugin = defineComponent({
 
       searchTerm: '',
       searchEnabled: false,
+
+      backgroundLayers: null as BackgroundLayers | null,
 
       globalState: globalStore.state,
       isLoaded: true,
@@ -1215,6 +1219,18 @@ const CarrierPlugin = defineComponent({
 
     // Select the first tour if the tours are loaded
     if (this.tours.length) this.handleSelectTour(this.tours[0])
+
+    // background layers
+    try {
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
+      await this.backgroundLayers.initialLoad()
+    } catch (e) {
+      this.$emit('error', 'Error loading background layers')
+    }
   },
 
   beforeDestroy() {

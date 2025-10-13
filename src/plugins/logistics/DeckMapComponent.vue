@@ -15,6 +15,7 @@ import { PathStyleExtension } from '@deck.gl/extensions'
 
 import globalStore from '@/store'
 import MapTooltip from './MapTooltip.vue'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -67,6 +68,7 @@ export default defineComponent({
   components: { MapTooltip },
   props: {
     activeTab: { type: String, required: true },
+    bgLayers: { type: Object as PropType<BackgroundLayers> },
     carrierServices: { type: Set },
     carrierTours: { type: Array as PropType<LspShipmentChain[]>, required: true },
     center: { type: Array as PropType<number[]> },
@@ -189,6 +191,9 @@ export default defineComponent({
     layers(): any[] {
       const layers = [] as any[]
 
+      const extraLayers = this.bgLayers?.layers()
+      if (extraLayers) layers.push(...extraLayers.layersBelow)
+
       if (this.activeTab == 'lspTours') {
         layers.push(...this.getLspTourLayers())
       }
@@ -230,6 +235,10 @@ export default defineComponent({
       if (this.activeTab == 'lspShipmentChains' && !this.showHub && this.hubLocation.length == 0) {
         layers.push(...this.getLspShipmentChainLayers())
       }
+
+      // ON-TOP layers
+      if (extraLayers) layers.push(...extraLayers.layersOnTop)
+
       return layers
     },
   },

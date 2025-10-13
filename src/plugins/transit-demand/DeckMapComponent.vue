@@ -14,6 +14,7 @@ import { COORDINATE_SYSTEM } from '@deck.gl/core'
 
 import globalStore from '@/store'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -43,6 +44,7 @@ export default defineComponent({
     viewId: { type: Number, required: true },
     vizDetails: { type: Object, required: true },
     widthSlider: { type: Number, required: true },
+    bgLayers: { type: Object as PropType<BackgroundLayers> },
   },
 
   data() {
@@ -175,6 +177,9 @@ export default defineComponent({
     layers() {
       const layers = []
 
+      const extraLayers = this.bgLayers?.layers()
+      if (extraLayers) layers.push(...extraLayers.layersBelow)
+
       // TRANSIT LINKS
       layers.push(
         //@ts-ignore
@@ -240,6 +245,9 @@ export default defineComponent({
           parameters: { depthTest: true },
         })
       )
+
+      // ON-TOP layers
+      if (extraLayers) layers.push(...extraLayers.layersOnTop)
 
       return layers
     },

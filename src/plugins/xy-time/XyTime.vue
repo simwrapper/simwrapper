@@ -10,6 +10,7 @@
     :breakpoints="breakpoints"
     :radius="guiConfig.radius"
     :mapIsIndependent="false"
+    :bgLayers="backgroundLayers"
   )
 
   zoom-buttons(v-if="!thumbnail" corner="top-left")
@@ -90,6 +91,7 @@ import XyTimeDeckMap from './XyMapComponent.vue'
 import XytDataParser from './XytDataParser.worker.ts?worker'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import ModalDialogCustomColorbreakpoint from './ModalDialogCustomColorbreakpoint.vue'
+import BackgroundLayers from '@/js/BackgroundLayers'
 
 import {
   ColorScheme,
@@ -159,6 +161,9 @@ const MyComponent = defineComponent({
         'Custom breakpoints...': this.toggleModalDialog,
         'manual breaks': '',
       },
+
+      backgroundLayers: null as null | BackgroundLayers,
+
       minRadius: 5,
       maxRadius: 50,
       showCustomBreakpoints: false,
@@ -239,7 +244,20 @@ const MyComponent = defineComponent({
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
     if (!this.isLoaded) await this.loadFiles()
+
+    // background layers
+    try {
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
+      await this.backgroundLayers.initialLoad()
+    } catch (e) {
+      this.$emit('error', 'Error loading background layers')
+    }
   },
+
   beforeDestroy() {
     this.resizer?.disconnect()
 

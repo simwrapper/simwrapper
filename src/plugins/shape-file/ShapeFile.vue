@@ -52,7 +52,7 @@
       //- drawing-tool.draw-tool(v-if="isLoaded && !thumbnail")
 
       geojson-layer.map-layers(v-if="!needsInitialMapExtent"
-        :bgLayers="bgLayers"
+        :bgLayers="backgroundLayers"
         :cbTooltip="cbTooltip"
         :cbClickEvent="handleClickEvent"
         :dark="globalState.isDarkMode"
@@ -173,7 +173,6 @@ import {
 import { debounce } from '@/js/util'
 import Geotools from '@/js/geo-utils'
 import GeojsonLayer from './DeckMapComponent.vue'
-import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ColorWidthSymbologizer, { buildRGBfromHexCodes } from '@/js/ColorsAndWidths'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import LegendBox from '@/components/viz-configurator/LegendBox.vue'
@@ -194,6 +193,9 @@ import { LayerDefinition } from '@/components/viz-configurator/Layers.vue'
 import Coords from '@/js/Coords'
 import LegendStore from '@/js/LegendStore'
 
+import BackgroundLayers from '@/js/BackgroundLayers'
+import type { BackgroundLayer } from '@/js/BackgroundLayers'
+
 import IconBlueRamp from './assets/icon-blue-ramp.png'
 
 interface FilterDetails {
@@ -204,19 +206,9 @@ interface FilterDetails {
   dataset?: any
 }
 
-export interface BackgroundLayer {
-  features: any[]
-  opacity: number
-  borderWidth: number
-  borderColor: number[]
-  visible: boolean
-  onTop: boolean
-}
-
 const MyComponent = defineComponent({
   name: 'ShapeFilePlugin',
   components: {
-    BackgroundMapOnTop,
     LegendBox,
     GeojsonLayer,
     ModalIdColumnPicker,
@@ -324,6 +316,8 @@ const MyComponent = defineComponent({
       highlightedLinkIndex: -1 as number,
 
       bgLayers: {} as { [name: string]: BackgroundLayer },
+
+      backgroundLayers: null as BackgroundLayers | null,
 
       initialView: null as null | { center: [number, number]; zoom: number },
 
@@ -1025,7 +1019,13 @@ const MyComponent = defineComponent({
       }
       this.vizDetails.backgroundLayers = layers
       try {
-        this.loadBackgroundLayers()
+        this.backgroundLayers = new BackgroundLayers({
+          vizDetails: this.vizDetails,
+          fileApi: this.fileApi,
+          subfolder: this.subfolder,
+        })
+        // this is ASYNC - might be a problem
+        this.backgroundLayers.initialLoad()
         this.bgLayers = { ...this.bgLayers }
       } catch (e) {
         console.error('Error handling layers, check filenames and parameters: ' + e)
@@ -2849,109 +2849,6 @@ const MyComponent = defineComponent({
     updateBgLayers() {
       this.bgLayers = { ...this.bgLayers }
     },
-
-    async loadBackgroundLayers() {
-      this.bgLayers = {}
-
-      if (!this.vizDetails.backgroundLayers) {
-        this.vizDetails.backgroundLayers = {}
-        return
-      }
-
-      for (const layerName of Object.keys(this.vizDetails.backgroundLayers)) {
-        try {
-          console.log('LOADING', layerName)
-          const layerDetails = this.vizDetails.backgroundLayers[layerName]
-
-          if (!layerDetails.shapes) continue
-
-          let features = [] as any[]
-          try {
-            const filename = layerDetails.shapes
-            if (filename.startsWith('http'))
-              features = (await fetch(filename).then(async r => await r.json())).features
-            else if (filename.toLocaleLowerCase().endsWith('.gpkg'))
-              features = await this.loadGeoPackage(filename)
-            else if (filename.toLocaleLowerCase().endsWith('.shp'))
-              features = await this.loadShapefileFeatures(filename)
-            else
-              features = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
-          } catch (e) {
-            console.error('' + e)
-          }
-
-          // Fill colors ---
-          let colors = null as any
-          if (layerDetails.fill && !layerDetails.fill.startsWith('#')) {
-            const whichScale = layerDetails.fill.startsWith('scheme')
-              ? layerDetails.fill
-              : `interpolate${layerDetails.fill}`
-            // @ts-ignore
-            const scale = d3ScaleChromatic[whichScale]
-            if (scale) {
-              const ramp = scaleSequential(scale)
-              colors = Array.from({ length: features.length }, (_, i) => {
-                const c = rgb(ramp(i / features.length - 1))
-                return [c.r, c.g, c.b]
-              })
-            }
-          }
-
-          for (let i = 0; i < features.length; i++) {
-            const feature = features[i]
-            let __fill__ = [64, 64, 192]
-            if (layerDetails.fill) {
-              if (layerDetails.fill.startsWith('#')) {
-                __fill__ = buildRGBfromHexCodes([layerDetails.fill])[0]
-              } else if (colors) {
-                __fill__ = colors[i]
-              }
-            }
-            feature.properties.__fill__ = __fill__
-          }
-
-          // Text labels ---
-          if (layerDetails.label) {
-            const labels = [] as any
-            for (const feature of features) {
-              const centroid = turf.centerOfMass(feature)
-              if (!centroid.properties) centroid.properties = {}
-              centroid.properties.label = feature.properties[layerDetails.label]
-              labels.push(centroid)
-            }
-            features = features.concat(labels)
-          }
-
-          // borders ---
-          const borderColor = layerDetails.borderColor
-            ? buildRGBfromHexCodes([layerDetails.borderColor])[0]
-            : [255, 255, 255]
-          const borderWidth = 'borderWidth' in layerDetails ? parseInt(layerDetails.borderWidth) : 0
-          const opacity = layerDetails.opacity || 0.25
-
-          let visible = true
-          if ('visible' in layerDetails) visible = layerDetails.visible
-          let onTop = false
-          if ('onTop' in layerDetails) onTop = !!layerDetails.onTop
-
-          // console.log('FINAL FEATURES', features)
-
-          const details = {
-            features,
-            opacity,
-            borderWidth,
-            borderColor,
-            visible,
-            onTop,
-          }
-          this.bgLayers[layerName] = details
-          this.bgLayers = { ...this.bgLayers }
-        } catch (e) {
-          console.error('' + e)
-        }
-      }
-      this.redraw += 1
-    },
   },
 
   async mounted() {
@@ -3043,13 +2940,18 @@ const MyComponent = defineComponent({
       this.vizDetails = Object.assign({}, this.vizDetails)
 
       this.honorQueryParameters()
-      this.statusText = ''
-      this.loadBackgroundLayers()
+
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
+      await this.backgroundLayers.initialLoad()
     } catch (e) {
       this.$emit('error', '' + e)
-      this.statusText = ''
       this.$emit('isLoaded')
     }
+    this.statusText = ''
   },
 
   beforeDestroy() {
