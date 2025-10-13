@@ -753,7 +753,7 @@ const MyComponent = defineComponent({
         this.$emit('error', {
           type: Status.ERROR,
           msg: `Loading/Parsing Error`,
-          desc: 'Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}',
+          desc: `Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}`,
         })
       }
     },

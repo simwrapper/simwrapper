@@ -2270,12 +2270,16 @@ const MyComponent = defineComponent({
 
     async loadBoundaries() {
       const shapeConfig =
-        this.config.boundaries || this.config.shapes || this.config.geojson || this.config.network
+        this.config.boundaries ||
+        this.config.shapes ||
+        this.config.geojson ||
+        this.config.network ||
+        this.config.features
 
       if (!shapeConfig) return
 
       // shapes could be a string or an object: shape.file=blah
-      let filename: string = shapeConfig.file || shapeConfig
+      let filename: string = this.config.features ? '' : shapeConfig.file || shapeConfig
 
       let featureProperties = [] as any[]
       let boundaries: any[]
@@ -2307,6 +2311,10 @@ const MyComponent = defineComponent({
           // avro network!
           console.log('--AVRO')
           boundaries = await this.loadAvroNetwork(filename)
+        } else if (this.config.features) {
+          // dataframe passed in directly
+          console.log('--DATAFRAME')
+          boundaries = this.config.features
         } else {
           // geojson!
           console.log('--GEOJSON')
