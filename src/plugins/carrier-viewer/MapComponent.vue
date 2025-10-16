@@ -445,8 +445,7 @@ export default defineComponent({
     this.mymap.on('style.load', () => {
       this.deckOverlay = new MapboxOverlay({
         layers: this.layers,
-        // layers will just draw on top of each other
-        // interleaved: true
+        interleaved: true,
         onClick: this.handleClick,
       })
       this.mymap?.addControl(this.deckOverlay)
