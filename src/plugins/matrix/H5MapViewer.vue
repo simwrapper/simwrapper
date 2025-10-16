@@ -687,7 +687,6 @@ const MyComponent = defineComponent({
           boundaries = (await this.fileApi.getFileJson(path)).features
         }
 
-        this.moveLogo()
         this.features = boundaries
       } catch (e) {
         const err = e as any
@@ -803,15 +802,6 @@ const MyComponent = defineComponent({
       })
 
       return geojson.features as any[]
-    },
-
-    moveLogo() {
-      const deckmap = document.getElementById(`container-${this.layerId}`) as HTMLElement
-      const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
-      if (logo) {
-        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
-        logo.style.right = right
-      }
     },
   },
 })
