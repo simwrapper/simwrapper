@@ -161,15 +161,12 @@ export default defineComponent({
       return new Promise<DataTable>((resolve, reject) => {
         const thread = new DataFetcherWorker()
         try {
-          thread.postMessage(
-            {
-              config: { dataset: name },
-              buffer,
-            },
-            [buffer]
-          )
-
           thread.onmessage = e => {
+            // wait for thread ready signal
+            if (e.data.ready) {
+              thread.postMessage({ config: { dataset: name }, buffer }, [buffer])
+              return
+            }
             thread.terminate()
             resolve(e.data)
           }
@@ -197,14 +194,17 @@ export default defineComponent({
       return new Promise<DataTable>((resolve, reject) => {
         const thread = new DataFetcherWorker()
         try {
-          thread.postMessage({
-            fileSystemConfig: this.fileSystem,
-            subfolder: this.subfolder,
-            files: this.filesInFolder,
-            config: { dataset },
-          })
-
           thread.onmessage = e => {
+            // wait for thread ready signal
+            if (e.data.ready) {
+              thread.postMessage({
+                fileSystemConfig: this.fileSystem,
+                subfolder: this.subfolder,
+                files: this.filesInFolder,
+                config: { dataset },
+              })
+              return
+            }
             thread.terminate()
             resolve(e.data)
           }
