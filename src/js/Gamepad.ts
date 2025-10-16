@@ -41,6 +41,9 @@ function start() {
     return
   }
 
+  // in local contexts (file:// URLs), gamepad doesn't exist
+  if (!navigator.getGamepads) return
+
   const gamepads = navigator.getGamepads().filter(g => !!g)
   if (gamepads.length) {
     console.log(gamepads)
@@ -70,6 +73,7 @@ function setup() {
 function gamepadLoop() {
   if (!isLooping) return
 
+  if (!navigator.getGamepads) return
   const gamepads = navigator.getGamepads()
   if (!gamepads) return
 
