@@ -16,6 +16,7 @@ import { PathStyleExtension } from '@deck.gl/extensions'
 import globalStore from '@/store'
 import MapTooltip from './MapTooltip.vue'
 import BackgroundLayers from '@/js/BackgroundLayers'
+import { buildRGBfromHexCodes } from '@/js/ColorsAndWidths'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -70,8 +71,8 @@ export default defineComponent({
     activeTab: { type: String, required: true },
     bgLayers: { type: Object as PropType<BackgroundLayers> },
     carrierServices: { type: Set },
-    carrierTours: { type: Array as PropType<LspShipmentChain[]>, required: true },
     center: { type: Array as PropType<number[]> },
+    colors: { type: Object, required: true },
     dark: { type: Boolean, required: true },
     depots: { type: Array as PropType<{ link: string; midpoint: number[]; coords: number[] }[]> },
     hubLocation: { type: Array as PropType<any[]>, required: true },
@@ -593,8 +594,8 @@ export default defineComponent({
               data: this.legs,
               getSourcePosition: (d: any) => d.points[0],
               getTargetPosition: (d: any) => d.points[d.points.length - 1],
-              getSourceColor: (d: any) => this.getLspTourColor(d.tour.vehicleId),
-              getTargetColor: (d: any) => this.getLspTourColor(d.tour.vehicleId),
+              getSourceColor: (d: any) => this.getLspTourColor(d.tour),
+              getTargetColor: (d: any) => this.getLspTourColor(d.tour),
               getWidth: this.settings.scaleFactor ? (d: any) => d.totalSize / 2 : 3,
               getHeight: 0.5,
               widthMinPixels: 2,
@@ -664,7 +665,7 @@ export default defineComponent({
               id: 'deliveryroutes1',
               data: this.legs,
               getPath: (d: any) => d.points,
-              getColor: (d: any) => this.getLspTourColor(d.tour.vehicleId),
+              getColor: (d: any) => this.getLspTourColor(d.tour),
               getWidth: this.settings.scaleFactor ? (d: any) => d.totalSize : 3,
               getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
               opacity: 1,
@@ -750,11 +751,20 @@ export default defineComponent({
       return subLayers
     },
 
-    getLspTourColor(vehicleId: string) {
+    getLspTourColor(tour: { carrier: string; vehicleId: string }) {
+      // if user supplied carrier colors, use them
+      const fixedColor = this.colors[tour.carrier]
+      try {
+        if (fixedColor) {
+          const rgb = buildRGBfromHexCodes([fixedColor])
+          if (rgb) return rgb[0]
+        }
+      } catch {}
+
       // Simple hash function to generate a number from the string
       let hash = 0
-      for (let i = 0; i < vehicleId.length; i++) {
-        hash = vehicleId.charCodeAt(i) + ((hash << 5) - hash)
+      for (let i = 0; i < tour.vehicleId.length; i++) {
+        hash = tour.vehicleId.charCodeAt(i) + ((hash << 5) - hash)
       }
 
       // Generate RGB values by mapping parts of the hash to the 0-255 range

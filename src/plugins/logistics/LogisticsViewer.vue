@@ -7,8 +7,8 @@
           :activeTab="activeTab"
           :bgLayers="backgroundLayers"
           :carrierServices="carrierServicesAll"
-          :carrierTours="carrierTours"
           :center="vizDetails.center"
+          :colors="vizDetails.colors || {}"
           :dark="globalState.isDarkMode"
           :depots="shownDepots"
           :hubLocation="hubLocation"
@@ -87,12 +87,14 @@
             @click="handleSelectShipmentChain(lspShipmentChain)"
             :class="{selected: lspShipmentChain==selectedLSPChain}"
             ) {{ `${lspShipmentChain.shipmentId}: ${lspShipmentChain.chainId}` }}
+
           .lspShipmentChains(v-if="activeTab=='shipments'")
             span {{ $t('Shipments')}}: {{ shipments.length}}
             .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
             @click="handleSelectShipment(shipment)"
             :class="{selected: shipment==selectedShipment}"
             ) {{ `${shipment.$id}` }}
+
           .tours(v-if="activeTab=='lspTours' && selectedCarrier && hubLocation.length == 0")
             span {{ $t('tours')}}: {{ carrierTours[0].length }}
             .leaf.tour(v-for="tour,i in carrierTours[0]" :key="`${i}-${tour.$id}`"
@@ -103,13 +105,14 @@
                 div(v-if="tour.tourId && !vizSettings.showEachCarrierTour" id="tourColor" :style="{ backgroundColor: getLspTourColor(tour.vehicleId) }")
                 div(v-if="tour.tourId" id="tour") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
                 div(v-else) {{ `${tour.vehicleId}` }}
+
           .lsptours(v-if="(activeTab=='lspTours' && !selectedCarrier) || globalHubChainBoolean")
             span {{ $t('tours')}}: {{ lspToursAll.length }}
             .leaf.tour(v-for="tour,i in lspToursAll" :key="`${i}-${tour.$id}`"
               @click="handleSelectTour(tour)"
               :class="{selected: selectedTours.includes(tour)}")
               .lsp-tours(v-if="tour.tourId")
-                div(v-if="tour.tourId" id="tourColor" :style="{ backgroundColor: getLspTourColor(tour.vehicleId) }")
+                div(v-if="tour.tourId" id="tourColor" :style="{ backgroundColor: getLspTourColor(tour) }")
                 div(v-if="tour.tourId") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
                 div(v-else) {{ `${tour.vehicleId}` }}
 
@@ -282,6 +285,7 @@ const LogisticsPlugin = defineComponent({
     thumbnail: Boolean,
     datamanager: { type: Object as PropType<DashboardDataManager> },
   },
+
   data() {
     return {
       linkLayerId: Math.floor(1e12 * Math.random()),
@@ -305,6 +309,7 @@ const LogisticsPlugin = defineComponent({
         description: '',
         thumbnail: '',
         center: null as any,
+        colors: {} as any,
       },
 
       myState: {
@@ -327,9 +332,6 @@ const LogisticsPlugin = defineComponent({
       isLoaded: true,
       showHelp: false,
       activeTab: '',
-
-      speedStops: [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10],
-      speed: 1,
 
       legendBits: [] as any[],
 
@@ -953,11 +955,15 @@ const LogisticsPlugin = defineComponent({
       return `rgb(${color[0]}, ${color[1]}, ${color[2]})`
     },
 
-    getLspTourColor(vehicleId: string) {
+    getLspTourColor(tour: { carrier: string; vehicleId: string }) {
+      // if user supplied carrier colors, use them
+      const fixedColor = this.vizDetails.colors && this.vizDetails.colors[tour.carrier]
+      if (fixedColor) return fixedColor
+
       // Simple hash function to generate a number from the string
       let hash = 0
-      for (let i = 0; i < vehicleId.length; i++) {
-        hash = vehicleId.charCodeAt(i) + ((hash << 5) - hash)
+      for (let i = 0; i < tour.vehicleId.length; i++) {
+        hash = tour.vehicleId.charCodeAt(i) + ((hash << 5) - hash)
       }
 
       // Generate RGB values by mapping parts of the hash to the 0-255 range
@@ -1496,6 +1502,7 @@ const LogisticsPlugin = defineComponent({
             plan,
             legs, // legs.links, legs.shipmentsOnBoard, legs.totalSize
             tourNumber: 0,
+            carrier: carrier.$resourceId,
           }
           return p
         })
@@ -1748,6 +1755,7 @@ const LogisticsPlugin = defineComponent({
         center: this.vizDetails.center,
         projection: '',
         thumbnail: '',
+        colors: {},
       }
 
       const t = 'Logistics Viewer'
@@ -2144,9 +2152,6 @@ const LogisticsPlugin = defineComponent({
 
     this.lsps = await this.loadLSPS()
     this.carriers = await this.loadCarriers()
-    // this.linksCsvData = await this.loadLinksCsv()
-
-    // TESTS //
 
     await this.$nextTick() // update UI update before network load begins
     this.links = await this.loadNetwork()
@@ -2182,7 +2187,6 @@ const LogisticsPlugin = defineComponent({
 
   beforeDestroy() {
     this.myState.isRunning = false
-
     globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
   },
