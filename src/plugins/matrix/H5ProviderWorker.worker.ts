@@ -26,6 +26,7 @@ const H5Provider = {
   shape: [0, 0],
   size: 0,
   tableKeys: [] as { key: string; name: string }[],
+  token: '',
 
   /**
    * Sets up the path, shape, and catalog of matrices
@@ -35,11 +36,13 @@ const H5Provider = {
     subfolder: string
     file?: File
     filename: string
+    token?: string
   }) {
     // tada
     this.path = `${props.subfolder}/${props.filename}`
     this.fileSystem = props.fileSystem || ({} as FileSystemConfig)
     this.file = props.file || null
+    if (props.token) this.token = props.token
 
     if (this.file) {
       await this._initLocalFile()
@@ -179,9 +182,7 @@ const H5Provider = {
     let url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.path}`
 
     const headers = {} as any
-    const zkey = `auth-token-${this.fileSystem.slug}`
-    const token = localStorage.getItem(zkey) || ''
-    headers['AZURETOKEN'] = token
+    headers['AZURETOKEN'] = this.token
 
     const response = await fetch(url, { headers })
     console.log(response.status, response.statusText)
@@ -202,9 +203,7 @@ const H5Provider = {
     let url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.path}&table=${table}`
 
     const headers = {} as any
-    const zkey = `auth-token-${this.fileSystem.slug}`
-    const token = localStorage.getItem(zkey) || ''
-    headers['AZURETOKEN'] = token
+    headers['AZURETOKEN'] = this.token
 
     // MAIN MATRIX - fetch the individual matrix from API
     const response = await fetch(url, { headers })

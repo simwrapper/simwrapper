@@ -394,10 +394,14 @@ const MyComponent = defineComponent({
       this.h5MainWorker = new H5ProviderWorker()
       this.h5Main = Comlink.wrap(this.h5MainWorker) as unknown
 
+      const zkey = `auth-token-${this.fileSystem.slug}`
+      const token = localStorage.getItem(zkey) || ''
+
       await this.h5Main.open({
         fileSystem: this.fileSystem,
         subfolder: this.subfolder,
         filename: this.filename,
+        token,
       })
 
       this.catalog = await this.h5Main.getCatalog()
@@ -569,10 +573,14 @@ const MyComponent = defineComponent({
       this.h5CompareWorker = new H5ProviderWorker()
       this.h5Compare = Comlink.wrap(this.h5CompareWorker) as unknown
 
+      const zkey = `auth-token-${this.fileSystem.slug}`
+      const token = localStorage.getItem(zkey) || ''
+
       this.h5Compare.open({
         fileSystem: this.fileSystem,
         subfolder: comparisonMatrix.subfolder,
         filename: comparisonMatrix.filename,
+        token,
       })
 
       // drag/drop mode, no "root" filesystem. Just set this as base.
