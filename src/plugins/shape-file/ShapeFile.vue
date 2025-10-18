@@ -2279,7 +2279,7 @@ const MyComponent = defineComponent({
       if (!shapeConfig) return
 
       // shapes could be a string or an object: shape.file=blah
-      let filename: string = this.config.features ? '' : shapeConfig.file || shapeConfig
+      let filename: string = this.config.features ? 'shapes' : shapeConfig.file || shapeConfig
 
       let featureProperties = [] as any[]
       let boundaries: any[]

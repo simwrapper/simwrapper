@@ -272,14 +272,14 @@ export default defineComponent({
       console.log({ df })
 
       const points = df.points
-      const features = points.map((p: any) => {
+      const features = points.map((point: any) => {
         return {
           type: 'Feature',
           geometry: {
             type: 'Point',
-            coordinates: [p.lng - 1, p.lat],
+            coordinates: [point.lng - 1, point.lat],
           },
-          properties: { value: p.n },
+          properties: { n: point.n },
         }
       })
 
@@ -291,9 +291,18 @@ export default defineComponent({
           configFromDashboard: {
             features,
             display: {
-              fill: {},
+              fill: {
+                dataset: 'shapes',
+                columnName: 'n',
+                colorRamp: {
+                  ramp: 'Turbo',
+                  steps: 9,
+                },
+              },
               radius: {
-                value: 'shapes.n',
+                dataset: 'shapes',
+                columnName: 'n',
+                scaleFactor: 0.5,
               },
             },
           },
