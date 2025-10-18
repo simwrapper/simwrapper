@@ -664,9 +664,9 @@ p.splash-label {
 // MapLibre Logo
 .maplibregl-ctrl-attrib {
   background-color: var(--bg) !important;
-  opacity: 0.5;
+  opacity: 0.6;
   color: var(--text);
-  margin: 1px 3px 0px 1px !important;
+  margin: 1px 0px 0px 1px !important;
   border-radius: 2px !important;
 }
 maplibregl-ctrl-attrib-button {
