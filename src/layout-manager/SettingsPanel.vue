@@ -238,6 +238,7 @@ export default defineComponent({
   user-select: none;
   display: flex;
   flex-direction: column;
+  z-index: 30000 !important;
   // width: 12rem;
 }
 
