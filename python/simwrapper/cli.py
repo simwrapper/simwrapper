@@ -4,14 +4,22 @@
 import click       # cmdline generator! https://click.palletsprojects.com/en/8.0.x
 import webbrowser
 import os
+from importlib.metadata import version
 
 from . import sites
 from . import MiniFileServer
 from . import FlaskApp
 
 default_port = 8000
-
 SINGLE_PAGE_APP_PORT = 8050
+
+try:
+  print('------------------')
+  print(' SimWrapper', version("simwrapper"))
+  print('------------------')
+except:
+  pass
+
 
 @click.group()
 def cli():
