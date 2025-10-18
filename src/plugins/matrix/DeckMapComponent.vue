@@ -32,6 +32,7 @@ export default defineComponent({
       mymap: null as maplibregl.Map | null,
       debounceSaveLocation: null as null | Function,
       deckOverlay: null as InstanceType<typeof MapboxOverlay> | null,
+      highlightOverlay: null as InstanceType<typeof MapboxOverlay> | null,
       globalState: globalStore.state,
       tooltipHTML: '',
       tooltipStyle: {
@@ -50,7 +51,10 @@ export default defineComponent({
   watch: {
     layers() {
       this.deckOverlay?.setProps({
-        layers: this.layers,
+        layers: [this.layers[0]],
+      })
+      this.highlightOverlay?.setProps({
+        layers: [this.layers[1]],
       })
     },
 
@@ -91,7 +95,6 @@ export default defineComponent({
 
       const highlightLayer = new GeoJsonLayer({
         id: 'HighlightLayer',
-        beforeId: 'water',
         data: highlights,
         getLineWidth: 6,
         getLineColor: (_: any, o: any) => (o.index === 0 ? highlightColor : altColor),
@@ -102,10 +105,7 @@ export default defineComponent({
         opacity: 1.0,
         pickable: false,
         fp64: false,
-        parameters: {
-          depthTest: false,
-          fp64: false,
-        },
+        parameters: { depthTest: false, fp64: false },
       } as any)
 
       const layer = new GeoJsonLayer({
@@ -118,7 +118,6 @@ export default defineComponent({
         pickable: true,
         stroked: false,
         highlightColor: [255, 255, 255, 128],
-        // useDevicePixels: false,
         fp64: false,
         material: false,
         transitions: {
@@ -156,16 +155,22 @@ export default defineComponent({
     this.mymap.on('style.load', () => {
       this.deckOverlay = new MapboxOverlay({
         interleaved: true,
-        layers: this.layers,
+        layers: [this.layers[0]],
         onClick: this.handleClick,
         onHover: this.getTooltip,
       })
       this.mymap?.addControl(this.deckOverlay)
+      this.highlightOverlay = new MapboxOverlay({
+        interleaved: false,
+        layers: [this.layers[1]],
+      })
+      this.mymap?.addControl(this.highlightOverlay)
     })
   },
 
   beforeDestroy() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
+    if (this.highlightOverlay) this.mymap?.removeControl(this.highlightOverlay)
     this.mymap?.remove()
     this.mymap = null
   },

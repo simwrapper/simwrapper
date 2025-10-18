@@ -19,7 +19,7 @@
 MTC-1454:
   url: https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper/zone-systems/mtc1454.geojson.gz
   lookup: TAZ1454
-  sizes: 1454,1475
+  sizes: 190,1454,1475
 
 MTC-4756:
   url: https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper/zone-systems/mtc-taz4756.geojson.gz
