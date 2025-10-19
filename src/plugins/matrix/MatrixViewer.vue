@@ -55,7 +55,7 @@
       @hasShapes="hasShapes=$event"
     )
 
-    H5TableViewer.fill-it.h5-table-viewer(v-if="h5fileBlob && !isMap"
+    H5TableViewer.fill-it.h5-table-viewer(v-if="h5fileBlob && (!isMap) && (!isGettingMatrices)"
       :filename="filename"
       :blob="h5fileBlob"
     )
@@ -335,6 +335,7 @@ const MyComponent = defineComponent({
       localStorage.setItem('matrix-initial-table', table)
 
       if (!this.isMap) this.h5fileBlob = await this.buildH5Blob()
+      this.isGettingMatrices = false
     },
 
     async getMatrices() {
@@ -372,7 +373,7 @@ const MyComponent = defineComponent({
         this.$emit('error', `Error extracting ${which}`)
         console.error('' + e)
       } finally {
-        this.isGettingMatrices = false
+        // this.isGettingMatrices = false
         this.statusText = ''
       }
     },
@@ -594,6 +595,7 @@ const MyComponent = defineComponent({
 
       this.setDivergingColors()
       await this.getMatrices()
+      this.isGettingMatrices = false
     },
 
     setDivergingColors() {
@@ -692,7 +694,7 @@ const MyComponent = defineComponent({
       if (initialTable) await this.changeMatrix(initialTable)
 
       // no shapes yet? Just show matrix table
-      if (!this.shapes.length) {
+      if (!this.hasShapes) {
         this.isMap = false
       }
     },
