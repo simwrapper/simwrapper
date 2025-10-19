@@ -1,0 +1,14 @@
+diff --git a/node_modules/@h5web/app/node_modules/@h5web/lib/dist/index.mjs b/node_modules/@h5web/app/node_modules/@h5web/lib/dist/index.mjs
+index 4aa2476..f8b58a1 100644
+--- a/node_modules/@h5web/app/node_modules/@h5web/lib/dist/index.mjs
++++ b/node_modules/@h5web/app/node_modules/@h5web/lib/dist/index.mjs
+@@ -98,7 +98,8 @@ function $n(e) {
+         transform: a
+       },
+       "data-bg": c % 2 === 1 ? "" : void 0,
+-      children: c >= 0 && r ? r[c] : c
++      // BILLY 1-index matrix headers: c+1
++      children: c >= 0 && r ? r[c] : c+1
+     },
+     c.toString()
+   ));
