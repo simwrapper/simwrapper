@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.2.0](https://github.com/simwrapper/simwrapper/compare/v4.1.6...v4.2.0) (2025-10-20)
+
+
+### Features
+
+* Add background layers to all map types ([f2d9d77](https://github.com/simwrapper/simwrapper/commit/f2d9d772f6793e4e790c9405673ff29a50de6a7e)), closes [#08](https://github.com/simwrapper/simwrapper/issues/08)
+* **logistics:** Logistics viewer learned new "colors:" settings for specifying one color per carrier. ([cbd6d51](https://github.com/simwrapper/simwrapper/commit/cbd6d5100dc6e7b738e6041127fba68cae87696b))
+
+
+### Bug Fixes
+
+* **map:** Map "Add Data" dialog just shows "ready" instead of added columns ([a5c0925](https://github.com/simwrapper/simwrapper/commit/a5c09254daefe9445c013abda1853a0a0d696127)), closes [#500](https://github.com/simwrapper/simwrapper/issues/500)
+* **map:** re-enable clicking compass to recenter-the-map ([136c710](https://github.com/simwrapper/simwrapper/commit/136c71007c1a58aeeaa8e44aa23846ffdd0e3f51))
+* **matrix:** Display matrix table row/col headers as 1-based, not 0-based ([27468b6](https://github.com/simwrapper/simwrapper/commit/27468b6436d1f84bee1ac1528395a0a7f4245b8d))
+* **matrix:** Drag 2nd matrix file into window to start compare mode ([fb4fba0](https://github.com/simwrapper/simwrapper/commit/fb4fba070dcb2046b25543c0885d4f099797ab1f))
+* **matrix:** improve highlight boundary thickness (got weird with MaplibreGL) ([2c8dcf1](https://github.com/simwrapper/simwrapper/commit/2c8dcf154b6f6d966fa19501483a118409a2e896))
+* **matrix:** retrieve AZURE token on main thread (prevents hang on load) ([2c1ac6c](https://github.com/simwrapper/simwrapper/commit/2c1ac6c41419e4c746f3f1a6d5f73179d2361316))
+
 ### [4.1.6](https://github.com/simwrapper/simwrapper/compare/v4.1.3...v4.1.4) (2025-10-10)
 
 
