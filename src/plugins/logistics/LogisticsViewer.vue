@@ -1529,13 +1529,15 @@ const LogisticsPlugin = defineComponent({
         }
       }
 
+      let errors = 0
+
       // build new data object with shipment & shipment plan data
-      try {
-        for (let i = 0; i < this.lspPlan.shipmentPlans.shipmentPlan.length; i++) {
-          let shipmentCopy = shipments.find(
-            (element: any) => element.$id == this.lspPlan.shipmentPlans.shipmentPlan[i].$shipmentId
-          )
-          if (shipmentCopy) {
+      for (let i = 0; i < this.lspPlan.shipmentPlans.shipmentPlan.length; i++) {
+        let shipmentCopy = shipments.find(
+          (element: any) => element.$id == this.lspPlan.shipmentPlans.shipmentPlan[i].$shipmentId
+        )
+        if (shipmentCopy) {
+          try {
             let newShipmentChain: lspShipmentChain = {
               isDirectChain: true,
               hubs: [],
@@ -1587,12 +1589,18 @@ const LogisticsPlugin = defineComponent({
               // push individual chain to array of all shipment chains
               this.lspShipmentHubChains.push(newShipmentChain)
             }
+          } catch (e) {
+            console.log(shipmentCopy.$id + ": can't be parsed: links missing, plan not parsed, etc")
+            errors += 1
           }
         }
-      } catch (e) {
-        console.log('processing of logisitc chains failed')
       }
 
+      if (errors)
+        this.$emit(
+          'error',
+          `Warning: ${errors} of ${this.lspPlan.shipmentPlans.shipmentPlan.length} shipments could not be parsed.`
+        )
       let newLspShipmentChains: lspShipmentChains = {
         hubsChains: this.lspShipmentHubChains,
         directChains: this.lspShipmentDirectChains,
@@ -2150,11 +2158,23 @@ const LogisticsPlugin = defineComponent({
 
     this.myState.statusMessage = 'Loading carriers...'
 
-    this.lsps = await this.loadLSPS()
-    this.carriers = await this.loadCarriers()
+    try {
+      this.lsps = await this.loadLSPS()
+      this.carriers = await this.loadCarriers()
+    } catch (e) {
+      if (!this.lsps) this.$emit('error', 'Error loading LSP:' + e)
+      if (!this.carriers) this.$emit('error', 'Error loading carriers:' + e)
+      return
+    }
 
     await this.$nextTick() // update UI update before network load begins
-    this.links = await this.loadNetwork()
+    try {
+      this.links = await this.loadNetwork()
+    } catch (e) {
+      this.$emit('error', 'Error loading network: ' + e)
+      return
+    }
+
     this.setMapCenter()
     this.myState.statusMessage = ''
 
