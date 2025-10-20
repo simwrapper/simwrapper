@@ -122,6 +122,29 @@ class Storage(Resource):
         return CONFIG
 
 # ------------------------------------------------
+class Zones(Resource):
+    @nocache
+    def get(self, zone_key):
+        if zone_key not in ZONES:
+            return f"No such zone configuration: {zone_key}", 400
+
+        path = ZONES[zone_key]["file"]
+        if sys.platform.startswith("win"): path = path.replace("/", "\\")
+        try:
+            if not os.path.isfile(path):
+                return f"File not found: {path}", 404
+            with open(path, 'rb') as file:
+                content = file.read()
+
+            response = Response(content, status=200,
+                mimetype='application/octet-stream'
+            )
+            return response, 200
+        except Exception as e:
+            print(str(e))
+            return f"Error accessing zonal file: {str(e)}", 400
+
+# ------------------------------------------------
 class Omx(Resource):
     @nocache
     def get(self, server_id):
@@ -185,6 +208,7 @@ api.add_resource(FilesList, '/list/<server_id>')
 api.add_resource(File, '/file/<server_id>')
 api.add_resource(Omx, '/omx/<server_id>')
 api.add_resource(Storage, '/_storage_')
+api.add_resource(Zones, '/_zones_/<zone_key>')
 
 # Serve static files directly (for JS, CSS, images)
 @app.route('/', defaults={'path': ''})
