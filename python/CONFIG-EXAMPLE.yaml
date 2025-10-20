@@ -1,0 +1,22 @@
+# config-example.yaml
+# ------------------------------------------------
+# This file defines storage locations and any
+# front-page "readme" material in markdown
+
+# --- STORAGE ----------------------
+# **Local/network mounts only: no http URLs here**
+# Each key defines a starting point in the local filesystem.
+# (if no config is found, the current working folder is shared)
+storage:
+  data:
+    path: '/Users/billy/data'
+    description: 'Local data from this server'
+
+# --- FRONT-PAGE TEXT -------------
+tagline: 'Transport simulation data visualizer'
+# Optional readme can be either a .md markdown filename,
+# or you can put markdown text directly in this file with "readme: |"
+# readme: |
+#   Welcome to SimWrapper on Docker
+#   ========================
+#   - This is running inside a container. Edit CONFIG-DOCKER.yaml to remove this message!
