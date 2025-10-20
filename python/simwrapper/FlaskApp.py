@@ -8,7 +8,7 @@
 # (2) Provides a REST API application that accepts file requests for
 #     OMX files that are stored on cloud services such as AWS/Azure
 
-import os,sys
+import os,sys, pprint
 import blosc
 from os.path import exists
 import yaml
@@ -40,6 +40,8 @@ STORAGE_ROOTS = {
     "Server": { "path": "./", "description": os.getcwd()},
 }
 CONFIG = {"storage": STORAGE_ROOTS}
+
+ZONES = {}
 
 # ------------------------------------------------
 def nocache(view):
@@ -213,13 +215,13 @@ def serve_static_files(path):
     return send_from_directory('static', 'index.html')
 
 
-def setupStorageRoots(config, port):
+def setupConfiguration(config, port):
     """
     If a config file was passed in, read the config from file and set things up
     accordingly.
-    Config may have these keys: storage, readme, tagline
+    Config may have these keys: storage, readme, tagline, zones
     """
-    global CONFIG, STORAGE, STORAGE_ROOTS
+    global CONFIG, STORAGE, STORAGE_ROOTS, ZONES
 
     if config:
         with open(config, 'r') as f:
@@ -246,13 +248,19 @@ def setupStorageRoots(config, port):
             for root in STORAGE_ROOTS:
                 STORAGE_ROOTS[root]["path"] = f"http://localhost:{port}"
 
+            # ZONAL systems
+            if "zones" in YAML:
+                ZONES = YAML["zones"]
+
             CONFIG = {
                 "storage": STORAGE_ROOTS,
                 "tagline": tagline,
-                "readme": readme
+                "readme": readme,
+                "zones": ZONES
             }
 
-            print('HELLO', CONFIG)
+            print('--- STARTING WITH CONFIG:')
+            pprint.pprint(CONFIG, sort_dicts=False, indent=2)
 
 def startGunicorn(port, debug):
     from .GunicornServer import GunicornServer
@@ -271,7 +279,7 @@ def startGunicorn(port, debug):
 # ----------------------------------------
 def startFlask(config=None, port=4999, debug=False):
     print('\n--- SET UP: storage roots')
-    setupStorageRoots(config,port)
+    setupConfiguration(config,port)
 
     print('\n--- START-FLASK', config, port)
     print(f'--- If link below does not work, try server name or localhost: http://localhost:{port}\n\n')
