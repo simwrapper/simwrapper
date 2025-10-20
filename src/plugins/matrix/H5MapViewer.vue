@@ -535,7 +535,7 @@ const MyComponent = defineComponent({
       }
 
       // default 9 categories
-      let NUM_COLORS = this.colorThresholds?.colorsAsRGB?.length || 9
+      let NUM_COLORS = this.colorThresholds?.colorsAsRGB?.length || 7
       let breakpoints = [] as number[]
 
       // use manual breakpoints if we have them

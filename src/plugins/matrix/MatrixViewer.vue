@@ -1,6 +1,6 @@
 <template lang="pug">
 .matrix-viewer
-  config-panel(v-show="activeTable"
+  config-panel(v-show="activeTable && !showCompareOrReplaceDialog"
     :isMap="isMap"
     :hasShapes="hasShapes"
     :mapConfig="mapConfig"
@@ -66,6 +66,13 @@
       @choose="chooseCompareFile"
     )
 
+    modal-markdown-dialog.modal-ask-compare(
+      v-if="showCompareOrReplaceDialog"
+      title="Replace or Compare?"
+      md="A matrix is already loaded.<br/>Do you want to replace it, or compare (diff) the dropped matrix to the current matrix?"
+      :buttons="['Cancel', 'Replace', 'Compare']"
+      @click="handleClickedAskCompare"
+    )
 </template>
 
 <script lang="ts">
@@ -90,6 +97,7 @@ import { ColorMap } from '@/components/ColorMapSelector/models'
 import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
 import { COLORMAP_GROUPS } from '@/components/ColorMapSelector/groups'
 import H5ProviderWorker from './H5ProviderWorker.worker?worker'
+import ModalMarkdownDialog from '@/components/ModalMarkdownDialog.vue'
 
 export interface Matrix {
   path: string
@@ -125,7 +133,7 @@ const BASE_URL = import.meta.env.BASE_URL
 
 const MyComponent = defineComponent({
   name: 'MatrixViewer',
-  components: { H5MapViewer, H5TableViewer, ConfigPanel, CompareFilePicker },
+  components: { H5MapViewer, H5TableViewer, ConfigPanel, CompareFilePicker, ModalMarkdownDialog },
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
@@ -148,6 +156,7 @@ const MyComponent = defineComponent({
       isMap: true,
       isGettingMatrices: false,
       showComparePicker: false,
+      showCompareOrReplaceDialog: false as boolean | File,
       h5fileBlob: null as null | File | Blob,
       h5baseBlob: null as null | File | Blob,
       h5zoneLookup: {} as any,
@@ -591,7 +600,7 @@ const MyComponent = defineComponent({
         return
       }
 
-      this.compareLabel = `Compare to ${comparisonMatrix.subfolder}/${comparisonMatrix.filename}`
+      this.compareLabel = `Comparing to ${comparisonMatrix.subfolder}/${comparisonMatrix.filename}`
 
       this.setDivergingColors()
       await this.getMatrices()
@@ -655,9 +664,65 @@ const MyComponent = defineComponent({
       this.statusText = ''
     },
 
-    async handleDroppedMatrix(file: File) {
+    handleClickedAskCompare(event: any) {
+      this.statusText = ''
+      switch (event) {
+        case 0: // cancel
+          this.showCompareOrReplaceDialog = false
+          break
+        case 1: // replace
+          this.h5Main = null
+          this.handleDroppedMatrix(this.showCompareOrReplaceDialog)
+          break
+        case 2: // compare
+          this.handleDroppedCompareMatrix()
+        default:
+          break
+      }
+    },
+
+    async handleDroppedCompareMatrix() {
+      console.log('HANDLE DROPPED COMPARE MATRIX')
+      this.isDragging = false
+
+      // File handle is in this.showCompareOrReplaceDialog
+      const file = this.showCompareOrReplaceDialog as File
+      this.showCompareOrReplaceDialog = false
+
+      if (!this.fileSystem) return
+
+      this.h5CompareWorker?.terminate()
+      this.h5CompareWorker = new H5ProviderWorker()
+      this.h5Compare = Comlink.wrap(this.h5CompareWorker) as unknown
+
+      const zkey = `auth-token-${this.fileSystem.slug}`
+      const token = localStorage.getItem(zkey) || ''
+
+      this.h5Compare.open({
+        file,
+        subfolder: '',
+        filename: file.name,
+        token,
+      })
+
+      this.compareLabel = `Comparing to ${file.name}`
+
+      this.setDivergingColors()
+      await this.getMatrices()
+      this.isGettingMatrices = false
+    },
+
+    async handleDroppedMatrix(file: any) {
       console.log('HANDLE DROPPED MATRIX')
       this.isDragging = false
+
+      // If a matrix is already open, then we ask user if this file is for replace or compare.
+      if (this.h5Main) {
+        this.showCompareOrReplaceDialog = file
+        return
+      } else {
+        this.showCompareOrReplaceDialog = false
+      }
 
       this.statusText = 'Loading...'
 
@@ -673,6 +738,7 @@ const MyComponent = defineComponent({
         file,
         subfolder: '',
         filename: this.filename,
+        token: '',
       })
 
       this.h5fileBlob = file

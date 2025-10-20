@@ -137,7 +137,7 @@ $bgDarkerCyan: #def3ec;
   display: flex;
   flex-direction: column;
   background-color: var(--bg);
-  border: 2px solid $appTag; // #bbbbcc88;
+  border: 1px solid $appTag; // #bbbbcc88;
   filter: $filterShadow;
   width: 40rem;
   height: 25rem;
