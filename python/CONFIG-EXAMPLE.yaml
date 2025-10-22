@@ -12,11 +12,19 @@ storage:
     path: '/Users/billy/data'
     description: 'Local data from this server'
 
+#zones:
+#  SEMCOG:
+#    file: './SEMCOG_TAZ.geojson'
+#    lookup: 'ID'
+#    sizes: 1454,2454,2475,3717
+
+
 # --- FRONT-PAGE TEXT -------------
 tagline: 'Transport simulation data visualizer'
+
 # Optional readme can be either a .md markdown filename,
 # or you can put markdown text directly in this file with "readme: |"
 # readme: |
 #   Welcome to SimWrapper on Docker
 #   ========================
-#   - This is running inside a container. Edit CONFIG-DOCKER.yaml to remove this message!
+##   - This is running inside a container. Edit CONFIG-DOCKER.yaml to remove this message!
