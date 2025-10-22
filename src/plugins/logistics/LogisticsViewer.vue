@@ -1,7 +1,10 @@
 <template lang="pug">
   .carrier-viewer(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
-    .container-1
+    .container-1(
+      @mousemove="dividerDragging"
+      @mouseup="dividerDragEnd"
+    )
       .main-panel
         deck-map.anim(v-if="vizDetails.projection && !thumbnail"
           :activeTab="activeTab"
@@ -29,7 +32,13 @@
         ZoomButtons(v-if="!thumbnail" corner="top-left")
         .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
-      .right-panel(v-if="!thumbnail" :darkMode="true")
+      .dragger(
+        @mousedown="dividerDragStart"
+        @mouseup="dividerDragEnd"
+        @mousemove.stop="dividerDragging"
+      )
+
+      .right-panel(:darkMode="true" :style="{width: `${legendSectionWidth}px`}")
         h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'Service Providers' }}
 
         .lsp-list
@@ -161,12 +170,22 @@ const i18n = {
       vehicles: 'FAHRZEUGE',
       services: 'BETRIEBE',
       shipments: 'LIEFERUNGEN',
+      Shipments: 'Lieferungen',
       service: 'service',
       tours: 'TOUREN',
       pickup: 'Abholung',
       delivery: 'Lieferung',
-      'shipment Chains': 'Lieferungketten',
+      'Shipment Chains': 'Lieferungketten',
       Tours: 'Tours',
+      scaleSize: 'Widths',
+      scaleFactor: 'Width',
+      scaleFactorShipments: 'Width',
+      lspShipmentChains: 'lspShipmentChains',
+      'LSP Tours': 'LSP Touren',
+      'Lsp Shipments': 'Lsp Lieferungen',
+      'Carrier Tours': 'Carrier Touren',
+      shipmentDots: 'Lieferungen anzeigen',
+      flatten: 'Einfache Touren',
     },
   },
 }
@@ -299,6 +318,10 @@ const LogisticsPlugin = defineComponent({
         scaleFactor: 0, // 0 means don't scale at all
         scaleFactorShipments: 0,
       },
+
+      isDraggingDivider: 0,
+      dragStartWidth: 250,
+      legendSectionWidth: 275,
 
       vizDetails: {
         network: '',
@@ -486,6 +509,21 @@ const LogisticsPlugin = defineComponent({
   },
 
   methods: {
+    dividerDragStart(e: MouseEvent) {
+      this.isDraggingDivider = e.clientX
+      this.dragStartWidth = this.legendSectionWidth
+    },
+
+    dividerDragEnd(e: MouseEvent) {
+      this.isDraggingDivider = 0
+    },
+
+    dividerDragging(e: MouseEvent) {
+      if (!this.isDraggingDivider) return
+      const deltaX = this.isDraggingDivider - e.clientX
+      this.legendSectionWidth = Math.max(0, this.dragStartWidth + deltaX)
+    },
+
     checkIfHubChain() {
       if (this.lspShipmentHubChains.length > 0) {
         return true
@@ -2244,12 +2282,13 @@ export default LogisticsPlugin
   top: 0;
   bottom: 0;
   pointer-events: none;
-  min-height: $thumbnailHeight;
+  height: 100%;
 }
 
 .container-1 {
   display: flex;
   height: 100%;
+  pointer-events: auto;
 }
 
 .carrier-viewer.hide-thumbnail {
@@ -2277,8 +2316,6 @@ h4 {
   font-size: 0.8rem;
   pointer-events: auto;
   background-color: var(--bgPanel3);
-  width: 18rem;
-  max-width: 18rem;
   padding: 0 0.25rem;
 }
 
@@ -2640,6 +2677,23 @@ input {
 
 .dropdown {
   margin-bottom: 0.5rem;
+}
+
+.dragger {
+  grid-row: 1 / 2;
+  grid-column: 2 / 3;
+  width: 0.4rem;
+  background-color: var(--bgBold);
+  user-select: none;
+  z-index: 2000;
+}
+
+.dragger:hover,
+.dragger:active {
+  background-color: var(--sliderThumb);
+  transition: background-color 0.3s ease;
+  transition-delay: 0.1s;
+  cursor: ew-resize;
 }
 
 @media only screen and (max-width: 640px) {
