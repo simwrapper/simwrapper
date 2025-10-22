@@ -808,7 +808,10 @@ const MyComponent = defineComponent({
         this.isMap = true
         this.statusText = ''
         if (!this.h5fileBlob) {
-          this.statusText = `Shapes loaded. Now drop an HDF5 file here to view it`
+          this.$emit(
+            'error',
+            'Shapes loaded. Now drop an HDF5 file here and click a zone to view it'
+          )
         } else {
           this.changeMatrix(this.activeTable)
         }
