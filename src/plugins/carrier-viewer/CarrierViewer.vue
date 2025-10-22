@@ -1280,21 +1280,12 @@ export default CarrierPlugin
    The emerging W3C standard is currently Firefox-only */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #454 $steelGray;
+  scrollbar-color: var(--bgBold) var(--bgPanel2);
 }
 
 /* And this works on Chrome/Edge/Safari */
 *::-webkit-scrollbar {
   width: 10px;
-}
-
-*::-webkit-scrollbar-track {
-  background: var(--bgPanel3);
-}
-
-*::-webkit-scrollbar-thumb {
-  background-color: var(--textVeryPale);
-  border-radius: 6px;
 }
 
 .carrier-viewer {
@@ -1601,7 +1592,6 @@ input {
   width: 0.4rem;
   background-color: var(--bgBold);
   user-select: none;
-  z-index: 2000;
 }
 
 .dragger:hover,

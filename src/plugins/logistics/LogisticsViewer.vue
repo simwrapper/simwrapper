@@ -111,7 +111,7 @@
               :class="{selected: selectedTours.includes(tour)}")
               .carrier-tours(v-if="tour.tourId")
                 div(v-if="tour.tourId && vizSettings.showEachCarrierTour" id="tourColor" :style="{ backgroundColor: getTourColor(tour.tourId, tour.tourNumber) }")
-                div(v-if="tour.tourId && !vizSettings.showEachCarrierTour" id="tourColor" :style="{ backgroundColor: getLspTourColor(tour.vehicleId) }")
+                div(v-if="tour.tourId && !vizSettings.showEachCarrierTour" id="tourColor" :style="{ backgroundColor: getLspTourColor(tour) }")
                 div(v-if="tour.tourId" id="tour") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
                 div(v-else) {{ `${tour.vehicleId}` }}
 
@@ -998,10 +998,13 @@ const LogisticsPlugin = defineComponent({
       const fixedColor = this.vizDetails.colors && this.vizDetails.colors[tour.carrier]
       if (fixedColor) return fixedColor
 
+      if (!tour.vehicleId) this.$emit('error', 'WARN: tour has no vehicleId: ' + tour)
+      const vehicleId = tour.vehicleId || 'unknown'
+
       // Simple hash function to generate a number from the string
       let hash = 0
-      for (let i = 0; i < tour.vehicleId.length; i++) {
-        hash = tour.vehicleId.charCodeAt(i) + ((hash << 5) - hash)
+      for (let i = 0; i < vehicleId.length; i++) {
+        hash = vehicleId.charCodeAt(i) + ((hash << 5) - hash)
       }
 
       // Generate RGB values by mapping parts of the hash to the 0-255 range
@@ -1132,10 +1135,10 @@ const LogisticsPlugin = defineComponent({
         lsp = this.lsps.find((c: any) => c.$id === lsp)
       }
       this.lspToursAll = []
-
       this.lspCarriers = []
       this.lspHubChainCarriers = []
       this.allHubChains = []
+
       const shipmentPlan = lsp.LspPlans.LspPlan.find((c: any) => c.$selected == 'true')
       shipmentPlan.logisticChains.logisticChain.forEach((chain: any) => {
         if (chain.$id.includes('direct') || chain.$id.includes('Direct')) {
@@ -1168,9 +1171,6 @@ const LogisticsPlugin = defineComponent({
 
       this.selectedLsp = id
 
-      // this.lspCarrier = lsp.LspPlans.LspPlan.find((c: any) => c.$selected == "true").logisticChains.logisticChain[0].logisticChainElement[0].$resourceId
-      // ^ used to be this
-      // const shipmentPlan = lsp.LspPlans.LspPlan.find((c: any) => c.$selected == "true")
       this.lspCarrier = this.carriers.filter(
         (item: any) =>
           item.$id ==
@@ -1203,15 +1203,9 @@ const LogisticsPlugin = defineComponent({
             })
             this.selectedCarrier = ''
             this.lspToursAll = this.lspChainToursAll
-
-            // logisticChain.logisticChainElement.forEach((chainElement: any) => {
-            //   let chainElementTours = this.processTours(chainElement)
-            //   if (chainElementTours.length > 0) {
-            //     this.lspChainToursAll.push(chainElementTours)
-            //   }
-            // })
           }
         } else if (hubChainIndex == null && !selectHubChain) {
+          // This is in a loop, but we don't want to double the entries, we just want the new entries.
           this.lspHubChainTours = ''
           this.selectedLspHubChainTours = 'Hub_Chain_' + 0
           logisticChain.logisticChainElement.forEach((chainElement: any) => {
@@ -1220,9 +1214,7 @@ const LogisticsPlugin = defineComponent({
               this.lspChainToursAll.push(chainElementTours)
             }
           })
-          this.lspChainToursAll.forEach(array => {
-            this.lspToursAll = this.lspToursAll.concat(array)
-          })
+          this.lspToursAll = [...this.lspChainToursAll].flat()
         }
       })
 
@@ -1287,6 +1279,7 @@ const LogisticsPlugin = defineComponent({
 
     handleSelectCarrier(carrierId: any, unselectAll: boolean, isDirect: String) {
       /// make new carrier specific data object with tours and shipments
+      console.log('---handleSelectCarrier')
       let carrier: any = {}
 
       if (typeOf(carrierId) == 'string') {
@@ -1340,7 +1333,7 @@ const LogisticsPlugin = defineComponent({
       // unselect carrier
       if (this.selectedCarrier === id && unselectAll && !this.globalHubChainBoolean) {
         this.selectedCarrier = ''
-        console.log('carriers unselected - TRIGGER THE LSP!')
+        console.log('--- carriers unselected - TRIGGER THE LSP!')
         this.handleSelectLsp(
           this.lsps.find((c: any) => c.$id == this.selectedLsp),
           false,
@@ -1803,9 +1796,6 @@ const LogisticsPlugin = defineComponent({
         thumbnail: '',
         colors: {},
       }
-
-      const t = 'Logistics Viewer'
-      this.$emit('title', t)
     },
 
     async setMapCenter() {
@@ -2194,7 +2184,11 @@ const LogisticsPlugin = defineComponent({
     this.showHelp = false
     this.updateLegendColors()
 
+    let title = this.vizDetails.title || 'Logistic Viewer'
+    this.$emit('title', title)
+
     this.myState.statusMessage = 'Loading carriers...'
+    await this.$nextTick()
 
     try {
       this.lsps = await this.loadLSPS()
@@ -2260,21 +2254,12 @@ export default LogisticsPlugin
        The emerging W3C standard is currently Firefox-only */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #454 $steelGray;
+  scrollbar-color: var(--bgBold) var(--bgPanel2);
 }
 
 /* And this works on Chrome/Edge/Safari */
 *::-webkit-scrollbar {
   width: 10px;
-}
-
-*::-webkit-scrollbar-track {
-  background: var(--bgPanel3);
-}
-
-*::-webkit-scrollbar-thumb {
-  background-color: var(--textVeryPale);
-  border-radius: 6px;
 }
 
 .carrier-viewer {
@@ -2685,7 +2670,6 @@ input {
   width: 0.4rem;
   background-color: var(--bgBold);
   user-select: none;
-  z-index: 2000;
 }
 
 .dragger:hover,
