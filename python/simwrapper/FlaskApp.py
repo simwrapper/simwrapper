@@ -34,7 +34,7 @@ mimetypes.add_type('application/wasm', '.wasm')
 # STORAGE LOCATIONS -------------------------------------------------
 # Default is to just share the content of the starting folder.
 STORAGE = {
-    "Server": "/Users/billyc/data/",
+    "Server": "./",
 }
 STORAGE_ROOTS = {
     "Server": { "path": "./", "description": os.getcwd()},

@@ -7,19 +7,26 @@
 # **Local/network mounts only: no http URLs here**
 # Each key defines a starting point in the local filesystem.
 # (if no config is found, the current working folder is shared)
+
 storage:
   data:
-    path: '/Users/billy/data'
+    path: '/data'
     description: 'Local data from this server'
 
-#zones:
-#  SEMCOG:
-#    file: './SEMCOG_TAZ.geojson'
-#    lookup: 'ID'
-#    sizes: 1454,2454,2475,3717
+# --- ZONAL GEOJSON BOUNDARIES ---
+# You can supply your own GeoJSON-format boundary files here.
+# Specify the filename, the field containg the zone 'id',
+# and the matrix sizes that map to these boundaries.
+# Supply as many as you like with different key names.
 
+#zones:
+#  MY_ZONES:
+#    file: './myboundaries.geojson.gz'
+#    lookup: 'TAZ'
+#    sizes: 1500,2000
 
 # --- FRONT-PAGE TEXT -------------
+
 tagline: 'Transport simulation data visualizer'
 
 # Optional readme can be either a .md markdown filename,
@@ -27,4 +34,4 @@ tagline: 'Transport simulation data visualizer'
 # readme: |
 #   Welcome to SimWrapper on Docker
 #   ========================
-##   - This is running inside a container. Edit CONFIG-DOCKER.yaml to remove this message!
+#   - This is running inside a container. Edit CONFIG-DOCKER.yaml to remove this message!
