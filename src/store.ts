@@ -71,7 +71,7 @@ export default new Vuex.Store({
     isInitialViewSet: false,
     favoriteLocations: [] as FavoriteLocation[],
     fileHandleAccessRequests: [] as any[],
-    flaskConfig: {} as { storage?: any; readme?: string; tagline?: string },
+    flaskConfig: {} as { storage?: any; readme?: string; tagline?: string; zones?: any },
     leftNavItems: null as null | {
       top: NavigationItem[]
       middle: NavigationItem[]
@@ -138,7 +138,7 @@ export default new Vuex.Store({
       state.credentials[value.url] = creds
       state.authAttempts++
     },
-    setFlaskConfig(state, json: { storage?: any; readme?: string; tagline?: string }) {
+    setFlaskConfig(state, json: { storage?: any; readme?: string; tagline?: string; zones?: any }) {
       state.flaskConfig = json
     },
 

@@ -253,7 +253,7 @@ export default defineComponent({
         style.backgroundColor = isDark ? 'black' : 'white'
         style.color = isDark ? 'white' : 'black'
         style.margin = '4px 4px'
-        style.padding = '0 4px 4px 4px'
+        style.padding = '0 0'
       }
       return style
     },
@@ -266,8 +266,8 @@ export default defineComponent({
     },
 
     gotData(event: any) {
-      console.log('GOT DATA')
-      const df = event.data.df
+      console.log('GOT DATA', event.data)
+      const df = event.data.data
       if (!df) return
       console.log({ df })
 
@@ -277,9 +277,9 @@ export default defineComponent({
           type: 'Feature',
           geometry: {
             type: 'Point',
-            coordinates: [point.lng - 1, point.lat],
+            coordinates: [point.lng, point.lat],
           },
-          properties: { n: point.n },
+          properties: { HHs: point.HHs },
         }
       })
 
@@ -288,29 +288,10 @@ export default defineComponent({
         props: {
           root: 'local',
           subfolder: '',
-          configFromDashboard: {
-            features,
-            display: {
-              fill: {
-                dataset: 'shapes',
-                columnName: 'n',
-                colorRamp: {
-                  ramp: 'Turbo',
-                  steps: 9,
-                },
-              },
-              radius: {
-                dataset: 'shapes',
-                columnName: 'n',
-                scaleFactor: 0.5,
-              },
-            },
-          },
+          configFromDashboard: Object.assign({ features }, event.data.config),
         },
       }
-      // data.props.configFromDashboard = Object.assign({}, data.props)
-      // this.panel = Object.assign(
-      //   { component: 'area-map' }, data)
+      console.log('ALLDONE', this.panel)
     },
   },
 

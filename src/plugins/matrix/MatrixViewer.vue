@@ -122,6 +122,8 @@ export interface ZoneSystem {
   url: string
   lookup: string
   sizes: number[]
+  flask?: boolean
+  key?: string
 }
 
 export interface ZoneSystems {
@@ -792,14 +794,16 @@ const MyComponent = defineComponent({
           features = geojson?.features
         }
 
-        const id = await new Promise<string>(resolve => {
-          const m = prompt('ID / TAZ Column', 'TAZ') || 'TAZ'
+        let tazlookup = localStorage.getItem('matrixviewer-taz-lookup') || 'TAZ'
+        tazlookup = await new Promise<string>(resolve => {
+          const m = prompt('ID / TAZ Column', tazlookup) || tazlookup
+          if (m) localStorage.setItem('matrixviewer-taz-lookup', m)
           resolve(m)
         })
 
         this.filenameShapes = file.name || 'File'
         this.shapes = features
-        this.zoneID = id
+        this.zoneID = tazlookup
         await this.$nextTick()
         this.isMap = true
         this.statusText = ''
@@ -828,9 +832,25 @@ const MyComponent = defineComponent({
           if (Number.isInteger(sizes)) sizes = `${sizes}`
           sizes = sizes.split(',').map((n: any) => parseInt(n)) as number[]
 
-          const system = { url: zs.url, lookup: zs.lookup, sizes }
+          const system = { key, url: zs.url, lookup: zs.lookup, sizes }
           this.zoneSystems.byID[key] = system
           sizes.forEach((size: any) => (this.zoneSystems.bySize[size] = system))
+        }
+
+        // Also include Flask zone systems
+        const flaskZoneSystems = this.globalState.flaskConfig.zones
+        if (flaskZoneSystems) {
+          for (const key of Object.keys(flaskZoneSystems)) {
+            const zs = flaskZoneSystems[key]
+
+            let sizes = zs.sizes as any
+            if (Number.isInteger(sizes)) sizes = `${sizes}`
+            sizes = sizes.split(',').map((n: any) => parseInt(n)) as number[]
+
+            const system = { key, url: zs.file, lookup: zs.lookup, sizes, flask: true }
+            this.zoneSystems.byID[key] = system
+            sizes.forEach((size: any) => (this.zoneSystems.bySize[size] = system))
+          }
         }
       } catch (e) {
         console.error('ZONESYSTEM: ' + e)

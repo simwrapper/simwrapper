@@ -106,9 +106,12 @@ export default defineComponent({
         incoming.pitch !== this.mymap?.getPitch() ||
         incoming.bearing !== this.mymap?.getBearing()
       ) {
-        this.mymap?.jumpTo(
-          Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
+        console.log('JUMPING')
+        const jump = Object.assign(
+          { center: { lng: incoming.longitude, lat: incoming.latitude } },
+          incoming
         )
+        this.mymap?.jumpTo(jump)
       }
     },
   },
@@ -423,13 +426,14 @@ export default defineComponent({
 
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
+    const zoom = this.globalState.viewState.zoom
 
     //@ts-ignore
     this.mymap = new maplibregl.Map({
       container,
       style,
       center,
-      zoom: 7,
+      zoom,
       canvasContextAttributes: { preserveDrawingBuffer: true },
     })
 

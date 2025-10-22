@@ -1,7 +1,10 @@
 <template lang="pug">
   .carrier-viewer(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
-    .container-1
+    .container-1(
+      @mousemove="dividerDragging"
+      @mouseup="dividerDragEnd"
+    )
       .main-panel
         deck-map.anim(v-if="vizDetails.projection && !thumbnail"
           :activeTab="activeTab"
@@ -29,7 +32,13 @@
         ZoomButtons(v-if="!thumbnail" corner="top-left")
         .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
-      .right-panel(v-if="!thumbnail" :darkMode="true")
+      .dragger(
+        @mousedown="dividerDragStart"
+        @mouseup="dividerDragEnd"
+        @mousemove.stop="dividerDragging"
+      )
+
+      .right-panel(:darkMode="true" :style="{width: `${legendSectionWidth}px`}")
         h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'Service Providers' }}
 
         .lsp-list
@@ -102,7 +111,7 @@
               :class="{selected: selectedTours.includes(tour)}")
               .carrier-tours(v-if="tour.tourId")
                 div(v-if="tour.tourId && vizSettings.showEachCarrierTour" id="tourColor" :style="{ backgroundColor: getTourColor(tour.tourId, tour.tourNumber) }")
-                div(v-if="tour.tourId && !vizSettings.showEachCarrierTour" id="tourColor" :style="{ backgroundColor: getLspTourColor(tour.vehicleId) }")
+                div(v-if="tour.tourId && !vizSettings.showEachCarrierTour" id="tourColor" :style="{ backgroundColor: getLspTourColor(tour) }")
                 div(v-if="tour.tourId" id="tour") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
                 div(v-else) {{ `${tour.vehicleId}` }}
 
@@ -161,12 +170,22 @@ const i18n = {
       vehicles: 'FAHRZEUGE',
       services: 'BETRIEBE',
       shipments: 'LIEFERUNGEN',
+      Shipments: 'Lieferungen',
       service: 'service',
       tours: 'TOUREN',
       pickup: 'Abholung',
       delivery: 'Lieferung',
-      'shipment Chains': 'Lieferungketten',
+      'Shipment Chains': 'Lieferungketten',
       Tours: 'Tours',
+      scaleSize: 'Widths',
+      scaleFactor: 'Width',
+      scaleFactorShipments: 'Width',
+      lspShipmentChains: 'lspShipmentChains',
+      'LSP Tours': 'LSP Touren',
+      'Lsp Shipments': 'Lsp Lieferungen',
+      'Carrier Tours': 'Carrier Touren',
+      shipmentDots: 'Lieferungen anzeigen',
+      flatten: 'Einfache Touren',
     },
   },
 }
@@ -299,6 +318,10 @@ const LogisticsPlugin = defineComponent({
         scaleFactor: 0, // 0 means don't scale at all
         scaleFactorShipments: 0,
       },
+
+      isDraggingDivider: 0,
+      dragStartWidth: 250,
+      legendSectionWidth: 275,
 
       vizDetails: {
         network: '',
@@ -486,6 +509,21 @@ const LogisticsPlugin = defineComponent({
   },
 
   methods: {
+    dividerDragStart(e: MouseEvent) {
+      this.isDraggingDivider = e.clientX
+      this.dragStartWidth = this.legendSectionWidth
+    },
+
+    dividerDragEnd(e: MouseEvent) {
+      this.isDraggingDivider = 0
+    },
+
+    dividerDragging(e: MouseEvent) {
+      if (!this.isDraggingDivider) return
+      const deltaX = this.isDraggingDivider - e.clientX
+      this.legendSectionWidth = Math.max(0, this.dragStartWidth + deltaX)
+    },
+
     checkIfHubChain() {
       if (this.lspShipmentHubChains.length > 0) {
         return true
@@ -960,10 +998,13 @@ const LogisticsPlugin = defineComponent({
       const fixedColor = this.vizDetails.colors && this.vizDetails.colors[tour.carrier]
       if (fixedColor) return fixedColor
 
+      if (!tour.vehicleId) this.$emit('error', 'WARN: tour has no vehicleId: ' + tour)
+      const vehicleId = tour.vehicleId || 'unknown'
+
       // Simple hash function to generate a number from the string
       let hash = 0
-      for (let i = 0; i < tour.vehicleId.length; i++) {
-        hash = tour.vehicleId.charCodeAt(i) + ((hash << 5) - hash)
+      for (let i = 0; i < vehicleId.length; i++) {
+        hash = vehicleId.charCodeAt(i) + ((hash << 5) - hash)
       }
 
       // Generate RGB values by mapping parts of the hash to the 0-255 range
@@ -1094,10 +1135,10 @@ const LogisticsPlugin = defineComponent({
         lsp = this.lsps.find((c: any) => c.$id === lsp)
       }
       this.lspToursAll = []
-
       this.lspCarriers = []
       this.lspHubChainCarriers = []
       this.allHubChains = []
+
       const shipmentPlan = lsp.LspPlans.LspPlan.find((c: any) => c.$selected == 'true')
       shipmentPlan.logisticChains.logisticChain.forEach((chain: any) => {
         if (chain.$id.includes('direct') || chain.$id.includes('Direct')) {
@@ -1130,9 +1171,6 @@ const LogisticsPlugin = defineComponent({
 
       this.selectedLsp = id
 
-      // this.lspCarrier = lsp.LspPlans.LspPlan.find((c: any) => c.$selected == "true").logisticChains.logisticChain[0].logisticChainElement[0].$resourceId
-      // ^ used to be this
-      // const shipmentPlan = lsp.LspPlans.LspPlan.find((c: any) => c.$selected == "true")
       this.lspCarrier = this.carriers.filter(
         (item: any) =>
           item.$id ==
@@ -1165,15 +1203,9 @@ const LogisticsPlugin = defineComponent({
             })
             this.selectedCarrier = ''
             this.lspToursAll = this.lspChainToursAll
-
-            // logisticChain.logisticChainElement.forEach((chainElement: any) => {
-            //   let chainElementTours = this.processTours(chainElement)
-            //   if (chainElementTours.length > 0) {
-            //     this.lspChainToursAll.push(chainElementTours)
-            //   }
-            // })
           }
         } else if (hubChainIndex == null && !selectHubChain) {
+          // This is in a loop, but we don't want to double the entries, we just want the new entries.
           this.lspHubChainTours = ''
           this.selectedLspHubChainTours = 'Hub_Chain_' + 0
           logisticChain.logisticChainElement.forEach((chainElement: any) => {
@@ -1182,9 +1214,7 @@ const LogisticsPlugin = defineComponent({
               this.lspChainToursAll.push(chainElementTours)
             }
           })
-          this.lspChainToursAll.forEach(array => {
-            this.lspToursAll = this.lspToursAll.concat(array)
-          })
+          this.lspToursAll = [...this.lspChainToursAll].flat()
         }
       })
 
@@ -1249,6 +1279,7 @@ const LogisticsPlugin = defineComponent({
 
     handleSelectCarrier(carrierId: any, unselectAll: boolean, isDirect: String) {
       /// make new carrier specific data object with tours and shipments
+      console.log('---handleSelectCarrier')
       let carrier: any = {}
 
       if (typeOf(carrierId) == 'string') {
@@ -1302,7 +1333,7 @@ const LogisticsPlugin = defineComponent({
       // unselect carrier
       if (this.selectedCarrier === id && unselectAll && !this.globalHubChainBoolean) {
         this.selectedCarrier = ''
-        console.log('carriers unselected - TRIGGER THE LSP!')
+        console.log('--- carriers unselected - TRIGGER THE LSP!')
         this.handleSelectLsp(
           this.lsps.find((c: any) => c.$id == this.selectedLsp),
           false,
@@ -1765,9 +1796,6 @@ const LogisticsPlugin = defineComponent({
         thumbnail: '',
         colors: {},
       }
-
-      const t = 'Logistics Viewer'
-      this.$emit('title', t)
     },
 
     async setMapCenter() {
@@ -2156,7 +2184,11 @@ const LogisticsPlugin = defineComponent({
     this.showHelp = false
     this.updateLegendColors()
 
+    let title = this.vizDetails.title || 'Logistic Viewer'
+    this.$emit('title', title)
+
     this.myState.statusMessage = 'Loading carriers...'
+    await this.$nextTick()
 
     try {
       this.lsps = await this.loadLSPS()
@@ -2222,7 +2254,7 @@ export default LogisticsPlugin
        The emerging W3C standard is currently Firefox-only */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #454 $steelGray;
+  scrollbar-color: var(--bgBold) var(--bgPanel2);
 }
 
 /* And this works on Chrome/Edge/Safari */
@@ -2230,26 +2262,18 @@ export default LogisticsPlugin
   width: 10px;
 }
 
-*::-webkit-scrollbar-track {
-  background: var(--bgPanel3);
-}
-
-*::-webkit-scrollbar-thumb {
-  background-color: var(--textVeryPale);
-  border-radius: 6px;
-}
-
 .carrier-viewer {
   position: absolute;
   top: 0;
   bottom: 0;
   pointer-events: none;
-  min-height: $thumbnailHeight;
+  height: 100%;
 }
 
 .container-1 {
   display: flex;
   height: 100%;
+  pointer-events: auto;
 }
 
 .carrier-viewer.hide-thumbnail {
@@ -2277,8 +2301,6 @@ h4 {
   font-size: 0.8rem;
   pointer-events: auto;
   background-color: var(--bgPanel3);
-  width: 18rem;
-  max-width: 18rem;
   padding: 0 0.25rem;
 }
 
@@ -2640,6 +2662,22 @@ input {
 
 .dropdown {
   margin-bottom: 0.5rem;
+}
+
+.dragger {
+  grid-row: 1 / 2;
+  grid-column: 2 / 3;
+  width: 0.4rem;
+  background-color: var(--bgBold);
+  user-select: none;
+}
+
+.dragger:hover,
+.dragger:active {
+  background-color: var(--sliderThumb);
+  transition: background-color 0.3s ease;
+  transition-delay: 0.1s;
+  cursor: ew-resize;
 }
 
 @media only screen and (max-width: 640px) {

@@ -96,7 +96,7 @@
       //- .zone-announce-area.flex-col
       //-   h2  {{ this.mapConfig.isRowWise ? 'Row ' : 'Column ' }} {{ this.activeZone }}
 
-      .click-zone-hint.flex-col(v-if="activeZone == null")
+      .click-zone-hint.flex-col(v-if="!activeZone")
         h4: b MATRIX VIEWER
         p Click on the map to select the row/column of interest.
         p This map view can display
@@ -647,7 +647,22 @@ const MyComponent = defineComponent({
       // which column has the TAZ ID
       this.zoneID = zoneSystem.lookup
 
-      await this.loadBoundaries(zoneSystem.url)
+      // Flask filesystems offer some GEOJSON-only zone systems
+      if (zoneSystem.flask) {
+        try {
+          const url = `${BASE_URL}_zones_/${zoneSystem.key}`
+          const blob = await fetch(url).then(async r => await r.blob())
+          const buffer = await blob.arrayBuffer()
+          const rawtext = await gUnzip(buffer)
+          const text = new TextDecoder('utf-8').decode(rawtext)
+          const json = JSON.parse(text)
+          this.features = json.features
+        } catch (e) {
+          this.$emit('error', 'Failed to load zone boundaries: ' + zoneSystem.url)
+        }
+      } else {
+        await this.loadBoundaries(zoneSystem.url)
+      }
     },
 
     async loadBoundaries(url: string) {

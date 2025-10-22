@@ -254,12 +254,13 @@ export default defineComponent({
 
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
+    const zoom = this.globalState.viewState.zoom as number
     //@ts-ignore
     this.mymap = new maplibregl.Map({
       container,
       style,
       center,
-      zoom: 7,
+      zoom,
     })
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
@@ -393,50 +394,53 @@ export default defineComponent({
             }
           })
 
-          for (let i = 0; i < lspShipmentChain.route.length - 1; i++) {
-            newLayers.push(
-              //@ts-ignore:
-              new ArcLayer({
-                id: 'shipmenthubchains' + '_' + lspShipmentChain.shipmentId + '_route' + i,
-                data: [{}],
-                getSourcePosition: () => [
-                  lspShipmentChain.route[i][0],
-                  lspShipmentChain.route[i][1],
-                ],
-                getTargetPosition: () => [
-                  lspShipmentChain.route[i + 1][0],
-                  lspShipmentChain.route[i + 1][1],
-                ],
-                getSourceColor: this.getSourceColor(i, lspShipmentChain),
-                getTargetColor: this.getTargetColor(i, lspShipmentChain),
-                getWidth: this.getLineWidth(i, lspShipmentChain),
-                widthUnits: 'pixels',
-                getHeight: 0.5,
-                opacity: 0.9,
-                parameters: { depthTest: false },
-                widthMinPixels: 1,
-                widthMaxPixels: 100,
-                transitions: { getWidth: 200 },
-              } as any)
-            )
-            newLayers.push(
-              //@ts-ignore:
-              new ScatterplotLayer({
-                id: 'HubChainMarker' + '_' + lspShipmentChain.shipmentId + '_' + i,
-                data: [lspShipmentChain],
-                getPosition: () => [
-                  lspShipmentChain.route[lspShipmentChain.route.length - 1][0],
-                  lspShipmentChain.route[lspShipmentChain.route.length - 1][1],
-                ],
-                getFillColor: ActivityColor.pickup,
-                getRadius: 3,
-                opacity: 0.9,
-                parameters: { depthTest: false },
-                pickable: true,
-                radiusUnits: 'pixels',
-              } as any)
-            )
-          }
+          console.log('Adding 3x', lspShipmentChain.route.length, 'layers')
+          // for (let i = 0; i < lspShipmentChain.route.length - 1; i++) {
+          // build the i/j coordinate pair segments from the shipment chain route
+          const segments: any[] = lspShipmentChain.route
+            .map((r: any[], i: number) => {
+              if (!i) return null
+              return [r, lspShipmentChain.route[i - 1]]
+            })
+            .slice(1)
+
+          newLayers.push(
+            //@ts-ignore:
+            new ArcLayer({
+              id: 'shipmenthubchains' + '_' + lspShipmentChain.shipmentId,
+              data: segments,
+              getSourcePosition: (segment: any[]) => segment[0],
+              getTargetPosition: (segment: any[]) => segment[1],
+              getSourceColor: (_: any, i: number) => this.getSourceColor(i, lspShipmentChain),
+              getTargetColor: (_: any, i: number) => this.getTargetColor(i, lspShipmentChain),
+              getWidthColor: (_: any, i: number) => this.getLineWidth(i, lspShipmentChain),
+              widthUnits: 'pixels',
+              getHeight: 0.5,
+              opacity: 0.9,
+              parameters: { depthTest: false },
+              widthMinPixels: 1,
+              widthMaxPixels: 100,
+              transitions: { getWidth: 200 },
+            } as any)
+          )
+          newLayers.push(
+            //@ts-ignore:
+            new ScatterplotLayer({
+              id: 'HubChainMarker' + '_' + lspShipmentChain.shipmentId,
+              data: [lspShipmentChain],
+              getPosition: () => [
+                lspShipmentChain.route[lspShipmentChain.route.length - 1][0],
+                lspShipmentChain.route[lspShipmentChain.route.length - 1][1],
+              ],
+              getFillColor: ActivityColor.pickup,
+              getRadius: 3,
+              opacity: 0.9,
+              parameters: { depthTest: false },
+              pickable: true,
+              radiusUnits: 'pixels',
+            } as any)
+          )
+
           newLayers.push(
             //@ts-ignore:
             new ScatterplotLayer({
