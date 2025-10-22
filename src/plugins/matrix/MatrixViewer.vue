@@ -794,14 +794,16 @@ const MyComponent = defineComponent({
           features = geojson?.features
         }
 
-        const id = await new Promise<string>(resolve => {
-          const m = prompt('ID / TAZ Column', 'TAZ') || 'TAZ'
+        let tazlookup = localStorage.getItem('matrixviewer-taz-lookup') || 'TAZ'
+        tazlookup = await new Promise<string>(resolve => {
+          const m = prompt('ID / TAZ Column', tazlookup) || tazlookup
+          if (m) localStorage.setItem('matrixviewer-taz-lookup', m)
           resolve(m)
         })
 
         this.filenameShapes = file.name || 'File'
         this.shapes = features
-        this.zoneID = id
+        this.zoneID = tazlookup
         await this.$nextTick()
         this.isMap = true
         this.statusText = ''
