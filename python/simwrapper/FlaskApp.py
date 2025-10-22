@@ -67,7 +67,10 @@ class FilesList(Resource):
         # prefix must end with a slash
         if not prefix.endswith('/'): prefix += '/'
 
-        path = f"{STORAGE[server_id]}/{prefix}"
+        base = STORAGE[server_id]
+        if not base.endswith('/'): base += '/'
+
+        path = f"{base}{prefix}"
         if sys.platform.startswith("win"): path = path.replace("/", "\\")
 
         content = {"files": [], "dirs": [], "handles": {}}
@@ -95,8 +98,12 @@ class File(Resource):
 
         logger.debug(f'GET {server_id} {request.args["prefix"]}')
 
+        base = STORAGE[server_id]
+        if not base.endswith('/'): base += '/'
+
         prefix = request.args['prefix']
-        path = f"{STORAGE[server_id]}{prefix}"
+        path = f"{base}{prefix}"
+
         if sys.platform.startswith("win"): path = path.replace("/", "\\")
         try:
             if not os.path.isfile(path):
@@ -155,7 +162,9 @@ class Omx(Resource):
         # We need the prefix # and the personal-access-token
         prefix =  request.args["prefix"]
         server = STORAGE[server_id]
-        path = f"{server}/{prefix}"
+        if not server.endswith('/'): server += '/'
+
+        path = f"{server}{prefix}"
         if sys.platform.startswith("win"): path = path.replace("/", "\\")
 
         # 1. Open the OMX file
