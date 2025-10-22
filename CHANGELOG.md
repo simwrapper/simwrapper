@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.3.0](https://github.com/simwrapper/simwrapper/compare/v4.2.0...v4.3.0) (2025-10-22)
+
+
+### Features
+
+* **matrix:** support Python tool providing "zones:" config for GeoJSON boundaries ([75019b3](https://github.com/simwrapper/simwrapper/commit/75019b3efa0afbd1bb53b4301eda0ca07a60cde6))
+
+
+### Bug Fixes
+
+* **logistics:** LSP shipment colors by carrier, and performance fixes ([60a7fcb](https://github.com/simwrapper/simwrapper/commit/60a7fcb7c70fa778afe95369c00526e309f9b8f7))
+
 ## [4.2.0](https://github.com/simwrapper/simwrapper/compare/v4.1.6...v4.2.0) (2025-10-20)
 
 
