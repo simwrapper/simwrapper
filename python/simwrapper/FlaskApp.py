@@ -8,17 +8,24 @@
 # (2) Provides a REST API application that accepts file requests for
 #     OMX files that are stored on cloud services such as AWS/Azure
 
-import os,sys, pprint
-import blosc
-from os.path import exists
+# HDF5 has unfortunate file locking that causes problems on Windows and NFS shares
+# see https://portal.hdfgroup.org/documentation/hdf5/latest/_file_lock.html
+# so let's disable it immediately:
+import os
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
+
+import sys,pprint
 import yaml
 import logging
+from os.path import exists
 
 from flask import Flask, request, send_from_directory, make_response, Response
 from flask_compress import Compress
 from flask_cors import CORS
 from flask_restful import Resource, Api, reqparse
 from functools import wraps
+
+import blosc
 from tables import CArray
 import openmatrix as omx
 from waitress import serve
