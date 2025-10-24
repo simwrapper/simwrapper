@@ -409,12 +409,18 @@ const MyComponent = defineComponent({
       const zkey = `auth-token-${this.fileSystem.slug}`
       const token = localStorage.getItem(zkey) || ''
 
-      await this.h5Main.open({
-        fileSystem: this.fileSystem,
-        subfolder: this.subfolder,
-        filename: this.filename,
-        token,
-      })
+      try {
+        await this.h5Main.open({
+          fileSystem: this.fileSystem,
+          subfolder: this.subfolder,
+          filename: this.filename,
+          token,
+        })
+      } catch (e) {
+        console.error('' + e)
+        this.$emit('error', `${e}: ${this.subfolder}/${this.filename}`)
+        return
+      }
 
       this.catalog = await this.h5Main.getCatalog()
       this.matrixSize = await this.h5Main.getSize()
@@ -588,12 +594,18 @@ const MyComponent = defineComponent({
       const zkey = `auth-token-${this.fileSystem.slug}`
       const token = localStorage.getItem(zkey) || ''
 
-      this.h5Compare.open({
-        fileSystem: this.fileSystem,
-        subfolder: comparisonMatrix.subfolder,
-        filename: comparisonMatrix.filename,
-        token,
-      })
+      try {
+        await this.h5Compare.open({
+          fileSystem: this.fileSystem,
+          subfolder: comparisonMatrix.subfolder,
+          filename: comparisonMatrix.filename,
+          token,
+        })
+      } catch (e) {
+        console.error('' + e)
+        this.$emit('error', `${e}: ${comparisonMatrix.subfolder}/${comparisonMatrix.filename}`)
+        return
+      }
 
       // drag/drop mode, no "root" filesystem. Just set this as base.
       if (comparisonMatrix.root === '') {
@@ -605,6 +617,8 @@ const MyComponent = defineComponent({
       this.compareLabel = `Comparing to ${comparisonMatrix.subfolder}/${comparisonMatrix.filename}`
 
       this.setDivergingColors()
+      this.changeScale('symlog')
+
       await this.getMatrices()
       this.isGettingMatrices = false
     },
@@ -700,16 +714,24 @@ const MyComponent = defineComponent({
       const zkey = `auth-token-${this.fileSystem.slug}`
       const token = localStorage.getItem(zkey) || ''
 
-      this.h5Compare.open({
-        file,
-        subfolder: '',
-        filename: file.name,
-        token,
-      })
+      try {
+        this.h5Compare.open({
+          file,
+          subfolder: '',
+          filename: file.name,
+          token,
+        })
+      } catch (e) {
+        console.error('' + e)
+        this.$emit('error', `${e}: ${file.name}`)
+        return
+      }
 
       this.compareLabel = `Comparing to ${file.name}`
 
       this.setDivergingColors()
+      this.changeScale('symlog')
+
       await this.getMatrices()
       this.isGettingMatrices = false
     },
@@ -736,12 +758,18 @@ const MyComponent = defineComponent({
       this.h5MainWorker = new H5ProviderWorker()
       this.h5Main = Comlink.wrap(this.h5MainWorker) as unknown
       // this opens file, sets up the dimensions and matrix catalog
-      await this.h5Main.open({
-        file,
-        subfolder: '',
-        filename: this.filename,
-        token: '',
-      })
+      try {
+        await this.h5Main.open({
+          file,
+          subfolder: '',
+          filename: this.filename,
+          token: '',
+        })
+      } catch (e) {
+        console.error('' + e)
+        this.$emit('error', `${e}: ${this.filename}`)
+        return
+      }
 
       this.h5fileBlob = file
       this.filename = file.name || 'File'

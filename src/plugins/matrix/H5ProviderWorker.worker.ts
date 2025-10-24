@@ -125,7 +125,12 @@ const H5Provider = {
     if (!this.h5fileApi) return
 
     // first get the table keys
-    let keys = await this.h5fileApi.getSearchablePaths('/')
+    let keys = [] as any[]
+    try {
+      keys = await this.h5fileApi.getSearchablePaths('/')
+    } catch (e) {
+      throw Error('Not an OMX File? Cannot parse matrix list')
+    }
 
     // pretty sort them the way humans like them
     keys.sort((a: any, b: any) => naturalSort(a, b))
