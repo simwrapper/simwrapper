@@ -42,9 +42,10 @@
         .az-cell.heading Description
         .az-row(v-for="row in localFileHandles" :key="row.key")
           .az-cell
+            i.fa.fa-times.zap-folder(@click="zapLocalFolder(row)" title="Remove this folder from list")
             i.fa.fa-folder.az-icon(style="color: #ea0;")
             a(@click="clickedBrowseChromeLocalFolder(row)") {{ row.handle.name}}
-          .az-cell Read-only browser access via Chrome/Edge
+          .az-cell Read-only browser access
 
       .az-local-folder-button
         b-button.config-sources(
@@ -314,7 +315,12 @@ export default defineComponent({
       return this.state.flaskConfig.tagline || 'Transport simulation data visualizer'
     },
   },
+
   methods: {
+    zapLocalFolder(row: any) {
+      this.clickedDelete(row)
+    },
+
     go(path: string) {
       const fullPath = `${BASE_URL}${path}`.replaceAll('//', '/')
       console.log({ fullPath })
@@ -622,12 +628,6 @@ h4 {
   border-bottom: 1px solid #66666640;
 }
 
-.fa-times {
-  opacity: 0;
-  float: right;
-  padding: 1px 1px;
-}
-
 .fa-times:hover {
   color: red;
 }
@@ -755,6 +755,21 @@ h4 {
   background-color: var(--bgBold);
   padding: 0.5rem 1rem 0 1rem;
   border: var(--borderThin);
+}
+
+.zap-folder {
+  opacity: 0;
+  margin: 0 6px 0 -16px;
+  transition: 0.15s ease-in-out;
+}
+
+.az-cell:hover .zap-folder {
+  opacity: 0.2;
+}
+
+.az-cell:hover .zap-folder:hover {
+  cursor: pointer;
+  opacity: 1;
 }
 
 @media only screen and (max-width: 640px) {
