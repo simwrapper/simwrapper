@@ -214,7 +214,22 @@ const H5Provider = {
     const response = await fetch(url, { headers })
     const buffer = await response.blob().then(async b => await b.arrayBuffer())
     const codec = new Blosc() // buffer is blosc-compressed
-    const data = new Float64Array(new Uint8Array(await codec.decode(buffer)).buffer)
+
+    // We should support any data type really, but let's start with Float64/32,Int8
+    let data = null as any
+    try {
+      data = new Float64Array(new Uint8Array(await codec.decode(buffer)).buffer)
+    } catch {}
+    if (!data) {
+      try {
+        data = new Float32Array(new Uint8Array(await codec.decode(buffer)).buffer)
+      } catch {}
+    }
+    if (!data) {
+      try {
+        data = new Uint8Array(await codec.decode(buffer))
+      } catch {}
+    }
 
     return { data, table, path: this.path }
     // }
