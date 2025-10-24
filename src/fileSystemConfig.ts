@@ -19,7 +19,7 @@ if (typeof window !== 'undefined') {
  * supports OMX file slices and streaming large files!
  */
 export function addFlaskFilesystems(flaskEntries: { [id: string]: any }) {
-  const roots = Object.keys(flaskEntries)
+  const roots = Object.keys(flaskEntries).sort().reverse()
   for (const slug of roots) {
     const params = flaskEntries[slug]
     const fsconfig: FileSystemConfig = {
