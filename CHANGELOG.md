@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.3.5](https://github.com/simwrapper/simwrapper/compare/v4.3.3...v4.3.5) (2025-10-24)
+
+
+### Bug Fixes
+
+* **matrix:** Support float32, float64, and int8 matrix table formats ([2813d2d](https://github.com/simwrapper/simwrapper/commit/2813d2df20c69987da26aae3b75b173e712a720d))
+
 ### [4.3.3](https://github.com/simwrapper/simwrapper/compare/v4.3.2...v4.3.3) (2025-10-22)
 
 - Changes only in Python packaging
