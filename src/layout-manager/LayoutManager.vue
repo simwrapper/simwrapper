@@ -1296,14 +1296,11 @@ export default defineComponent({
 
 .settings-popup {
   position: absolute;
-  top: 35px;
-  right: 0.5rem;
+  top: 30px;
+  right: 13px;
   z-index: 10001;
-  background-color: var(--bgBold);
   padding: 1rem 1rem 0rem 1rem;
-  border: var(--borderThin);
-  border-radius: 3px;
-  filter: $filterShadow;
+  border-radius: 0 0 3px 3px;
 }
 
 .left-panel-close-button {
