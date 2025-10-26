@@ -5,9 +5,8 @@
 <script lang="tsx">
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { defineComponent, ref } from 'vue'
+import { defineComponent } from 'vue'
 
-// Import your React component
 import H5TableViewer from './H5TableViewer'
 
 export default defineComponent({

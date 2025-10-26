@@ -15,12 +15,8 @@
         span &nbsp;Map
 
 
-  p.hint-boundaries.flex1(v-show="!hasShapes")
-    i.fa.fa-exclamation-triangle &nbsp;
-    | Drag/drop a zonal boundary file to enable map view
-
   //- TABLE Name
-  b-dropdown.dropdown-table-selector(v-if="hasShapes"
+  b-dropdown.dropdown-table-selector(
     @change="$emit('changeMatrix', $event)"
     scrollable max-height="400" trap-focus
   )
@@ -35,6 +31,10 @@
         :value="matrix"
         v-html="matrix"
       )
+
+  p.hint-boundaries.flex1(v-show="!hasShapes")
+    i.fa.fa-exclamation-triangle &nbsp;
+    | Drag/drop a zonal boundary file to enable map view
 
   //- COMPARE selector
   .flex-column(v-if="hasShapes" style="margin-left: 1rem")
@@ -82,7 +82,6 @@ const MyComponent = defineComponent({
       searchTableTerm: '',
     }
   },
-  mounted() {},
   computed: {
     filteredTableNames() {
       return this.catalog.filter(
@@ -143,7 +142,7 @@ $bgDarkerCyan: #def3ec;
 }
 
 .which-data {
-  margin: 1px 1rem 0 0;
+  margin: 0px 1rem 0 0;
 }
 
 .drop-hint {
@@ -163,8 +162,7 @@ $bgDarkerCyan: #def3ec;
 
 .hint-boundaries {
   font-size: 0.9rem;
-  margin-top: 0.3rem;
-  margin-right: 0.8rem;
+  margin: auto 0.8rem auto 0;
   text-align: right;
   opacity: 0.8;
 }

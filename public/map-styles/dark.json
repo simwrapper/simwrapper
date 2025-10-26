@@ -33,7 +33,11 @@
         ["match", ["geometry-type"], ["MultiPolygon", "Polygon"], true, false],
         ["!=", ["get", "brunnel"], "tunnel"]
       ],
-      "paint": {"fill-antialias": false, "fill-color": "rgba(40, 46, 63, 1)"}
+      "paint": {
+        "fill-antialias": false,
+        "fill-color": "rgba(40, 46, 63, 1)",
+        "fill-opacity": 0.9
+      }
     },
     {
       "id": "landcover_ice_shelf",
@@ -75,7 +79,7 @@
         ["match", ["geometry-type"], ["MultiPolygon", "Polygon"], true, false],
         ["==", ["get", "class"], "residential"]
       ],
-      "paint": {"fill-color": "hsl(0,2%,5%)", "fill-opacity": 0.08}
+      "paint": {"fill-color": "hsl(0,2%,5%)", "fill-opacity": 0}
     },
     {
       "id": "landcover_wood",
@@ -90,17 +94,7 @@
       ],
       "paint": {
         "fill-color": "rgb(32,32,32)",
-        "fill-opacity": [
-          "interpolate",
-          ["exponential", 0.3],
-          ["zoom"],
-          8,
-          0,
-          10,
-          0.8,
-          13,
-          0.4
-        ],
+        "fill-opacity": 0,
         "fill-pattern": "wood-pattern",
         "fill-translate": [0, 0]
       }

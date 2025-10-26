@@ -23,8 +23,8 @@
           @input="debHandleEntry"
         )
       .edit-actions.flex-row
-        p: i.fa.fa-plus(@click="handleAddRow(i)")
-        p: i.fa.fa-times(style="color: #b00" @click="handleRemoveRow(i)")
+        p: i.fa.fa-plus.clicky(@click="handleAddRow(i)")
+        p: i.fa.fa-times.clicky(style="color: #b00" @click="handleRemoveRow(i)")
 
   //- Clean layout legend: columns of right/left aligned numbers split at decimal point
   .entries.flex-row(v-else)
@@ -191,5 +191,9 @@ export default MyComponent
 .edit-actions {
   gap: 7px;
   margin-top: 2px;
+}
+
+.clicky {
+  cursor: pointer;
 }
 </style>

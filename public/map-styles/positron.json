@@ -35,7 +35,7 @@
         true,
         false
       ],
-      "paint": {"fill-color": "rgba(231, 234, 230, 1)", "fill-opacity": 0.05}
+      "paint": {"fill-color": "rgba(231, 234, 230, 1)", "fill-opacity": 0.02}
     },
     {
       "id": "water",
@@ -47,7 +47,11 @@
         ["match", ["geometry-type"], ["MultiPolygon", "Polygon"], true, false],
         ["!=", ["get", "brunnel"], "tunnel"]
       ],
-      "paint": {"fill-antialias": true, "fill-color": "rgba(176, 195, 199, 1)"}
+      "paint": {
+        "fill-antialias": true,
+        "fill-color": "rgba(176, 195, 199, 1)",
+        "fill-opacity": 0.8
+      }
     },
     {
       "id": "landcover_ice_shelf",
@@ -119,7 +123,7 @@
         true,
         false
       ],
-      "paint": {"line-color": "rgba(236, 231, 236, 1)", "line-opacity": 0.2}
+      "paint": {"line-color": "rgba(236, 231, 236, 1)", "line-opacity": 0.1}
     },
     {
       "id": "building",
@@ -363,7 +367,7 @@
       "layout": {"line-cap": "round", "line-join": "round"},
       "paint": {
         "line-color": "rgb(234, 234, 234)",
-        "line-opacity": 0.15,
+        "line-opacity": 0,
         "line-width": [
           "interpolate",
           ["exponential", 1.2],
@@ -1151,7 +1155,7 @@
         "text-rotation-alignment": "viewport",
         "text-size": 10
       },
-      "paint": {"text-color": "#666"}
+      "paint": {"text-color": "#666", "text-opacity": 0, "icon-opacity": 0}
     },
     {
       "id": "highway-shield-us-interstate",
@@ -1280,12 +1284,7 @@
         "text-size": ["interpolate", ["linear"], ["zoom"], 8, 9, 12, 10],
         "text-transform": "uppercase"
       },
-      "paint": {
-        "text-color": "#666",
-        "text-halo-blur": 1,
-        "text-halo-color": "#fff",
-        "text-halo-width": 1
-      }
+      "paint": {"text-color": "#bbb", "text-halo-blur": 1, "text-halo-width": 1}
     },
     {
       "id": "label_village",
@@ -1318,12 +1317,7 @@
           12
         ]
       },
-      "paint": {
-        "text-color": "#888",
-        "text-halo-blur": 1,
-        "text-halo-color": "#fff",
-        "text-halo-width": 1
-      }
+      "paint": {"text-color": "#bbb", "text-halo-blur": 1, "text-halo-width": 1}
     },
     {
       "id": "label_town",
@@ -1357,10 +1351,9 @@
         ]
       },
       "paint": {
-        "text-color": "#888",
+        "text-color": "#bbb",
         "text-halo-blur": 1,
-        "text-halo-color": "#fff",
-        "text-halo-width": 1
+        "text-halo-color": "#fff"
       }
     },
     {
@@ -1384,12 +1377,7 @@
         "text-size": ["interpolate", ["linear"], ["zoom"], 5, 10, 8, 14],
         "text-transform": "uppercase"
       },
-      "paint": {
-        "text-color": "#777",
-        "text-halo-blur": 1,
-        "text-halo-color": "#fff",
-        "text-halo-width": 1
-      }
+      "paint": {"text-color": "#bbb", "text-halo-blur": 1, "text-halo-width": 1}
     },
     {
       "id": "label_city",
@@ -1429,12 +1417,7 @@
           18
         ]
       },
-      "paint": {
-        "text-color": "#888",
-        "text-halo-blur": 1,
-        "text-halo-color": "#fff",
-        "text-halo-width": 1
-      }
+      "paint": {"text-color": "#bbb", "text-halo-blur": 1, "text-halo-width": 1}
     },
     {
       "id": "label_city_capital",
@@ -1474,12 +1457,7 @@
           20
         ]
       },
-      "paint": {
-        "text-color": "#888",
-        "text-halo-blur": 1,
-        "text-halo-color": "#fff",
-        "text-halo-width": 1
-      }
+      "paint": {"text-color": "#bbb", "text-halo-blur": 1, "text-halo-width": 1}
     },
     {
       "id": "label_country_3",

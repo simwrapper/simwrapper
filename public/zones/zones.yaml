@@ -42,10 +42,12 @@ SANDAG-4947:
   lookup: TAZ
   sizes: 4947
 
-# SEMCOG-2899:
-#   url: /zones/SEMCOG_TAZ.geojson
-#   lookup: ID
-#   sizes: 2899
+SEMCOG-2899:
+  url: https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper/zone-systems/SEMCOG_TAZ.geojson.gz
+  # url: /zones/SEMCOG_TAZ.geojson
+  lookup: ID
+  sizes: 2899
+  rowlookup: ZoneID
 
 SF-2454:
   url: https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper/zone-systems/sfcta-dist15.geojson.gz

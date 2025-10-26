@@ -11,12 +11,11 @@
 
     footer.modal-card-foot
       b-button.xbutton(v-if="buttons.length == 1" class="button is-link" @click="clicked(buttons[0])") {{ buttons[0] }}
-      b-button.xbutton(v-for="msg,i in buttons" :key="msg"
+      b-button.xbutton(v-for="label,i in buttons" :key="label" ref="xbutton"
         :class="{'is-danger': i == 0, 'is-outlined': i==0}"
         :style="{'margin-right': i == 0 ? 'auto' : '0.5rem'}"
-        :autofocus="i==buttons.length-1 ? true : undefined"
         @click="clicked(i)"
-      ) {{ msg }}
+      ) {{ label }}
 </template>
 
 <script lang="ts">
@@ -24,17 +23,25 @@ import { defineComponent } from 'vue'
 
 export default defineComponent({
   name: 'ModalMarkdownDialog',
-  // components: { AnimationHelpText },
   props: {
     title: String,
     md: String,
     buttons: Array,
   },
-  data: () => {
+  data() {
     return {
       html: '',
     }
   },
+  mounted() {
+    if (this.buttons?.length) {
+      setTimeout(() => {
+        const bb = this.$refs.xbutton as any[]
+        bb[bb.length - 1]?.$el.focus()
+      }, 250)
+    }
+  },
+
   methods: {
     clicked(msg: any) {
       this.$emit('click', msg)
@@ -54,7 +61,7 @@ export default defineComponent({
 }
 
 .xbutton {
-  text-transform: uppercase;
+  // text-transform: uppercase;
   padding: 0 2rem;
 }
 
@@ -62,18 +69,24 @@ export default defineComponent({
   z-index: 100;
 }
 .modal-card {
+  // background-color: var(--bgBold) !important;
+  z-index: 200;
+}
+.modal-card-body {
+  background-color: var(--bgPanel);
   z-index: 200;
 }
 .modal-card-head {
-  padding: 0.25rem 0.5rem 0.5rem 1.5rem;
+  padding: 0.5rem 0.5rem 0.5rem 1.5rem;
   box-shadow: none;
   background-color: $panelTitle;
+  border: none;
   border-radius: 3px 3px 0 0;
 }
 .modal-card-foot {
   padding-top: 0px;
   border-radius: 0 0 3px 3px;
-  background-color: white;
+  background-color: var(--bgPanel) !important;
   border: none;
 }
 .modal-card-title {

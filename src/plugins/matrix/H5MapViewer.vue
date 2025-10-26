@@ -3,7 +3,7 @@
   @mouseup="dividerDragEnd"
   @mousemove.stop="dividerDragging"
 )
-  .left-bar(:style="{width: `${leftSectionWidth}px`}")
+  .mside-bar(:style="{width: `${leftSectionWidth}px`}")
     .row-col-selector.flex-row(style="gap: 8px")
       .flex-col.flex2
         h4 Map Selection
@@ -96,7 +96,10 @@
       //- .zone-announce-area.flex-col
       //-   h2  {{ this.mapConfig.isRowWise ? 'Row ' : 'Column ' }} {{ this.activeZone }}
 
-      .click-zone-hint.flex-col(v-if="!activeZone")
+      .click-zone-hint.flex-col(v-if="!activeTable")
+        h4: b MATRIX VIEWER
+        p Drag/drop an OMX file to display table data on this map.
+      .click-zone-hint.flex-col(v-if="activeTable && !activeZone")
         h4: b MATRIX VIEWER
         p Click on the map to select the row/column of interest.
         p This map view can display
@@ -153,28 +156,33 @@ const MyComponent = defineComponent({
   name: 'H5MapViewer',
   components: { LegendColors, ZoneLayer, BackgroundMapOnTop, ZoomButtons },
   props: {
-    fileApi: { type: Object as PropType<HTTPFileSystem> },
-    fileSystem: { required: true, type: Object },
+    activeTable: String,
     config: String,
-    subfolder: String,
+    fileApi: { type: Object as PropType<HTTPFileSystem> },
+    filenameShapes: String,
+    fileSystem: { required: true, type: Object },
+    isInvertedColor: Boolean,
+    mapConfig: { type: Object as PropType<MapConfig>, required: true },
     matrixSize: { required: true, type: Number },
     matrices: { required: true, type: Object as PropType<{ [key: string]: Matrix }> },
-    filenameShapes: String,
-    thumbnail: Boolean,
-    isInvertedColor: Boolean,
+    row2zone: { type: String, required: true },
     shapes: { type: Array, required: true },
-    mapConfig: { type: Object as PropType<MapConfig>, required: true },
+    subfolder: String,
+    userSuppliedZoneID: String,
     zoneSystems: { type: Object as PropType<ZoneSystems>, required: true },
     tazToOffsetLookup: {
-      type: Object as PropType<{ [taz: number | string]: number }>,
+      type: Object as PropType<{
+        [lookupkey: string]: {
+          offset2zone: number[]
+          zone2offset: { [taz: number | string]: number }
+        }
+      }>,
       required: true,
     },
-    userSuppliedZoneID: String,
   },
 
   data() {
     return {
-      activeTable: null as null | { key: string; name: string },
       activeZone: null as any,
       activeZoneFeature: null as any,
       altZone: -1,
@@ -231,8 +239,7 @@ const MyComponent = defineComponent({
       this.activeZone = `${this.$route.query.zone}`
       this.tazInputBoxChanged()
     } else {
-      let startOffset = (localStorage.getItem('matrix-start-taz-offset') ||
-        this.tazToOffsetLookup['1']) as any
+      let startOffset = parseInt(localStorage.getItem('matrix-start-taz-offset') || '0')
       if (startOffset !== undefined && this.features[startOffset]) {
         this.clickedZone({ index: startOffset, properties: this.features[startOffset].properties })
       }
@@ -288,7 +295,6 @@ const MyComponent = defineComponent({
     },
 
     tsort(col: number) {
-      console.log('sort', col)
       if (col == Math.abs(this.sortColumn)) {
         this.sortColumn *= -1
       } else {
@@ -334,9 +340,11 @@ const MyComponent = defineComponent({
 
       console.log('---extract h5 slice for zone', this.activeZone)
 
-      //TODO FIX THIS - all zone systems will not be forever 1-based monotonically increasing
-      let offset = this.tazToOffsetLookup[this.activeZone] // this.activeZone - 1
-      // try {
+      // Figure out the zone-number-to-row-offset
+      const offsetLookup = this.tazToOffsetLookup[this.row2zone]
+      // if we don't have a row lookup, use (zone number-1) as the offset
+      let offset = offsetLookup ? offsetLookup.zone2offset[this.activeZone] : this.activeZone - 1
+
       let values = [] as any
       let base = [] as any
       let diff = [] as any
@@ -373,8 +381,12 @@ const MyComponent = defineComponent({
 
       await this.setInitialColorsForArray()
 
-      // create array of pretty values: each i-element is [value, base, diff]
-      const pvs = this.setPrettyValuesForArray(values).map((v, i) => [i + 1, v])
+      // create array of pretty values: each i-element is [TAZnumber, value, base, diff]
+      const pvs = this.setPrettyValuesForArray(values).map((value, i) => [
+        offsetLookup ? offsetLookup.offset2zone[i] : i + 1,
+        value,
+      ])
+
       if (this.matrices.diff) {
         const b = this.setPrettyValuesForArray(base)
         const d = this.setPrettyValuesForArray(diff)
@@ -384,7 +396,8 @@ const MyComponent = defineComponent({
         })
       }
       this.prettyDataArray = pvs
-      // console.log({ prettyValues: this.prettyDataArray })
+      this.tsort(0) // sort by zone number
+      this.showTooltip({ index: 0, object: this.activeZoneFeature, x: 0, y: 0 })
     },
 
     dividerDragStart(e: MouseEvent) {
@@ -422,7 +435,7 @@ const MyComponent = defineComponent({
     },
 
     showTooltip(props: { index: number; object: any; x: number; y: number }) {
-      const { index, object, x, y } = props
+      const { object, x, y } = props
       const id = object?.properties[this.zoneID]
 
       if (id === undefined) {
@@ -432,9 +445,9 @@ const MyComponent = defineComponent({
 
       let html = [] as any[]
 
-      //TODO fix this!
-      const value = this.dataArray[id - 1]
-      let tableName = this.activeTable?.name || this.activeTable?.key || 'Value'
+      const offset = this.tazToOffsetLookup[this.row2zone]?.zone2offset[id] || id - 1
+      const value = this.dataArray[offset]
+      let tableName = 'Value'
       if (tableName.indexOf('•') > -1) tableName = tableName.substring(1 + tableName.indexOf('•'))
       tableName = tableName.replaceAll('&nbsp;', '')
 
@@ -443,9 +456,7 @@ const MyComponent = defineComponent({
         return
       }
 
-      this.tooltipStyle = { left: `${x + 12}px`, top: `${y + 12}px` }
-
-      // console.log({ value, tableName })
+      if (x && y) this.tooltipStyle = { left: `${x + 12}px`, top: `${y + 12}px` }
 
       if (this.mapConfig.isRowWise) {
         html.push(`<p><b>Row ${this.activeZone} Col ${id}</b></p>`)
@@ -457,7 +468,6 @@ const MyComponent = defineComponent({
       const prettyValues = this.setPrettyValuesForArray([value])
 
       html.push(`<p>${tableName} ${prettyValues[0]}</p>`)
-
       this.tooltip = html.join('\n')
     },
 
@@ -504,13 +514,9 @@ const MyComponent = defineComponent({
       return pretty
     },
 
-    clickedTable(table: { key: string; name: string }) {
-      this.activeTable = table
-    },
-
     clickedZone(zone: { index: number; properties: any }) {
       // ignore double clicks and same-clicks
-      if (zone.properties[this.zoneID] == this.activeZone) return
+      // if (zone.properties[this.zoneID] == this.activeZone) return
 
       console.log('NEW ZONE: index ', zone.index, 'zone', zone.properties[this.zoneID])
 
@@ -529,6 +535,7 @@ const MyComponent = defineComponent({
         const v = values[i]
 
         if (this.filteredValues.has(v)) continue
+        if (!Number.isFinite(v)) continue
 
         min = Math.min(min, v)
         max = Math.max(max, v)
@@ -587,15 +594,14 @@ const MyComponent = defineComponent({
       if (props.domain) this.d3ColorThresholds.domain(props.domain)
 
       const values = this.dataArray
+      const offsetLookup = this.tazToOffsetLookup[this.row2zone]
 
       for (let i = 0; i < this.features.length; i++) {
         try {
           const TAZ = this.features[i].properties[this.zoneID]
-          const matrixOffset = this.tazToOffsetLookup[TAZ]
-
-          // ALWAYS scale by max value
+          const matrixOffset = offsetLookup ? offsetLookup.zone2offset[TAZ] : TAZ - 1
           let value = values[matrixOffset]
-          const color = Number.isNaN(value) ? [255, 40, 40] : this.d3ColorThresholds(value)
+          const color = Number.isFinite(value) ? this.d3ColorThresholds(value) : [255, 40, 40]
           this.features[i].properties.color = color || [40, 40, 40]
         } catch (e) {
           console.warn('BAD', i, this.features[i].properties)
@@ -628,7 +634,7 @@ const MyComponent = defineComponent({
       if (this.filterText) query.filter = this.filterText
 
       if (query.breakpoints || includeBreakpoints) {
-        query.breakpoints = this.colorThresholds.breakpoints.join(',')
+        query.breakpoints = this.colorThresholds?.breakpoints?.join(',')
       }
 
       this.$router.replace({ query }).catch(() => {})
@@ -646,6 +652,14 @@ const MyComponent = defineComponent({
       console.log('ZONE SYSTEM', zoneSystem)
       // which column has the TAZ ID
       this.zoneID = zoneSystem.lookup
+      // which lookup has the ROW OFFSET LOOKUP or just blank if there isn't one
+      let whichLookup = zoneSystem.rowlookup || ''
+      if (whichLookup) whichLookup = `/lookup/${whichLookup}`
+
+      if (!whichLookup && Object.keys(this.tazToOffsetLookup).length == 1) {
+        whichLookup = Object.keys(this.tazToOffsetLookup)[0]
+      }
+      this.$emit('rowlookup', whichLookup)
 
       // Flask filesystems offer some GEOJSON-only zone systems
       if (zoneSystem.flask) {
@@ -879,7 +893,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   position: relative;
 }
 
-.left-bar {
+.mside-bar {
   z-index: 10;
   color: var(--text);
   background-color: var(--bgPanel);

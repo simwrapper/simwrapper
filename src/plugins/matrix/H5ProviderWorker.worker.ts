@@ -15,6 +15,7 @@ import { Matrix } from './MatrixViewer.vue'
 export interface H5Catalog {
   catalog: string[]
   shape: number[]
+  lookups: string[]
 }
 
 const H5Provider = {
@@ -27,6 +28,7 @@ const H5Provider = {
   size: 0,
   tableKeys: [] as { key: string; name: string }[],
   token: '',
+  lookupKeys: [] as string[],
 
   /**
    * Sets up the path, shape, and catalog of matrices
@@ -60,6 +62,23 @@ const H5Provider = {
 
   async getSize() {
     return this.size
+  },
+
+  async getLookups(): Promise<string[]> {
+    return this.lookupKeys
+  },
+
+  async getLookup(key: string) {
+    if (this.fileSystem?.flask) {
+      const simpleKey = key.substring(key.lastIndexOf('/') + 1)
+      const lookup = await this._getLookupFromOMXApi(simpleKey)
+      return lookup
+    } else {
+      if (!this.h5fileApi) return null
+      let dataset = await this.h5fileApi.getEntity(key)
+      let data = await this.h5fileApi.getValue({ dataset } as any)
+      return { data }
+    }
   },
 
   async getDataArray(tableName: string) {
@@ -118,6 +137,7 @@ const H5Provider = {
       this.tableKeys = this.catalog.map(key => {
         return { key, name: key }
       })
+      this.lookupKeys = props.lookups.map(key => `/lookup/${key}`)
     }
   },
 
@@ -135,11 +155,16 @@ const H5Provider = {
     // pretty sort them the way humans like them
     keys.sort((a: any, b: any) => naturalSort(a, b))
 
-    // remove folder prefixes
-    let tableKeys = keys.map(key => {
-      const name = key.indexOf('/') > -1 ? key.substring(1 + key.lastIndexOf('/')) : key
-      return { key, name }
-    })
+    // hang onto lookups
+    this.lookupKeys = keys.filter(k => k.startsWith('/lookup/'))
+
+    // remove lookups and folder prefixes
+    let tableKeys = keys
+      .filter(key => !key.startsWith('/lookup/'))
+      .map(key => {
+        const name = key.indexOf('/') > -1 ? key.substring(1 + key.lastIndexOf('/')) : key
+        return { key, name }
+      })
 
     // if there are "name" properties, use them
     for (const table of tableKeys) {
@@ -181,7 +206,6 @@ const H5Provider = {
   },
 
   async _getOmxPropsFromOmxAPI() {
-    console.log('OMX')
     if (!this.fileSystem) throw Error('H5Provider needs FileAPI FileSystem')
 
     let url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.path}`
@@ -196,16 +220,30 @@ const H5Provider = {
       return null
     }
     const omxHeader: H5Catalog = await response.json()
-    console.log(omxHeader)
     return omxHeader
   },
 
+  async _getLookupFromOMXApi(key: string) {
+    if (!key) return { data: [] as number[] }
+    if (!this.fileSystem) throw Error('H5Provider needs FileAPI FileSystem')
+
+    let cleanKey = key.substring(key.lastIndexOf('/') + 1)
+    let url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.path}&lookup=${cleanKey}`
+    const headers = {} as any
+    headers['AZURETOKEN'] = this.token
+
+    const response = await fetch(url, { headers })
+    const json = await response.json()
+    return { data: json }
+  },
+
   // OMX API - fetch raw data from API instead of from HDF5 file
-  async _getMatrixFromOMXApi(table: string): Promise<Matrix> {
+  async _getMatrixFromOMXApi(table: string, lookup = false): Promise<Matrix> {
     if (!table) return { data: [] as number[], table, path: this.path }
     if (!this.fileSystem) throw Error('H5Provider needs FileAPI FileSystem')
 
-    let url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.path}&table=${table}`
+    let which = lookup ? 'lookup' : 'table'
+    let url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.path}&${which}=${table}`
 
     const headers = {} as any
     headers['AZURETOKEN'] = this.token
@@ -244,7 +282,7 @@ const H5Provider = {
     const key = t[0].key
 
     let dataset = await this.h5fileApi.getEntity(key)
-    let data = (await this.h5fileApi.getValue({ dataset } as any)) as Float32Array
+    let data = await this.h5fileApi.getValue({ dataset } as any)
 
     return { data, table: tableName, path: this.path }
   },
