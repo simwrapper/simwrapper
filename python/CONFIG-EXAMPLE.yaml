@@ -10,8 +10,8 @@
 
 storage:
   data:
-    path: '/data'
-    description: 'Local data from this server'
+    path: '/data/model-runs'
+    description: 'Local model run folder from this server'
 
 # --- ZONAL GEOJSON BOUNDARIES ---
 # You can supply your own GeoJSON-format boundary files here.
@@ -19,16 +19,15 @@ storage:
 # and the matrix sizes that map to these boundaries.
 # Supply as many as you like with different key names.
 
-#zones:
-#  MY_ZONES:
-#    file: './myboundaries.geojson.gz'
-#    lookup: 'TAZ'
-#    sizes: 1500,2000
+zones:
+  MY_ZONES:
+    file: '/data/zonesystems/TAZ.geojson'
+    sizes: 9999
+    lookup: 'TAZ'
+    rowlookup: 'ZoneID'
 
 # --- FRONT-PAGE TEXT -------------
-
 tagline: 'Transport simulation data visualizer'
-
 # Optional readme can be either a .md markdown filename,
 # or you can put markdown text directly in this file with "readme: |"
 # readme: |

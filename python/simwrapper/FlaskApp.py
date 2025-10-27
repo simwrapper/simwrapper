@@ -14,7 +14,7 @@
 import os
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 
-import sys,pprint
+import sys,pprint,json
 import yaml
 import logging
 from os.path import exists
@@ -178,23 +178,39 @@ class Omx(Resource):
         try:
             omx_file = omx.open_file(path, 'r')
         except Exception as e:
-            return f"Error opening OMX file {path}", 400
+            return f"OMX could not open file. Is it there? Is it OMX? {path}", 415
 
         # 2. Is it Real OMX or is it Fake OMX?
         if 'OMX_VERSION' not in omx_file.root._v_attrs:
             omx_file.close()
             omx_file = SimpleH5File.open_file(path, 'r')
 
+        # 3. If user wants the lookup mappings, oblige
+        if 'lookup' in request.args:
+            key = request.args['lookup']
+            entries = []
+            entries = omx_file.map_entries(key)
+            json_array = [int(x) for x in entries]
+            # except:
+            #     return f"Error retrieving zone mapping: {key}", 416
+            # finally:
+            omx_file.close()
+            return json_array, 200
+
         # 5. If user merely asked for the file, send the catalog (not the file itself)
         if 'table' not in request.args:
             try:
                 catalog = omx_file.list_matrices()
+                lookups = omx_file.list_mappings()
                 shape = omx_file.shape()
             except:
                 return f"File found but error retrieving catalog/shape", 416
             finally:
                 omx_file.close()
-            return {'catalog': catalog, 'shape': [int(shape[0]), int(shape[1])]}, 200
+            return {
+                'catalog': catalog,
+                'shape': [int(shape[0]), int(shape[1])],
+                'lookups':lookups}, 200
 
         # 6. send the table user requested
         try:
@@ -281,7 +297,12 @@ def setupConfiguration(config, port):
                 STORAGE_ROOTS = YAML["storage"]
 
             for root in STORAGE_ROOTS:
+                # make sure we can open the path
+                if not exists(STORAGE_ROOTS[root]["path"]):
+                    raise Exception(f"\n\n** ABORT: CANNOT READ PATH FOR {root}: {STORAGE_ROOTS[root]["path"]}")
+
                 STORAGE[root] = '' + STORAGE_ROOTS[root]["path"]
+
             # putting this here, but the website will replace the path given
             # with the window href location. That way, whatever URL/ipaddr the
             # user entered to reach the flask server will be used.
