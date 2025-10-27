@@ -2302,6 +2302,7 @@ h4 {
   pointer-events: auto;
   background-color: var(--bgPanel3);
   padding: 0 0.25rem;
+  overflow-y: auto;
 }
 
 .nav {

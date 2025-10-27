@@ -1,5 +1,4 @@
 <template lang="pug">
-
 .link-volume-plot(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}'
         oncontextmenu="return false")
@@ -68,7 +67,6 @@
         //- )
       .status-message(v-if="myState.statusMessage")
         p {{ myState.statusMessage }}
-
 
 </template>
 

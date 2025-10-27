@@ -1,7 +1,7 @@
 <template lang="pug">
 .deck-map.flex-col
   .map-container(:id="`map-${viewId}`")
-  .deck-tooltip(v-html="tooltipHTML" :style="tooltipStyle")
+  .deck-tooltip(v-if="tooltipHTML" v-html="tooltipHTML" :style="tooltipStyle")
 </template>
 
 <script lang="ts">
