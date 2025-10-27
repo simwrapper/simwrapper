@@ -140,7 +140,7 @@
   },
   "devDependencies": {
     "@babel/preset-env": "^7.16.5",
-    "@playwright/test": "^1.54.2",
+    "@playwright/test": "^1.56.1",
     "@types/color-string": "^1.5.5",
     "@types/d3-array": "^3.0.2",
     "@types/d3-color": "^3.0.2",
@@ -193,6 +193,6 @@
     "threads-plugin": "^1.4.0",
     "typescript": "^4.2.0",
     "unplugin-vue-markdown": "^0.26.2",
-    "vite": "^6.3.5"
+    "vite": "^6.4.1"
   }
 }
