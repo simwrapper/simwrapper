@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.3.6](https://github.com/simwrapper/simwrapper/compare/v4.3.5...v4.3.6) (2025-10-27)
+
+
+### Bug Fixes
+
+* **matrix:** Support zone-lookup tables and 32-bit datasets (i.e. TransCAD) ([94c88c2](https://github.com/simwrapper/simwrapper/commit/94c88c265f0a11b093309fe117296d3f02856d71))
+
 ### [4.3.5](https://github.com/simwrapper/simwrapper/compare/v4.3.3...v4.3.5) (2025-10-24)
 
 
