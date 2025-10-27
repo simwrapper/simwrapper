@@ -167,6 +167,7 @@ export interface FileSystemConfig {
   handle?: FileSystemAPIHandle
   example?: boolean
   isGithub?: boolean
+  isZIB?: boolean
   flask?: boolean // Flask filesystem supports OMX open matrix API - see https://github.com/simwrapper/omx-server
 }
 
@@ -179,6 +180,9 @@ export interface VisualizationPlugin {
 export interface DirectoryEntry {
   files: string[]
   dirs: string[]
+  // for LakeFS:
+  fileLinks?: string[]
+  // for Chrome Files
   handles: { [name: string]: FileSystemAPIHandle }
 }
 
