@@ -2,19 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-### [4.3.6](https://github.com/simwrapper/simwrapper/compare/v4.3.5...v4.3.6) (2025-10-27)
-
+### [4.3.7](https://github.com/simwrapper/simwrapper/compare/v4.3.6...v4.3.7) (2025-10-27)
 
 ### Bug Fixes
 
-* **matrix:** Support zone-lookup tables and 32-bit datasets (i.e. TransCAD) ([94c88c2](https://github.com/simwrapper/simwrapper/commit/94c88c265f0a11b093309fe117296d3f02856d71))
+- **matrix:** Support zone-lookup tables and 32-bit datasets (i.e. TransCAD) ([94c88c2](https://github.com/simwrapper/simwrapper/commit/94c88c265f0a11b093309fe117296d3f02856d71))
 
 ### [4.3.5](https://github.com/simwrapper/simwrapper/compare/v4.3.3...v4.3.5) (2025-10-24)
 
-
 ### Bug Fixes
 
-* **matrix:** Support float32, float64, and int8 matrix table formats ([2813d2d](https://github.com/simwrapper/simwrapper/commit/2813d2df20c69987da26aae3b75b173e712a720d))
+- **matrix:** Support float32, float64, and int8 matrix table formats ([2813d2d](https://github.com/simwrapper/simwrapper/commit/2813d2df20c69987da26aae3b75b173e712a720d))
 
 ### [4.3.3](https://github.com/simwrapper/simwrapper/compare/v4.3.2...v4.3.3) (2025-10-22)
 
