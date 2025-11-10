@@ -266,32 +266,18 @@ export default defineComponent({
     },
 
     gotData(event: any) {
-      console.log('GOT DATA', event.data)
-      const df = event.data.data
-      if (!df) return
-      console.log({ df })
-
-      const points = df.points
-      const features = points.map((point: any) => {
-        return {
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [point.lng, point.lat],
-          },
-          properties: { HHs: point.HHs },
-        }
-      })
+      const xferdata = event.data.data
+      if (!xferdata) return
 
       this.panel = {
         component: 'area-map',
         props: {
           root: 'local',
           subfolder: '',
-          configFromDashboard: Object.assign({ features }, event.data.config),
+          configFromDashboard: Object.assign({ xferdata }, event.data.config),
         },
       }
-      console.log('ALLDONE', this.panel)
+      // console.log('ALLDONE', this.panel)
     },
   },
 

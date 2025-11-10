@@ -170,7 +170,7 @@ import {
   Status,
 } from '@/Globals'
 
-import { debounce } from '@/js/util'
+import { debounce, gUnzip } from '@/js/util'
 import Geotools from '@/js/geo-utils'
 import GeojsonLayer from './DeckMapComponent.vue'
 import ColorWidthSymbologizer, { buildRGBfromHexCodes } from '@/js/ColorsAndWidths'
@@ -873,6 +873,13 @@ const MyComponent = defineComponent({
 
       if (!this.vizDetails.backgroundLayers) this.vizDetails.backgroundLayers = {}
 
+      // fix tooltip string
+      if (typeof this.vizDetails.tooltip == 'string') {
+        const tips = (this.vizDetails.tooltip as string).split(',').map(t => t.trim())
+        this.vizDetails.tooltip = tips
+        this.config.tooltip = tips
+      }
+
       const t = this.vizDetails.title || 'Map'
       this.$emit('title', t)
     },
@@ -1148,7 +1155,8 @@ const MyComponent = defineComponent({
       const { dataTable, datasetId, dataJoinColumn } = props
 
       let delim = ':'
-      const tips = this.vizDetails.tooltip || []
+      let tips = this.vizDetails.tooltip || []
+      if (tips instanceof String) tips = tips.split(',').map(t => t.trim())
       if (tips.length) delim = tips[0].indexOf(':') > -1 ? ':' : '.'
 
       // user specified no tooltips, but we can help them by adding
@@ -2294,7 +2302,10 @@ const MyComponent = defineComponent({
         } else if (filename.startsWith('http')) {
           // geojson from url!
           console.log('--HTTP to JSON file')
-          boundaries = (await fetch(filename).then(async r => await r.json())).features
+          const blob = await fetch(filename).then(async r => await r.blob())
+          const unzipped = await blob.arrayBuffer().then(buf => gUnzip(buf))
+          const text = new TextDecoder().decode(unzipped)
+          boundaries = JSON.parse(text).features
         } else if (filename.toLocaleLowerCase().endsWith('.shp')) {
           // shapefile!
           console.log('--SHP')
@@ -2674,6 +2685,32 @@ const MyComponent = defineComponent({
         if (key in this.datasets) continue
 
         await this.loadDataset(key)
+      }
+
+      // Load XFERDATA: data passed in from Quarto (etc)
+      if (this.config.xferdata) {
+        for (const datatable in this.config.xferdata) {
+          console.log('XFERDATA --' + datatable)
+          const dt: DataTable = {}
+          for (const col in this.config.xferdata[datatable]) {
+            const values = this.config.xferdata[datatable][col]
+            const t = Number.isFinite(values[0]) ? DataType.NUMBER : DataType.STRING
+            dt[col] = {
+              name: col,
+              type: t,
+              values,
+            }
+          }
+          this.myDataManager.setPreloadedDataset({ key: datatable, dataTable: dt })
+          this.datasets[datatable] = dt
+          this.myDataManager.addFilterListener(
+            { dataset: datatable, subfolder: this.subfolder },
+            this.processFiltersNow
+          )
+        }
+        delete this.config.xferdata
+        // and features need a join too
+        this.featureJoinColumn = this.config.geojson.join
       }
     },
 
