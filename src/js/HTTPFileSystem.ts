@@ -43,6 +43,7 @@ class HTTPFileSystem {
   private isZIB: boolean
   private isFlask: boolean
   private type: FileSystemType
+  private fileLinkLookup: any = {}
 
   constructor(project: FileSystemConfig, store?: any) {
     this.urlId = project.slug
@@ -134,8 +135,8 @@ class HTTPFileSystem {
     betterPath = scaryPath.replaceAll('//', '/')
     console.log({ betterPath })
     let path = this.baseUrl + betterPath
-    if (path.endsWith('/')) path = path.slice(0, -2)
-    console.log({ path })
+    if (path.endsWith('/')) path = path.slice(0, -1)
+    // console.log({ scaryPath, path })
     // ---LAKEFS: no extra headers!
     // const headers: any = {}
     // if (options?.maxBytes) headers.Range = `bytes=0-${options.maxBytes - 1}`
@@ -144,6 +145,11 @@ class HTTPFileSystem {
     // if (this.needsAuth) headers['Authorization'] = `Basic ${credentials}`
 
     // const myRequest = new Request(path, { headers })
+
+    const justFileName = betterPath.slice(betterPath.lastIndexOf('/') + 1)
+    const lookup = this.fileLinkLookup[justFileName]
+    if (lookup) path = lookup
+    console.log({ lookup })
 
     const response = await fetch(path).then(response => {
       // Check HTTP Response code: 200 is OK, everything else is a problem
@@ -615,7 +621,6 @@ class HTTPFileSystem {
     const response = await this._getFileResponse(stillScaryPath)
     // console.log(response)
     const htmlListing = await response.text()
-    // console.log(htmlListing)
     const dirEntry = this.buildListFromHtml(htmlListing)
     return dirEntry
   }
@@ -678,12 +683,12 @@ class HTTPFileSystem {
   }
 
   private buildListFromHtml(data: string): DirectoryEntry {
+    if (data.indexOf('<title>lakeFS File Browser') > -1) return this.buildListFromLakeFS(data)
     if (data.indexOf('SimpleWebServer') > -1) return this.buildListFromSimpleWebServer(data)
     if (data.indexOf('<ul>') > -1) return this.buildListFromSVN(data)
     if (data.indexOf('<ul id="files">') > -1) return this.buildListFromNpxServe(data)
     if (data.indexOf('<table>') > -1) return this.buildListFromApache24(data)
     if (data.indexOf('\n<a ') > -1) return this.buildListFromNGINX(data)
-    if (data.indexOf('<title>lakeFS File Browser') > -1) return this.buildListFromLakeFS(data)
 
     return { dirs: [], files: [], handles: {} }
   }
@@ -693,7 +698,7 @@ class HTTPFileSystem {
     const linkregex = /href="(.*?)" target/
     const dirs = [] as string[]
     const files = [] as string[]
-    const fileLinks = [] as string[]
+    // const fileLinks = [] as string[]
 
     const lines = data.split('\n')
     const entries = lines.filter(line => line.startsWith('<li>'))
@@ -707,18 +712,19 @@ class HTTPFileSystem {
       const name = entry[1] // regex returns first match in [1]
 
       if (line.startsWith('<li>[DIR]')) {
-        dirs.push(name.substring(0, name.length - 1))
+        dirs.push(name.substring(0, name.length))
       } else {
         const filenames = line.match(linkregex)
         if (!filenames) return
         const fileLink = filenames[1]
         files.push(name)
-        fileLinks.push(fileLink)
+        this.fileLinkLookup[name] = fileLink
+        // fileLinks.push(fileLink)
       }
     })
 
-    console.log({ dirs, files, fileLinks })
-    return { dirs, files, fileLinks, handles: {} }
+    console.log({ dirs, files, lookup: this.fileLinkLookup })
+    return { dirs, files, handles: {} }
   }
 
   private buildListFromSimpleWebServer(data: string): DirectoryEntry {

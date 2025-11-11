@@ -138,7 +138,7 @@ let fileSystems: FileSystemConfig[] = [
     hidden: true,
     slug: 'vsp-zib',
     description: 'Public VSP data at Zuse Institute Berlin',
-    baseURL: 'https://download.lake-daki.zib.de/?PATH=vsp&dir=matsim%2Fcountries',
+    baseURL: 'https://download.lake-daki.zib.de/?PATH=vsp&dir=matsim',
     isZIB: true,
     // 'https://download.lake-daki.zib.de/?PATH=vsp&dir=matsim%2Fcountries%2Fde%2Fberlin%2Fberlin-v6.4%2Foutput%2Fberlin-v6.4-10pct',
   },
