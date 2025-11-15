@@ -665,6 +665,8 @@ const MyComponent = defineComponent({
       columns = columns.filter(m => !hide.has(m))
 
       if (this.vizDetails.tooltip?.length) {
+        // ok atually just scrub everything we just did, if user told us what they want
+        propList.length = 0
         const delim = this.vizDetails.tooltip[0].indexOf(':') > -1 ? ':' : '.'
         columns = this.vizDetails.tooltip.map(tip => tip.substring(tip.indexOf(delim) + 1))
       }
