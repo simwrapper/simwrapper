@@ -610,33 +610,31 @@ const MyComponent = defineComponent({
 
       this.wantToClearTooltip = false
       const PRECISION = 4
-      const propList = []
+      let propList = []
 
-      // normalized value first
-      if (this.dataNormalizedValues) {
-        const label = this.dataCalculatedValueLabel ?? 'Normalized Value'
-        let value = this.truncateFractionalPart(this.dataNormalizedValues[index], PRECISION)
-
-        propList.push(
-          `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>`
-        )
-      }
-
-      // calculated value
-      if (this.dataCalculatedValues) {
-        let cLabel = this.dataCalculatedValueLabel ?? 'Value'
-
-        const label = this.dataNormalizedValues
-          ? cLabel.substring(0, cLabel.lastIndexOf('/'))
-          : cLabel
-
-        let value = this.truncateFractionalPart(this.dataCalculatedValues[index], PRECISION)
-        if (this.dataCalculatedValueLabel.startsWith('%')) value = `${value} %`
-
-        propList.push(
-          `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>
-         <tr><td>&nbsp;</td></tr>`
-        )
+      // If user DID NOT provide any tooltip settings, show some useful things:
+      if (!this.vizDetails.tooltip?.length) {
+        // normalized value first
+        if (this.dataNormalizedValues) {
+          const label = this.dataCalculatedValueLabel || 'Normalized Value'
+          let value = this.truncateFractionalPart(this.dataNormalizedValues[index], PRECISION)
+          propList.push(
+            `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>`
+          )
+        }
+        // calculated value
+        if (this.dataCalculatedValues) {
+          let cLabel = this.dataCalculatedValueLabel || 'Value'
+          const label = this.dataNormalizedValues
+            ? cLabel.substring(0, cLabel.lastIndexOf('/'))
+            : cLabel
+          let value = this.truncateFractionalPart(this.dataCalculatedValues[index], PRECISION)
+          if (this.dataCalculatedValueLabel.startsWith('%')) value = `${value} %`
+          propList.push(
+            `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>
+            <tr><td>&nbsp;</td></tr>`
+          )
+        }
       }
 
       // --- dataset tooltip lines ---
@@ -665,13 +663,11 @@ const MyComponent = defineComponent({
       columns = columns.filter(m => !hide.has(m))
 
       if (this.vizDetails.tooltip?.length) {
-        // ok atually just scrub everything we just did, if user told us what they want
-        propList.length = 0
         const delim = this.vizDetails.tooltip[0].indexOf(':') > -1 ? ':' : '.'
         columns = this.vizDetails.tooltip.map(tip => tip.substring(tip.indexOf(delim) + 1))
       }
 
-      // nice sort order
+      // nice sort order puts useful network fields at the top
       const sortColumns = ['id', 'from', 'to', ...columns]
 
       let featureProps = ''
@@ -835,7 +831,7 @@ const MyComponent = defineComponent({
         display: { fill: {} as any },
       }
 
-      // are we in a dashboard?
+      // are we in a dashboard? also EMBED maps come from here:
       if (this.configFromDashboard) {
         this.config = JSON.parse(JSON.stringify(this.configFromDashboard))
         this.vizDetails = Object.assign({}, emptyState, this.configFromDashboard)
@@ -1566,7 +1562,7 @@ const MyComponent = defineComponent({
       if (rgbArray) {
         this.dataFillColors = rgbArray
         this.dataCalculatedValues = calculatedValues
-        this.dataNormalizedValues = calculatedValues || null
+        this.dataNormalizedValues = null
         this.isRGBA = isRGBA
         this.showLegend = true
         this.legendStore.setLegendSection({
@@ -1724,14 +1720,14 @@ const MyComponent = defineComponent({
           join: color.join,
         }) as any
 
-        const { rgbArray, legend, calculatedValues } = result
+        const { rgbArray, legend, calculatedValues, normalizedValues } = result
 
         if (!rgbArray) return
 
         this.dataLineColors = rgbArray
 
         this.dataCalculatedValues = calculatedValues
-        this.dataNormalizedValues = calculatedValues || null
+        this.dataNormalizedValues = normalizedValues || null
 
         // If colors are based on category and line widths are constant, then use a
         // 1-pixel line width when the category is undefined.

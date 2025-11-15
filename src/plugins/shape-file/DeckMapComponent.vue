@@ -106,7 +106,6 @@ export default defineComponent({
         incoming.pitch !== this.mymap?.getPitch() ||
         incoming.bearing !== this.mymap?.getBearing()
       ) {
-        console.log('JUMPING')
         const jump = Object.assign(
           { center: { lng: incoming.longitude, lat: incoming.latitude } },
           incoming
@@ -319,7 +318,9 @@ export default defineComponent({
             getElevation: this.cbFillHeight,
             // settings: ------------------------
             extruded: !!this.fillHeights,
-            highlightedObjectIndex: this.highlightedLinkIndex,
+            highlightedObjectIndex:
+              this.highlightedLinkIndex == -1 ? null : this.highlightedLinkIndex,
+            autoHighlight: true,
             highlightColor: [255, 255, 255, 160],
             lineWidthUnits: 'pixels',
             lineWidthScale: 1,
@@ -332,8 +333,8 @@ export default defineComponent({
             pointRadiusMinPixels: 2,
             // pointRadiusMaxPixels: 50,
             stroked: this.isStroked,
-            useDevicePixels: this.isTakingScreenshot,
-            fp64: false,
+            // useDevicePixels: this.isTakingScreenshot,
+            // fp64: false,
             // material: false,
             updateTriggers: {
               getFillColor: this.fillColors,
@@ -473,26 +474,6 @@ export default defineComponent({
       }
       globalStore.commit('setMapCamera', view)
     },
-
-    // oldgetTooltip(tip: { x: number; y: number; object: any }) {
-    //   console.log('tip', tip)
-    //   const { x, y, object } = tip
-
-    //   if (!object || !object.position || !object.position.length) {
-    //     this.tooltipStyle.display = 'none'
-    //     return
-    //   }
-
-    //   const lat = object.position[1]
-    //   const lng = object.position[0]
-    //   const html = `\
-    //     <b>tooltip</b> \
-    //   `
-    //   this.tooltipStyle.display = 'block'
-    //   this.tooltipStyle.top = `${y + 12}px`
-    //   this.tooltipStyle.left = `${x + 12}px`
-    //   this.tooltipHTML = html
-    // },
 
     getTooltip({ object, index }: { object: any; index: number }) {
       let offset = index
