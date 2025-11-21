@@ -7,8 +7,6 @@
         :negativeValues="valuesIncludeNeg"
       )
 
-      //- background-map-on-top(v-if="isLoaded && guiConfig.height == 0")
-
       zoom-buttons(v-if="!thumbnail && isLoaded" corner="top-left")
 
       .top-right
@@ -52,7 +50,6 @@ import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import Coords from '@/js/Coords'
 
-import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
@@ -186,7 +183,6 @@ const GridMap = defineComponent({
   name: 'GridMapPlugin',
   i18n,
   components: {
-    BackgroundMapOnTop,
     CollapsiblePanel,
     DrawingTool,
     MapComponent,
