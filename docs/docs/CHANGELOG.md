@@ -14,9 +14,29 @@ The SimWrapper code repository is open source and you can find the full commit h
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.3.8](https://github.com/simwrapper/simwrapper/compare/v4.3.7...v4.3.8) (2025-11-19)
+
+
+### Bug Fixes
+
+* **maps:** Hover highlight sometimes missing from polygon maps ([d59acfa](https://github.com/simwrapper/simwrapper/commit/d59acfa898e9e6ea34472d60a7dbb5c7fb9e1228))
+* **maps:** If user supplied tooltip config, don't show anything except what they provided ([52b6c0c](https://github.com/simwrapper/simwrapper/commit/52b6c0c64285d6c4f9a5272adab8e50a9e886c3d))
+
+### [4.3.7](https://github.com/simwrapper/simwrapper/compare/v4.3.6...v4.3.7) (2025-10-27)
+
+### Bug Fixes
+
+- **matrix:** Support zone-lookup tables and 32-bit datasets (i.e. TransCAD) ([94c88c2](https://github.com/simwrapper/simwrapper/commit/94c88c265f0a11b093309fe117296d3f02856d71))
+
+### [4.3.5](https://github.com/simwrapper/simwrapper/compare/v4.3.3...v4.3.5) (2025-10-24)
+
+### Bug Fixes
+
+- **matrix:** Support float32, float64, and int8 matrix table formats ([2813d2d](https://github.com/simwrapper/simwrapper/commit/2813d2df20c69987da26aae3b75b173e712a720d))
+
 ### [4.3.3](https://github.com/simwrapper/simwrapper/compare/v4.3.2...v4.3.3) (2025-10-22)
 
-- Changes only in Python packaging: fixes bug in Windows share paths using "simwrapper run" tool
+- Changes only in Python packaging
 
 ## [4.3.0](https://github.com/simwrapper/simwrapper/compare/v4.2.0...v4.3.0) (2025-10-22)
 
