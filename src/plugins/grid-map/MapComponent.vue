@@ -1,7 +1,7 @@
 <template lang="pug">
 .deck-map.flex-col
   .map-container(:id="`map-${viewId}`")
-  .deck-tooltip(v-html="tooltipHTML" :style="tooltipStyle")
+  .deck-tooltip(v-show="tooltipHTML" v-html="tooltipHTML" :style="tooltipStyle")
 </template>
 
 <script lang="ts">
@@ -99,18 +99,6 @@ export default defineComponent({
   },
 
   computed: {
-    colors(): any[] {
-      const c = colormap({
-        colormap: this.colorRamp,
-        nshades: 10,
-        format: 'rba',
-        alpha: 1,
-      }).map((c: number[]) => [c[0], c[1], c[2]])
-      return c
-      // if (!this.dark) c.reverse()
-      // return c.slice(1)
-    },
-
     rowData() {
       return this.data
     },
@@ -138,24 +126,27 @@ export default defineComponent({
                 : { value: this.data.mapData[this.currentTimeIndex].values, size: 1 },
             },
           } as any,
-          beforeId: this.maxHeight ? undefined : 'water',
-          colorRange: this.dark ? this.colors.slice(1) : this.colors.reverse().slice(1),
-          coverage: 1,
           autoHighlight: true,
+          beforeId: this.maxHeight ? undefined : 'water',
+          cellSize: this.cellSize,
           elevationRange: [0, this.maxHeight],
           elevationScale: this.maxHeight,
-          pickable: true,
+          extruded: !!this.maxHeight, // nonzero means true
+          highlightColor: [255, 255, 255, 128],
+
+          material: {
+            ambient: 0.64,
+            diffuse: 0.6,
+            shininess: 32,
+            specularColor: [51, 51, 51],
+          },
+
           opacity: this.opacity,
-          cellSize: this.cellSize,
+          // { depthTest }  fixes the z-fighting problem but makes some issues with the opacity...
+          parameters: {},
+          pickable: true,
+          transitions: { elevationScale: { type: 'interpolation', duration: 50 } },
           upperPercentile: this.upperPercentile,
-          material: false,
-          transitions: {
-            elevationScale: { type: 'interpolation', duration: 50 },
-          },
-          parameters: {
-            // fixes the z-fighting problem but makes some issues with the opacity...
-            // depthTest: false,
-          },
         })
       )
 
@@ -176,7 +167,7 @@ export default defineComponent({
     //@ts-ignore
     this.mymap = new maplibregl.Map({
       center,
-      zoom: 7,
+      zoom: 9,
       container,
       style,
     })
@@ -249,25 +240,6 @@ export default defineComponent({
       }
       globalStore.commit('setMapCamera', view)
     },
-
-    // getTooltip(tip: { x: number; y: number; object: any }) {
-    //   const { x, y, object } = tip
-
-    //   if (!object || !object.position || !object.position.length) {
-    //     this.tooltipStyle.display = 'none'
-    //     return
-    //   }
-
-    //   const lat = object.position[1]
-    //   const lng = object.position[0]
-    //   const html = `\
-    //     <b>tooltip</b> \
-    //   `
-    //   this.tooltipStyle.display = 'block'
-    //   this.tooltipStyle.top = `${y + 12}px`
-    //   this.tooltipStyle.left = `${x + 12}px`
-    //   this.tooltipHTML = html
-    // },
 
     handleClick(target: any, event: any) {
       this.tooltipStyle.display = 'none'
