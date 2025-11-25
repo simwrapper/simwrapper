@@ -888,8 +888,9 @@ const MyComponent = defineComponent({
         )
       }
 
-      if ('rename' in ds) {
-        this.renameColumns(ds.data as DataTable, ds.rename, ds.pivot?.namesTo || 'names')
+      // Rename values in pivot names column when pivot is used
+      if ('rename' in ds && ds.pivot) {
+        this.renameColumns(ds.data as DataTable, ds.rename, ds.pivot.namesTo || 'names')
       }
 
       if ('normalize' in ds) {
@@ -898,6 +899,11 @@ const MyComponent = defineComponent({
 
       if ('aggregate' in ds) {
         this.aggregateColumns(ds.data as DataTable, ds.aggregate.groupBy, ds.aggregate.target)
+      }
+
+      // Rename column headers when no pivot is used
+      if ('rename' in ds && !ds.pivot) {
+        this.renameHeaders(ds.data as DataTable, ds.rename)
       }
 
       if ('constant' in ds) {
@@ -1007,8 +1013,21 @@ const MyComponent = defineComponent({
       })
     },
 
+    // Rename column headers by changing keys in the data table
+    renameHeaders(dataTable: DataTable, rename: any) {
+      if (!rename) return
+
+      Object.entries(rename).forEach(([oldName, newName]) => {
+        if (oldName in dataTable) {
+          const column = dataTable[oldName]
+          dataTable[newName as string] = { ...column, name: newName as string }
+          delete dataTable[oldName]
+        }
+      })
+    },
+
     renameColumns(dataTable: DataTable, rename: any, column: string) {
-      // rename columns
+      // Rename values in one column
       if (rename && column in dataTable) {
         const values = dataTable[column].values
         for (let i = 0; i < values.length; i++) {
