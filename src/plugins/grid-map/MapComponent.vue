@@ -9,7 +9,6 @@ import { defineComponent, PropType } from 'vue'
 import { GridCellLayer } from '@deck.gl/layers'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import maplibregl from 'maplibre-gl'
-import colormap from 'colormap'
 
 import globalStore from '@/store'
 import { CompleteMapData } from './GridMap.vue'
@@ -109,6 +108,9 @@ export default defineComponent({
       const extraLayers = this.bgLayers?.layers()
       if (extraLayers) layers.push(...extraLayers.layersBelow)
 
+      // disable 3D if there are negative values, even if user asked for it
+      const use3D = this.maxHeight > 0 && !this.negativeValues
+
       layers.push(
         new GridCellLayer({
           id: 'gridlayer',
@@ -127,11 +129,11 @@ export default defineComponent({
             },
           } as any,
           autoHighlight: true,
-          beforeId: this.maxHeight ? undefined : 'water',
+          beforeId: use3D ? undefined : 'water',
           cellSize: this.cellSize,
           elevationRange: [0, this.maxHeight],
           elevationScale: this.maxHeight,
-          extruded: !!this.maxHeight, // nonzero means true
+          extruded: use3D,
           highlightColor: [255, 255, 255, 128],
 
           material: {
