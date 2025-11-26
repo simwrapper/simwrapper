@@ -12,13 +12,13 @@
       .top-right
         .gui-config(:id="configId")
 
-      click-through-times.time-slider-area( v-if="isLoaded && this.vizDetails.timeSelector && this.vizDetails.timeSelector.enum == 'discrete'"
+      click-through-times.time-slider-area( v-if="isLoaded && this.vizDetails.timeSelector && this.vizDetails.timeSelector == 'discrete'"
         :allTimes="allTimes"
         :range="timeRange"
         @timeUpdate="handleDiscreteTimeValues"
       )
 
-      time-slider.time-slider-area(v-if="isLoaded && (!this.vizDetails.timeSelector || this.vizDetails.timeSelector.enum == 'slider')"
+      time-slider.time-slider-area(v-if="isLoaded && (!this.vizDetails.timeSelector || this.vizDetails.timeSelector == 'slider')"
         :range="timeRange"
         :allTimes="allTimes"
         @timeExtent="handleTimeSliderValues"
@@ -238,6 +238,7 @@ const GridMap = defineComponent({
       valuesIncludeNeg: false as boolean,
       tooltip: null as null | { html: any; style: any },
       backgroundLayers: null as null | BackgroundLayers,
+      mq: null as any,
 
       vizDetails: {
         title: '',
@@ -424,7 +425,7 @@ const GridMap = defineComponent({
       if (
         this.vizDetails.colorRamp.breakpoints &&
         this.vizDetails.colorRamp.breakpoints.length ==
-          this.vizDetails.colorRamp.fixedColors.length - 1
+        this.vizDetails.colorRamp.fixedColors.length - 1
       ) {
         // If the value is within the range of the colorRamp, return the corresponding color.
         for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
@@ -803,7 +804,7 @@ const GridMap = defineComponent({
         })
       }
 
-      // auto detects the valueColumn
+      // auto detects the valueColumn 
       let vc = this.vizDetails.valueColumn || ''
       if (!csv.allRows[vc]) {
         // use all columns except x, y, time
@@ -1043,12 +1044,21 @@ const GridMap = defineComponent({
     },
 
     setupGui() {
-      this.guiController = new GUI({
-        title: 'Settings',
-        injectStyles: true,
-        width: 200,
-        container: document.getElementById(this.configId) || undefined,
-      })
+      if (this.mq.matches) {
+        this.guiController = new GUI({
+          title: 'Settings',
+          injectStyles: true,
+          width: 175,
+          container: document.getElementById(this.configId) || undefined,
+        })
+      } else {
+        this.guiController = new GUI({
+          title: 'Settings',
+          injectStyles: true,
+          width: 200,
+          container: document.getElementById(this.configId) || undefined,
+        })
+      }
 
       const config = this.guiController // .addFolder('Colors')
       config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
@@ -1193,6 +1203,15 @@ const GridMap = defineComponent({
       // reset the slider to the last time slot
       const last = this.allTimes[this.allTimes.length - 1]
       this.currentTime = [last, last]
+    },
+
+    windowResize() {
+      this.mq = window.matchMedia('(max-width: 600px)')
+      if (this.mq.matches && this.guiController) {
+        this.guiController.root.close()
+      } else if (!this.mq.matches && this.guiController) {
+        this.guiController.root.open()
+      }
     },
 
     /**
@@ -1356,7 +1375,21 @@ const GridMap = defineComponent({
       this.computeBounds(type)
     }
 
+    this.$nextTick(() => {
+      window.addEventListener('resize', this.windowResize);
+    })
+
+    this.mq = window.matchMedia('(max-width: 600px)')
+
     this.setupGui()
+
+    if (this.mq.matches && this.guiController) {
+      this.vizDetails.zoom = 8
+      this.guiController.root.close()
+    } else if (!this.mq.matches && this.guiController) {
+      this.guiController.root.open()
+    }
+
 
     this.setColors()
     // this.buildThumbnail()
@@ -1374,6 +1407,10 @@ const GridMap = defineComponent({
     } catch (e) {
       this.$emit('error', 'Error loading background layers')
     }
+
+
+    console.log(this.timeRange[0])
+    console.log(this.timeRange[1])
   },
 
   beforeDestroy() {
@@ -1555,12 +1592,12 @@ input {
 }
 
 @media only screen and (max-width: 640px) {
-  .message {
+  z .message {
     padding: 0.5rem 0.5rem;
   }
 
   .right-side {
-    font-size: 0.7rem;
+    font-size: 0.6rem;
   }
 
   .big {

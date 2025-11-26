@@ -9,7 +9,7 @@
   .dashboard-finder(:class="{isMultipanel, isZoomed}")
 
     //-- Vertical list of dashboard tabs -- one for each dashboard-*.yaml
-    ul.dashboard-right-sections(v-show="!isZoomed && Object.keys(dashboards).length > 1")
+    ul.dashboard-right-sections(v-show="!isZoomed && Object.keys(dashboards).length > 1")(v-if="!isMobile")
       li.tab-list(v-for="tab,index in Object.keys(dashboards)" :key="tab"
         :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
         :style="{opacity: tab===activeTab ? 1.0 : 0.75}"
@@ -19,6 +19,18 @@
           @click="switchLeftTab(tab,index)"
         ) {{ dashboards[tab].header.tab }}
 
+    .dashboard-top-section(v-if="isMobile")
+      .dropdown
+        button.dropbtn(@click="dropDownClicked()") Dashboards
+          i.fa.fa-caret-down
+
+        .dropdown-content
+          li(v-for="tab,index in Object.keys(dashboards)" :key="tab"
+            :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
+            :style="{opacity: tab===activeTab ? 1.0 : 0.75}"
+            @click="switchLeftTab(tab,index)"
+          )
+            a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
     //-- The actual dashboard for this tab (if there is one) ------------------
     .dashboard-content(
       v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
@@ -103,6 +115,8 @@ export default defineComponent({
       pageHeader: '',
       showFooter: false,
       styleElement: null as any,
+      isMobile: false,
+      mq: null as any,
       // project site navigation
       leftNavItems: null as null | {
         top: NavigationItem[]
@@ -558,6 +572,10 @@ export default defineComponent({
           this.$router.replace({ query: {} })
         }
       }, 125)
+
+      const el = document.getElementsByClassName('dropdown-content')[0] as HTMLElement | undefined;
+      if (el) el.style.display = 'none';
+
     },
 
     handleZoom(isZoomed: any) {
@@ -581,6 +599,28 @@ export default defineComponent({
       }
 
       return svnProject[0]
+    },
+
+    windowResize() {
+      this.mq = window.matchMedia('(max-width: 600px)')
+      if (this.mq.matches) {
+        this.isMobile = true
+      } else {
+        this.isMobile = false
+
+      }
+    },
+
+    async dropDownClicked() {
+      const el = document.getElementsByClassName('dropdown-content')[0] as HTMLElement | undefined;
+      if (el) {
+        if (el.style.display != 'block') {
+          el.style.display = 'block';
+        } else {
+          el.style.display = 'none';
+        }
+
+      }
     },
 
     goUpOneFolder() {
@@ -625,6 +665,13 @@ export default defineComponent({
   mounted() {
     this.updateRoute()
     this.setTitle()
+    this.$nextTick(() => {
+      window.addEventListener('resize', this.windowResize);
+    })
+    this.mq = window.matchMedia('(max-width: 600px)')
+    if (this.mq.matches) {
+      this.isMobile = true
+    }
   },
   beforeDestroy() {
     if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
@@ -676,6 +723,13 @@ export default defineComponent({
 
 li.is-not-active b a {
   color: var(--textBlack);
+}
+
+@media screen and (max-width: 640px) {
+  .dashboard-finder {
+    flex-direction: column !important;
+  }
+
 }
 
 .dashboard-finder {
@@ -740,6 +794,7 @@ li.is-not-active b a {
   border-left: 5px solid var(--highlightActiveSection);
   border-radius: 5px 5px;
   font-weight: bold;
+
   a {
     color: var(--textBold);
   }
@@ -899,6 +954,7 @@ img {
 
 .white-text {
   color: white;
+
   h1,
   h2,
   h3,
@@ -907,5 +963,43 @@ img {
   h6 {
     color: white;
   }
+}
+
+/* Dropdown Button */
+.dropbtn {
+  background-color: #65d68f;
+  color: white;
+  padding: 14px;
+  font-size: 14px;
+  border: none;
+}
+
+/* The container <div> - needed to position the dropdown content */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* Dropdown Content (Hidden by Default) */
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #f1f1f1;
+  min-width: 100px;
+  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+
+/* Links inside the dropdown */
+.dropdown-content a {
+  color: black;
+  padding: 5px 5px;
+  text-decoration: none;
+  display: block;
+}
+
+.fa,
+.fas {
+  padding-left: 5px;
 }
 </style>
