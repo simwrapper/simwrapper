@@ -9,6 +9,7 @@ import { defineComponent, PropType } from 'vue'
 import { GridCellLayer } from '@deck.gl/layers'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import maplibregl from 'maplibre-gl'
+import { debounce } from 'debounce'
 
 import globalStore from '@/store'
 import { CompleteMapData } from './GridMap.vue'
@@ -19,6 +20,8 @@ const BASE_URL = import.meta.env.BASE_URL
 type TooltipStyle = {
   color: string
   backgroundColor: string
+  top: string
+  left: string
 }
 
 type Tooltip = {
@@ -51,16 +54,13 @@ export default defineComponent({
       mymap: null as maplibregl.Map | null,
       deckOverlay: null as InstanceType<typeof MapboxOverlay> | null,
       globalState: globalStore.state,
+      clearTooltip: null as any,
       tooltipHTML: '',
       tooltipStyle: {
-        position: 'absolute',
         padding: '4px 8px',
         display: 'block',
         top: 0,
         left: 0,
-        color: this.dark ? '#ccc' : '#223',
-        backgroundColor: this.dark ? '#2a3c4f' : 'white',
-        zIndex: 20000,
       } as any,
     }
   },
@@ -143,6 +143,7 @@ export default defineComponent({
             specularColor: [51, 51, 51],
           },
 
+          onHover: this.getTooltip as any,
           opacity: this.opacity,
           // { depthTest }  fixes the z-fighting problem but makes some issues with the opacity...
           parameters: {},
@@ -160,6 +161,10 @@ export default defineComponent({
   },
 
   mounted() {
+    this.clearTooltip = debounce(() => {
+      this.tooltipHTML = ''
+    }, 2000)
+
     const style = `${BASE_URL}map-styles/${
       this.globalState.isDarkMode ? 'dark' : 'positron'
     }.json` as any
@@ -190,9 +195,9 @@ export default defineComponent({
   },
 
   methods: {
-    getTooltip(object: any): Tooltip | undefined {
+    getTooltip(object: any) {
       if (!object?.coordinate) {
-        if (this.cbTooltip) this.cbTooltip()
+        this.tooltipHTML = ''
         return null
       }
 
@@ -213,20 +218,12 @@ export default defineComponent({
     metric value: ${this.data.mapData[this.currentTimeIndex].values[object.index]}<br/>
     opacity value: ${this.data.mapData[this.currentTimeIndex].opacityValues[object.index]}
     `
-      const tooltipStyle: TooltipStyle = this.dark
-        ? { color: '#ccc', backgroundColor: '#2a3c4f' }
-        : { color: '#223', backgroundColor: 'white' }
+      this.tooltipStyle.top = `${12 + Math.floor(object.y)}px`
+      this.tooltipStyle.left = `${12 + Math.floor(object.x)}px`
+      this.tooltipHTML = tooltipHtml
 
-      const tip = {
-        html: tooltipHtml,
-        style: tooltipStyle,
-      }
-
-      if (this.cbTooltip) {
-        this.cbTooltip(tip, object)
-      } else {
-        return tip
-      }
+      // will clear after 2s
+      this.clearTooltip()
     },
 
     handleMove() {
@@ -251,10 +248,11 @@ export default defineComponent({
 })
 </script>
 
-<style lang="scss">
+<style scoped lang="scss">
+@import '@/styles.scss';
+
 .deck-map {
-  position: absolute;
-  inset: 0 0 0 0;
+  position: relative;
   width: 100%;
   height: 100%;
 }
@@ -265,10 +263,13 @@ export default defineComponent({
 }
 
 .deck-tooltip {
+  background-color: var(--bgPanel);
+  color: var(--text);
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 10000;
+  z-index: 1;
   pointer-events: none;
+  filter: $filterShadow;
 }
 </style>
