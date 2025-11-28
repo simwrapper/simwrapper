@@ -1,5 +1,5 @@
 <template lang="pug">
-.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
+.grid-map-view(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
       MapComponent(
         v-if="!thumbnail && isLoaded"
@@ -12,13 +12,13 @@
       .top-right
         .gui-config(:id="configId")
 
-      click-through-times.time-slider-area( v-if="isLoaded && this.vizDetails.timeSelector && this.vizDetails.timeSelector.enum == 'discrete'"
+      click-through-times.time-slider-area( v-if="isLoaded && this.vizDetails.timeSelector && this.vizDetails.timeSelector == 'discrete'"
         :allTimes="allTimes"
         :range="timeRange"
         @timeUpdate="handleDiscreteTimeValues"
       )
 
-      time-slider.time-slider-area(v-if="isLoaded && (!this.vizDetails.timeSelector || this.vizDetails.timeSelector.enum == 'slider')"
+      time-slider.time-slider-area(v-if="isLoaded && (!this.vizDetails.timeSelector || this.vizDetails.timeSelector == 'slider')"
         :range="timeRange"
         :allTimes="allTimes"
         @timeExtent="handleTimeSliderValues"
@@ -238,6 +238,7 @@ const GridMap = defineComponent({
       valuesIncludeNeg: false as boolean,
       tooltip: null as null | { html: any; style: any },
       backgroundLayers: null as null | BackgroundLayers,
+      mediaQuery: null as any,
 
       vizDetails: {
         title: '',
@@ -340,7 +341,7 @@ const GridMap = defineComponent({
         coverage: 0.65,
         dark: this.$store.state.isDarkMode,
         data: this.data,
-        currentTimeIndex: this.timeToIndex.get(this.currentTime[0]),
+        currentTimeIndex: this.timeToIndex.get(this.currentTime[0]) || 0,
         mapIsIndependent: this.vizDetails.mapIsIndependent || false,
         maxHeight: this.guiConfig.height,
         colorDataDigits: this.colorDataDigits,
@@ -366,12 +367,8 @@ const GridMap = defineComponent({
       return this.$store.state.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
     },
   },
-  watch: {
-    // '$store.state.viewState'() {
-    //   if (this.vizDetails.mapIsIndependent) return
-    //   if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id]()
-    // },
-  },
+  watch: {},
+
   methods: {
     cbTooltip(tip: { html: any; style: any }, object: any) {
       if (!object) {
@@ -393,8 +390,7 @@ const GridMap = defineComponent({
       from_min: number,
       from_max: number,
       to_min: number,
-      to_max: number,
-      hasNegValues: boolean
+      to_max: number
     ): number[] | Uint8Array {
       if (this.guiConfig['bounds enabled']) {
         const upper = this.guiConfig['upper bound']
@@ -405,9 +401,9 @@ const GridMap = defineComponent({
           value = Math.max(Math.min(value, upper), lower)
           value = ((value - lower) / (upper - lower)) * 100
         }
-      } else if (!hasNegValues) {
+      } else if (!this.valuesIncludeNeg) {
         // Error handling: If the value is outside the valid range, return a default color.
-        if (isNaN(value) || value < 0 || value > 100) {
+        if (Number.isNaN(value) || value < 0 || value > 100) {
           // console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
           return [0, 0, 0, 0] // Default color (transparent)
         }
@@ -451,7 +447,6 @@ const GridMap = defineComponent({
             this.vizDetails.colorRamp.fixedColors[this.vizDetails.colorRamp.fixedColors.length - 1]
           )
         }
-
         return new Uint8Array([255, 255, 255, 255])
       } else {
         // Calculate the index based on the value and the number of colors in the array.
@@ -652,9 +647,6 @@ const GridMap = defineComponent({
           center: [this.vizDetails.center[0], this.vizDetails.center[1]],
         }
 
-        // bounce our map
-        // if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id](view)
-
         // Sets the map to the specified data
         this.$store.commit('setMapCamera', view)
       }
@@ -835,23 +827,27 @@ const GridMap = defineComponent({
 
       let minValue = Number.POSITIVE_INFINITY
       let maxValue = Number.NEGATIVE_INFINITY
-      for (let i = 0; i < valuesArr1.length; i++) {
-        if (valuesArr2) {
-          const raw =
-            valuesArr2 && this.vizDetails.diff ? valuesArr1[i] - valuesArr2[i] : valuesArr1[i]
-          if (raw < minValue) minValue = raw
-          if (raw > maxValue) maxValue = raw
-          if (valuesArr1[i] || valuesArr2[i]) this.valuesIncludeNeg = true
-        } else {
-          if (valuesArr1[i] > maxValue) maxValue = valuesArr1[i]
-          if (valuesArr1[i] < minValue) minValue = valuesArr1[i]
-          if (valuesArr1[i]) this.valuesIncludeNeg = true
-        }
-        const t = timeArr[i]
-        if (!this.allTimes.includes(t)) this.allTimes.push(t)
-      }
 
-      this.allTimes = this.allTimes.sort((n1, n2) => n1 - n2)
+      // billy is completely redoing this part that was batshit insane. Just get the mix/max omg!
+      const allTimes = new Set()
+      if (valuesArr2) {
+        // it's probably a diff
+        for (let i = 0; i < valuesArr1.length; i++) {
+          const raw = this.vizDetails.diff ? valuesArr1[i] - valuesArr2[i] : valuesArr1[i]
+          maxValue = Math.max(maxValue, raw)
+          minValue = Math.min(minValue, raw)
+          allTimes.add(timeArr[i])
+        }
+      } else {
+        // just one array, not a diff
+        for (let i = 0; i < valuesArr1.length; i++) {
+          maxValue = Math.max(maxValue, valuesArr1[i])
+          minValue = Math.min(minValue, valuesArr1[i])
+          allTimes.add(timeArr[i])
+        }
+      }
+      this.valuesIncludeNeg = minValue < 0
+      this.allTimes = [...allTimes].sort((n1: any, n2: any) => n1 - n2) as number[]
 
       this.timeRange[0] = Math.min.apply(Math, this.allTimes)
       this.timeRange[1] = Math.max.apply(Math, this.allTimes)
@@ -920,14 +916,7 @@ const GridMap = defineComponent({
 
         const value = scaleFactor * raw
 
-        const colors = this.pickColor(
-          value,
-          from_min,
-          from_max,
-          to_min,
-          to_max,
-          this.valuesIncludeNeg
-        )
+        const colors = this.pickColor(value, from_min, from_max, to_min, to_max)
 
         // Save index for next position in the array
         const lastValueIndex = finalData.mapData[index].numberOfFilledValues as number
@@ -1024,7 +1013,6 @@ const GridMap = defineComponent({
 
     handleDiscreteTimeValues(timeUpdate: { extent: number; index: number }) {
       this.currentTime[0] = timeUpdate.extent
-      this.mapProps.currentTimeIndex = timeUpdate.index
       this.selectedTimeData = []
 
       for (let i = 0; i < this.data.mapData.length; i++) {
@@ -1032,7 +1020,6 @@ const GridMap = defineComponent({
           this.selectedTimeData.push(this.data.mapData[i].values)
         }
       }
-
       this.setColors()
     },
 
@@ -1049,12 +1036,19 @@ const GridMap = defineComponent({
     },
 
     setupGui() {
-      this.guiController = new GUI({
+      let width = 200
+
+      if (this.mediaQuery.matchMedia) {
+        width = 175
+      }
+      const guiConfig = {
         title: 'Settings',
         injectStyles: true,
-        width: 200,
+        width: width,
         container: document.getElementById(this.configId) || undefined,
-      })
+      }
+
+      this.guiController = new GUI(guiConfig)
 
       const config = this.guiController // .addFolder('Colors')
       config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
@@ -1201,6 +1195,15 @@ const GridMap = defineComponent({
       this.currentTime = [last, last]
     },
 
+    windowResize() {
+      this.mediaQuery = window.matchMedia('(max-width: 600px)')
+      if (this.mediaQuery.matches && this.guiController) {
+        this.guiController.root.close()
+      } else if (!this.mediaQuery.matches && this.guiController) {
+        this.guiController.root.open()
+      }
+    },
+
     /**
      * * This method is called when the second column is changed to update the data and colors.
      */
@@ -1225,9 +1228,10 @@ const GridMap = defineComponent({
       // give only the shortened name to the getColorRampHexCodes function
       const ramp = { ramp: baseRamp } as Ramp
       const color = getColorRampHexCodes(ramp, this.guiConfig.steps)
+
       // get the type of the scale based on the suffix
-      const type = rawRamp.endsWith(' (div)') ? 'diverging' : 'sequential'
-      console.log('Color ramp type:', type)
+      // const type = rawRamp.endsWith(' (div)') ? 'diverging' : 'sequential'
+      // console.log('Color ramp type:', type)
 
       if (color.length) {
         this.colors = []
@@ -1248,14 +1252,7 @@ const GridMap = defineComponent({
         for (let j = 0; j < this.data.mapData[i].values.length; j++) {
           const value = this.data.mapData[i].values[j]
 
-          const colors = this.pickColor(
-            value,
-            from_min,
-            from_max,
-            to_min,
-            to_max,
-            this.valuesIncludeNeg
-          )
+          const colors = this.pickColor(value, from_min, from_max, to_min, to_max)
           if (colors == undefined) break
 
           if (this.guiConfig.opacityColumn == 'none') {
@@ -1282,12 +1279,11 @@ const GridMap = defineComponent({
       }
 
       // force Vue to take notice of the change - any prop change will do
-      this.currentTime = [...this.currentTime]
+      this.data = { ...this.data }
     },
 
     hexArrayToRgbArray(hexArray: string[]): any {
       const rgbArray = []
-
       for (let i = 0; i < hexArray.length; i++) {
         const hex = hexArray[i].replace(/^#/, '')
         const r = parseInt(hex.substring(0, 2), 16)
@@ -1295,7 +1291,6 @@ const GridMap = defineComponent({
         const b = parseInt(hex.substring(4, 6), 16)
         rgbArray.push([r, g, b, 255])
       }
-
       return rgbArray
     },
 
@@ -1370,7 +1365,16 @@ const GridMap = defineComponent({
       this.computeBounds(type)
     }
 
+    this.mediaQuery = window.matchMedia('(max-width: 600px)')
+
     this.setupGui()
+
+    if (this.mediaQuery.matches && this.guiController) {
+      this.vizDetails.zoom = 8
+      this.guiController.root.close()
+    } else if (!this.mediaQuery.matches && this.guiController) {
+      this.guiController.root.open()
+    }
 
     this.setColors()
     // this.buildThumbnail()
@@ -1394,11 +1398,8 @@ const GridMap = defineComponent({
     //@ts-ignore
     delete window.__testdata__
 
-    // MUST erase the React view handle to prevent gigantic memory leak!
-    // REACT_VIEW_HANDLES[this.id] = undefined
-    // delete REACT_VIEW_HANDLES[this.id]
-
     this.data = null
+    this.guiController?.destroy()
 
     this.$store.commit('setFullScreen', false)
   },
@@ -1410,7 +1411,7 @@ export default GridMap
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.xy-hexagons {
+.grid-map-view {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -1423,7 +1424,7 @@ export default GridMap
   z-index: -1;
 }
 
-.xy-hexagons.hide-thumbnail {
+.grid-map-view.hide-thumbnail {
   background: none;
   z-index: 0;
 }
@@ -1500,19 +1501,6 @@ export default GridMap
   margin: 0 0 0 0;
 }
 
-.control-panel {
-  position: absolute;
-  bottom: 0;
-  display: flex;
-  flex-direction: row;
-  font-size: 0.8rem;
-  margin: 0 0 0.5rem 0.5rem;
-  pointer-events: auto;
-  background-color: var(--bgPanel);
-  padding: 0.5rem 0.5rem;
-  filter: drop-shadow(0px 2px 4px #22222233);
-}
-
 .is-dashboard {
   position: static;
   margin: 0 0;
@@ -1576,17 +1564,18 @@ input {
   bottom: 0.5rem;
   left: 0;
   right: 0;
-  margin: 0 9rem 0 1rem;
+  margin: 0 9rem 0 0.5rem;
   filter: $filterShadow;
+  z-index: 3;
 }
 
 @media only screen and (max-width: 640px) {
-  .message {
+  z .message {
     padding: 0.5rem 0.5rem;
   }
 
   .right-side {
-    font-size: 0.7rem;
+    font-size: 0.6rem;
   }
 
   .big {

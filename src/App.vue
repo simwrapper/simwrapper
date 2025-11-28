@@ -498,6 +498,7 @@ p.splash-label {
 
 .lil-gui .title {
   margin-bottom: 0px;
+  color: var(--textFancy);
 }
 
 .lil-gui .controller.string input {
