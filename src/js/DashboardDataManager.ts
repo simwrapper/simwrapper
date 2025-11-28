@@ -758,11 +758,15 @@ export default class DashboardDataManager {
                 wasmWorker.postMessage({ confirmedCRS: crs })
                 return
               }
-              if (data.error) reject(data.error)
+              if (data.error) {
+                wasmWorker.terminate()
+                reject(data.error)
+              }
               if (data.status && cbStatus) {
                 cbStatus(data.status)
                 return
               }
+              wasmWorker.terminate()
               resolve(data.network)
             }
             wasmWorker.postMessage({
