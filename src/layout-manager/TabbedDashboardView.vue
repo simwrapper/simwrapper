@@ -9,7 +9,7 @@
   .dashboard-finder(:class="{isMultipanel, isZoomed}")
 
     //-- Vertical list of dashboard tabs -- one for each dashboard-*.yaml
-    ul.dashboard-right-sections(v-show="!isZoomed && Object.keys(dashboards).length > 1")(v-if="!isMobile")
+    ul.dashboard-right-sections(v-show="!isZoomed && Object.keys(dashboards).length > 1 && !isMobile")
       li.tab-list(v-for="tab,index in Object.keys(dashboards)" :key="tab"
         :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
         :style="{opacity: tab===activeTab ? 1.0 : 0.75}"
@@ -19,12 +19,12 @@
           @click="switchLeftTab(tab,index)"
         ) {{ dashboards[tab].header.tab }}
 
-    .dashboard-top-section(v-if="isMobile")
+    .dashboard-top-section(v-show="!isZoomed && Object.keys(dashboards).length > 1 && isMobile")
       .dropdown
         button.dropbtn(@click="dropDownClicked()") Dashboards
           i.fa.fa-caret-down
 
-        .dropdown-content
+        .dropdown-content(v-if="showDropDown")
           li(v-for="tab,index in Object.keys(dashboards)" :key="tab"
             :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
             :style="{opacity: tab===activeTab ? 1.0 : 0.75}"
@@ -116,7 +116,8 @@ export default defineComponent({
       showFooter: false,
       styleElement: null as any,
       isMobile: false,
-      mq: null as any,
+      mediaQuery: null as any,
+      showDropDown: false,
       // project site navigation
       leftNavItems: null as null | {
         top: NavigationItem[]
@@ -573,8 +574,7 @@ export default defineComponent({
         }
       }, 125)
 
-      const el = document.getElementsByClassName('dropdown-content')[0] as HTMLElement | undefined;
-      if (el) el.style.display = 'none';
+      this.showDropDown = false
 
     },
 
@@ -601,25 +601,11 @@ export default defineComponent({
       return svnProject[0]
     },
 
-    windowResize() {
-      this.mq = window.matchMedia('(max-width: 600px)')
-      if (this.mq.matches) {
-        this.isMobile = true
-      } else {
-        this.isMobile = false
-
-      }
-    },
-
     async dropDownClicked() {
-      const el = document.getElementsByClassName('dropdown-content')[0] as HTMLElement | undefined;
-      if (el) {
-        if (el.style.display != 'block') {
-          el.style.display = 'block';
-        } else {
-          el.style.display = 'none';
-        }
-
+      if (this.showDropDown) {
+        this.showDropDown = false
+      } else {
+        this.showDropDown = true
       }
     },
 
@@ -665,12 +651,12 @@ export default defineComponent({
   mounted() {
     this.updateRoute()
     this.setTitle()
-    this.$nextTick(() => {
-      window.addEventListener('resize', this.windowResize);
-    })
-    this.mq = window.matchMedia('(max-width: 600px)')
-    if (this.mq.matches) {
+    this.mediaQuery = window.matchMedia('(max-width: 600px)')
+    if (this.mediaQuery.matches) {
       this.isMobile = true
+    } else {
+      this.isMobile = false
+
     }
   },
   beforeDestroy() {
@@ -965,7 +951,6 @@ img {
   }
 }
 
-/* Dropdown Button */
 .dropbtn {
   background-color: #65d68f;
   color: white;
@@ -974,15 +959,12 @@ img {
   border: none;
 }
 
-/* The container <div> - needed to position the dropdown content */
 .dropdown {
   position: relative;
   display: inline-block;
 }
 
-/* Dropdown Content (Hidden by Default) */
 .dropdown-content {
-  display: none;
   position: absolute;
   background-color: #f1f1f1;
   min-width: 100px;
@@ -990,7 +972,6 @@ img {
   z-index: 1;
 }
 
-/* Links inside the dropdown */
 .dropdown-content a {
   color: black;
   padding: 5px 5px;

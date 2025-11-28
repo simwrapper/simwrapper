@@ -238,7 +238,7 @@ const GridMap = defineComponent({
       valuesIncludeNeg: false as boolean,
       tooltip: null as null | { html: any; style: any },
       backgroundLayers: null as null | BackgroundLayers,
-      mq: null as any,
+      mediaQuery: null as any,
 
       vizDetails: {
         title: '',
@@ -804,7 +804,7 @@ const GridMap = defineComponent({
         })
       }
 
-      // auto detects the valueColumn 
+      // auto detects the valueColumn
       let vc = this.vizDetails.valueColumn || ''
       if (!csv.allRows[vc]) {
         // use all columns except x, y, time
@@ -1044,21 +1044,19 @@ const GridMap = defineComponent({
     },
 
     setupGui() {
-      if (this.mq.matches) {
-        this.guiController = new GUI({
-          title: 'Settings',
-          injectStyles: true,
-          width: 175,
-          container: document.getElementById(this.configId) || undefined,
-        })
-      } else {
-        this.guiController = new GUI({
-          title: 'Settings',
-          injectStyles: true,
-          width: 200,
-          container: document.getElementById(this.configId) || undefined,
-        })
+      var width: number = 200
+
+      if (this.mediaQuery.matchMedia) {
+        var width: number = 175
       }
+      const guiConfig = {
+        title: 'Settings',
+        injectStyles: true,
+        width: width,
+        container: document.getElementById(this.configId) || undefined,
+      }
+
+      this.guiController = new GUI(guiConfig)
 
       const config = this.guiController // .addFolder('Colors')
       config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
@@ -1206,10 +1204,10 @@ const GridMap = defineComponent({
     },
 
     windowResize() {
-      this.mq = window.matchMedia('(max-width: 600px)')
-      if (this.mq.matches && this.guiController) {
+      this.mediaQuery = window.matchMedia('(max-width: 600px)')
+      if (this.mediaQuery.matches && this.guiController) {
         this.guiController.root.close()
-      } else if (!this.mq.matches && this.guiController) {
+      } else if (!this.mediaQuery.matches && this.guiController) {
         this.guiController.root.open()
       }
     },
@@ -1375,18 +1373,14 @@ const GridMap = defineComponent({
       this.computeBounds(type)
     }
 
-    this.$nextTick(() => {
-      window.addEventListener('resize', this.windowResize);
-    })
-
-    this.mq = window.matchMedia('(max-width: 600px)')
+    this.mediaQuery = window.matchMedia('(max-width: 600px)')
 
     this.setupGui()
 
-    if (this.mq.matches && this.guiController) {
+    if (this.mediaQuery.matches && this.guiController) {
       this.vizDetails.zoom = 8
       this.guiController.root.close()
-    } else if (!this.mq.matches && this.guiController) {
+    } else if (!this.mediaQuery.matches && this.guiController) {
       this.guiController.root.open()
     }
 
@@ -1408,9 +1402,6 @@ const GridMap = defineComponent({
       this.$emit('error', 'Error loading background layers')
     }
 
-
-    console.log(this.timeRange[0])
-    console.log(this.timeRange[1])
   },
 
   beforeDestroy() {
@@ -1422,6 +1413,7 @@ const GridMap = defineComponent({
     // delete REACT_VIEW_HANDLES[this.id]
 
     this.data = null
+    this.guiController?.destroy()
 
     this.$store.commit('setFullScreen', false)
   },
