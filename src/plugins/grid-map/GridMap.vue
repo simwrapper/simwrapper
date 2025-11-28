@@ -1,5 +1,5 @@
 <template lang="pug">
-.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
+.grid-map-view(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
       MapComponent(
         v-if="!thumbnail && isLoaded"
@@ -367,12 +367,8 @@ const GridMap = defineComponent({
       return this.$store.state.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
     },
   },
-  watch: {
-    // '$store.state.viewState'() {
-    //   if (this.vizDetails.mapIsIndependent) return
-    //   if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id]()
-    // },
-  },
+  watch: {},
+
   methods: {
     cbTooltip(tip: { html: any; style: any }, object: any) {
       if (!object) {
@@ -425,7 +421,7 @@ const GridMap = defineComponent({
       if (
         this.vizDetails.colorRamp.breakpoints &&
         this.vizDetails.colorRamp.breakpoints.length ==
-        this.vizDetails.colorRamp.fixedColors.length - 1
+          this.vizDetails.colorRamp.fixedColors.length - 1
       ) {
         // If the value is within the range of the colorRamp, return the corresponding color.
         for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
@@ -451,7 +447,6 @@ const GridMap = defineComponent({
             this.vizDetails.colorRamp.fixedColors[this.vizDetails.colorRamp.fixedColors.length - 1]
           )
         }
-
         return new Uint8Array([255, 255, 255, 255])
       } else {
         // Calculate the index based on the value and the number of colors in the array.
@@ -651,9 +646,6 @@ const GridMap = defineComponent({
           jump: true, // move the map no matter what
           center: [this.vizDetails.center[0], this.vizDetails.center[1]],
         }
-
-        // bounce our map
-        // if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id](view)
 
         // Sets the map to the specified data
         this.$store.commit('setMapCamera', view)
@@ -1044,10 +1036,10 @@ const GridMap = defineComponent({
     },
 
     setupGui() {
-      var width: number = 200
+      let width = 200
 
       if (this.mediaQuery.matchMedia) {
-        var width: number = 175
+        width = 175
       }
       const guiConfig = {
         title: 'Settings',
@@ -1384,7 +1376,6 @@ const GridMap = defineComponent({
       this.guiController.root.open()
     }
 
-
     this.setColors()
     // this.buildThumbnail()
     this.isLoaded = true
@@ -1401,16 +1392,11 @@ const GridMap = defineComponent({
     } catch (e) {
       this.$emit('error', 'Error loading background layers')
     }
-
   },
 
   beforeDestroy() {
     //@ts-ignore
     delete window.__testdata__
-
-    // MUST erase the React view handle to prevent gigantic memory leak!
-    // REACT_VIEW_HANDLES[this.id] = undefined
-    // delete REACT_VIEW_HANDLES[this.id]
 
     this.data = null
     this.guiController?.destroy()
@@ -1425,7 +1411,7 @@ export default GridMap
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.xy-hexagons {
+.grid-map-view {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -1438,7 +1424,7 @@ export default GridMap
   z-index: -1;
 }
 
-.xy-hexagons.hide-thumbnail {
+.grid-map-view.hide-thumbnail {
   background: none;
   z-index: 0;
 }
