@@ -299,7 +299,7 @@ def setupConfiguration(config, port):
             for root in STORAGE_ROOTS:
                 # make sure we can open the path
                 if not exists(STORAGE_ROOTS[root]["path"]):
-                    raise Exception(f"\n\n** ABORT: CANNOT READ PATH FOR {root}: {STORAGE_ROOTS[root]["path"]}")
+                    raise Exception(f"\n\n** ABORT: CANNOT READ PATH FOR {root}: {STORAGE_ROOTS[root]['path']}")
 
                 STORAGE[root] = '' + STORAGE_ROOTS[root]["path"]
 
