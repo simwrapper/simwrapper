@@ -61,7 +61,7 @@ export default defineComponent({
         left: 0,
         color: this.dark ? '#ccc' : '#223',
         backgroundColor: this.dark ? '#2a3c4f' : 'white',
-        zIndex: 20000,
+        zIndex: 2,
       } as any,
     }
   },
@@ -289,7 +289,7 @@ export default defineComponent({
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 10000;
+  z-index: 0;
   pointer-events: none;
 }
 </style>

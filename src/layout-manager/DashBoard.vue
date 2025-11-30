@@ -5,7 +5,7 @@
     .dashboard-header.flex-row(v-if="!fullScreenCardId && (title + description)"
       :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
     )
-      .dtitles.flex1
+      .cardtitles.flex1
         h2 {{ title }}
         p {{ description }}
       .favstar
@@ -651,7 +651,9 @@ export default defineComponent({
 
     handleResize() {
       const dashboard = document.getElementById(this.viewId) as HTMLElement
-      if (dashboard) this.isPanelNarrow = dashboard.clientWidth < 800
+      if (dashboard) {
+        this.isPanelNarrow = dashboard.clientWidth < 800
+      }
       this.setFullScreen()
       this.$store.commit('resize')
     },
@@ -660,6 +662,10 @@ export default defineComponent({
       if (this.isPanelNarrow) {
         // Narrow panels are never fullscreen
         this.isFullScreenDashboard = false
+        // Well, unless there's just one row
+        if (this.rows.length === 1) {
+          this.isFullScreenDashboard = true
+        }
       } else {
         // help user with capitalization
         this.isFullScreenDashboard =
@@ -738,10 +744,6 @@ export default defineComponent({
   }
 }
 
-// .dashboard.wiide {
-//   // padding-left: 1rem;
-// }
-
 .dashboard-header {
   margin: 0.25rem 2rem 1rem 0rem;
 
@@ -754,10 +756,6 @@ export default defineComponent({
     line-height: 1.4rem;
   }
 }
-
-// .dashboard-header.wiide {
-//   // margin-right: 3rem;
-// }
 
 .dash-row {
   display: flex;
@@ -886,6 +884,7 @@ ul.tab-row {
   padding: 0 0;
   margin: 0 0;
   border-bottom: none;
+  font-size: 0.9rem;
 }
 
 li.tab-entry b a {
@@ -952,5 +951,14 @@ li.is-not-active b a {
 
 .favorite-icon:hover {
   cursor: pointer;
+}
+
+@media only screen and (max-width: 640px) {
+  .cardtitles {
+    padding: 0 4px;
+  }
+  .tabs {
+    margin-bottom: 0.5rem !important;
+  }
 }
 </style>

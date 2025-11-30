@@ -1032,4 +1032,20 @@ h3.curate-heading {
   height: 80dvh;
   max-width: 100%;
 }
+
+@media only screen and (max-width: 640px) {
+  .folder-browser {
+  }
+
+  .folder-table {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .folder {
+    padding: 0.25rem !important;
+    font-weight: 700;
+    color: var(--link);
+  }
+}
 </style>

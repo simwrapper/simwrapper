@@ -814,7 +814,7 @@ export default MyComponent
   background-color: var(--bgPanel);
   padding: 0.5rem 0.5rem;
   filter: drop-shadow(0px 2px 4px #22222233);
-  z-index: 2;
+  z-index: 3;
 }
 
 .is-dashboard {

@@ -19,9 +19,10 @@
           @click="switchLeftTab(tab,index)"
         ) {{ dashboards[tab].header.tab }}
 
-    .dashboard-top-section(v-show="!isZoomed && Object.keys(dashboards).length > 1 && isMobile")
+    //- mobile: dashboard dropdown-button
+    .dashboard-mobile-section(v-show="!isZoomed && Object.keys(dashboards).length > 1 && isMobile")
       .dropdown
-        button.dropbtn(@click="dropDownClicked()") Dashboards
+        b-button.dropbtn(@click="dropDownClicked()") {{ dashboards[activeTab].header.tab || 'Dashboards' }}
           i.fa.fa-caret-down
 
         .dropdown-content(v-if="showDropDown")
@@ -31,6 +32,7 @@
             @click="switchLeftTab(tab,index)"
           )
             a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
+
     //-- The actual dashboard for this tab (if there is one) ------------------
     .dashboard-content(
       v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
@@ -575,7 +577,6 @@ export default defineComponent({
       }, 125)
 
       this.showDropDown = false
-
     },
 
     handleZoom(isZoomed: any) {
@@ -651,12 +652,11 @@ export default defineComponent({
   mounted() {
     this.updateRoute()
     this.setTitle()
-    this.mediaQuery = window.matchMedia('(max-width: 600px)')
+    this.mediaQuery = window.matchMedia('(max-width: 640px)')
     if (this.mediaQuery.matches) {
       this.isMobile = true
     } else {
       this.isMobile = false
-
     }
   },
   beforeDestroy() {
@@ -715,7 +715,6 @@ li.is-not-active b a {
   .dashboard-finder {
     flex-direction: column !important;
   }
-
 }
 
 .dashboard-finder {
@@ -952,10 +951,9 @@ img {
 }
 
 .dropbtn {
-  background-color: #65d68f;
+  background-color: $appTag;
   color: white;
-  padding: 14px;
-  font-size: 14px;
+  padding: 0 18px !important;
   border: none;
 }
 
@@ -982,5 +980,11 @@ img {
 .fa,
 .fas {
   padding-left: 5px;
+}
+
+@media only screen and (max-width: 640px) {
+  .dashboard-mobile-section {
+    margin: 0rem 0.25rem -0.75rem 0.1rem;
+  }
 }
 </style>

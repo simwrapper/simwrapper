@@ -3293,6 +3293,7 @@ export default MyComponent
   left: 0;
   user-select: none;
   border-top-right-radius: 5px;
+  z-index: 2;
   // pointer-events: all;
 }
 

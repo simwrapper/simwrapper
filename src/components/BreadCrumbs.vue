@@ -170,4 +170,10 @@ export default defineComponent({
     color: #a8ffc8;
   }
 }
+
+@media only screen and (max-width: 640px) {
+  .trail {
+    padding: 2px 0;
+  }
+}
 </style>

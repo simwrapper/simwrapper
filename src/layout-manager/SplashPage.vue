@@ -62,7 +62,7 @@
       .az-cell.heading Description
       .az-row(v-for="project in mainRoots" :key="project.slug")
         //- .az-cell(style="padding-right: 0.5rem; font-size: 12px;"): i.fa.fa-network-wired
-        .az-cell
+        .az-cell.has-link
           i.fa.fa-sitemap.az-icon(style="color: #99cc00")
           a(@click="clickedOnFolder({root: project.slug})") {{ project.name}}
         .az-cell {{ project.description}}
@@ -92,7 +92,7 @@
     //- DOCUMENTATION ==================
     h4.az-title Documentation and Help
 
-    .az-quick-start-items.flex-row
+    .flex-row.az-quick-start-items
       a.az-quick-item.flex-col(href="https://simwrapper.github.io/docs" target="_blank")
         .az-quick-icon: i.fa.fa-book
         .az-quick-label Main<br>docs
@@ -773,6 +773,10 @@ h4 {
 }
 
 @media only screen and (max-width: 640px) {
+  .is-chrome {
+    display: none;
+  }
+
   .az-grid {
     display: flex;
     flex-direction: column;
@@ -798,6 +802,16 @@ h4 {
     a {
       margin: 0 auto;
     }
+  }
+
+  .az-quick-start-items {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .az-grid a {
+    font-weight: 700 !important;
+    // padding: 0.25rem;
   }
 }
 </style>
