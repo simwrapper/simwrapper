@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.3.9](https://github.com/simwrapper/simwrapper/compare/v4.3.8...v4.3.9) (2025-11-30)
+
+
+### Bug Fixes
+
+* Some improvements to mobile dashboard layouts ([b1238fc](https://github.com/simwrapper/simwrapper/commit/b1238fcb35294f046bf88d941f05b5bbb3b7173d))
+
 ### [4.3.8](https://github.com/simwrapper/simwrapper/compare/v4.3.7...v4.3.8) (2025-11-19)
 
 
