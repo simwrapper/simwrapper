@@ -2305,4 +2305,24 @@ h3 {
   margin-top: 0.5rem;
   overflow-y: auto;
 }
+
+@media only screen and (max-width: 640px) {
+  .main-layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dragger {
+    display: none;
+  }
+
+  .right-panel-holder {
+    flex: 1;
+    width: 100% !important;
+  }
+
+  .right-side-column p {
+    display: none;
+  }
+}
 </style>
