@@ -162,6 +162,9 @@ export default defineComponent({
       }.json` as any
     }
 
+    const z = `${7 * 3}${this.$store.state.mapuuid}`
+    style = `https://tiles.stadiamaps.com/styles/alidade_satellite.json?api_key=${z}`
+
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
     const zoom = (this.globalState.viewState.zoom || 8) as number
@@ -207,7 +210,7 @@ export default defineComponent({
               ['linear'],
               ['get', 'render_height'],
               0,
-              'lightgray',
+              '#384438',
               200,
               'royalblue',
               400,
