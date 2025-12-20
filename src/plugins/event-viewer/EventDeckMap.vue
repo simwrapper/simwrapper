@@ -165,6 +165,8 @@ export default defineComponent({
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
     const zoom = (this.globalState.viewState.zoom || 8) as number
+
+    // --- CREATE THE MAP ---
     //@ts-ignore
     this.mymap = new maplibregl.Map({
       container,
@@ -172,8 +174,65 @@ export default defineComponent({
       center,
       zoom,
     })
+    const map = this.mymap
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
+      // --- 3d buildings
+      const layers: any[] = map.getStyle().layers
+
+      let labelLayerId
+      for (let i = 0; i < layers.length; i++) {
+        if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
+          labelLayerId = layers[i].id
+          break
+        }
+      }
+
+      map.addSource('openfreemap', {
+        url: `https://tiles.openfreemap.org/planet`,
+        type: 'vector',
+      })
+
+      map.addLayer(
+        {
+          id: '3d-buildings',
+          source: 'openfreemap',
+          'source-layer': 'building',
+          type: 'fill-extrusion',
+          minzoom: 14,
+          filter: ['!=', ['get', 'hide_3d'], true],
+          paint: {
+            'fill-extrusion-color': [
+              'interpolate',
+              ['linear'],
+              ['get', 'render_height'],
+              0,
+              'lightgray',
+              200,
+              'royalblue',
+              400,
+              'lightblue',
+            ],
+            'fill-extrusion-height': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              14,
+              0,
+              16,
+              ['get', 'render_height'],
+            ],
+            'fill-extrusion-base': [
+              'case',
+              ['>=', ['get', 'zoom'], 16],
+              ['get', 'render_min_height'],
+              0,
+            ],
+          },
+        },
+        labelLayerId
+      )
+      // --- deck overlay
       this.deckOverlay = new MapboxOverlay({
         interleaved: true,
         layers: this.layers,
