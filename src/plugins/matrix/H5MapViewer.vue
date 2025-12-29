@@ -88,10 +88,11 @@
         :altZoneFeature="altZoneFeature"
         :cbTooltip="showTooltip"
         :isLoading="isLoading"
+        :show3dBuildings="show3dBuildings"
       )
 
       //- background-map-on-top(v-if="isMapReady")
-      zoom-buttons(corner="top-left")
+      zoom-buttons(corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
 
       //- .zone-announce-area.flex-col
       //-   h2  {{ this.mapConfig.isRowWise ? 'Row ' : 'Column ' }} {{ this.activeZone }}
@@ -208,6 +209,7 @@ const MyComponent = defineComponent({
       layerId: Math.floor(1e12 * Math.random()),
       prettyDataArray: [] as any[],
       searchTerm: '',
+      show3dBuildings: false,
       sortColumn: 0,
       statusText: 'Loading...',
       tableKeys: [] as { key: string; name: string }[],
@@ -289,6 +291,10 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    toggle3dBuildings() {
+      this.show3dBuildings = !this.show3dBuildings
+    },
+
     selectAltZone(zoneNumber: number) {
       this.altZone = zoneNumber
       this.altZoneFeature = this.features.find((f: any) => f.properties[this.zoneID] == zoneNumber)

@@ -5,7 +5,12 @@
     v-bind="mapProps"
   )
 
-  zoom-buttons(v-if="!thumbnail")
+  zoom-buttons(
+    v-if="!thumbnail"
+    :show3dToggle="true"
+    :is3dBuildings="show3dBuildings"
+    :onToggle3dBuildings="toggle3dBuildings"
+  )
   //- drawing-tool.drawing-tool(v-if="!thumbnail")
 
   .left-side(v-if="isLoaded && !thumbnail && vizDetails.title")
@@ -35,6 +40,10 @@
             :tooltip="false"
           )
 
+        .panel-item
+          b-switch(v-model="show3dBuildings" size="is-small")
+            | {{ $t('buildings3d') }}
+
           p.ui-label Hex Radius: {{ vizDetails.radius }}
           b-slider.ui-slider(v-model="vizDetails.radius"
             size="is-small"
@@ -60,6 +69,7 @@ const i18n = {
       selection: 'Selection',
       areas: 'Areas',
       count: 'Count',
+      buildings3d: '3D buildings',
     },
     de: {
       loading: 'Dateien laden...',
@@ -70,6 +80,7 @@ const i18n = {
       selection: 'Ausgewählt',
       areas: 'Orte',
       count: 'Anzahl',
+      buildings3d: '3D Gebäude',
     },
   },
 }
@@ -121,6 +132,8 @@ interface VizDetail {
   thumbnail?: string
   elements?: string
   aggregations: Aggregations
+  buildings3d?: boolean
+  show3dBuildings?: boolean
   radius: number
   maxHeight: number
   center: any
@@ -177,6 +190,7 @@ const MyComponent = defineComponent({
       currentGroup: '',
 
       backgroundLayers: null as null | BackgroundLayers,
+      show3dBuildings: false,
 
       vizDetails: {
         title: '',
@@ -259,6 +273,7 @@ const MyComponent = defineComponent({
         upperPercentile: 100,
         bgLayers: this.backgroundLayers,
         onClick: this.handleClick,
+        show3dBuildings: this.show3dBuildings,
       }
     },
     textColor(): any {
@@ -274,6 +289,7 @@ const MyComponent = defineComponent({
 
       return this.$store.state.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
     },
+
   },
   watch: {
     extrudeTowers() {
@@ -286,6 +302,10 @@ const MyComponent = defineComponent({
     },
   },
   methods: {
+    toggle3dBuildings() {
+      this.show3dBuildings = !this.show3dBuildings
+    },
+
     handleClick(target: any, event: any) {
       if (!target.layer) this.handleEmptyClick()
       else this.handleHexClick(target, event)
@@ -372,11 +392,18 @@ const MyComponent = defineComponent({
       this.colorRamp = this.colorRamps[number]
     },
 
+    sync3dBuildingsSetting() {
+      this.show3dBuildings = !!(
+        (this.vizDetails as any).buildings3d ?? (this.vizDetails as any).show3dBuildings
+      )
+    },
+
     async getVizDetails() {
       if (this.config) {
         this.validateYAML()
         this.vizDetails = Object.assign({}, this.config) as VizDetail
         this.setRadiusAndHeight()
+        this.sync3dBuildingsSetting()
         return
       }
 
@@ -387,6 +414,8 @@ const MyComponent = defineComponent({
       } else {
         await this.loadOutputTripsConfig()
       }
+
+      this.sync3dBuildingsSetting()
     },
 
     fetchXML(props: { worker: any; slug: string; filePath: string; options?: any }) {

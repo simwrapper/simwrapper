@@ -16,7 +16,8 @@
                 :vehicleLookup = "vehicleLookup"
                 :viewId = "viewId"
                 :trafficLayers = "trafficLayers"
-                :onClick = "handleClick")
+                :onClick = "handleClick"
+                :show3dBuildings="show3dBuildings")
   //- trip-viz.anim(v-if="!thumbnail"
   //-               :center = "vizDetails.center"
   //-               :colors = "COLOR_OCCUPANCY"
@@ -33,7 +34,7 @@
   //-               :trafficLayers = "trafficLayers"
   //- )
 
-  zoom-buttons(v-if="!thumbnail")
+  zoom-buttons(v-if="!thumbnail" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
 
   .bottom-controls-mobile
     .big.clock: p {{ myState.clock }}
@@ -225,6 +226,8 @@ const MyComponent = defineComponent({
         eventBlobs: [] as string[],
         theme: '',
       },
+
+      show3dBuildings: false,
 
       myState: {
         statusMessage: '',
@@ -573,6 +576,8 @@ const MyComponent = defineComponent({
         }
       }
 
+      this.sync3dBuildingsSetting()
+
       // initial view
       if (this.vizDetails.theme) this.$store.commit('setTheme', this.vizDetails.theme)
 
@@ -603,6 +608,16 @@ const MyComponent = defineComponent({
 
       await this.buildThumbnail()
       this.isLoaded = true
+    },
+
+    sync3dBuildingsSetting() {
+      this.show3dBuildings = !!(
+        (this.vizDetails as any).buildings3d ?? (this.vizDetails as any).show3dBuildings
+      )
+    },
+
+    toggle3dBuildings() {
+      this.show3dBuildings = !this.show3dBuildings
     },
 
     async buildThumbnail() {
