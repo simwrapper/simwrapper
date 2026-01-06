@@ -30,6 +30,8 @@
 
         .bglayer-section.flex-col(v-if="Object.keys(bgLayers).length")
           h5 Layers
+          b-checkbox.simple-checkbox(v-if="!isAtlantis" v-model="show3dBuildings")
+            | 3D buildings
           b-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)" :key="layer"
             @input="updateBgLayers" v-model="bgLayers[layer].visible"
           ) {{  layer }}
@@ -71,6 +73,7 @@
         :pointRadii="dataPointRadii"
         :redraw="redraw"
         :screenshot="triggerScreenshot"
+        :show3dBuildings="show3dBuildings"
         :viewId="layerId"
       )
 
@@ -111,7 +114,12 @@
           img.icon-blue-ramp(:src="icons.blueramp")
           b-slider.pie-slider(type="is-success" :tooltip="true" size="is-small"  :min="0" :max="100" v-model="sliderOpacity")
 
-      zoom-buttons(v-if="isLoaded && !vizDetails.mapIsIndependent")
+      zoom-buttons(
+        v-if="isLoaded && !vizDetails.mapIsIndependent"
+        :show3dToggle="!isAtlantis"
+        :is3dBuildings="show3dBuildings"
+        :onToggle3dBuildings="toggle3dBuildings"
+      )
 
       .config-bar(v-if="!isEmbedded && isLoaded && Object.keys(filters).length"
         :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
@@ -259,6 +267,7 @@ const MyComponent = defineComponent({
 
       globalStore,
       globalState: globalStore.state,
+      show3dBuildings: false,
       layerId: Math.floor(1e12 * Math.random()),
       dbClearTooltip: {} as any,
       wantToClearTooltip: false,
@@ -436,6 +445,11 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    toggle3dBuildings() {
+      if (this.isAtlantis) return
+      this.show3dBuildings = !this.show3dBuildings
+    },
+
     setDesiredTooltipsNone() {
       this.tooltipDesiredColumns.forEach(m => (m.enabled = false))
     },
@@ -877,6 +891,10 @@ const MyComponent = defineComponent({
         this.vizDetails.tooltip = tips
         this.config.tooltip = tips
       }
+
+      this.show3dBuildings = !!(
+        (this.vizDetails as any).buildings3d ?? (this.vizDetails as any).show3dBuildings
+      )
 
       const t = this.vizDetails.title || 'Map'
       this.$emit('title', t)

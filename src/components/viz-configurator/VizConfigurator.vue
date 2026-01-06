@@ -444,7 +444,7 @@ h1:hover {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  margin: 72px 0px auto 0px;
+  margin: 96px 0px auto 0px;
   pointer-events: auto;
   z-index: 5;
 }

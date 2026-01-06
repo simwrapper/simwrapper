@@ -15,6 +15,7 @@ import { COORDINATE_SYSTEM } from '@deck.gl/core'
 import globalStore from '@/store'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 import BackgroundLayers from '@/js/BackgroundLayers'
+import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -45,6 +46,7 @@ export default defineComponent({
     vizDetails: { type: Object, required: true },
     widthSlider: { type: Number, required: true },
     bgLayers: { type: Object as PropType<BackgroundLayers> },
+    show3dBuildings: { type: Boolean, required: false, default: false },
   },
 
   data() {
@@ -81,6 +83,12 @@ export default defineComponent({
         style = `${BASE_URL}map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
       }
       this.mymap?.setStyle(style)
+    },
+
+    show3dBuildings() {
+      if (!this.mymap || !this.hasBackgroundMap) return
+      if (this.show3dBuildings) enable3DBuildings(this.mymap)
+      else disable3DBuildings(this.mymap)
     },
 
     'globalState.viewState'() {
@@ -273,6 +281,10 @@ export default defineComponent({
     })
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
+      if (this.hasBackgroundMap && this.show3dBuildings && this.mymap) {
+        enable3DBuildings(this.mymap)
+      }
+
       this.deckOverlay = new MapboxOverlay({
         interleaved: false,
         useDevicePixels: true,
