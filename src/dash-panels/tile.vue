@@ -1,10 +1,14 @@
 <template lang="pug">
 .content
   .tiles-container(v-if="imagesAreLoaded")
-    .tile(v-for="(value, index) in this.dataSet.data" v-bind:style="{ 'background-color': colors[index % colors.length]}" @click="")
+    .tile(
+      v-for="(value, index) in this.dataSet.data"
+      :style="getTileStyle(index)"
+      @click=""
+    )
       a(:href="value[urlIndex]" target="_blank" :class="{ 'is-not-clickable': !value[urlIndex] }")
-        p.tile-title {{ value[tileNameIndex] }}
-        p.tile-value {{ value[tileValueIndex] }}
+        p.tile-title(:style="{ color: tileTextColor }") {{ value[tileNameIndex] }}
+        p.tile-value(:style="{ color: tileTextColor }") {{ value[tileValueIndex] }}
         .tile-image(v-if="value[tileImageIndex] != undefined && checkIfItIsACustomIcon(value[tileImageIndex])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
         img.tile-image(v-else-if="value[tileImageIndex] != undefined && checkIfIconIsInAssetsFolder(value[tileImageIndex])" v-bind:src="getLocalImage(value[tileImageIndex].trim())" :style="{'background': ''}")
         font-awesome-icon.tile-image(v-else-if="value[tileImageIndex] != undefined" :icon="value[tileImageIndex].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
@@ -22,8 +26,52 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import globalStore from '@/store'
 import { arrayBufferToBase64 } from '@/js/util'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import { openDb } from '@/plugins/sqlite-map/db'
+import { initSql } from '@/plugins/sqlite-map/loader'
+import { loadDbWithCache } from '@/plugins/sqlite-map/helpers'
 
 const BASE_URL = import.meta.env.BASE_URL
+
+// color palette options
+const PALETTE_PASTEL = [
+  '#F08080', // Light coral pink
+  '#FFB6C1', // Pale pink
+  '#FFDAB9', // peach
+  '#FFECB3', // cream yellow
+  '#B0E0E6', // light blue
+  '#98FB98', // light green
+  '#FFD700', // golden yellow
+  '#FFA07A', // salmon pink
+  '#E0FFFF', // light turquoise
+  '#FFDAB9', // pink
+  '#FFC0CB', // pink
+  '#FFA500', // orange
+  '#FF8C00', // dark orange
+  '#FF7F50', // coral red
+  '#FFE4B5', // papaya
+  '#ADD8E6', // light blue
+  '#90EE90', // light green
+  '#FFD700', // golden yellow
+  '#FFC0CB', // pink
+  '#FFA500', // Orange
+]
+
+const PALETTE_VIVID = [
+  '#FF006E', // Vivid Pink
+  '#FB5607', // Vivid Orange
+  '#FFBE0B', // Vivid Yellow
+  '#8338EC', // Vivid Purple
+  '#3A86FF', // Vivid Blue
+  '#06FFA5', // Vivid Green
+  '#FF4365', // Vivid Red
+  '#00D9FF', // Vivid Cyan
+  '#FF1493', // Vivid Deep Pink
+  '#FF8C00', // Vivid Deep Orange
+]
+
+const PALETTE_MONOCHROME = [
+  '#f7f7fe', // Light gray
+]
 
 export default defineComponent({
   name: 'Tile',
@@ -44,29 +92,9 @@ export default defineComponent({
       // dataSet is either x,y or allRows[]
       dataSet: {} as { data?: any; x?: any[]; y?: any[]; allRows?: any },
       YAMLrequirementsOverview: { dataset: '' },
-      colors: [
-        '#F08080', // Light coral pink
-        '#FFB6C1', // Pale pink
-        '#FFDAB9', // peach
-        '#FFECB3', // cream yellow
-        '#B0E0E6', // light blue
-        '#98FB98', // light green
-        '#FFD700', // golden yellow
-        '#FFA07A', // salmon pink
-        '#E0FFFF', // light turquoise
-        '#FFDAB9', // pink
-        '#FFC0CB', // pink
-        '#FFA500', // orange
-        '#FF8C00', // dark orange
-        '#FF7F50', // coral red
-        '#FFE4B5', // papaya
-        '#ADD8E6', // light blue
-        '#90EE90', // light green
-        '#FFD700', // golden yellow
-        '#FFC0CB', // pink
-        '#FFA500', // Orange
-      ],
+      colors: PALETTE_PASTEL,
       colorsD3: [
+        // TODO: remove? Is this being used?
         '#1F77B4',
         '#FF7F0E',
         '#2CA02C',
@@ -117,10 +145,29 @@ export default defineComponent({
     fileApi(): HTTPFileSystem {
       return new HTTPFileSystem(this.fileSystemConfig, globalStore)
     },
+    tileBorderColor(): string {
+      return this.globalState.isDarkMode ? '#fff' : '#000'
+    },
+    tileTextColor(): string {
+      return this.globalState.isDarkMode ? '#fff' : '#363636'
+    },
   },
   async mounted() {
-    this.dataSet = await this.loadFile()
-    this.validateDataSet()
+    // Set color palette from config if specified, otherwise default to pastel
+    if (this.config.colors) {
+      const paletteKey = this.config.colors.toLowerCase()
+      if (paletteKey === 'vivid') {
+        this.colors = PALETTE_VIVID
+      } else if (paletteKey === 'monochrome') {
+        this.colors = PALETTE_MONOCHROME
+      } else {
+        // Default to pastel for any other value or unrecognized palette
+        this.colors = PALETTE_PASTEL
+      }
+    }
+
+    this.dataSet = await this.buildDataset()
+    // this.validateDataSet()
     await this.loadImages()
     this.$emit('isLoaded')
     console.log(this.dataSet)
@@ -191,6 +238,79 @@ export default defineComponent({
       return []
     },
 
+    async getDataFromSQLQuery(
+      database: string,
+      query: string,
+      singleValue = true,
+      titleColumn = 'metric',
+      valueColumn = 'value'
+    ) {
+      try {
+        const trimmedQuery = query.trim()
+        // open a sqlite connection
+        const spl = await initSql()
+        // connect to database
+        const db = await loadDbWithCache(spl, this.fileApi, openDb, database)
+        // run query and return result
+        if (singleValue) {
+          const queryResult = await db.exec(trimmedQuery).get.first
+          return queryResult
+        } else {
+          const queryResult = await db.exec(trimmedQuery).get.objs
+          const results = []
+          for (const obj of queryResult) {
+            results.push([obj[titleColumn], obj[valueColumn]]) // table columns default to 'metric' and 'value'
+          }
+          return results
+        }
+      } catch (e) {
+        console.error('' + e)
+        this.$emit('error', 'Error querying database: ' + database)
+      }
+      return { data: [] }
+    },
+
+    async buildDataset() {
+      // Datasets can be defined in a handful of ways.
+      // If `dataset` value is a string, it's a .csv to load.
+      if (typeof this.config.dataset === 'string') {
+        return await this.loadFile()
+      }
+      // It can be database & sql query
+      if (this.config.dataset.database && this.config.dataset.query) {
+        return {
+          data: await this.getDataFromSQLQuery(
+            this.config.dataset.database,
+            this.config.dataset.query,
+            false,
+            this.config.dataset.titleCol || 'metric',
+            this.config.dataset.valueCol || 'value'
+          ),
+        }
+      }
+      // Otherwise it's a list of key-value pairs.
+      // Values can either be static or be a database & sql query returning a single value.
+      if (Array.isArray(this.config.dataset)) {
+        const data: any[] = await Promise.all(
+          this.config.dataset.map(async (item: any) => {
+            const key = item.key
+            const row: any[] = []
+            row.push(key)
+            // if the database/query are defined
+            if (item.value?.database && item.value?.query) {
+              const result = await this.getDataFromSQLQuery(item.value.database, item.value.query)
+              row.push(result)
+            } else {
+              // otherwise it's a static value
+              row.push(item.value)
+            }
+            return row
+          })
+        )
+        return { data: data }
+      }
+    },
+
     validateYAML() {
       for (const key in this.YAMLrequirementsOverview) {
         if (key in this.config === false) {
@@ -226,6 +346,14 @@ export default defineComponent({
         return true
       }
       return false
+    },
+
+    getTileStyle(index: number) {
+      return {
+        'background-color': this.colors[index % this.colors.length],
+        border: '1px solid ' + this.tileBorderColor,
+        color: this.tileTextColor,
+      }
     },
   },
 })
@@ -277,13 +405,13 @@ export default defineComponent({
   padding: 20px;
   min-width: 250px;
   font-family: $fancyFont;
+  border-color: v-bind(tileBorderColor);
 }
 
 .tile .tile-value {
-  font-size: 2rem;
+  font-size: 3rem;
   font-weight: bold;
   width: 100%;
-  color: #363636; // var(--text) but always the color from the light mode.
   grid-column-start: 2;
   grid-column-end: 4;
   text-align: center;
@@ -292,10 +420,9 @@ export default defineComponent({
 
 .tile .tile-title {
   width: 100%;
-  font-size: 1.4rem;
-  height: 5rem;
+  font-size: 2.5rem;
+  // height: 3.5rem;
   margin-bottom: 0;
-  color: #363636; // var(--text) but always the color from the light mode.
   text-align: center;
   grid-column-start: 1;
   grid-column-end: 5;

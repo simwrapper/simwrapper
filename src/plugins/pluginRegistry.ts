@@ -143,6 +143,11 @@ const plugins = [
     ],
     component: defineAsyncComponent(() => import('./logistics/LogisticsViewer.vue')),
   },
+  {
+    kebabName: "aeq-reader",
+    filePatterns: ['**/aeqviz-*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./aequilibrae-map/AequilibraEMapComponent.vue')),
+  },
 ]
 
 export const pluginComponents: { [key: string]: AsyncComponent } = {}

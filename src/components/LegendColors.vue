@@ -1,11 +1,24 @@
 <template lang="pug">
+
 .legend-colors.flex-col
-  h4 {{ title }}
-  p {{ description }}
+  h4(v-if="title") {{ title }}
+  p(v-if="description") {{ description }}
   ul.list-items
-    li.legend-row(v-for="item in items" :key="item.value + item.value[0]")
-      .item-label(v-if="item.label") {{ item.label }}
-      .item-swatch(:style="`backgroundColor: rgb(${item.color})`")
+    li.legend-row(v-for="(item, idx) in items" :key="item.label + idx")
+      // Subtitle
+      span.legend-subtitle(v-if="item.type === 'subtitle'") {{ item.label }}
+      // Feature entry
+      template(v-else)
+        .item-swatch(v-if="item.shape === 'line' || item.type === 'line'"
+          :style="`width:32px;height:${item.size||4}px;background:rgb(${item.color});border-radius:2px;align-self:center;`"
+        )
+        .item-swatch(v-else-if="item.shape === 'polygon' || item.type === 'polygon'"
+          :style="`width:20px;height:20px;background:rgb(${item.color});border-radius:4px;border:1px solid #888;display:inline-block;`"
+        )
+        .item-swatch(v-else-if="item.shape === 'circle' || item.type === 'circle'"
+          :style="`width:${item.size||12}px;height:${item.size||12}px;background:rgb(${item.color});border-radius:50%;border:1px solid #888;display:inline-block;`"
+        )
+        .item-label {{ item.label }}
 
 </template>
 
@@ -30,6 +43,13 @@ export default defineComponent({
   list-style: 'none';
   padding: 0;
   margin: 0;
+}
+
+.legend-subtitle {
+  font-weight: bold;
+  margin-top: 0.5em;
+  margin-bottom: 0.25em;
+  display: block;
 }
 
 .item-label {

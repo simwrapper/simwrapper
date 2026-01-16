@@ -168,6 +168,7 @@ export interface FileSystemConfig {
   example?: boolean
   isGithub?: boolean
   isZIB?: boolean
+  isS3?: boolean // AWS S3 bucket with public access
   flask?: boolean // Flask filesystem supports OMX open matrix API - see https://github.com/simwrapper/omx-server
 }
 
