@@ -81,7 +81,8 @@ function scheduleRetry(map: maplibregl.Map) {
   map.once('style.load', retry)
 }
 
-export function enable3DBuildings(map: maplibregl.Map) {
+export function enable3DBuildings(m: any) {
+  const map = m as maplibregl.Map
   if (!map?.getStyle?.()) return
 
   // wait untilr the style is fully loaded
@@ -131,7 +132,8 @@ export function enable3DBuildings(map: maplibregl.Map) {
  * @param map maplibregl.Map
  * @returns void
  */
-export function disable3DBuildings(map: maplibregl.Map) {
+export function disable3DBuildings(m: any) {
+  const map = m as maplibregl.Map
   if (!map?.getLayer?.(THREE_D_BUILDINGS_LAYER_ID)) return
   try {
     map.removeLayer(THREE_D_BUILDINGS_LAYER_ID)
