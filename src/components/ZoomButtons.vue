@@ -22,6 +22,9 @@
           :title="$t('out')"
           src="@/assets/images/sw_minus.jpg")
 
+    .button-single(v-if="show3dToggle" :class="{'button-active': is3dBuildings}")
+      .button-text(@click="toggle3dBuildings" :title="$t('buildings3d')") 3D
+
     .button-single.button-bottom(v-if="globalState.isDarkMode" :style="{ background: `rgb(43,60,78)`, border: '1px solid rgb(119,119,119)'}")
       img.img-button(v-if="globalState.isDarkMode" @click="setNorth()"
           :title="$t('center')"
@@ -41,14 +44,15 @@
 <script lang="ts">
 const i18n = {
   messages: {
-    en: { in: 'Zoom in', out: 'Zoom out', center: 'North' },
-    de: { in: 'Einzoomen', out: 'Auszoomen', center: 'Norden' },
+    en: { in: 'Zoom in', out: 'Zoom out', center: 'North', buildings3d: '3D buildings' },
+    de: { in: 'Einzoomen', out: 'Auszoomen', center: 'Norden', buildings3d: '3D Gebäude' },
   },
 }
 
 import { defineComponent } from 'vue'
 import globalStore from '@/store'
 import MapScale from '@/components/MapScale.vue'
+import { sleep } from '@/js/util'
 
 export enum Corner {
   TOP,
@@ -62,6 +66,9 @@ export default defineComponent({
   components: { MapScale },
   props: {
     corner: String,
+    show3dToggle: { type: Boolean, default: false },
+    is3dBuildings: { type: Boolean, default: false },
+    onToggle3dBuildings: { type: Function, required: false },
   },
   data: () => {
     return {
@@ -87,6 +94,17 @@ export default defineComponent({
   watch: {
     'globalState.viewState.bearing'() {
       this.updateNorthArrow()
+    },
+    async 'globalState.isDarkMode'() {
+      if (this.onToggle3dBuildings) {
+        await this.onToggle3dBuildings()
+        await sleep(800)
+        await this.onToggle3dBuildings()
+      } else {
+        this.$emit('toggle3dBuildings')
+        await sleep(800)
+        this.$emit('toggle3dBuildings')
+      }
     },
   },
   computed: {
@@ -168,6 +186,14 @@ export default defineComponent({
     updateNorthArrow() {
       this.arrowRotation = -1 * this.globalState.viewState.bearing
     },
+
+    async toggle3dBuildings() {
+      if (this.onToggle3dBuildings) {
+        await this.onToggle3dBuildings()
+      } else {
+        this.$emit('toggle3dBuildings')
+      }
+    },
   },
 })
 </script>
@@ -202,6 +228,22 @@ export default defineComponent({
   border: var(--borderZoomButtons);
   background-color: var(--bgBold);
   overflow: hidden;
+}
+
+.button-active {
+  background-color: var(--bgHover2);
+}
+
+.button-text {
+  line-height: 24px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--textBold);
+  user-select: none;
+}
+
+.button-active .button-text {
+  color: #fff;
 }
 
 .img-button {

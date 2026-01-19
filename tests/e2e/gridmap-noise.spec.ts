@@ -7,7 +7,7 @@ test('gridmap loads lausitz noise data with proper colors', async ({ page }) => 
   await page.getByText('radius').waitFor({ timeout: 90000 })
 
   const inputs = page.locator('input')
-  await expect(inputs).toHaveCount(4)
+  await expect(inputs).toHaveCount(5)
 
   // wait for testdata to be populated
   await page.waitForFunction(() => {

@@ -28,8 +28,9 @@
           :stopActivities="stopActivities"
           :tourHubs="tourHubs"
           :viewId="linkLayerId"
+          :show3dBuildings="show3dBuildings"
           )
-        ZoomButtons(v-if="!thumbnail" corner="top-left")
+        ZoomButtons(v-if="!thumbnail" corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
         .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
       .dragger(
@@ -334,6 +335,8 @@ const LogisticsPlugin = defineComponent({
         center: null as any,
         colors: {} as any,
       },
+
+      show3dBuildings: false,
 
       myState: {
         statusMessage: '',
@@ -1738,6 +1741,7 @@ const LogisticsPlugin = defineComponent({
       // are we in a dashboard?
       if (this.config) {
         this.vizDetails = Object.assign({}, this.config)
+        this.sync3dBuildingsSetting()
         return
       }
 
@@ -1751,6 +1755,7 @@ const LogisticsPlugin = defineComponent({
 
           const text = await this.fileApi.getFileText(filename)
           this.vizDetails = YAML.parse(text)
+          this.sync3dBuildingsSetting()
           return
         } catch (e) {
           console.log('failed' + e)
@@ -1796,6 +1801,17 @@ const LogisticsPlugin = defineComponent({
         thumbnail: '',
         colors: {},
       }
+      this.sync3dBuildingsSetting()
+    },
+
+    sync3dBuildingsSetting() {
+      this.show3dBuildings = !!(
+        (this.vizDetails as any).buildings3d ?? (this.vizDetails as any).show3dBuildings
+      )
+    },
+
+    toggle3dBuildings() {
+      this.show3dBuildings = !this.show3dBuildings
     },
 
     async setMapCenter() {

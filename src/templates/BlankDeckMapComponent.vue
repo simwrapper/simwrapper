@@ -11,6 +11,7 @@ import { MapboxOverlay } from '@deck.gl/mapbox'
 import maplibregl from 'maplibre-gl'
 
 import globalStore from '@/store'
+import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
 
 export default defineComponent({
   name: 'MyDeckComponent',
@@ -20,6 +21,7 @@ export default defineComponent({
     data: { type: Array, required: true },
     mapIsIndependent: { type: Boolean, required: true },
     onClick: { type: Function, required: true },
+    show3dBuildings: { type: Boolean, required: false, default: false },
   },
 
   data() {
@@ -51,6 +53,12 @@ export default defineComponent({
     dark() {
       const style = `/map-styles/${this.dark ? 'dark' : 'positron'}.json`
       this.mymap?.setStyle(style)
+    },
+
+    show3dBuildings() {
+      if (!this.mymap) return
+      if (this.show3dBuildings) enable3DBuildings(this.mymap)
+      else disable3DBuildings(this.mymap)
     },
 
     'globalState.viewState'() {
@@ -99,6 +107,10 @@ export default defineComponent({
     })
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
+      if (this.show3dBuildings && this.mymap) {
+        enable3DBuildings(this.mymap)
+      }
+
       this.deckOverlay = new MapboxOverlay({
         interleaved: true,
         layers: this.layers,

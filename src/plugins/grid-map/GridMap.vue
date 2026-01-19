@@ -7,7 +7,13 @@
         :negativeValues="valuesIncludeNeg"
       )
 
-      zoom-buttons(v-if="!thumbnail && isLoaded" corner="top-left")
+      zoom-buttons(
+        v-if="!thumbnail && isLoaded"
+        corner="top-left"
+        :show3dToggle="true"
+        :is3dBuildings="show3dBuildings"
+        :onToggle3dBuildings="toggle3dBuildings"
+      )
 
       .top-right
         .gui-config(:id="configId")
@@ -86,6 +92,8 @@ interface VizDetail {
   projection: any
   thumbnail?: string
   elements?: string
+  buildings3d?: boolean
+  show3dBuildings?: boolean
   cellSize: number
   maxHeight: number
   userColorRamp: string
@@ -108,6 +116,7 @@ interface GuiConfig {
   radius: number
   opacity: number
   height: number
+  show3dBuildings: boolean
   'color ramp': string
   'upper bound': number
   'lower bound': number
@@ -152,6 +161,7 @@ interface MapProps {
   upperPercentile: number
   cbTooltip?: any
   bgLayers?: null | BackgroundLayers
+  show3dBuildings?: boolean
 }
 
 const i18n = {
@@ -285,6 +295,7 @@ const GridMap = defineComponent({
         radius: 150,
         opacity: 1,
         height: 100,
+        show3dBuildings: false,
         'color ramp': 'Viridis',
         'upper bound': 100,
         'lower bound': -100,
@@ -303,6 +314,7 @@ const GridMap = defineComponent({
       maxRadius: 500 as number,
       radiusStep: 5 as number,
       isLoaded: false as boolean,
+      show3dBuildings: false,
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;" as string,
       timeRange: [Infinity, -Infinity] as Number[],
       allTimes: [] as number[],
@@ -351,6 +363,7 @@ const GridMap = defineComponent({
         upperPercentile: 100,
         cbTooltip: this.cbTooltip,
         bgLayers: this.backgroundLayers,
+        show3dBuildings: this.show3dBuildings,
       }
     },
     textColor(): any {
@@ -378,6 +391,11 @@ const GridMap = defineComponent({
       tip.style.left = `${16 + object.devicePixel[0]}px`
       tip.style.bottom = `${16 + object.devicePixel[1]}px`
       this.tooltip = tip
+    },
+
+    toggle3dBuildings() {
+      this.show3dBuildings = !this.show3dBuildings
+      this.guiConfig.show3dBuildings = this.show3dBuildings
     },
 
     /**
@@ -478,6 +496,10 @@ const GridMap = defineComponent({
         this.vizDetails = Object.assign({ colorRamp: '' }, this.config) as VizDetail
         this.setRadiusAndHeight()
         this.setCustomGuiConfig()
+        this.show3dBuildings = !!(
+          (this.vizDetails as any).buildings3d ?? (this.vizDetails as any).show3dBuildings
+        )
+        this.guiConfig.show3dBuildings = this.show3dBuildings
         return
       }
 
@@ -609,6 +631,10 @@ const GridMap = defineComponent({
       this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
 
       this.setRadiusAndHeight()
+      this.show3dBuildings = !!(
+        (this.vizDetails as any).buildings3d ?? (this.vizDetails as any).show3dBuildings
+      )
+      this.guiConfig.show3dBuildings = this.show3dBuildings
 
       const t = this.vizDetails.title ? this.vizDetails.title : 'Grid Map'
       this.$emit('title', t)
@@ -1054,6 +1080,10 @@ const GridMap = defineComponent({
       config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
       config.add(this.guiConfig, 'opacity', 0, 1, 0.1)
       config.add(this.guiConfig, 'height', 0, 250, 5)
+      config
+        .add(this.guiConfig, 'show3dBuildings')
+        .name('3D buildings')
+        .onChange((value: boolean) => (this.show3dBuildings = value))
 
       // Diff checkbox
       config
