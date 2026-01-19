@@ -52,6 +52,7 @@ const i18n = {
 import { defineComponent } from 'vue'
 import globalStore from '@/store'
 import MapScale from '@/components/MapScale.vue'
+import { sleep } from '@/js/util'
 
 export enum Corner {
   TOP,
@@ -93,6 +94,17 @@ export default defineComponent({
   watch: {
     'globalState.viewState.bearing'() {
       this.updateNorthArrow()
+    },
+    async 'globalState.isDarkMode'() {
+      if (this.onToggle3dBuildings) {
+        await this.onToggle3dBuildings()
+        await sleep(800)
+        await this.onToggle3dBuildings()
+      } else {
+        this.$emit('toggle3dBuildings')
+        await sleep(800)
+        this.$emit('toggle3dBuildings')
+      }
     },
   },
   computed: {
@@ -175,9 +187,9 @@ export default defineComponent({
       this.arrowRotation = -1 * this.globalState.viewState.bearing
     },
 
-    toggle3dBuildings() {
+    async toggle3dBuildings() {
       if (this.onToggle3dBuildings) {
-        this.onToggle3dBuildings()
+        await this.onToggle3dBuildings()
       } else {
         this.$emit('toggle3dBuildings')
       }
