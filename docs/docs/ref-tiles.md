@@ -16,19 +16,69 @@ The Tiles plug in displays key data for a good overview.
 The tiles plug-in can only be included as panels in **Dashboards**. See Dashboard documentation for general tips on creating dashboard configurations.
 
 - Each table viewer panel is defined inside a **row** in a `dashboard-*.yaml` file.
-- Use panel `type: csv` in the dashboard configuration.
+- Use panel `type: tile` in the dashboard configuration.
 - Standard title, description, and width fields define the frame.
+
+Data for the tiles can be provided in a number of ways,
+
+- As a `.csv` file
+- Hard-coded `title` and `value` pairs
+- As a sqlite table
+- As individual `title` and sqlite-query pairs
+
+Additionally, the color palette for the tiles can be set via the `colors` parameter. Options are `pastel` (default), `vivid`, and `monochrome`.
 
 ---
 
 ### Sample dashboard.yaml config snippet
 
+For data source from csv, a sqlite table, hardcoded and a series of sqlite queries,
+
 ```yaml
 layout:
-  row1:
+  csv_row:
     - type: 'tile'
       title: Tiles Plug-in Example
       dataset: 'data.csv'
+  sqlite_table_row:
+    - type: 'tile'
+      title: "My Tile Panel"
+      dataset:
+        database: project_database.sqlite
+        query: "SELECT metric, value FROM metadata_table;"
+        titleCol: metric            (n.b., optional, these default to 'metric' and 'value')
+        valueCol: value
+  hardcoded_row:
+    - type: 'tile'
+      title: "My Tile Panel"
+      dataset:
+        - key: "Total trips"
+          value: 54321
+        - key: "Average speed"
+          value: 23.4
+  sqlite_queries_row:
+    - type: 'tile'
+      title: "My Tile Panel"
+      dataset:
+        - key: "Total trips"
+          value:
+            database: project_database.sqlite
+            query: "SELECT COUNT(*) FROM trips;"
+        - key: "Average speed"
+          value:
+            database: project_database.sqlite
+            query: "SELECT AVG(speed) FROM trips;"
+```
+
+To change the color palette.
+
+```yaml
+layout:
+  csv_row:
+    - type: 'tile'
+      title: Tiles Plug-in Example
+      dataset: 'data.csv'
+      color: 'monochrome'
 ```
 
 ---
