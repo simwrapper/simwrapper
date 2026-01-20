@@ -29,7 +29,6 @@ export interface VizDetails {
   description: string
   database: string
   extraDatabases?: Record<string, string>
-  view: 'table' | 'map' | ''
   layers: { [key: string]: LayerConfig }
   center?: [number, number] | string
   zoom?: number
@@ -53,7 +52,6 @@ export type RGB = [number, number, number]
 // quantitative color style: numeric column mapped to a palette
 export type QuantitativeColorStyle = {
   column: string
-  type?: 'quantitative'
   palette?: string
   numColors?: number
   // explicit range for color mapping (min, max)
@@ -65,7 +63,6 @@ export type QuantitativeColorStyle = {
 // categorical color style: mapping of category -> hex color
 export type CategoricalColorStyle = {
   column: string
-  type?: 'categorical'
   colors: Record<string, string>
 }
 
@@ -91,11 +88,6 @@ export type LayerStyle = {
   // point radius and fill height share the same flexible numeric shape
   pointRadius?: NumericStyle
   fillHeight?: NumericStyle
-  filter?: {
-    column: string
-    include?: any[]
-    exclude?: any[]
-  }
 }
 
 export type LayerConfigLite = {

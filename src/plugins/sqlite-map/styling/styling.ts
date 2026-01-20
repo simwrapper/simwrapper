@@ -68,18 +68,6 @@ export function buildStyleArrays(args: BuildArgs): BuildResult {
 
     if (!style) continue
 
-    // filter
-    if (style.filter && 'column' in style.filter) {
-      const f = style.filter as any
-      for (let j = 0; j < idxs.length; j++) {
-        const v = propsArr[j]?.[f.column]
-        let visible = true
-        if (f.include?.length) visible = f.include.includes(v)
-        if (f.exclude?.length) visible = visible && !f.exclude.includes(v)
-        featureFilter[idxs[j]] = visible ? 1 : 0
-      }
-    }
-
     // apply color style to a target typed array
     const applyColor = (styleVal: any, target: Uint8ClampedArray, stride: number) => {
       if (!styleVal) return

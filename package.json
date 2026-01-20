@@ -120,10 +120,7 @@
     "sax-wasm": "^2.2.4",
     "shallow-equal": "^1.2.1",
     "shapefile": "^0.6.6",
-    "spatialite": "^0.1.0",
     "spl.js": "^0.1.2",
-    "sql.js": "^1.13.0",
-
     "the-new-css-reset": "^1.7.3",
     "threads": "^1.7.0",
     "three": "^0.127.0",

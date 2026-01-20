@@ -23,7 +23,6 @@ export async function parseYamlConfig(
     description: config.description || '',
     database: databasePath,
     extraDatabases,
-    view: config.view || '',
     layers: config.layers || {},
     center: config.center,
     zoom: config.zoom,
