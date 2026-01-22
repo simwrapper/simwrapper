@@ -2,6 +2,7 @@
 .c-aequilibrae-viewer.flex-col(:class="{'is-thumbnail': thumbnail}")
   .map-viewer
     SqliteMapComponent(
+      v-if="fileApi"
       ref="sqliteReader"
       :config="vizConfig"
       :subfolder="subfolder"
@@ -35,9 +36,9 @@
         :lineWidthUnits="'meters'"
         :pointRadiusUnits="'meters'"
       )
-      template(v-if="slotLegendItems.length")
+      template(v-if="slotLegendItems && slotLegendItems.length")
         // Store legend items for use outside the slot
-  .legend-overlay(v-if="currentLegendItems.length" :style="{background: legendBgColor}")
+  .legend-overlay(v-if="currentLegendItems && currentLegendItems.length" :style="{background: legendBgColor}")
     LegendColors(:items="currentLegendItems" title="Legend")
 </template>
 
@@ -66,11 +67,17 @@ export default defineComponent({
     yamlConfig: String,
   },
   data() {
-    const uid = `id-${Math.floor(1e12 * Math.random())}`
+    const uid = Math.floor(1e12 * Math.random())
     return {
       globalState: globalStore.state,
-      vizConfig: {} as VizDetails,
-      layerId: `aeq-${uid}`,
+      vizConfig: {
+        title: '',
+        description: '',
+        database: '',
+        layers: {},
+        legend: [],
+      } as VizDetails,
+      layerId: uid,
       fileApi: null as HTTPFileSystem | null,
       bgLayers: null as BackgroundLayers | null,
       currentLegendItems: [] as Array<{ label: string; color: string; value: any }>,
@@ -154,6 +161,11 @@ export default defineComponent({
             .map(([k, v]) => `${k}: ${v}`)
             .join('<br>')
         : ''
+    },
+
+    handleFeatureClick(clickInfo: any) {
+      // Handle feature click events
+      // Add your click handling logic here if needed
     },
   },
 })

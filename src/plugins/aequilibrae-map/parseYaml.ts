@@ -6,7 +6,7 @@ export async function parseYamlConfig(
   yamlText: string,
   subfolder: string | null
 ): Promise<VizDetails> {
-  const config = YAML.parse(yamlText)
+  const config = YAML.parse(yamlText) || {}
   const dbFile = config.database || config.file
   if (!dbFile) throw new Error('No database field found in YAML config')
 
@@ -31,6 +31,6 @@ export async function parseYamlConfig(
     pitch: config.pitch,
     geometryLimit: config.geometryLimit,
     minimalProperties: config.minimalProperties,
-    legend: config.legend,
+    legend: config.legend || [],
   }
 }
