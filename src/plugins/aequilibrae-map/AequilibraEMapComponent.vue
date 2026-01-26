@@ -36,8 +36,7 @@
         :lineWidthUnits="'meters'"
         :pointRadiusUnits="'meters'"
       )
-      template(v-if="slotLegendItems && slotLegendItems.length")
-        // Store legend items for use outside the slot
+      div(v-show="false" :data-legend="syncLegend(slotLegendItems)")
   .legend-overlay(v-if="currentLegendItems && currentLegendItems.length" :style="{background: legendBgColor}")
     LegendColors(:items="currentLegendItems" title="Legend")
 </template>
@@ -104,17 +103,6 @@ export default defineComponent({
   },
 
   async mounted() {
-    // Watch for legend changes from SqliteMapComponent
-    this.$watch(
-      () => (this.$refs.sqliteReader as any)?.legendItems,
-      (newVal) => {
-        if (newVal) {
-          this.currentLegendItems = newVal
-        }
-      },
-      { deep: true }
-    )
-
     try {
       this.fileApi = new HTTPFileSystem(this.fileSystem, globalStore)
       if (this.thumbnail) {
@@ -134,6 +122,13 @@ export default defineComponent({
   },
 
   methods: {
+    syncLegend(items: any[]) {
+      if (items && items.length) {
+        this.currentLegendItems = items
+      }
+      return items
+    },
+
     async loadConfig(): Promise<void> {
       if (this.config) {
         this.vizConfig = { ...this.config }
@@ -154,7 +149,7 @@ export default defineComponent({
       }
     },
 
-    handleTooltip(hoverInfo: any) { // TODO: expand to show link id & rendered value
+    handleTooltip(hoverInfo: any) {
       const props = hoverInfo?.object?.properties
       return props
         ? Object.entries(props)
@@ -164,8 +159,7 @@ export default defineComponent({
     },
 
     handleFeatureClick(clickInfo: any) {
-      // Handle feature click events
-      // Add your click handling logic here if needed
+      
     },
   },
 })

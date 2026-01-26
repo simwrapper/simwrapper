@@ -35,11 +35,11 @@ import type { GeoFeature, VizDetails } from './types'
 export default defineComponent({
   name: 'SqliteMapComponent',
   props: {
-    /** Configuration object with database path, layers, and styling */
+    // configuration object with database path, layers, and styling
     config: { type: Object as any, required: true },
-    /** Subfolder path for resolving relative paths */
+    // subfolder path for resolving relative paths
     subfolder: { type: String, required: true },
-    /** File system API with getFileBlob method */
+    // file system API with getFileBlob method
     fileApi: { type: Object, required: true },
   },
   data() {
@@ -243,7 +243,7 @@ export default defineComponent({
       }
       this.buildLegend()
 
-      // Compute and apply initial view from config after geometries are ready so DeckMap
+      // compute and apply initial view from config after geometries are ready so DeckMap
       // initializes with the correct camera when the slot renders.
       const iv = this.computeInitialViewFromConfig(this.config)
       if (iv) {

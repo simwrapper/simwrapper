@@ -5,7 +5,7 @@ import type { LayerConfig, JoinConfig } from './types'
 // helper type for column metadata returned by PRAGMA table_info
 export type ColumnInfo = { name: string; type?: string; nullable?: boolean }
 
-/** standard column name for geometry in spatial databases */
+// standard column name for geometry in spatial databases
 const GEOMETRY_COLUMN = 'geometry'
 
 // essential spatial column names that should always be included
