@@ -17,6 +17,7 @@
                 :dark = "globalState.isDarkMode"
                 :leftside = "vizDetails.leftside || false"
                 :mapIsIndependent="false"
+                :drtRequests="$options.drtRequests || []"
                 :paths = "$options.paths || []"
                 :settingsShowLayers = "SETTINGS"
                 :searchEnabled = "searchEnabled"
@@ -129,6 +130,8 @@ import DeckMap from './DeckMapComponent.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import BackgroundLayers from '@/js/BackgroundLayers'
 
+const DEFAULT_ZOOM = 8
+
 import {
   ColorScheme,
   FileSystem,
@@ -169,7 +172,7 @@ const MyComponent = defineComponent({
 
     const SETTINGS = {
       vehicles: true,
-      routes: false,
+      routes: true,
       requests: false,
     } as any
 
@@ -203,7 +206,7 @@ const MyComponent = defineComponent({
         title: '',
         description: '',
         center: [13.45, 52.5],
-        zoom: 10,
+        zoom: DEFAULT_ZOOM,
         mapIsIndependent: false,
         theme: '',
         leftside: false,
@@ -415,7 +418,7 @@ const MyComponent = defineComponent({
 
         this.$store.commit('setMapCamera', {
           center,
-          zoom: this.vizDetails.zoom || 9,
+          zoom: this.vizDetails.zoom || DEFAULT_ZOOM,
           pitch: 0,
           bearing: 0,
           jump: true,
@@ -565,7 +568,7 @@ const MyComponent = defineComponent({
         this.vizDetails.center = center
         globalStore.commit('setMapCamera', {
           center,
-          zoom: 9,
+          zoom: this.vizDetails.zoom || DEFAULT_ZOOM,
           pitch: 0,
           bearing: 0,
           jump: true,
@@ -993,8 +996,10 @@ input {
   display: flex;
   flex-direction: column;
   height: 100%;
+  margin: 0 1rem;
 
   h3 {
+    border-radius: 0.5rem;
     color: var(--link);
     text-align: center;
     padding: 2rem 2rem;

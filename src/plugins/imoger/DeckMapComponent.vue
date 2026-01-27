@@ -256,10 +256,14 @@ export default defineComponent({
   },
 
   mounted() {
-    const style = `${BASE_URL}map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
+    let style: any = `${BASE_URL}map-styles/${
+      this.globalState.isDarkMode ? 'dark' : 'positron'
+    }.json`
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
     const zoom = (this.globalState.viewState.zoom || 8) as number
+
+    // style = { version: 8, sources: {}, layers: [] }
 
     //@ts-ignore
     this.mymap = new maplibregl.Map({

@@ -123,6 +123,8 @@ async function processChunk(chunk: any) {
   if (!links) return
 
   let numLinks = links.length
+  // console.log('CHUNK numLinks', numLinks)
+
   const props = {
     capacity: new Float32Array(numLinks),
     freespeed: new Float32Array(numLinks),
@@ -165,6 +167,7 @@ async function processChunk(chunk: any) {
 }
 
 function finalAssembly() {
+  // console.log(100, _cleanLinks)
   // clear some ram first
   nodeIdOffset = {}
   // _nodeCoords = null
@@ -177,7 +180,7 @@ function finalAssembly() {
   let LOffset = 0
 
   for (const col of Object.keys(_cleanLinks[0])) {
-    // console.log(`---`, col)
+    console.log(`---`, col)
     if (col == 'source' || col == 'dest') {
       network[col] = new Float32Array(_countLinks * 2)
       LOffset = 0
@@ -397,6 +400,5 @@ async function parseXML(props?: {
   // console.log('Total chunks:', _numChunks)
 
   const network = finalAssembly()
-  // console.log({ network })
   return network
 }
