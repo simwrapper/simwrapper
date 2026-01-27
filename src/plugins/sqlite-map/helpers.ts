@@ -24,9 +24,25 @@ export function releaseMainDbFromVm(vm: any) {
   vm.tables = []
 }
 
+// Cache for blob fetching to avoid downloading the same file multiple times
+const blobCache = new Map<string, Promise<ArrayBuffer>>()
+
+export function clearBlobCache(): void {
+  blobCache.clear()
+}
+
 export async function loadDbWithCache(spl: any, fileApi: any, openDb: OpenDbFn, path: string) {
-  const blob = await fileApi.getFileBlob(path)
-  return openDb(spl, await blob.arrayBuffer(), path)
+  // Check if we're already downloading or have downloaded this file
+  let arrayBufferPromise = blobCache.get(path)
+  
+  if (!arrayBufferPromise) {
+    // Start the download and cache the promise
+    arrayBufferPromise = fileApi.getFileBlob(path).then((blob: Blob) => blob.arrayBuffer()) as Promise<ArrayBuffer>
+    blobCache.set(path, arrayBufferPromise)
+  }
+  
+  const arrayBuffer = await arrayBufferPromise
+  return openDb(spl, arrayBuffer, path)
 }
 
 export function createLazyDbLoader(
@@ -41,8 +57,17 @@ export function createLazyDbLoader(
     if (!path) return null
     try {
       onLoadingText?.(`Loading ${dbName}...`)
-      const blob = await fileApi.getFileBlob(path)
-      return openDb(spl, await blob.arrayBuffer(), path)
+      
+      // Use the same caching mechanism as loadDbWithCache
+      let arrayBufferPromise = blobCache.get(path)
+      
+      if (!arrayBufferPromise) {
+        arrayBufferPromise = fileApi.getFileBlob(path).then((blob: Blob) => blob.arrayBuffer()) as Promise<ArrayBuffer>
+        blobCache.set(path, arrayBufferPromise)
+      }
+      
+      const arrayBuffer = await arrayBufferPromise
+      return openDb(spl, arrayBuffer, path)
     } catch (e) {
       console.warn(`Failed to load database '${dbName}':`, e)
       return null

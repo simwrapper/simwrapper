@@ -6,6 +6,7 @@ import {
   getUsedColumns,
   createJoinCacheKey,
 } from './utils'
+import { clearBlobCache } from './helpers'
 
 export async function getTableNames(db: SqliteDb): Promise<string[]> {
   const result = await db.exec("SELECT name FROM sqlite_master WHERE type='table';").get.objs
@@ -391,4 +392,6 @@ export function clearAllDbCaches(): void {
   dbLoadPromises.clear()
 
   joinDataCache.clear()
+  tableProjectionCache.clear()
+  clearBlobCache()
 }
