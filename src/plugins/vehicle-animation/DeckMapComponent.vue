@@ -208,7 +208,7 @@ export default defineComponent({
     },
 
     latitudeCorrectionFactor() {
-      // rotation factors are warped at high latitudes. Thanks, mercator
+      // rotation factors are warped at high latitudes. Thanks, Gerardus Mercator
       const latitude =
         this.globalState.viewState.latitude ||
         (this.globalState.viewState.center && this.globalState.viewState.center[1]) ||

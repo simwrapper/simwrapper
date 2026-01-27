@@ -321,59 +321,6 @@ export default class DashboardDataManager {
     return network
   }
 
-  // /**
-  //  * Load simple dataset without grouping/filtering
-  //  * @param allRows Each row
-  //  * @returns TBD
-  //  */
-  // public loadSimple(config: configuration, allRows: any[]) {
-  //   // Simple requires x and columns/usedCol
-  //   if (!config.x || (!config.columns && !config.usedCol)) {
-  //     throw Error('Config requires "x" and "columns" parameters')
-  //   }
-
-  //   var useOwnNames = false
-
-  //   const x = [] as any[]
-
-  //   for (var i = 0; i < allRows.length; i++) {
-  //     if (i == 0 && config.skipFirstRow) {
-  //     } else {
-  //       x.push(allRows[i][config.x])
-  //     }
-  //   }
-
-  //   const columns = config.columns || config.usedCol || []
-
-  //   for (let i = 0; i < columns.length; i++) {
-  //     const name = columns[i]
-  //     let legendName = ''
-  //     if (columns[i] !== 'undefined') {
-  //       if (useOwnNames) {
-  //         legendName = this.config.legendTitles[i]
-  //       } else {
-  //         legendName = name
-  //       }
-  //       const value = []
-  //       for (var j = 0; j < this.dataRows.length; j++) {
-  //         if (j == 0 && this.config.skipFirstRow) {
-  //         } else {
-  //           value.push(this.dataRows[j][name])
-  //         }
-  //       }
-  //       this.data.push({
-  //         x: x,
-  //         y: value,
-  //         name: legendName,
-  //         type: 'bar',
-  //         textinfo: 'label+percent',
-  //         textposition: 'inside',
-  //         automargin: true,
-  //       })
-  //     }
-  //   }
-  // }
-
   public async setFilter(filter: FilterDefinition) {
     const { dataset, column, value, invert, range } = filter
 
@@ -741,6 +688,7 @@ export default class DashboardDataManager {
             const wasmWorker = new WasmXmlNetworkParser() // as unknown as any
             wasmWorker.onmessage = (event: any) => {
               const data = event.data
+
               if ('requestCRS' in data) {
                 // No CRS in network. But if we have a CRS in output_config, use that!
                 if (configEPSG && configEPSG !== 'Atlantis') {
@@ -758,17 +706,23 @@ export default class DashboardDataManager {
                 wasmWorker.postMessage({ confirmedCRS: crs })
                 return
               }
+
               if (data.error) {
+                console.log('DATA ERROR:', data.error)
                 wasmWorker.terminate()
                 reject(data.error)
               }
+
               if (data.status && cbStatus) {
                 cbStatus(data.status)
                 return
               }
-              wasmWorker.terminate()
-              resolve(data.network)
+              if (data.network) {
+                wasmWorker.terminate()
+                resolve(data.network)
+              }
             }
+
             wasmWorker.postMessage({
               path,
               crs: options.crs || '',

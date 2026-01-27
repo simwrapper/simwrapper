@@ -35,12 +35,12 @@ async function fetchData(props: {
   featureProperties?: any[]
   options?: { highPrecision: boolean }
 }) {
-  _config = props.config
-  _dataset = _config.dataset
+  if (props.config) _config = props.config
+  if (_config.dataset) _dataset = _config.dataset
   if (props.options?.highPrecision) _highPrecision = true
 
   // Did we get featureProperties array? Convert it to DataTable
-  if (props.featureProperties) {
+  if (props.featureProperties && props.featureProperties.length) {
     convertFeaturePropertiesToDataTable(props.featureProperties)
     postMessage(_fileData[_dataset])
     return

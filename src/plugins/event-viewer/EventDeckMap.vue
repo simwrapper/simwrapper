@@ -170,8 +170,10 @@ export default defineComponent({
       }.json` as any
     }
 
-    const z = `${7 * 3}${this.$store.state.mapuuid}`
-    style = `https://tiles.stadiamaps.com/styles/alidade_satellite.json?api_key=${z}`
+    if (this.projection && this.projection !== 'Atlantis') {
+      const z = `${7 * 3}${this.$store.state.mapuuid}`
+      style = `https://tiles.stadiamaps.com/styles/alidade_satellite.json?api_key=${z}`
+    }
 
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]

@@ -316,7 +316,7 @@ export default defineComponent({
         finalLayers.push(
           new GeojsonOffsetLayer({
             id: 'geoJsonOffsetLayer',
-            beforeId: 'water',
+            beforeId: this.isAtlantis ? undefined : 'water',
             data: this.features,
             // function callbacks: --------------
             getLineWidth: this.cbLineWidth, // 0, // no borders
