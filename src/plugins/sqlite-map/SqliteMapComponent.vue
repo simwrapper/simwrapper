@@ -20,7 +20,7 @@
 <script lang="ts">
 import { defineComponent, markRaw } from 'vue'
 import globalStore from '@/store'
-import { initSql, releaseSql, acquireLoadingSlot } from './loader'
+import { initSpl, releaseSpl, acquireLoadingSlot } from './loader'
 import {
   applyStylesToVm,
   loadDbWithCache,
@@ -69,7 +69,7 @@ export default defineComponent({
     async loadDatabase(): Promise<void> {
       try {
         this.loadingText = 'Loading SQL engine...'
-        this.spl = await initSql()
+        this.spl = await initSpl()
 
         this.loadingText = 'Loading database...'
         const dbPath = this.config.database
@@ -212,7 +212,7 @@ export default defineComponent({
 
     cleanupMemory(): void {
       releaseMainDbFromVm(this)
-      releaseSql()
+      releaseSpl()
       this.spl = null
       this.geoJsonFeatures = []
       this.tables = []

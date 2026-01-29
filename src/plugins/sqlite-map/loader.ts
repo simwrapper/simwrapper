@@ -21,7 +21,7 @@ let sharedSpl: SPLType | null = null
 let splInitPromise: Promise<SPLType> | null = null
 let splRefCount = 0
 
-export async function initSql(): Promise<SPLType> {
+export async function initSpl(): Promise<SPLType> {
   splRefCount++
 
   if (sharedSpl) {
@@ -42,6 +42,6 @@ export async function initSql(): Promise<SPLType> {
   return splInitPromise!
 }
 
-export function releaseSql(): void {
+export function releaseSpl(): void {
   splRefCount -= 1 // let GC clean up, restarting the SPL engine is slow
 }

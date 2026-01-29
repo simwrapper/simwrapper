@@ -27,7 +27,7 @@ import globalStore from '@/store'
 import { arrayBufferToBase64 } from '@/js/util'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import { openDb } from '@/plugins/sqlite-map/db'
-import { initSql } from '@/plugins/sqlite-map/loader'
+import { initSpl } from '@/plugins/sqlite-map/loader'
 import { loadDbWithCache } from '@/plugins/sqlite-map/helpers'
 
 const BASE_URL = import.meta.env.BASE_URL
@@ -248,7 +248,7 @@ export default defineComponent({
       try {
         const trimmedQuery = query.trim()
         // open a sqlite connection
-        const spl = await initSql()
+        const spl = await initSpl()
         // connect to database
         const db = await loadDbWithCache(spl, this.fileApi, openDb, database)
         // run query and return result
