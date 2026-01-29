@@ -13,7 +13,7 @@
 
       .map-container(oncontextmenu="return false")
         deck-map(v-if="isLoaded"
-                :colors = "COLOR_OCCUPANCY"
+                :colors = "COLOR_KEP"
                 :dark = "globalState.isDarkMode"
                 :leftside = "vizDetails.leftside || false"
                 :mapIsIndependent="false"
@@ -52,10 +52,17 @@
             p {{ myState.clock }}
 
           .panel-items
-            legend-colors.legend-block(v-if="legendItems.length"
-              :title="`${$t('passengers')}:`" :items="legendItems")
 
-            legend-colors.legend-block(:title="`${$t('requests')}:`" :items="legendRequests")
+            legend-colors.legend-block(
+              :title="`${$t('capacities')}:`" :items="legendCapsules"
+            )
+
+            legend-colors.legend-block(
+              :title="`${$t('passengers')}:`" :items="legendItems"
+              icon="/images/icon-atlas-vehicles.png"
+            )
+
+            //- legend-colors.legend-block(:title="`${$t('requests')}:`" :items="legendRequests")
 
             .search-panel
               p.speed-label(:style="{margin: '1rem 0 0 0'}") {{ $t('search') }}
@@ -93,6 +100,7 @@ const i18n = {
     en: {
       requests: 'DRT Requests',
       passengers: 'Passengers',
+      capacities: 'Capsule type',
       search: 'Search',
       showhide: 'Show/Hide',
       vehicles: 'Vehicles',
@@ -142,6 +150,7 @@ import {
   LIGHT_MODE,
   DARK_MODE,
 } from '@/Globals'
+import DashboardDataManager from '@/js/DashboardDataManager'
 
 const MyComponent = defineComponent({
   name: 'VehicleAnimationPlugin',
@@ -159,9 +168,15 @@ const MyComponent = defineComponent({
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
     configFromDashboard: { type: Object, required: false },
+    datamanager: { type: Object as PropType<DashboardDataManager> },
     yamlConfig: String,
   },
   data() {
+    const COLOR_KEP = {
+      0: [35, 230, 250],
+      12: [235, 25, 185],
+    } as any
+
     const COLOR_OCCUPANCY = {
       0: [140, 140, 160],
       1: [65, 220, 65],
@@ -181,7 +196,18 @@ const MyComponent = defineComponent({
       isLoaded: false,
 
       COLOR_OCCUPANCY,
+      COLOR_KEP,
       SETTINGS,
+
+      legendCapsules: Object.keys(COLOR_KEP).map(key => {
+        return {
+          type: LegendItemType.box,
+          color: COLOR_KEP[key],
+          value: key,
+          label: key == '0' ? 'Humans' : 'Packages',
+        }
+      }),
+
       legendItems: Object.keys(COLOR_OCCUPANCY).map(key => {
         return {
           type: LegendItemType.line,
@@ -199,17 +225,38 @@ const MyComponent = defineComponent({
       dragStartWidth: 250,
       legendSectionWidth: 275,
 
+      // DataManager might be passed in from the dashboard; or we might be
+      // in single-view mode, in which case we need to create one for ourselves
+      myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
+
       vizDetails: {
-        network: '',
-        drtTrips: '',
-        projection: '',
-        title: '',
-        description: '',
+        capacities: '',
         center: [13.45, 52.5],
-        zoom: DEFAULT_ZOOM,
-        mapIsIndependent: false,
-        theme: '',
+        description: '',
+        drtTrips: '',
         leftside: false,
+        loads: '',
+        mapIsIndependent: false,
+        network: '',
+        projection: '',
+        theme: '',
+        title: '',
+        zoom: DEFAULT_ZOOM,
+      },
+
+      capLookup: {} as {
+        kep: {
+          [vehId: string]: {
+            endTime: number
+            cap: number
+          }[]
+        }
+        human: {
+          [vehId: string]: {
+            endTime: number
+            cap: number
+          }[]
+        }
       },
 
       show3dBuildings: false,
@@ -265,6 +312,7 @@ const MyComponent = defineComponent({
       isPausedDueToHiding: false,
     }
   },
+
   computed: {
     fileApi(): HTTPFileSystem {
       return new HTTPFileSystem(this.fileSystem, globalStore)
@@ -450,7 +498,7 @@ const MyComponent = defineComponent({
       }
 
       const vehId = this.vehicleLookup[vehicleNumber]
-      console.log(vehId)
+      console.log('clicked on vehicle:', vehId)
 
       // set -- or clear -- search box!
       if (this.searchTerm === vehId) this.searchTerm = ''
@@ -649,7 +697,6 @@ const MyComponent = defineComponent({
 
     // convert path/timestamp info into path traces we can use
     async parseRouteTraces(trips: any[]) {
-      let countTraces = 0
       let vehNumber = -1
 
       const traces: any = []
@@ -679,12 +726,18 @@ const MyComponent = defineComponent({
             segments = []
             time = nextTime
           } else {
+            const capKep = this.capLookup.kep[vehicle.id].reduceRight((a, b) => {
+              // console.log(b.endTime, time)
+              return time < b.endTime ? b.cap : a
+            }, 0)
+
             segments.push({
               t0: time,
               p0: vehicle.path[i - 1],
               p1: vehicle.path[i],
               v: vehNumber,
               occ: vehicle.passengers[i - 1],
+              capKep,
             })
           }
         }
@@ -702,6 +755,28 @@ const MyComponent = defineComponent({
     async loadFiles() {
       let trips: any[] = []
       let drtRequests: any = []
+      let loads: any = []
+      const kepLookup = {} as { [vehId: string]: { endTime: number; cap: number }[] }
+      const humanLookup = {} as { [vehId: string]: { endTime: number; cap: number }[] }
+
+      // DRT CAPACITIES
+      if (this.vizDetails.capacities) {
+        try {
+          const { allRows } = await this.myDataManager.getDataset({
+            dataset: this.vizDetails.capacities,
+          })
+          const numRows = allRows.vehicle_id.values.length || 0
+          for (let i = 0; i < numRows; i++) {
+            const lookup = allRows.slot.values[i] == 'KEP' ? kepLookup : humanLookup
+            const veh = allRows.vehicle_id.values[i]
+            lookup[veh] = lookup[veh] || [] // create [] if first one
+            lookup[veh].push({
+              endTime: allRows.end_time.values[i],
+              cap: allRows.capacity.values[i],
+            })
+          }
+        } catch {}
+      }
 
       try {
         if (this.vizDetails.drtTrips.endsWith('json')) {
@@ -726,7 +801,8 @@ const MyComponent = defineComponent({
         console.error(e)
         this.myState.statusMessage = '' + e
       }
-      return { trips, drtRequests }
+
+      return { trips, drtRequests, kepLookup, humanLookup }
     },
 
     rotateColors() {
@@ -754,7 +830,9 @@ const MyComponent = defineComponent({
 
     this.myState.statusMessage = 'Loading...'
     console.log('loading files')
-    const { trips, drtRequests } = await this.loadFiles()
+    const { trips, drtRequests, kepLookup, humanLookup } = await this.loadFiles()
+
+    this.capLookup = { kep: kepLookup, human: humanLookup }
 
     console.log('parsing vehicle motion')
     this.myState.statusMessage = `${this.$t('vehicles')}...`
@@ -961,11 +1039,11 @@ export default MyComponent
 .speed-label {
   font-size: 0.8rem;
   font-weight: bold;
+  text-transform: uppercase;
 }
 
 .clock {
   color: white;
-  width: 100%;
   background-color: #000000cc;
   border: 3px solid white;
   color: white;

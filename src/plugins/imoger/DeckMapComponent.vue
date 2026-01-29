@@ -133,7 +133,7 @@ export default defineComponent({
             getTargetPosition: (d: any) => d.p1,
             getTimeStart: (d: any) => d.t0,
             getTimeEnd: (d: any) => d.t1,
-            getColor: (d: any) => this.colors[d.occ],
+            getColor: (d: any) => this.colors[d.capKep],
             getWidth: 1, // (d: any) => 3.0 * (d.occ + 1) - 1,
             opacity: 0.7,
             widthMinPixels: 1,
