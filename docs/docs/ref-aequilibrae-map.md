@@ -101,6 +101,27 @@ After the join, columns from the joined table are available for styling (e.g. qu
 
 Style keys supported: `fillColor`, `lineColor`, `lineWidth`, `pointRadius`, `fillHeight`. (Note: client-side include/exclude filters were removed — use `sqlFilter` on the layer instead.)
 
+### Default Styles (`defaults`)
+The optional `defaults` object sets baseline style values applied to all features before layer-specific styles are applied. If a layer doesn't specify a particular style property, the default value is used.
+Supported properties in `defaults`:
+| Property | Type | Description | Default if omitted |
+| --- | --- | --- | --- |
+| `fillColor` | string | Default fill color for polygons and points (hex) | `"#59a14f"` |
+| `lineColor` | string | Default line color (hex) | `"#4e79a7"` |
+| `lineWidth` | number | Default line width in meters | `2` |
+| `pointRadius` | number | Default point radius in meters | `4` |
+| `fillHeight` | number | Default height for 3D extrusion | `0` |
+Example:
+```yaml
+defaults:
+  fillColor: "#6f6f6f"
+  lineColor: "#FF6600"
+  lineWidth: 2
+  pointRadius: 4
+```
+
+
+
 ### Colors (`fillColor`, `lineColor`)
 
 Colors may be specified in three ways:

@@ -78,7 +78,7 @@ layout:
     - type: 'tile'
       title: Tiles Plug-in Example
       dataset: 'data.csv'
-      color: 'monochrome'
+      colors: 'monochrome'
 ```
 
 ---
