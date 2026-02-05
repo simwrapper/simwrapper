@@ -6,7 +6,7 @@ import {
   fetchGeoJSONFeatures,
   getCachedJoinData,
 } from './db'
-import { hasGeometryColumn, getNeededJoinColumn } from './utils'
+import { hasGeometryColumn, getNeededJoinColumns } from './utils'
 import type { LayerConfig } from './types'
 
 export async function buildTables(
@@ -69,7 +69,8 @@ export async function buildGeoFeatures(
       let joinedData: Map<any, Record<string, any>> | undefined
 
       if (layerConfig.join && lazyDbLoader) {
-        const neededColumn = getNeededJoinColumn(layerConfig)
+        // request all columns referenced by styling to ensure both colour and width can be derived
+        const neededColumns = getNeededJoinColumns(layerConfig)
 
         try {
           let extraDb = loadedExtraDbs.get(layerConfig.join.database)
@@ -82,7 +83,9 @@ export async function buildGeoFeatures(
           }
 
           if (extraDb) {
-            joinedData = await getCachedJoinData(extraDb, layerConfig.join, neededColumn)
+            // pass first column (legacy) or list of columns
+            // getCachedJoinData will accept either a string or array in a later patch
+            joinedData = await getCachedJoinData(extraDb, layerConfig.join, neededColumns.join(','))
           } else {
             console.warn(
               `Extra database '${layerConfig.join.database}' not found for layer '${layerName}'`

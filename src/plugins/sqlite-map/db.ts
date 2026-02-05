@@ -36,7 +36,7 @@ export async function queryTable(
   columns?: string[],
   whereClause?: string
 ): Promise<Record<string, any>[]> {
-  const columnList = columns ? columns.map(c => `"${c}"`).join(', ') : '*'
+  const columnList = columns && columns.length > 0 ? columns.map(c => `"${c}"`).join(', ') : '*'
   const whereCondition = whereClause ? ` WHERE ${whereClause}` : ''
   const query = `SELECT ${columnList} FROM "${tableName}"${whereCondition};`
   const result = await db.exec(query).get.objs
@@ -48,12 +48,22 @@ const joinDataCache: Map<string, Map<any, Record<string, any>>> = new Map()
 export async function getCachedJoinData(
   db: SqliteDb,
   joinConfig: JoinConfig,
-  neededColumn?: string
+  neededColumn?: string | string[]
 ): Promise<Map<any, Record<string, any>>> {
+  // normalize neededColumn to array for cache-key and query
+  const neededCols =
+    typeof neededColumn === 'string' && neededColumn.includes(',')
+      ? neededColumn.split(',').map(s => s.trim()).filter(Boolean)
+      : Array.isArray(neededColumn)
+      ? neededColumn
+      : neededColumn
+      ? [String(neededColumn)]
+      : []
+
   const cacheKey = createJoinCacheKey(
     joinConfig.database,
     joinConfig.table,
-    neededColumn || undefined,
+    neededCols.length ? neededCols.join(',') : undefined,
     joinConfig.filter
   )
 
@@ -63,11 +73,10 @@ export async function getCachedJoinData(
 
   // Determine which columns to query
   let columnsToQuery: string[] | undefined
-  if (neededColumn) {
-    columnsToQuery = [joinConfig.rightKey]
-    if (neededColumn !== joinConfig.rightKey) {
-      columnsToQuery.push(neededColumn)
-    }
+  if (neededCols.length > 0) {
+    const colSet = new Set(neededCols)
+    colSet.add(joinConfig.rightKey)
+    columnsToQuery = Array.from(colSet)
   } else if (joinConfig.columns && joinConfig.columns.length > 0) {
     const colSet = new Set(joinConfig.columns)
     colSet.add(joinConfig.rightKey)
@@ -76,7 +85,15 @@ export async function getCachedJoinData(
     columnsToQuery = undefined
   }
 
-  const joinRows = await queryTable(db, joinConfig.table, columnsToQuery, joinConfig.filter)
+  let joinRows: Record<string, any>[] = []
+  try {
+    joinRows = await queryTable(db, joinConfig.table, columnsToQuery, joinConfig.filter)
+  } catch (e) {
+    console.warn(`Failed to query join table '${joinConfig.table}':`, e)
+    const empty = new Map<any, Record<string, any>>()
+    joinDataCache.set(cacheKey, empty)
+    return empty
+  }
   const joinData = new Map(joinRows.map(row => [row[joinConfig.rightKey], row]))
   joinDataCache.set(cacheKey, joinData)
 

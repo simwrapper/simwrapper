@@ -84,6 +84,21 @@ export function getNeededJoinColumn(layerConfig: Partial<LayerConfig> | any): st
   return undefined
 }
 
+export function getNeededJoinColumns(layerConfig: Partial<LayerConfig> | any): string[] {
+  const cols: string[] = []
+  const style = (layerConfig as any).style
+  if (!style) return cols
+
+  for (const prop of STYLE_PROPERTIES) {
+    const cfg = style[prop]
+    if (cfg && typeof cfg === 'object' && 'column' in cfg) {
+      cols.push(cfg.column)
+    }
+  }
+
+  return Array.from(new Set(cols))
+}
+
 export function isGeometryColumn(columnName: string): boolean {
   return columnName.toLowerCase() === GEOMETRY_COLUMN
 }
