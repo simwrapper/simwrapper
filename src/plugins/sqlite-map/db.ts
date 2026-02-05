@@ -53,7 +53,10 @@ export async function getCachedJoinData(
   // normalize neededColumn to array for cache-key and query
   const neededCols =
     typeof neededColumn === 'string' && neededColumn.includes(',')
-      ? neededColumn.split(',').map(s => s.trim()).filter(Boolean)
+      ? neededColumn
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
       : Array.isArray(neededColumn)
       ? neededColumn
       : neededColumn
@@ -71,14 +74,19 @@ export async function getCachedJoinData(
     return joinDataCache.get(cacheKey)!
   }
 
-  // Determine which columns to query
+  // Determine which columns to query; fall back to SELECT * when joinConfig.columns
+  // is unspecified to avoid querying columns that may not exist in the join table
   let columnsToQuery: string[] | undefined
-  if (neededCols.length > 0) {
-    const colSet = new Set(neededCols)
-    colSet.add(joinConfig.rightKey)
-    columnsToQuery = Array.from(colSet)
-  } else if (joinConfig.columns && joinConfig.columns.length > 0) {
-    const colSet = new Set(joinConfig.columns)
+  if (joinConfig.columns && joinConfig.columns.length > 0) {
+    const availableCols = new Set(joinConfig.columns)
+    const colSet = new Set<string>()
+    if (neededCols.length > 0) {
+      for (const col of neededCols) {
+        if (availableCols.has(col)) colSet.add(col)
+      }
+    } else {
+      for (const col of joinConfig.columns) colSet.add(col)
+    }
     colSet.add(joinConfig.rightKey)
     columnsToQuery = Array.from(colSet)
   } else {
@@ -141,7 +149,8 @@ export async function fetchGeoJSONFeatures(
   const minimalProps = options?.minimalProperties ?? true
 
   // Resolve joined data early to reuse the cached Map
-  const cachedJoinedData = joinedData ?? (joinConfig ? await getCachedJoinData(db, joinConfig) : undefined)
+  const cachedJoinedData =
+    joinedData ?? (joinConfig ? await getCachedJoinData(db, joinConfig) : undefined)
 
   // Determine which columns we need
   const usedColumns = getUsedColumns(layerConfig)

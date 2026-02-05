@@ -69,7 +69,6 @@ export async function buildGeoFeatures(
       let joinedData: Map<any, Record<string, any>> | undefined
 
       if (layerConfig.join && lazyDbLoader) {
-        // request all columns referenced by styling to ensure both colour and width can be derived
         const neededColumns = getNeededJoinColumns(layerConfig)
 
         try {
@@ -83,8 +82,6 @@ export async function buildGeoFeatures(
           }
 
           if (extraDb) {
-            // pass first column (legacy) or list of columns
-            // getCachedJoinData will accept either a string or array in a later patch
             joinedData = await getCachedJoinData(extraDb, layerConfig.join, neededColumns.join(','))
           } else {
             console.warn(
