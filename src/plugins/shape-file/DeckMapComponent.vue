@@ -16,6 +16,7 @@ import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 import GeojsonOffsetLayer from '@/layers/GeojsonOffsetLayer'
 import Screenshots from '@/js/screenshots'
 import BackgroundLayers from '@/js/BackgroundLayers'
+import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -50,6 +51,7 @@ export default defineComponent({
     viewId: { type: Number, required: true },
     lineWidthUnits: { type: String, required: false, default: 'pixels' },
     pointRadiusUnits: { type: String, required: false, default: 'pixels' },
+    show3dBuildings: { type: Boolean, required: false, default: false },
   },
 
   data() {
@@ -95,6 +97,12 @@ export default defineComponent({
         style = { version: 8, sources: {}, layers: [] }
       }
       this.mymap?.setStyle(style)
+    },
+
+    show3dBuildings() {
+      if (!this.mymap || !this.hasBackgroundMap) return
+      if (this.show3dBuildings) enable3DBuildings(this.mymap)
+      else disable3DBuildings(this.mymap)
     },
 
     'globalState.viewState'() {
@@ -442,6 +450,10 @@ export default defineComponent({
 
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
+      if (this.hasBackgroundMap && this.show3dBuildings && this.mymap) {
+        enable3DBuildings(this.mymap)
+      }
+
       this.deckOverlay = new MapboxOverlay({
         interleaved: true,
         layers: this.layers,

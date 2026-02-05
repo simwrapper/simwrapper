@@ -11,9 +11,16 @@
     :radius="guiConfig.radius"
     :mapIsIndependent="false"
     :bgLayers="backgroundLayers"
+    :show3dBuildings="show3dBuildings"
   )
 
-  zoom-buttons(v-if="!thumbnail" corner="top-left")
+  zoom-buttons(
+    v-if="!thumbnail"
+    corner="top-left"
+    :show3dToggle="true"
+    :is3dBuildings="show3dBuildings"
+    :onToggle3dBuildings="toggle3dBuildings"
+  )
 
   .top-right
     .gui-config(:id="configId")
@@ -111,6 +118,8 @@ interface VizDetail {
   thumbnail?: string
   center: any
   zoom: number
+  buildings3d?: boolean
+  show3dBuildings?: boolean
   buckets: number
   clipMax: number
   exponent: number
@@ -155,6 +164,7 @@ const MyComponent = defineComponent({
         radius: 5,
         'clip max': 100,
         'color ramp': 'viridis',
+        show3dBuildings: false,
         colorRamps: ['bathymetry', 'electric', 'inferno', 'jet', 'magma', 'par', 'viridis'],
         flip: false,
         // @ts-ignore ->
@@ -163,6 +173,8 @@ const MyComponent = defineComponent({
       },
 
       backgroundLayers: null as null | BackgroundLayers,
+
+      show3dBuildings: false,
 
       minRadius: 5,
       maxRadius: 50,
@@ -300,6 +312,12 @@ const MyComponent = defineComponent({
     toggleModalDialog() {
       this.showCustomBreakpoints = !this.showCustomBreakpoints
     },
+
+    toggle3dBuildings() {
+      this.show3dBuildings = !this.show3dBuildings
+      this.guiConfig.show3dBuildings = this.show3dBuildings
+    },
+
     handleTimeSliderValues(timeValues: any[]) {
       this.animationElapsedTime = timeValues[0]
       this.timeFilter = timeValues
@@ -319,6 +337,10 @@ const MyComponent = defineComponent({
 
       const config = this.guiController // .addFolder('Colors')
       config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, 1)
+      config
+        .add(this.guiConfig, 'show3dBuildings')
+        .name('3D buildings')
+        .onChange((value: boolean) => (this.show3dBuildings = value))
 
       const colors = config.addFolder('colors')
       colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
@@ -329,6 +351,13 @@ const MyComponent = defineComponent({
       breakpoints.add(this.guiConfig, 'clip max', 0, 100, 1).onChange(this.setColors)
       breakpoints.add(this.guiConfig, 'exponent', 1, 10, 1).onChange(this.setColors)
       breakpoints.add(this.guiConfig, 'Custom breakpoints...', 1, 100, 1)
+    },
+
+    sync3dBuildingsSetting() {
+      this.show3dBuildings = !!(
+        (this.vizDetails as any).buildings3d ?? (this.vizDetails as any).show3dBuildings
+      )
+      this.guiConfig.show3dBuildings = this.show3dBuildings
     },
     async solveProjection() {
       if (this.thumbnail) return
@@ -351,6 +380,7 @@ const MyComponent = defineComponent({
         this.validateYAML()
         this.vizDetails = Object.assign({}, this.config) as VizDetail
         this.setCustomGuiConfig()
+        this.sync3dBuildingsSetting()
         return
       }
 
@@ -362,6 +392,8 @@ const MyComponent = defineComponent({
         // console.log('NO YAML WTF')
         this.setConfigForRawCSV()
       }
+
+      this.sync3dBuildingsSetting()
     },
 
     setCustomGuiConfig() {

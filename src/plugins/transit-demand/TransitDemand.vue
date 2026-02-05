@@ -26,6 +26,7 @@
             :vizDetails="vizDetails"
             :isAtlantis="isAtlantis"
             :bgLayers="backgroundLayers"
+            :show3dBuildings="show3dBuildings"
           )
 
           .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
@@ -36,7 +37,7 @@
               img.icon-pie-slider(v-if="crossFilters.length" :src="icons.piechart")
               b-slider.pie-slider(v-if="crossFilters.length" type="is-success" :tooltip="false" size="is-small"  v-model="pieSlider")
 
-          zoom-buttons(corner="top-left")
+          zoom-buttons(corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
 
           .status-corner.flex-col(v-if="loadingText" :style="{'height': networkOptions.length ? '15rem':'5rem'}")
             p {{ loadingText }}
@@ -298,6 +299,7 @@ const MyComponent = defineComponent({
       totalLoadSteps: 7,
       searchText: '',
       isAtlantis: false,
+      show3dBuildings: false,
       isDraggingDivider: 0,
       dragStartWidth: 250,
       legendSectionWidth: 275,
@@ -695,6 +697,7 @@ const MyComponent = defineComponent({
       // are we in a dashboard?
       if (this.config) {
         this.vizDetails = Object.assign({}, this.config)
+        this.sync3dBuildingsSetting()
         return true
       }
 
@@ -722,7 +725,18 @@ const MyComponent = defineComponent({
       }
 
       this.$emit('title', title)
+      this.sync3dBuildingsSetting()
       return true
+    },
+
+    sync3dBuildingsSetting() {
+      this.show3dBuildings = !!(
+        (this.vizDetails as any).buildings3d ?? (this.vizDetails as any).show3dBuildings
+      )
+    },
+
+    toggle3dBuildings() {
+      this.show3dBuildings = !this.show3dBuildings
     },
 
     async findInputFiles() {
@@ -875,6 +889,7 @@ const MyComponent = defineComponent({
       this.$emit('title', t)
 
       this.projection = this.vizDetails.projection
+      this.sync3dBuildingsSetting()
       return true
     },
 

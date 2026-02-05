@@ -17,6 +17,7 @@ import globalStore from '@/store'
 import MapTooltip from './MapTooltip.vue'
 import BackgroundLayers from '@/js/BackgroundLayers'
 import { buildRGBfromHexCodes } from '@/js/ColorsAndWidths'
+import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -88,6 +89,7 @@ export default defineComponent({
     stopActivities: { type: Array as PropType<any[]>, required: true },
     tourHubs: { type: Array as PropType<any[]>, required: true },
     viewId: { type: Number, required: true },
+    show3dBuildings: { type: Boolean, required: false, default: false },
   },
 
   data() {
@@ -126,6 +128,12 @@ export default defineComponent({
         style = { version: 8, sources: {}, layers: [] }
       }
       this.mymap?.setStyle(style)
+    },
+
+    show3dBuildings() {
+      if (!this.mymap || this.projection === 'Atlantis') return
+      if (this.show3dBuildings) enable3DBuildings(this.mymap)
+      else disable3DBuildings(this.mymap)
     },
 
     'globalState.viewState'() {
@@ -264,6 +272,10 @@ export default defineComponent({
     })
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
+      if (this.projection !== 'Atlantis' && this.show3dBuildings && this.mymap) {
+        enable3DBuildings(this.mymap)
+      }
+
       this.deckOverlay = new MapboxOverlay({
         interleaved: true,
         layers: this.layers,

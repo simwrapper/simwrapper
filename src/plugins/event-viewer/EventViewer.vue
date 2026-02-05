@@ -15,9 +15,10 @@
     :projection="vizDetails.projection"
     :dotsize="guiConfig.size"
     :tick="tick"
+    :show3dBuildings="show3dBuildings"
   )
 
-  zoom-buttons(v-if="!thumbnail" corner="top-left")
+  zoom-buttons(v-if="!thumbnail" corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
 
   .top-right
     .gui-config(:id="configId")
@@ -116,6 +117,8 @@ interface VizDetail {
   thumbnail?: string
   center: any
   zoom: number
+  buildings3d?: boolean
+  show3dBuildings?: boolean
 }
 
 interface PointLayer {
@@ -159,8 +162,8 @@ const MyComponent = defineComponent({
       } as unknown as NetworkLinks,
       linkIdLookup: {} as any,
       guiConfig: {
-        speed: 0.1,
-        size: 12,
+        speed: 0.01,
+        size: 24,
       },
       viewId: Math.floor(1e12 * Math.random()),
       configId: ('gui-config-' + Math.floor(1e12 * Math.random())) as any,
@@ -200,6 +203,7 @@ const MyComponent = defineComponent({
         center: null as any,
         zoom: 9,
       } as VizDetail,
+      show3dBuildings: false,
       myState: {
         statusMessage: '',
         subfolder: '',
@@ -212,7 +216,6 @@ const MyComponent = defineComponent({
       guiController: null as GUI | null,
       resizer: null as ResizeObserver | null,
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
-      ANIMATE_SPEED: 0.25,
       animationElapsedTime: 0,
       animationClockTime: 0,
       prevBearing: 0,
@@ -261,7 +264,12 @@ const MyComponent = defineComponent({
       const widgets = this.guiController // .addFolder('Colors')
       widgets.add(this.guiConfig, 'size', 4, 40, 1).onChange(this.setConfig)
       widgets
-        .add(this.guiConfig, 'speed', [-2, -1, -0.5, -0.25, -0.1, 0, 0.1, 0.25, 0.5, 1, 2], 1)
+        .add(
+          this.guiConfig,
+          'speed',
+          [-2, -1, -0.5, -0.25, -0.1, -0.01, 0, 0.01, 0.1, 0.25, 0.5, 1, 2],
+          1
+        )
         .onChange(this.setConfig)
       // colors.add(this.guiConfig, 'exponent', 1, 10, 1).onChange(this.setColors)
       // colors.add(this.guiConfig, 'clip max', 0, 100, 1).onChange(this.setColors)
@@ -291,6 +299,7 @@ const MyComponent = defineComponent({
       if (this.config) {
         this.validateYAML()
         this.vizDetails = Object.assign({}, this.config)
+        this.sync3dBuildingsSetting()
         return
       }
 
@@ -302,6 +311,8 @@ const MyComponent = defineComponent({
         console.log('NO YAML WTF')
         this.setConfigForRawCSV()
       }
+
+      this.sync3dBuildingsSetting()
     },
 
     setConfigForRawCSV() {
@@ -389,6 +400,16 @@ const MyComponent = defineComponent({
 
       const t = this.vizDetails.title ? this.vizDetails.title : 'EVENTS: ' + this.vizDetails.file
       this.$emit('title', t)
+    },
+
+    sync3dBuildingsSetting() {
+      this.show3dBuildings = !!(
+        (this.vizDetails as any).buildings3d ?? (this.vizDetails as any).show3dBuildings
+      )
+    },
+
+    toggle3dBuildings() {
+      this.show3dBuildings = !this.show3dBuildings
     },
     async buildThumbnail() {
       if (this.thumbnail && this.vizDetails.thumbnail) {

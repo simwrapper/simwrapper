@@ -79,6 +79,7 @@ export default new Vuex.Store({
     },
     mapStyles: MAP_STYLES_ONLINE,
     needLoginForUrl: '',
+    mapuuid: 'ad06ba-53a7-49de-bead-8384a2ea12cd',
     statusErrors: [] as Warnings[],
     statusWarnings: [] as Warnings[],
     statusMessage: 'Loading',

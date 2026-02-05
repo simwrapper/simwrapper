@@ -22,7 +22,7 @@
     //- mobile: dashboard dropdown-button
     .dashboard-mobile-section(v-show="!isZoomed && Object.keys(dashboards).length > 1 && isMobile")
       .dropdown
-        b-button.dropbtn(@click="dropDownClicked()") {{ dashboards[activeTab].header.tab || 'Dashboards' }}
+        b-button.dropbtn(@click="dropDownClicked()") {{ activeTabLabel }}
           i.fa.fa-caret-down
 
         .dropdown-content(v-if="showDropDown")
@@ -103,7 +103,7 @@ export default defineComponent({
       allConfigFiles: { dashboards: {}, topsheets: {}, vizes: {}, configs: {} } as YamlConfigs,
       crumbs: [] as any,
       customCSS: '',
-      dashboards: [] as any[],
+      dashboards: {} as Record<string, any>,
       dashboardDataManager: null as DashboardDataManager | null,
       dashboardTabWithDelay: '',
       finalFolder: '',
@@ -137,6 +137,12 @@ export default defineComponent({
     }
   },
   computed: {
+    activeTabLabel(): string {
+      const dashboard = (this.dashboards as any)?.[this.activeTab]
+      const label = dashboard?.header?.tab
+      if (typeof label === 'string' && label.length) return label
+      return 'Dashboards'
+    },
     fileApi(): HTTPFileSystem {
       return new HTTPFileSystem(this.fileSystem, globalStore)
     },
@@ -539,7 +545,7 @@ export default defineComponent({
 
       this.header = ''
       this.footer = ''
-      this.dashboards = []
+      this.dashboards = {}
       this.pageHeader = this.getPageHeader()
 
       // this happens async

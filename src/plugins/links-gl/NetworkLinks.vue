@@ -19,9 +19,10 @@
         :projection="vizDetails.projection"
         :mapIsIndependent="vizDetails.mapIsIndependent"
         :bgLayers="backgroundLayers"
+        :show3dBuildings="show3dBuildings"
     )
 
-    zoom-buttons(v-if="!thumbnail")
+    zoom-buttons(v-if="!thumbnail" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
     //- drawing-tool(v-if="!thumbnail")
 
     //- color/width/etc panel
@@ -211,6 +212,8 @@ const MyComponent = defineComponent({
         },
       },
 
+      show3dBuildings: false,
+
       currentUIFilterDefinitions: {} as any,
       datasets: {} as { [id: string]: DataTable },
       isButtonActiveColumn: false,
@@ -344,6 +347,7 @@ const MyComponent = defineComponent({
       if (this.config) {
         this.validateYAML()
         this.vizDetails = Object.assign({}, emptyState, this.config)
+        this.sync3dBuildingsSetting()
         return
       }
 
@@ -365,6 +369,7 @@ const MyComponent = defineComponent({
 
       const t = this.vizDetails.title ? this.vizDetails.title : filename || 'Network Links'
       this.$emit('title', t)
+      this.sync3dBuildingsSetting()
     },
 
     async loadStandaloneYamlConfig() {
@@ -437,6 +442,17 @@ const MyComponent = defineComponent({
 
     setVizDetails() {
       this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
+      this.sync3dBuildingsSetting()
+    },
+
+    sync3dBuildingsSetting() {
+      this.show3dBuildings = !!(
+        (this.vizDetails as any).buildings3d ?? (this.vizDetails as any).show3dBuildings
+      )
+    },
+
+    toggle3dBuildings() {
+      this.show3dBuildings = !this.show3dBuildings
     },
 
     async buildThumbnail() {

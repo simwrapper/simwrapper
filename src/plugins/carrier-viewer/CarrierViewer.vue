@@ -22,9 +22,10 @@
                   :numSelectedTours="selectedTours.length"
                   :onClick="handleClick"
                   :projection="vizDetails.projection"
-                  :services="vizDetails.services || false")
+                  :services="vizDetails.services || false"
+                  :show3dBuildings="show3dBuildings")
 
-      ZoomButtons(v-if="!thumbnail" corner="top-left")
+      ZoomButtons(v-if="!thumbnail" corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
       .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
     .dragger(
@@ -237,6 +238,8 @@ const CarrierPlugin = defineComponent({
         services: false,
         center: null as any,
       },
+
+      show3dBuildings: false,
 
       myState: {
         statusMessage: '',
@@ -876,6 +879,7 @@ const CarrierPlugin = defineComponent({
       // are we in a dashboard?
       if (this.config) {
         this.vizDetails = Object.assign({}, this.config)
+        this.sync3dBuildingsSetting()
         return
       }
 
@@ -889,6 +893,7 @@ const CarrierPlugin = defineComponent({
 
           const text = await this.fileApi.getFileText(filename)
           this.vizDetails = YAML.parse(text)
+          this.sync3dBuildingsSetting()
           if (this.vizDetails.title) {
             this.$emit('title', this.vizDetails.title)
           }
@@ -937,11 +942,22 @@ const CarrierPlugin = defineComponent({
         thumbnail: '',
         services: false,
       }
+      this.sync3dBuildingsSetting()
 
       const t = 'Carrier Explorer'
       this.$emit('title', t)
 
       this.buildThumbnail()
+    },
+
+    sync3dBuildingsSetting() {
+      this.show3dBuildings = !!(
+        (this.vizDetails as any).buildings3d ?? (this.vizDetails as any).show3dBuildings
+      )
+    },
+
+    toggle3dBuildings() {
+      this.show3dBuildings = !this.show3dBuildings
     },
 
     async setMapCenter() {

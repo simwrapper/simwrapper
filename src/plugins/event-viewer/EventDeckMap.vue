@@ -13,6 +13,7 @@ import maplibregl from 'maplibre-gl'
 import globalStore from '@/store'
 import MovingIconsLayer from '@/layers/moving-icons/moving-icons-vehicles-layer'
 import { ColorDepiction } from '@/layers/moving-icons/moving-icons-vehicles-layer'
+import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -32,6 +33,7 @@ export default defineComponent({
     simulationTime: { type: Number, required: true },
     tick: { type: Number, required: true },
     viewId: { type: Number, required: true },
+    show3dBuildings: { type: Boolean, required: false, default: false },
   },
 
   data() {
@@ -72,6 +74,12 @@ export default defineComponent({
         }.json` as any
       }
       this.mymap?.setStyle(style)
+    },
+
+    show3dBuildings() {
+      if (!this.mymap || this.projection === 'Atlantis') return
+      if (this.show3dBuildings) enable3DBuildings(this.mymap)
+      else disable3DBuildings(this.mymap)
     },
 
     'globalState.viewState'() {
@@ -162,9 +170,14 @@ export default defineComponent({
       }.json` as any
     }
 
+    const z = `${7 * 3}${this.$store.state.mapuuid}`
+    style = `https://tiles.stadiamaps.com/styles/alidade_satellite.json?api_key=${z}`
+
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
     const zoom = (this.globalState.viewState.zoom || 8) as number
+
+    // --- CREATE THE MAP ---
     //@ts-ignore
     this.mymap = new maplibregl.Map({
       container,
@@ -174,6 +187,10 @@ export default defineComponent({
     })
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
+      if (this.projection !== 'Atlantis' && this.show3dBuildings && this.mymap) {
+        enable3DBuildings(this.mymap)
+      }
+      // --- deck overlay
       this.deckOverlay = new MapboxOverlay({
         interleaved: true,
         layers: this.layers,

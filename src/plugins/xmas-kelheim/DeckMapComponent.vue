@@ -14,6 +14,7 @@ import globalStore from '@/store'
 import DrtRequestLayer from './DrtRequestLayer'
 import MovingIconsLayer, { ColorDepiction } from '@/layers/moving-icons/moving-icons-vehicles-layer'
 import PathTraceLayer from '@/layers/PathTraceLayer'
+import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -76,6 +77,7 @@ export default defineComponent({
     traces: { type: Array as PropType<any[]>, required: true },
     vehicleLookup: { type: Array as PropType<any[]>, required: true },
     viewId: { type: Number, required: true },
+    show3dBuildings: { type: Boolean, required: false, default: false },
   },
 
   data() {
@@ -219,6 +221,12 @@ export default defineComponent({
       this.mymap?.setStyle(style)
     },
 
+    show3dBuildings() {
+      if (!this.mymap) return
+      if (this.show3dBuildings) enable3DBuildings(this.mymap)
+      else disable3DBuildings(this.mymap)
+    },
+
     'globalState.viewState'() {
       if (this.mapIsIndependent) return
       const incoming = this.globalState.viewState as any
@@ -253,6 +261,10 @@ export default defineComponent({
 
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
+      if (this.show3dBuildings && this.mymap) {
+        enable3DBuildings(this.mymap)
+      }
+
       this.deckOverlay = new MapboxOverlay({
         interleaved: true,
         layers: this.layers,
