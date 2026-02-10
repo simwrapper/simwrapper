@@ -220,7 +220,7 @@ const GridMap = defineComponent({
       'Reds',
       'RdYlGn (div)',
       'greenRed (div)',
-      'RdBu',
+      'RdBu (div)',
     ]
     return {
       id: Math.floor(1e12 * Math.random()),
@@ -1354,7 +1354,8 @@ const GridMap = defineComponent({
 
       if (this.config.colorRamp) {
         if (this.config.colorRamp.ramp != undefined)
-          this.guiConfig['color ramp'] = this.config.colorRamp.ramp
+          this.guiConfig['color ramp'] =
+            this.config.colorRamp.ramp === 'RdBu' ? 'RdBu (div)' : this.config.colorRamp.ramp
 
         if (this.config.colorRamp.reverse != undefined)
           this.guiConfig.flip = this.config.colorRamp.reverse
