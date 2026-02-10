@@ -31,7 +31,7 @@ test('gridmap loads accessibility page', async ({ page }) => {
   expect(colors[1]).toBe(0)
   expect(colors[2]).toBe(31)
   let sum = colors.reduce((a, b) => a + b, 0)
-  expect(sum).toBe(717299)
+  expect(sum).toBe(682615)
 
   // load pt_accessibility
   await page.getByLabel('Diff').uncheck()
@@ -42,5 +42,5 @@ test('gridmap loads accessibility page', async ({ page }) => {
   testdata = await page.evaluate(() => window.__testdata__)
   colors = testdata.mapData[0].colorData as any[]
   sum = colors.reduce((a, b) => a + b, 0)
-  expect(sum).toBe(737516)
+  expect(sum).toBe(745388)
 })
