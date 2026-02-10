@@ -467,9 +467,12 @@ const GridMap = defineComponent({
         }
         return new Uint8Array([255, 255, 255, 255])
       } else {
-        // Calculate the index based on the value and the number of colors in the array.
-        const index = Math.floor((value / 100) * (this.colors.length - 1))
-        // Return the selected color.
+        // Map 0..100 to equally sized bins across all configured colors.
+        // Using (length - 1) shifts breakpoints upward (e.g. with 2 colors the split is at 100).
+        const n = this.colors.length
+        if (!n) return [0, 0, 0, 0]
+        const clamped = Math.max(0, Math.min(100, value))
+        const index = Math.min(n - 1, Math.floor((clamped / 100) * n))
         return this.colors[index]
       }
     },
