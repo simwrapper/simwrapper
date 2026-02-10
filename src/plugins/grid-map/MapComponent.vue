@@ -214,7 +214,9 @@ export default defineComponent({
       }
 
       const currentData = this.data.mapData[this.currentTimeIndex]?.values
-      if (!currentData || !currentData[object.index]) return null
+      if (!currentData) return null
+      if (object.index == null || object.index < 0 || object.index >= currentData.length) return null
+      if (!Number.isFinite(currentData[object.index])) return null
 
       const [lng, lat] = object.coordinate // Koordinaten (Längengrad, Breitengrad)
       const rawValue = currentData[object.index]
