@@ -1041,7 +1041,7 @@ const GridMap = defineComponent({
     },
 
     handleDiscreteTimeValues(timeUpdate: { extent: number; index: number }) {
-      this.currentTime[0] = timeUpdate.extent
+      this.currentTime = [timeUpdate.extent, timeUpdate.extent]
       this.selectedTimeData = []
 
       for (let i = 0; i < this.data.mapData.length; i++) {
@@ -1201,16 +1201,48 @@ const GridMap = defineComponent({
     /*
      * This method is called when the first column is changed to update the data and colors.
      */
+    getCurrentSelectedTime(): number | null {
+      const selected = Number(this.currentTime?.[0])
+      return Number.isFinite(selected) ? selected : null
+    },
+
+    resolveSelectedTime(previousTime: number | null): number {
+      if (!this.allTimes.length) return 0
+
+      if (previousTime !== null && this.timeToIndex.has(previousTime as Number)) {
+        return previousTime
+      }
+
+      if (previousTime === null) return this.allTimes[0]
+
+      let closest = this.allTimes[0]
+      let minDistance = Math.abs(closest - previousTime)
+      for (let i = 1; i < this.allTimes.length; i++) {
+        const distance = Math.abs(this.allTimes[i] - previousTime)
+        if (distance < minDistance) {
+          minDistance = distance
+          closest = this.allTimes[i]
+        }
+      }
+      return closest
+    },
+
+    async reloadDataAndPreserveSelectedTime() {
+      const selectedTimeBeforeReload = this.getCurrentSelectedTime()
+      this.data = await this.loadAndPrepareData()
+      const selectedTimeAfterReload = this.resolveSelectedTime(selectedTimeBeforeReload)
+      this.currentTime = [selectedTimeAfterReload, selectedTimeAfterReload]
+      this.setColors()
+    },
+
     async handleOpacityColumnChange(newCol: string) {
       this.vizDetails.opacityColumn = newCol
-      this.data = await this.loadAndPrepareData()
-      this.setColors()
+      await this.reloadDataAndPreserveSelectedTime()
     },
 
     async handleColumnChange(newCol: string) {
       this.vizDetails.valueColumn = newCol
-      this.data = await this.loadAndPrepareData()
-      this.setColors()
+      await this.reloadDataAndPreserveSelectedTime()
     },
 
     /**
@@ -1219,13 +1251,8 @@ const GridMap = defineComponent({
     async handleDiffChange(useDiff: boolean) {
       this.vizDetails.diff = useDiff
 
-      // reload the data and set the colors
-      this.data = await this.loadAndPrepareData()
-      this.setColors()
-
-      // reset the slider to the last time slot
-      const last = this.allTimes[this.allTimes.length - 1]
-      this.currentTime = [last, last]
+      // reload data while keeping the currently selected time slot
+      await this.reloadDataAndPreserveSelectedTime()
     },
 
     windowResize() {
@@ -1243,13 +1270,8 @@ const GridMap = defineComponent({
     async handleSecondColumnChange(col2: string) {
       this.vizDetails.secondValueColumn = col2
 
-      // reload the data and set the colors
-      this.data = await this.loadAndPrepareData()
-      this.setColors()
-
-      // reset the slider to the last time slot
-      const last = this.allTimes[this.allTimes.length - 1]
-      this.currentTime = [last, last]
+      // reload data while keeping the currently selected time slot
+      await this.reloadDataAndPreserveSelectedTime()
     },
 
     setColors() {
