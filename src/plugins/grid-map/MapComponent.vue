@@ -230,6 +230,7 @@ export default defineComponent({
     metric value: ${this.data.mapData[this.currentTimeIndex].values[object.index]}<br/>
     opacity value: ${this.data.mapData[this.currentTimeIndex].opacityValues[object.index]}
     `
+      this.tooltipStyle.display = 'block'
       this.tooltipStyle.top = `${12 + Math.floor(object.y)}px`
       this.tooltipStyle.left = `${12 + Math.floor(object.x)}px`
       this.tooltipHTML = tooltipHtml
@@ -253,7 +254,7 @@ export default defineComponent({
     },
 
     handleClick(target: any, event: any) {
-      this.tooltipStyle.display = 'none'
+      this.tooltipHTML = ''
       if (this.onClick) this.onClick(target, event)
     },
   },
