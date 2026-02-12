@@ -46,6 +46,7 @@ interface SankeyYaml {
   dataset?: string
   title?: string
   description?: string
+  sort?: boolean
 }
 
 const MyComponent = defineComponent({
@@ -62,7 +63,7 @@ const MyComponent = defineComponent({
   data() {
     return {
       globalState: globalStore.state,
-      vizDetails: { csv: '', dataset: '', title: '', description: '' } as SankeyYaml,
+      vizDetails: { csv: '', dataset: '', title: '', description: '', sort: true } as SankeyYaml,
       loadingText: '',
       jsonChart: {} as any,
       totalTrips: 0,
@@ -156,6 +157,12 @@ const MyComponent = defineComponent({
         return []
       }
 
+      // sort the lines unless user specified sort: false
+      let lines = rawText.split('\n').slice(1)
+      const doNotSort = this.vizDetails.sort === false
+      if (!doNotSort) lines.sort()
+      rawText = lines.join('\n')
+
       try {
         const content = Papa.parse(rawText, {
           // using header:false because we don't care what
@@ -188,7 +195,7 @@ const MyComponent = defineComponent({
       this.totalTrips = 0
 
       try {
-        for (const cols of this.csvData.slice(1) as any[]) {
+        for (const cols of this.csvData as any[]) {
           if (!fromNodes.includes(cols[0])) fromNodes.push(cols[0])
           if (!toNodes.includes(cols[1])) toNodes.push(cols[1])
 
