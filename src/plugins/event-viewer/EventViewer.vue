@@ -522,7 +522,7 @@ const MyComponent = defineComponent({
         null, // no status callback?!
         true // extra: get freespeed, length attributes
       )
-      this.vizDetails.projection = '' + network.projection
+      this.vizDetails.projection = '' + (network.projection || '')
       return { network }
     },
 
