@@ -3,6 +3,8 @@ node_modules
 /dist
 /public/data/index.html
 
+CLAUDE.md
+
 # local env files
 .env.local
 .env.*.local
