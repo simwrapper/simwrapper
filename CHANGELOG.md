@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.4.0](https://github.com/simwrapper/simwrapper/compare/v4.3.9...v4.4.0) (2026-02-13)
+
+
+### Features
+
+* **sankey:** add "sort: true/false" and sort options by default, alphabetically ([cec0169](https://github.com/simwrapper/simwrapper/commit/cec01691e1075d0d0df421fc5481048a6939eda3))
+
+
+### Bug Fixes
+
+* correct color bin thresholds for bounded diverging scales ([0dc94ca](https://github.com/simwrapper/simwrapper/commit/0dc94ca949c8ab7950a02c60ec9ee690de282f8d))
+* Popup no longer displayed after clicking on the map ([61c626f](https://github.com/simwrapper/simwrapper/commit/61c626f5c89247ffaec2b7b40d394b6a2bbcf6b3))
+* preserve selected time slice when reloading data on column/diff changes ([38d9bff](https://github.com/simwrapper/simwrapper/commit/38d9bff3729f3c3c7c4589d3791e64918deea4bc))
+* show tooltip for zero-valued cells in diff mode ([696ebe0](https://github.com/simwrapper/simwrapper/commit/696ebe0252278c8cb41a9207b5914b21860d782f))
+* tabbed dashboard error (mobile dropdown throw an error on initial render) ([c745f7a](https://github.com/simwrapper/simwrapper/commit/c745f7a5bf5fd6f94816f80db0750b32d7769020))
+* treat RdBu as diverging and label it as RdBu (div) ([7581bc8](https://github.com/simwrapper/simwrapper/commit/7581bc86791480766bcb9dd21a46b49ec1c87af1))
+
 ### [4.3.9](https://github.com/simwrapper/simwrapper/compare/v4.3.8...v4.3.9) (2025-11-30)
 
 
