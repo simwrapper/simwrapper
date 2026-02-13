@@ -220,7 +220,7 @@ const GridMap = defineComponent({
       'Reds',
       'RdYlGn (div)',
       'greenRed (div)',
-      'RdBu',
+      'RdBu (div)',
     ]
     return {
       id: Math.floor(1e12 * Math.random()),
@@ -467,9 +467,12 @@ const GridMap = defineComponent({
         }
         return new Uint8Array([255, 255, 255, 255])
       } else {
-        // Calculate the index based on the value and the number of colors in the array.
-        const index = Math.floor((value / 100) * (this.colors.length - 1))
-        // Return the selected color.
+        // Map 0..100 to equally sized bins across all configured colors.
+        // Using (length - 1) shifts breakpoints upward (e.g. with 2 colors the split is at 100).
+        const n = this.colors.length
+        if (!n) return [0, 0, 0, 0]
+        const clamped = Math.max(0, Math.min(100, value))
+        const index = Math.min(n - 1, Math.floor((clamped / 100) * n))
         return this.colors[index]
       }
     },
@@ -1038,7 +1041,7 @@ const GridMap = defineComponent({
     },
 
     handleDiscreteTimeValues(timeUpdate: { extent: number; index: number }) {
-      this.currentTime[0] = timeUpdate.extent
+      this.currentTime = [timeUpdate.extent, timeUpdate.extent]
       this.selectedTimeData = []
 
       for (let i = 0; i < this.data.mapData.length; i++) {
@@ -1198,16 +1201,48 @@ const GridMap = defineComponent({
     /*
      * This method is called when the first column is changed to update the data and colors.
      */
+    getCurrentSelectedTime(): number | null {
+      const selected = Number(this.currentTime?.[0])
+      return Number.isFinite(selected) ? selected : null
+    },
+
+    resolveSelectedTime(previousTime: number | null): number {
+      if (!this.allTimes.length) return 0
+
+      if (previousTime !== null && this.timeToIndex.has(previousTime as Number)) {
+        return previousTime
+      }
+
+      if (previousTime === null) return this.allTimes[0]
+
+      let closest = this.allTimes[0]
+      let minDistance = Math.abs(closest - previousTime)
+      for (let i = 1; i < this.allTimes.length; i++) {
+        const distance = Math.abs(this.allTimes[i] - previousTime)
+        if (distance < minDistance) {
+          minDistance = distance
+          closest = this.allTimes[i]
+        }
+      }
+      return closest
+    },
+
+    async reloadDataAndPreserveSelectedTime() {
+      const selectedTimeBeforeReload = this.getCurrentSelectedTime()
+      this.data = await this.loadAndPrepareData()
+      const selectedTimeAfterReload = this.resolveSelectedTime(selectedTimeBeforeReload)
+      this.currentTime = [selectedTimeAfterReload, selectedTimeAfterReload]
+      this.setColors()
+    },
+
     async handleOpacityColumnChange(newCol: string) {
       this.vizDetails.opacityColumn = newCol
-      this.data = await this.loadAndPrepareData()
-      this.setColors()
+      await this.reloadDataAndPreserveSelectedTime()
     },
 
     async handleColumnChange(newCol: string) {
       this.vizDetails.valueColumn = newCol
-      this.data = await this.loadAndPrepareData()
-      this.setColors()
+      await this.reloadDataAndPreserveSelectedTime()
     },
 
     /**
@@ -1216,13 +1251,8 @@ const GridMap = defineComponent({
     async handleDiffChange(useDiff: boolean) {
       this.vizDetails.diff = useDiff
 
-      // reload the data and set the colors
-      this.data = await this.loadAndPrepareData()
-      this.setColors()
-
-      // reset the slider to the last time slot
-      const last = this.allTimes[this.allTimes.length - 1]
-      this.currentTime = [last, last]
+      // reload data while keeping the currently selected time slot
+      await this.reloadDataAndPreserveSelectedTime()
     },
 
     windowResize() {
@@ -1240,13 +1270,8 @@ const GridMap = defineComponent({
     async handleSecondColumnChange(col2: string) {
       this.vizDetails.secondValueColumn = col2
 
-      // reload the data and set the colors
-      this.data = await this.loadAndPrepareData()
-      this.setColors()
-
-      // reset the slider to the last time slot
-      const last = this.allTimes[this.allTimes.length - 1]
-      this.currentTime = [last, last]
+      // reload data while keeping the currently selected time slot
+      await this.reloadDataAndPreserveSelectedTime()
     },
 
     setColors() {
@@ -1329,7 +1354,8 @@ const GridMap = defineComponent({
 
       if (this.config.colorRamp) {
         if (this.config.colorRamp.ramp != undefined)
-          this.guiConfig['color ramp'] = this.config.colorRamp.ramp
+          this.guiConfig['color ramp'] =
+            this.config.colorRamp.ramp === 'RdBu' ? 'RdBu (div)' : this.config.colorRamp.ramp
 
         if (this.config.colorRamp.reverse != undefined)
           this.guiConfig.flip = this.config.colorRamp.reverse
