@@ -1,4 +1,4 @@
-name: Deploy Staging to GitHub Pages
+name: Remote Deploy Staging to GitHub Pages
 
 on:
   push:
