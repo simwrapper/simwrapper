@@ -11,7 +11,7 @@ export default class LayerManager {
   }
 
   init(deckProps: any) {
-    this.deckInstance = new DeckMap({ ...deckProps })
+    this.deckInstance = new DeckMap({ ...deckProps, map: '' })
     if (deckProps.mapStyle !== null) {
       const style = globalStore.getters.mapStyle
       this.deckInstance.setMapStyle(style)
