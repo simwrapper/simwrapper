@@ -10,14 +10,13 @@ Sankeys are great for showing the shift between two states; for example mode sha
 
 ## Usage
 
-Standalone: a file named `sankey-*.yml` must be present in working folder. Each yml file matching that pattern will produce a separate Sankey diagram.
+Standalone: a file named `sankey-*.yaml` must be present in working folder. Each yml file matching that pattern will produce a separate Sankey diagram.
 
 Dashboard: Each panel is defined inside a **row** in a `dashboard-*.yaml` file.
 
   - Use panel `type: sankey` in the dashboard configuration.
 
-
-**sankey-example.yml**
+**sankey-example.yaml**
 
 ```yaml
 # only the csv line is required, but title and description help your viewers
@@ -25,7 +24,13 @@ type: sankey
 csv: modeshares.csv
 title: Sankey Demo
 description: Erster Schritt!
+sort: true
 ```
+
+**Sort** determines the order of the options displayed in the chart. (Default: true)
+
+- If **true** (or not present), the available options on both the left and right sides of the chart will be **sorted alphabetically**.
+- If **false**, then the graph will display elements **in the order in which they are found in your dataset.** This is useful if e.g. you add a new mode and want it at the top or bottom of the chart, instead of in the middle somewhere based on its name.
 
 ## Sankey CSV File format
 
