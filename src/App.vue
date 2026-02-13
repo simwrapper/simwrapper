@@ -38,14 +38,8 @@ import { get } from 'idb-keyval'
 
 import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
-import { ColorScheme, MAPBOX_TOKEN, MAP_STYLES_OFFLINE } from '@/Globals'
+import { ColorScheme, MAP_STYLES_OFFLINE } from '@/Globals'
 import { addInitialLocalFilesystems, addFlaskFilesystems } from '@/fileSystemConfig'
-
-// MAPBOX TOKEN
-// this is a required workaround to get the mapbox token assigned in TypeScript
-// see https://stackoverflow.com/questions/44332290/mapbox-gl-typing-wont-allow-accesstoken-assignment
-const writableMapBox: any = maplibregl
-writableMapBox.accessToken = MAPBOX_TOKEN
 
 let doThisOnceForLocalFiles = true
 

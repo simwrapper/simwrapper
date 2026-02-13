@@ -5,7 +5,7 @@ import { SolidPolygonLayer } from '@deck.gl/layers'
 import { color } from 'd3-color'
 
 import globalStore from '@/store'
-import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
+import { REACT_VIEW_HANDLES } from '@/Globals'
 
 export interface PieInfo {
   center: number[]
@@ -158,7 +158,7 @@ export default function Component(props: { viewId: number; pies: PieInfo[]; scal
       {
         /*
         // @ts-ignore */
-        <StaticMap mapboxApiAccessToken={MAPBOX_TOKEN} mapStyle={globalStore.getters.mapStyle} />
+        <StaticMap mapStyle={globalStore.getters.mapStyle} />
       }
     </DeckGL>
   )

@@ -49,9 +49,6 @@ export const BG_COLOR_PLOTLY_FACETS = {
   dark: '#212121',
 }
 
-export const MAPBOX_TOKEN =
-  'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
-
 export enum Status {
   INFO,
   WARNING,

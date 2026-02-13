@@ -2,9 +2,7 @@
 import DeckGL from '@deck.gl/react'
 import { DataFilterExtension } from '@deck.gl/extensions'
 
-// import { StaticMap, MapRef } from 'react-map-gl'
-
-import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
+import { REACT_VIEW_HANDLES } from '@/Globals'
 import globalStore from '@/store'
 import screenshots from '@/js/screenshots'
 
@@ -93,7 +91,7 @@ export default function Component({
       {
         /*
         // @ts-ignore */
-        <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
+        <StaticMap mapStyle={globalStore.getters.mapStyle} />
       }
     </DeckGL>
   )
