@@ -1,5 +1,6 @@
 import micromatch from 'micromatch'
 import naturalSort from 'javascript-natural-sort'
+import { SaxEventType, SAXParser } from 'sax-wasm'
 
 import { gUnzip } from '@/js/util'
 
@@ -17,6 +18,7 @@ enum FileSystemType {
   GITHUB,
   FLASK,
   LAKEFS,
+  S3,
 }
 
 naturalSort.insensitive = true
@@ -42,6 +44,7 @@ class HTTPFileSystem {
   private isGithub: boolean
   private isZIB: boolean
   private isFlask: boolean
+  private isS3: boolean
   private type: FileSystemType
   private fileLinkLookup: any = {}
 
@@ -54,12 +57,14 @@ class HTTPFileSystem {
     this.isGithub = !!project.isGithub
     this.isFlask = !!project.flask
     this.isZIB = !!project.isZIB
+    this.isS3 = !!project.isS3
 
     this.type = FileSystemType.FETCH
     if (this.fsHandle) this.type = FileSystemType.CHROME
     if (this.isGithub) this.type = FileSystemType.GITHUB
     if (this.isFlask) this.type = FileSystemType.FLASK
     if (this.isZIB) this.type = FileSystemType.LAKEFS
+    if (this.isS3) this.type = FileSystemType.S3
 
     this.baseUrl = project.baseURL
     if (!project.baseURL.endsWith('/')) this.baseUrl += '/'
@@ -120,6 +125,9 @@ class HTTPFileSystem {
         return this._getFileFromLakeFS(scaryPath)
       case FileSystemType.FLASK:
         return this._getFileFromAzure(scaryPath)
+      case FileSystemType.S3:
+        // S3 buckets use standard HTTP GET for files
+        return this._getFileFetchResponse(scaryPath)
       case FileSystemType.FETCH:
       default:
         return this._getFileFetchResponse(scaryPath)
@@ -484,6 +492,12 @@ class HTTPFileSystem {
           .then(response => response.blob())
           .then(blob => blob.stream())
         return stream as any
+      case FileSystemType.S3:
+        // S3 buckets use standard HTTP GET for files
+        stream = await this._getFileFetchResponse(scaryPath, options).then(
+          response => response.body
+        )
+        return stream as any
       case FileSystemType.FETCH:
         stream = await this._getFileFetchResponse(scaryPath, options).then(
           response => response.body
@@ -532,6 +546,9 @@ class HTTPFileSystem {
           break
         case FileSystemType.FLASK:
           dirEntry = await this._getDirectoryFromAzure(stillScaryPath)
+          break
+        case FileSystemType.S3:
+          dirEntry = await this._getDirectoryFromS3(stillScaryPath)
           break
         case FileSystemType.LAKEFS:
         case FileSystemType.FETCH:
@@ -615,6 +632,99 @@ class HTTPFileSystem {
       }
     }
     return contents
+  }
+
+  async _getDirectoryFromS3(stillScaryPath: string): Promise<DirectoryEntry> {
+    // S3 uses a list API with prefix and delimiter to simulate directories
+    // https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html
+    
+    let prefix = stillScaryPath.replace(/^\/+/, '') // remove leading slashes
+    prefix = prefix.replaceAll('//', '/')
+    
+    // Build the S3 list URL with query parameters
+    const listUrl = `${this.baseUrl}?list-type=2&delimiter=/&prefix=${encodeURIComponent(prefix)}`
+    
+    const response = await fetch(listUrl)
+    if (response.status !== 200) {
+      console.warn('S3 list status:', response.status)
+      throw response
+    }
+    
+    const xmlText = await response.text()
+    return await this.buildListFromS3Xml(xmlText, prefix)
+  }
+
+  private async buildListFromS3Xml(xmlText: string, prefix: string): Promise<DirectoryEntry> {
+    const dirs: string[] = []
+    const files: string[] = []
+    
+    try {
+      const parser = new SAXParser(SaxEventType.OpenTag | SaxEventType.Text | SaxEventType.CloseTag, { highWaterMark: 32 * 1024 })
+      await parser.prepareWasm()
+      
+      let path = '', inKey = false, inPrefix = false
+      
+      parser.eventHandler = (event, data) => {
+        const tag = data.name
+        if (event === SaxEventType.OpenTag) {
+          if (tag === 'Key') inKey = true
+          else if (tag === 'Prefix') inPrefix = true
+        } else if (event === SaxEventType.Text && (inKey || inPrefix)) {
+          path += data.value
+        } else if (event === SaxEventType.CloseTag) {
+          if (tag === 'Key') {
+            inKey = false
+            if (path && path.startsWith(prefix)) {
+              const key = path.substring(prefix.length)
+              if (key && !key.endsWith('/')) files.push(key)
+            }
+            path = ''
+          } else if (tag === 'Prefix') {
+            inPrefix = false
+            if (path && path.startsWith(prefix)) {
+              const dir = path.substring(prefix.length).replace(/\/$/, '')
+              if (dir) dirs.push(dir)
+            }
+            path = ''
+          }
+        }
+      }
+      
+      parser.write(new TextEncoder().encode(xmlText))
+      parser.end()
+      
+    } catch (error) {
+      console.warn('SAX parsing failed, falling back to regex:', error)
+      
+      // Fallback to regex parsing if sax-wasm fails
+      const contentsRegex = /<Contents>[\s\S]*?<Key>(.*?)<\/Key>[\s\S]*?<\/Contents>/g
+      let match
+      while ((match = contentsRegex.exec(xmlText)) !== null) {
+        let key = match[1]
+        if (key.startsWith(prefix)) {
+          key = key.substring(prefix.length)
+        }
+        if (key && key !== '' && !key.endsWith('/')) {
+          files.push(key)
+        }
+      }
+      
+      const prefixRegex = /<CommonPrefixes>[\s\S]*?<Prefix>(.*?)<\/Prefix>[\s\S]*?<\/CommonPrefixes>/g
+      while ((match = prefixRegex.exec(xmlText)) !== null) {
+        let dirPath = match[1]
+        if (dirPath.startsWith(prefix)) {
+          dirPath = dirPath.substring(prefix.length)
+        }
+        if (dirPath.endsWith('/')) {
+          dirPath = dirPath.slice(0, -1)
+        }
+        if (dirPath && dirPath !== '') {
+          dirs.push(dirPath)
+        }
+      }
+    }
+    
+    return { dirs, files, handles: {} }
   }
 
   async _getDirectoryFromURL(stillScaryPath: string) {

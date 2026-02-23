@@ -144,6 +144,11 @@ const plugins = [
     component: defineAsyncComponent(() => import('./logistics/LogisticsViewer.vue')),
   },
   {
+    kebabName: "aeq-reader",
+    filePatterns: ['**/aeqviz-*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./aequilibrae-map/AequilibraEMapComponent.vue')),
+  },
+  {
     kebabName: 'imoger',
     filePatterns: ['**/viz-imoger*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./imoger/VehicleAnimation.vue')),

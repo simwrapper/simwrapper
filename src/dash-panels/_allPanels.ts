@@ -28,6 +28,7 @@ export const panelLookup: { [key: string]: AsyncComponent } = {
   xml: defineAsyncComponent(() => import('./xml.vue')),
 
   // full-screen map visualizations:
+  aequilibrae: defineAsyncComponent(() => import('./aequilibrae-map.vue')),
   carriers: defineAsyncComponent(() => import('./carriers.vue')),
   flowmap: defineAsyncComponent(() => import('./flowmap.vue')),
   links: defineAsyncComponent(() => import('./links.vue')),
