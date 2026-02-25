@@ -96,8 +96,12 @@ export interface DataSet {
   data?: DataTable
 
   // Transformations
+  filter?: any
   pivot?: any
   aggregate?: any
+  normalize?: any
+  rename?: any
+  constant?: any
   multiIndex?: any
 }
 
