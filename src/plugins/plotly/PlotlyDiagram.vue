@@ -302,7 +302,12 @@ const MyComponent = defineComponent({
       // we always want to use SimWrapper defaults for these:
       mergedLayout.margin = this.layout.margin
       mergedLayout.font = this.layout.font
-      mergedLayout.legend = this.layout.legend
+      // Keep SimWrapper defaults, but preserve user legend settings from YAML.
+      if (mergedLayout.legend) {
+        mergedLayout.legend = Object.assign({}, this.layout.legend, mergedLayout.legend)
+      } else {
+        mergedLayout.legend = this.layout.legend
+      }
 
       // we never want these:
       delete mergedLayout.height
@@ -317,6 +322,7 @@ const MyComponent = defineComponent({
       } else {
         mergedLayout.xaxis = this.layout.xaxis
       }
+      this.normalizeAxisTitle(mergedLayout.xaxis, 12)
 
       if (mergedLayout.yaxis) {
         mergedLayout.yaxis.automargin = true
@@ -331,6 +337,7 @@ const MyComponent = defineComponent({
       } else {
         mergedLayout.yaxis = this.layout.yaxis
       }
+      this.normalizeAxisTitle(mergedLayout.yaxis, 16)
 
       if (mergedLayout.yaxis2) {
         mergedLayout.yaxis2.automargin = true
@@ -341,8 +348,44 @@ const MyComponent = defineComponent({
       } else {
         mergedLayout.yaxis2 = this.layout.yaxis2
       }
+      this.normalizeAxisTitle(mergedLayout.yaxis2, 16)
+
+      // Axis titles need extra plot margins or they can be clipped.
+      if (this.hasAxisTitle(mergedLayout.xaxis)) {
+        mergedLayout.margin.b = Math.max(mergedLayout.margin?.b || 0, 44)
+      }
+      if (this.hasAxisTitle(mergedLayout.yaxis)) {
+        mergedLayout.margin.l = Math.max(mergedLayout.margin?.l || 0, 66)
+      }
+      if (this.hasAxisTitle(mergedLayout.yaxis2)) {
+        mergedLayout.margin.r = Math.max(mergedLayout.margin?.r || 0, 66)
+      }
 
       this.layout = mergedLayout
+    },
+
+    normalizeAxisTitle(axis: any, defaultStandoff: number) {
+      if (!axis) return
+
+      // Accept legacy string syntax from YAML: title: "Distance group"
+      if (typeof axis.title === 'string') {
+        axis.title = { text: axis.title, standoff: defaultStandoff }
+        return
+      }
+
+      if (axis.title && typeof axis.title === 'object') {
+        if (!('text' in axis.title)) axis.title.text = ''
+        if (!('standoff' in axis.title)) axis.title.standoff = defaultStandoff
+      }
+    },
+
+    hasAxisTitle(axis: any): boolean {
+      if (!axis || !axis.title) return false
+      if (typeof axis.title === 'string') return axis.title.trim().length > 0
+      if (typeof axis.title === 'object' && axis.title.text != undefined) {
+        return ('' + axis.title.text).trim().length > 0
+      }
+      return false
     },
 
     // This method checks if facet_col and/or facet_row are defined in the traces
@@ -878,6 +921,10 @@ const MyComponent = defineComponent({
 
     // Transform dataset if requested
     transformData(ds: DataSet) {
+      if ('filter' in ds) {
+        this.filterColumns(ds.data as DataTable, ds.filter)
+      }
+
       if ('pivot' in ds) {
         this.pivot(
           ds.name as string,
@@ -1067,6 +1114,156 @@ const MyComponent = defineComponent({
           dataTable[target].values[i] /= sumMap[key]
         }
       }
+    },
+
+    filterColumns(dataTable: DataTable, filter: any) {
+      if (!filter) return
+
+      if (typeof filter !== 'object' || Array.isArray(filter)) {
+        this.$emit('error', 'Filter must be an object with column/value definitions')
+        return
+      }
+
+      const columns = Object.keys(dataTable)
+      if (columns.length == 0) return
+
+      const n = dataTable[columns[0]].values.length
+      const hasMatchedFilters = new Array(n).fill(true)
+
+      for (const [column, rawSpecification] of Object.entries(filter)) {
+        if (!(column in dataTable)) {
+          this.$emit('error', `Filter column "${column}" not in ${Object.keys(dataTable)}`)
+          continue
+        }
+
+        const fullSpecification = this.parseFilterSpecification(rawSpecification)
+        if (fullSpecification.values.length == 0) {
+          this.$emit('error', `Filter for column "${column}" has no values`)
+          continue
+        }
+
+        const dataColumn = dataTable[column]
+        for (let i = 0; i < n; i++) {
+          if (hasMatchedFilters[i] && !this.checkFilterValue(fullSpecification, dataColumn.values[i])) {
+            hasMatchedFilters[i] = false
+          }
+        }
+      }
+
+      columns.forEach(columnId => {
+        const sourceValues = dataTable[columnId].values as any
+        const values = [] as any[]
+
+        for (let i = 0; i < n; i++) {
+          if (hasMatchedFilters[i]) values.push(sourceValues[i])
+        }
+
+        // Keep typed arrays typed for downstream numeric operations.
+        const isTypedArray = ArrayBuffer.isView(sourceValues) && !(sourceValues instanceof DataView)
+        const filteredValues = isTypedArray ? new sourceValues.constructor(values) : values
+
+        dataTable[columnId] = {
+          ...dataTable[columnId],
+          values: filteredValues,
+        }
+      })
+    },
+
+    parseFilterSpecification(rawSpecification: any) {
+      let conditional = ''
+      let invert = false
+      let range = false
+      let values = [] as any[]
+
+      if (Array.isArray(rawSpecification)) {
+        values = rawSpecification.slice()
+      } else if (
+        rawSpecification &&
+        typeof rawSpecification === 'object' &&
+        !Array.isArray(rawSpecification)
+      ) {
+        if ('invert' in rawSpecification) invert = !!rawSpecification.invert
+        if ('range' in rawSpecification) range = !!rawSpecification.range
+        if ('conditional' in rawSpecification) conditional = '' + rawSpecification.conditional
+
+        if ('values' in rawSpecification) {
+          const sourceValues = rawSpecification.values
+          values = Array.isArray(sourceValues) ? sourceValues.slice() : [sourceValues]
+        } else if ('value' in rawSpecification) {
+          values = [rawSpecification.value]
+        }
+      } else {
+        values = [rawSpecification]
+      }
+
+      // Parse compact operators, e.g. "<= 5" or "> 10".
+      if (
+        values.length == 1 &&
+        typeof values[0] === 'string' &&
+        !conditional &&
+        !range &&
+        /^(<|>)/.test(values[0])
+      ) {
+        const value = values[0]
+        if (value.startsWith('<=')) {
+          conditional = '<='
+          values[0] = value.substring(2).trim()
+        } else if (value.startsWith('>=')) {
+          conditional = '>='
+          values[0] = value.substring(2).trim()
+        } else if (value.startsWith('<')) {
+          conditional = '<'
+          values[0] = value.substring(1).trim()
+        } else if (value.startsWith('>')) {
+          conditional = '>'
+          values[0] = value.substring(1).trim()
+        }
+      }
+
+      // Support comma-separated categorical values in compact syntax.
+      if (
+        values.length == 1 &&
+        typeof values[0] === 'string' &&
+        values[0].indexOf(',') > -1 &&
+        !conditional &&
+        !range
+      ) {
+        values = values[0]
+          .split(',')
+          .map((v: string) => v.trim())
+          .map((v: string) => (Number.isNaN(parseFloat(v)) ? v : parseFloat(v)))
+      } else if (values.length == 1 && typeof values[0] === 'string' && !conditional && !range) {
+        // Also match numeric strings without requiring explicit quoting in YAML.
+        const numericString = parseFloat(values[0])
+        if (Number.isFinite(numericString)) values.push(numericString)
+      }
+
+      return { conditional, invert, values, range }
+    },
+
+    checkFilterValue(
+      specification: { conditional: string; invert: boolean; values: any[]; range?: boolean },
+      elementValue: any
+    ) {
+      const conditionals: any = {
+        '<': () => elementValue < specification.values[0],
+        '<=': () => elementValue <= specification.values[0],
+        '>': () => elementValue > specification.values[0],
+        '>=': () => elementValue >= specification.values[0],
+      }
+
+      let isValueInFilterSpec = false
+
+      if (specification.range) {
+        isValueInFilterSpec =
+          elementValue >= specification.values[0] && elementValue <= specification.values[1]
+      } else if (specification.conditional) {
+        isValueInFilterSpec = conditionals[specification.conditional]()
+      } else {
+        isValueInFilterSpec = specification.values.includes(elementValue)
+      }
+
+      return specification.invert ? !isValueInFilterSpec : isValueInFilterSpec
     },
 
     // Pivot wide to long format
