@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.4.1](https://github.com/simwrapper/simwrapper/compare/v4.4.0...v4.4.1) (2026-02-27)
+
 ## [4.4.0](https://github.com/simwrapper/simwrapper/compare/v4.3.9...v4.4.0) (2026-02-13)
 
 
