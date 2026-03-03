@@ -35,7 +35,6 @@ traces:
     y: $trips.totalTrips
     ...
 ```
-
 SimWrapper will read the file and insert the appropriate data columns into the configuration automatically. Note the `$` before the keyword that you used for identifying the dataset.
 
 - You can read _multiple datasets_ and refer to columns from each using `$key.column` for each.
