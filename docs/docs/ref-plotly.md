@@ -38,17 +38,8 @@ traces:
 SimWrapper will read the file and insert the appropriate data columns into the configuration automatically. Note the `$` before the keyword that you used for identifying the dataset.
 
 - You can read _multiple datasets_ and refer to columns from each using `$key.column` for each.
-- A dataset can also be configured as an object (`file`, `filter`, `pivot`, `rename`, `normalize`, ...), not only as a simple file string.
 
 **Layout.** Layout is handled by SimWrapper automatically; however if you want to override some layout defaults, you can include a `layout` section. The contents will be merged with the default layout values.
-
-### Layout behavior updates
-
-- `layout.legend` from YAML is now merged with SimWrapper defaults (instead of replacing them).
-- Axis titles support both Plotly object syntax and legacy string syntax:
-  - `title: "Distance group"`
-  - `title: { text: "Distance group", standoff: 12 }`
-- If axis titles are present (`xaxis`, `yaxis`, `yaxis2`), margins are automatically enlarged to avoid clipped titles.
 
 ### Additional properties
 
