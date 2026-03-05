@@ -105,6 +105,53 @@ layout:
 | educ_higher    |   7   |    2.587991718426501E-4  | 5.175983436853002E-4    |
 | ...    |   ...   |    ...  | ... |
 
+### Filter
+
+You can filter dataset rows before trace generation using `datasets.<name>.filter`.
+
+- Filtering is applied before `pivot`, `rename`, `normalize`, and `aggregate`.
+- Filter definitions are column-based.
+- Multiple filter columns are combined with AND.
+
+```yaml
+datasets:
+  dataset:
+    file: "analysis/population/trip_purposes_by_hour.csv"
+    filter:
+      purpose: "business,educ_higher" # categorical list (comma-separated shorthand)
+      h: ">= 6"                       # comparison shorthand
+```
+
+Equivalent explicit form:
+
+```yaml
+datasets:
+  dataset:
+    file: "analysis/population/trip_purposes_by_hour.csv"
+    filter:
+      h:
+        conditional: ">="
+        value: 6
+      arrival:
+        range: true
+        values: [0.0, 0.25]   # inclusive range
+      departure:
+        value: 0
+        invert: true          # keep rows where departure != 0
+      purpose:
+        values: [business, educ_higher]
+```
+
+Supported filter options per column:
+
+|**Field**|**Description**|
+|---------|---------------|
+|value|Single value to match|
+|values|List of values to match|
+|conditional|One of `<`, `<=`, `>`, `>=`|
+|range|Boolean. If `true`, `values` is treated as inclusive `[min, max]`|
+|invert|Boolean. Invert the filter result for this column|
+
 ### Pivot
 
 With the pivot attribute, you can modify the dataset by converting it from wide to long format.
@@ -134,14 +181,14 @@ dataset:
     namesTo: names
     valuesTo: values
   rename:
-      ref_share: Ref.
-      sim_share: Sim.
+    ref_share: Ref.
+    sim_share: Sim.
   normalize:
-      target: values
-      groupBy:
-        - names
-        - dist_group
-        - age
+    target: values
+    groupBy:
+      - names
+      - dist_group
+      - age
 ```
 
 ### Facets
