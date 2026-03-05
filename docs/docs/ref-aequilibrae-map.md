@@ -3,7 +3,8 @@ id: aequilibrae-map
 title: AequilibraE Map
 ---
 
-![AequilibraE Map Example](assets/aequlibrae-map.png)
+![AequilibraE Map Example](assets/aequilibrae-map.png)
+_Maps showing AequilibraE network plots in Chicago, IL_
 
 # Overview
 
