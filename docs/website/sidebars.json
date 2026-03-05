@@ -18,6 +18,7 @@
       "matsim-events"
     ],
     "API Reference / General": [
+      "aequilibrae-map",
       "aggregate-od",
       "bar-area-line",
       "calculation-tables",
