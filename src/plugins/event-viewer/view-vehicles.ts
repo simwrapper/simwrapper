@@ -66,7 +66,6 @@ export default class EventsHandler {
   }
 
   processOneSetOfEvents(events: any[], trips: any, verfolgen: any) {
-    // todo: need enters/exits traffic events too
     const linkEvents = events.filter(
       event =>
         event.type == 'left link' ||
@@ -93,6 +92,10 @@ export default class EventsHandler {
             const offset = 2 * this.linkIdLookup[prevEvent.link]
             // couldn't get coord? skip
             if (Number.isNaN(offset)) break
+            // {
+            //   console.log('NaN coord', prevEvent.link)
+            //   break
+            // }
 
             //speed-based colors
             let colorCode = 0.6
@@ -121,6 +124,7 @@ export default class EventsHandler {
               verfolgen.p1.push([this.network.dest[offset], this.network.dest[offset + 1]])
             }
           } catch (e) {
+            console.log('CAUGHT')
             console.log('' + e)
           }
           delete this.tracker[event.vehicle]

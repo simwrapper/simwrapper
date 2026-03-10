@@ -514,21 +514,36 @@ const MyComponent = defineComponent({
       if (files.indexOf('network.avro') > -1) networkFile = 'network.avro'
       else networkFile = this.vizDetails.file.replace('events.xml', 'network.xml')
 
-      console.log(networkFile)
-      const network = await this.myDataManager.getRoadNetwork(
-        networkFile,
-        this.myState.subfolder,
-        Object.assign({}, this.vizDetails),
-        null, // no status callback?!
-        true // extra: get freespeed, length attributes
-      )
-      this.vizDetails.projection = '' + (network.projection || '')
-      return { network }
+      // does that network file actually exist? If not grab any network file :-)
+      if (files.indexOf(networkFile) == -1) {
+        networkFile = files.find(f => f.indexOf('network.xml') > -1) || ''
+        if (networkFile) console.log('Guessing that network is in:', networkFile)
+      }
+
+      try {
+        // try loading this network file
+        const network = await this.myDataManager.getRoadNetwork(
+          networkFile,
+          this.myState.subfolder,
+          Object.assign({}, this.vizDetails),
+          null, // no status callback?!
+          true // extra: get freespeed, length attributes
+        )
+        // console.log({ network })
+        this.vizDetails.projection = '' + (network.projection || '')
+        return { network }
+      } catch (e) {
+        this.$emit('error', 'Could not load network file', networkFile)
+      }
     },
 
     async loadFiles() {
-      const { network } = await this.loadNetwork()
-      this.network = network
+      try {
+        const loadedNetwork = (await this.loadNetwork()) as any
+        this.network = loadedNetwork.network
+      } catch (e) {
+        return
+      }
 
       if (!this.vizDetails.center) {
         let lng = 0

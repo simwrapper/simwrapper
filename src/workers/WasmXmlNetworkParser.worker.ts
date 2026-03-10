@@ -329,6 +329,7 @@ async function parseXML(props?: {
           if (endOfNodes > -1) {
             searchElement = '<link '
             closeTag = '</link>'
+            // closeTag = ' />'
             endOfSection = '</links>'
             closeNode = ''
             _leftovers += linkText
@@ -336,8 +337,9 @@ async function parseXML(props?: {
 
           // and if we have ALL the links of a very small network,
           // drop the leftovers into the staging area
-          const startLinks = _leftovers.indexOf('<links ')
+          const startLinks = _leftovers.indexOf('<links')
           if (startLinks > -1 && _leftovers.indexOf('</links>') > -1) {
+            console.log('---TINY NETWORK')
             _xmlStagingArea = _leftovers
               .substring(_leftovers.indexOf('<link '))
               .replace('</links>', '')
@@ -356,7 +358,7 @@ async function parseXML(props?: {
         // _xmlStagingArea = _xmlStagingArea.replace('</network>', '')
 
         if (_xmlStagingArea.length) {
-          console.log('CLOSE: GOT SOME LEFTOVER IN STAGING AREA')
+          // console.log('CLEANUP: Got some leftovers in the staging area')
           promises.push(
             new Promise<any>(async (resolve, reject) => {
               try {
