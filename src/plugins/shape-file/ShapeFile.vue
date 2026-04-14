@@ -75,6 +75,7 @@
         :screenshot="triggerScreenshot"
         :show3dBuildings="show3dBuildings"
         :viewId="layerId"
+        @error="$emit('error', $event)"
       )
 
       //- :features="useCircles ? centroids: boundaries"
