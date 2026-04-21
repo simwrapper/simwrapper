@@ -436,8 +436,15 @@ export default defineComponent({
     }
 
     const container = `map-${this.viewId}`
-    const center = this.globalState.viewState.center as [number, number]
+    const center = this.globalState.viewState.center as any
     const zoom = this.globalState.viewState.zoom
+
+    // check coords before failing
+    console.log({ center, zoom })
+    if (center.lng > 180 || center.lat > 90) {
+      this.$emit('error', 'Invalid coordinates: long/lat out of range')
+      return
+    }
 
     //@ts-ignore
     this.mymap = new maplibregl.Map({

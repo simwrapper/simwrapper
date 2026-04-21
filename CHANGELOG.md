@@ -2,7 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-### [4.4.1](https://github.com/simwrapper/simwrapper/compare/v4.4.0...v4.4.1) (2026-02-27)
+## [4.5.0](https://github.com/simwrapper/simwrapper/compare/v4.4.0...v4.5.0) (2026-03-05)
+
+
+### Features
+
+* New Aequilibrae network file and dataset support ([3b9d6a9](https://github.com/simwrapper/simwrapper/commit/3b9d6a912b29c84f72a2e7ce162aed05d29b22c5))
 
 ## [4.4.0](https://github.com/simwrapper/simwrapper/compare/v4.3.9...v4.4.0) (2026-02-13)
 
