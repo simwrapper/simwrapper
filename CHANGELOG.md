@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.5.1](https://github.com/simwrapper/simwrapper/compare/v4.5.0...v4.5.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **map:** give user proper warning if geojson coords are not in long/lat ([77ee085](https://github.com/simwrapper/simwrapper/commit/77ee0859e6f037f2d08e0e7c41d50c011d41e303))
+* very small XML networks not loading with short XML tags <link /> ([fc87f65](https://github.com/simwrapper/simwrapper/commit/fc87f6562f05ce49aad2b66b1cac91e6bcfcba2f))
+
 ## [4.5.0](https://github.com/simwrapper/simwrapper/compare/v4.4.0...v4.5.0) (2026-03-05)
 
 
