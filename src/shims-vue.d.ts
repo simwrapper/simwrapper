@@ -49,6 +49,7 @@ declare module 'react-dom/client'
 declare module 'vue-good-table'
 declare module 'vue-virtual-scroll-list'
 declare module 'zip-loader'
+declare module 'zstd-wasm-decoder'
 
 declare module '@turf/point-to-line-distance'
 declare module '@turf/nearest-point-to-line'

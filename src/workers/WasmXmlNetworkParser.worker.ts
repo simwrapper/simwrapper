@@ -1,3 +1,4 @@
+import * as ZStd from 'zstd-wasm-decoder'
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
@@ -387,10 +388,15 @@ async function parseXML(props?: {
   try {
     // get the readable stream from the server
     const readableStream = await fileApi.getFileStream(_filename)
+    const lowerFilename = _filename.toLocaleLowerCase()
+
     // stream results through the data pipe
-    if (_filename.toLocaleLowerCase().endsWith('.gz')) {
+    if (lowerFilename.endsWith('.gz')) {
       const gunzipper = new DecompressionStream('gzip')
       await readableStream.pipeThrough(gunzipper).pipeTo(streamProcessor)
+    } else if (lowerFilename.endsWith('.zst')) {
+      const zunzipper = new ZStd.ZstdDecompressionStream()
+      await readableStream.pipeThrough(zunzipper).pipeTo(streamProcessor)
     } else {
       await readableStream.pipeTo(streamProcessor)
     }

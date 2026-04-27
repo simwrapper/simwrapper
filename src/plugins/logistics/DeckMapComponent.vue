@@ -406,7 +406,7 @@ export default defineComponent({
             }
           })
 
-          console.log('Adding 3x', lspShipmentChain.route.length, 'layers')
+          // console.log('Adding 3x', lspShipmentChain.route.length, 'layers')
           // for (let i = 0; i < lspShipmentChain.route.length - 1; i++) {
           // build the i/j coordinate pair segments from the shipment chain route
           const segments: any[] = lspShipmentChain.route

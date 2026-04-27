@@ -697,7 +697,7 @@ const MyComponent = defineComponent({
           )
           trips = json.trips
           drtRequests = json.drtRequests
-        } else if (this.vizDetails.drtTrips.endsWith('gz')) {
+        } else if (/.*(\.gz)?(\.zst)?$/.test(this.vizDetails.drtTrips)) {
           const blob = await this.fileApi.getFileBlob(
             this.myState.subfolder + '/' + this.vizDetails.drtTrips
           )

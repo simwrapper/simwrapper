@@ -10,7 +10,7 @@ const plugins = [
   },
   {
     kebabName: 'xytime',
-    filePatterns: ['**/viz-xyt-*.y?(a)ml', '**/*xyt.csv?(.gz)'],
+    filePatterns: ['**/viz-xyt-*.y?(a)ml', '**/*xyt.csv?(.gz)?(.zst)'],
     component: defineAsyncComponent(() => import('./xy-time/XyTime.vue')),
   },
   {
@@ -22,9 +22,9 @@ const plugins = [
     kebabName: 'area-map',
     filePatterns: [
       '**/viz-map*.y?(a)ml',
-      '**/*.geojson?(.gz)',
+      '**/*.geojson?(.gz)?(.zst)',
       '**/*network*.avro',
-      '**/*network.xml?(.gz)',
+      '**/*network.xml?(.gz)?(.zst)',
       '**/*.shp',
       '**/*.gpkg',
       '**/*.gmns',
@@ -59,7 +59,7 @@ const plugins = [
   },
   {
     kebabName: 'hexagons',
-    filePatterns: ['**/viz-xy-*.y?(a)ml', '*output_trips.csv?(.gz)'],
+    filePatterns: ['**/viz-xy-*.y?(a)ml', '*output_trips.csv?(.gz)?(.zst)'],
     component: defineAsyncComponent(() => import('./xy-hexagons/XyHexagons.vue')),
   },
   {
@@ -75,7 +75,7 @@ const plugins = [
   },
   {
     kebabName: 'transit',
-    filePatterns: ['viz-pt*.y?(a)ml', '*transitschedule.xml?(.gz)'],
+    filePatterns: ['viz-pt*.y?(a)ml', '*transitschedule.xml?(.gz)?(.zst)'],
     component: defineAsyncComponent(() => import('./transit-demand/TransitDemand.vue')),
   },
   {
@@ -110,7 +110,7 @@ const plugins = [
   },
   {
     kebabName: 'events',
-    filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)'],
+    filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)?(.zst)'],
     component: defineAsyncComponent(() => import('./event-viewer/EventViewer.vue')),
   },
   {
@@ -144,7 +144,7 @@ const plugins = [
     component: defineAsyncComponent(() => import('./logistics/LogisticsViewer.vue')),
   },
   {
-    kebabName: "aeq-reader",
+    kebabName: 'aeq-reader',
     filePatterns: ['**/aeqviz-*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./aequilibrae-map/AequilibraEMapComponent.vue')),
   },

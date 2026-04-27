@@ -1195,7 +1195,7 @@ const CarrierPlugin = defineComponent({
 
         let content = ''
 
-        if (filepath.endsWith('xml') || filepath.endsWith('gz')) {
+        if (filepath.endsWith('xml') || filepath.endsWith('gz') || filepath.endsWith('zst')) {
           const blob = await this.fileApi.getFileBlob(filepath)
           const buffer = await blob.arrayBuffer()
           // recursively gunzip until it can gunzip no more:

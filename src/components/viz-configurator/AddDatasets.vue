@@ -77,8 +77,8 @@ export default defineComponent({
   },
   data: () => {
     return {
-      validDataTypes: ['CSV', 'TSV', 'TAB', 'TXT', 'DBF', 'GZ', 'DAT'],
-      validRegex: /\.(CSV|TSV|TAB|TXT|DBF|DAT)(\.GZ)?$/,
+      validDataTypes: ['CSV', 'TSV', 'TAB', 'TXT', 'DBF', 'GZ', 'DAT', 'ZST'],
+      validRegex: /\.(CSV|TSV|TAB|TXT|DBF|DAT)(\.GZ)?(\.ZST)?$/,
       fileChoice: '',
       filesInFolder: [] as string[],
       isLoading: false,

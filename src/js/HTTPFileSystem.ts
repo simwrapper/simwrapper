@@ -1,6 +1,7 @@
 import micromatch from 'micromatch'
 import naturalSort from 'javascript-natural-sort'
 import { SaxEventType, SAXParser } from 'sax-wasm'
+import * as ZStd from 'zstd-wasm-decoder'
 
 import { gUnzip } from '@/js/util'
 
@@ -472,6 +473,9 @@ class HTTPFileSystem {
     if (path.toLocaleLowerCase().endsWith('.gz')) {
       stream = stream.pipeThrough(new DecompressionStream('gzip'))
     }
+    if (path.toLocaleLowerCase().endsWith('.zst')) {
+      stream = stream.pipeThrough(new ZStd.ZstdDecompressionStream())
+    }
 
     const result = await stream.getReader().read()
     const view = new Uint8Array(result.value)
@@ -637,19 +641,19 @@ class HTTPFileSystem {
   async _getDirectoryFromS3(stillScaryPath: string): Promise<DirectoryEntry> {
     // S3 uses a list API with prefix and delimiter to simulate directories
     // https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html
-    
+
     let prefix = stillScaryPath.replace(/^\/+/, '') // remove leading slashes
     prefix = prefix.replaceAll('//', '/')
-    
+
     // Build the S3 list URL with query parameters
     const listUrl = `${this.baseUrl}?list-type=2&delimiter=/&prefix=${encodeURIComponent(prefix)}`
-    
+
     const response = await fetch(listUrl)
     if (response.status !== 200) {
       console.warn('S3 list status:', response.status)
       throw response
     }
-    
+
     const xmlText = await response.text()
     return await this.buildListFromS3Xml(xmlText, prefix)
   }
@@ -657,13 +661,18 @@ class HTTPFileSystem {
   private async buildListFromS3Xml(xmlText: string, prefix: string): Promise<DirectoryEntry> {
     const dirs: string[] = []
     const files: string[] = []
-    
+
     try {
-      const parser = new SAXParser(SaxEventType.OpenTag | SaxEventType.Text | SaxEventType.CloseTag, { highWaterMark: 32 * 1024 })
+      const parser = new SAXParser(
+        SaxEventType.OpenTag | SaxEventType.Text | SaxEventType.CloseTag,
+        { highWaterMark: 32 * 1024 }
+      )
       await parser.prepareWasm()
-      
-      let path = '', inKey = false, inPrefix = false
-      
+
+      let path = '',
+        inKey = false,
+        inPrefix = false
+
       parser.eventHandler = (event, data) => {
         const tag = data.name
         if (event === SaxEventType.OpenTag) {
@@ -689,13 +698,12 @@ class HTTPFileSystem {
           }
         }
       }
-      
+
       parser.write(new TextEncoder().encode(xmlText))
       parser.end()
-      
     } catch (error) {
       console.warn('SAX parsing failed, falling back to regex:', error)
-      
+
       // Fallback to regex parsing if sax-wasm fails
       const contentsRegex = /<Contents>[\s\S]*?<Key>(.*?)<\/Key>[\s\S]*?<\/Contents>/g
       let match
@@ -708,8 +716,9 @@ class HTTPFileSystem {
           files.push(key)
         }
       }
-      
-      const prefixRegex = /<CommonPrefixes>[\s\S]*?<Prefix>(.*?)<\/Prefix>[\s\S]*?<\/CommonPrefixes>/g
+
+      const prefixRegex =
+        /<CommonPrefixes>[\s\S]*?<Prefix>(.*?)<\/Prefix>[\s\S]*?<\/CommonPrefixes>/g
       while ((match = prefixRegex.exec(xmlText)) !== null) {
         let dirPath = match[1]
         if (dirPath.startsWith(prefix)) {
@@ -723,7 +732,7 @@ class HTTPFileSystem {
         }
       }
     }
-    
+
     return { dirs, files, handles: {} }
   }
 

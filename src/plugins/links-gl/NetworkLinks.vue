@@ -357,7 +357,7 @@ const MyComponent = defineComponent({
       }
 
       // is this a bare network file? - build vizDetails manually
-      if (/(shp|xml|geojson|geo\.json)(|\.gz)$/.test(filename)) {
+      if (/(shp|xml|geojson|geo\.json)(\.gz)?(\.zst)?$/.test(filename)) {
         const title = 'Network: ' + this.myState.yamlConfig // .substring(0, 7 + this.myState.yamlConfig.indexOf('network'))
 
         this.vizDetails = Object.assign({}, this.vizDetails, {

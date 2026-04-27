@@ -581,7 +581,9 @@ const MyComponent = defineComponent({
       try {
         const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
         const transitSchedule = files.filter(
-          f => f.endsWith('transitSchedule.xml.gz') && !f.startsWith('._')
+          f =>
+            (f.endsWith('transitSchedule.xml.gz') || f.endsWith('transitSchedule.xml.zst')) &&
+            !f.startsWith('._')
         )
         this.stopFacilities = transitSchedule
 

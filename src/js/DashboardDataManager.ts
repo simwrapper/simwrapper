@@ -678,10 +678,12 @@ export default class DashboardDataManager {
 
       // ------ side quest: get EPSG from output_config
       const configEPSG = await this._getEPSGfromConfig()
+
       // WASM XML -----------
       if (
         filename.toLocaleLowerCase().endsWith('.xml') ||
-        filename.toLocaleLowerCase().endsWith('.xml.gz')
+        filename.toLocaleLowerCase().endsWith('.xml.gz') ||
+        filename.toLocaleLowerCase().endsWith('.xml.zst')
       ) {
         try {
           const promise: Promise<any> = new Promise<any>((resolve, reject) => {

@@ -1,6 +1,7 @@
 /**
  * Load a *.xyt.csv file, parse it, and return a set of ArrayBuffers for display.
  */
+import * as ZStd from 'zstd-wasm-decoder'
 import Papa from '@simwrapper/papaparse'
 
 import { FileSystemConfig } from '@/Globals'
@@ -281,6 +282,9 @@ async function step2fetchCSVdata(filename: string) {
     if (filename.toLocaleLowerCase().endsWith('.gz')) {
       const gunzipper = new DecompressionStream('gzip')
       await _readableStream.pipeThrough(gunzipper).pipeTo(streamProcessorWithBackPressure)
+    } else if (filename.toLocaleLowerCase().endsWith('.zst')) {
+      const zunzipper = new ZStd.ZstdDecompressionStream()
+      await _readableStream.pipeThrough(zunzipper).pipeTo(streamProcessorWithBackPressure)
     } else {
       await _readableStream.pipeTo(streamProcessorWithBackPressure)
     }

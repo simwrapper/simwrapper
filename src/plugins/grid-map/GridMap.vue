@@ -240,7 +240,6 @@ const GridMap = defineComponent({
       } as StandaloneYAMLconfig,
       colorRamps,
       columnLookup: [] as number[],
-      gzipWorker: null as Worker | null,
       colorRamp: colorRamps[0] as String,
       globalState: globalStore.state,
       globalMaxValue: Number.POSITIVE_INFINITY,

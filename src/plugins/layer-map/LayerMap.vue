@@ -367,7 +367,7 @@ export default defineComponent({
 
         // OR is this a bare geojson/shapefile file? - build vizDetails manually
         if (
-          /(\.geojson)(|\.gz)$/.test(filename) ||
+          /(\.geojson)(\.gz)?(.zst)?$/.test(filename) ||
           /\.shp$/.test(filename) ||
           /network\.avro$/.test(filename)
         ) {

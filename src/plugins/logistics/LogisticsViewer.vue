@@ -1915,14 +1915,6 @@ const LogisticsPlugin = defineComponent({
       return lspList
     },
 
-    async loadLinksCsv() {
-      const linksCsv = await this.loadFileOrGzippedFile('output_links.csv.gz')
-      if (linksCsv) {
-        return []
-      }
-      return linksCsv
-    },
-
     async loadCarriers() {
       // this.myState.statusMessage = '' + this.$i18n.t('message.tours')
       var lspCarrierList: any = []
@@ -1933,7 +1925,9 @@ const LogisticsPlugin = defineComponent({
           }
         })
       })
-      const carriersXML = await this.loadFileOrGzippedFile('output_carriers.xml.gz')
+      const carriersXML = await this.loadFileOrGzippedFile(
+        this.vizDetails.carriers || 'output_carriers.xml.gz'
+      )
       if (!carriersXML) {
         console.log("can't find carriers")
         return []
@@ -2139,7 +2133,7 @@ const LogisticsPlugin = defineComponent({
 
         let content = ''
 
-        if (filepath.endsWith('xml') || filepath.endsWith('gz')) {
+        if (/.*(xml|gz|zst)$/.test(filepath)) {
           const blob = await this.fileApi.getFileBlob(filepath)
           const buffer = await blob.arrayBuffer()
           // recursively gunzip until it can gunzip no more:

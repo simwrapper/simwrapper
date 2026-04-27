@@ -763,7 +763,7 @@ const MyComponent = defineComponent({
 
       // if the obvious network file doesn't exist, pick from all networks in this folder:
       if (files.indexOf(network) == -1) {
-        const allXML = files.filter(f => f.toLocaleLowerCase().match(/(\.xml|\.gz)$/))
+        const allXML = files.filter(f => f.toLocaleLowerCase().match(/\.xml(\.gz)?(\.zst)?$/))
         const allNetworks = [] as string[]
         await Promise.all(
           allXML.map(async (f: any) => {

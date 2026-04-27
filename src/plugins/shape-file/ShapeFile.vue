@@ -862,8 +862,8 @@ const MyComponent = defineComponent({
 
         // OR is this a bare geojson/geopackage/shapefile file? - build vizDetails manually
         if (
-          /(\.xml)(|\.gz)$/.test(filename) ||
-          /(\.geojson)(|\.gz)$/.test(filename) ||
+          /(\.xml)(\.gz)?(\.zst)?$/.test(filename) ||
+          /(\.geojson)(\.gz)?(\.zst)?$/.test(filename) ||
           /\.shp$/.test(filename) ||
           /\.gpkg$/.test(filename) ||
           /network.*\.avro$/.test(filename) ||

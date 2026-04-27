@@ -451,7 +451,7 @@ export default defineComponent({
       }
 
       // XML file?
-      if (lowerCaseFileName.match(/\.(xml|xml\.gz)$/)) {
+      if (lowerCaseFileName.match(/\.(xml|xml\.gz|xml\.zstd)$/)) {
         const svnProjects: FileSystemConfig[] = this.$store.state.svnProjects.filter(
           (a: any) => a.slug === root
         )

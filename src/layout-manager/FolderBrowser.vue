@@ -431,7 +431,9 @@ export default defineComponent({
       }
 
       // check for any remaining XML files
-      const xmlFiles = micromatch([...fileSet.keys()], ['*.xml', '*.xml.gz'], { nocase: true })
+      const xmlFiles = micromatch([...fileSet.keys()], ['*.xml', '*.xml.gz', '*.xml.zst'], {
+        nocase: true,
+      })
       for (const file of xmlFiles) {
         const answer = await this.myState.svnRoot?.probeXmlFileType(
           `${this.myState.subfolder}/${file}`

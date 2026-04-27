@@ -1,6 +1,7 @@
 import micromatch from 'micromatch'
 import { XMLParser } from 'fast-xml-parser'
 import { format } from 'mathjs'
+import * as ZStd from 'zstd-wasm-decoder'
 
 /**
  * Useful for converting loaded PNG images to CSS
@@ -139,10 +140,14 @@ export async function parseXML(xml: string, settings: any = {}) {
   })
 }
 
+// This function will now recursively unzip BOTH .gz and .zst compression formats.
+// Not renaming it because it is used everywhere
+// Note, eventually DecompressionStream API may someday include zstd by default,
+// which would be faster and better
 export async function gUnzip(buffer: ArrayBuffer) {
   // GZIP always starts with a magic number, hex 0x8b1f
-  const header = new Uint16Array(buffer, 0, 2)
-  if (header[0] === 0x8b1f) {
+  const header16 = new Uint16Array(buffer, 0, 2)
+  if (header16[0] === 0x8b1f) {
     try {
       // use new 2023 DecompressionStream API
       const response = new Response(buffer)
@@ -155,6 +160,18 @@ export async function gUnzip(buffer: ArrayBuffer) {
       console.error('eee', e)
     }
   }
+  // ZSTD always starts with a magic number, hex 0x8b1f
+  const header32 = new Uint32Array(buffer, 0, 4)
+  if (header32[0] === 0xfd2fb528) {
+    try {
+      const data = await ZStd.decompress(new Uint8Array(buffer))
+      // recursive because some combos of Firefox,Apache,Subversion will double-gzip!
+      return await gUnzip(data)
+    } catch (e) {
+      console.error('eee', e)
+    }
+  }
+  // Fully decompressed now: return the arraybuffer.
   return buffer
 }
 
