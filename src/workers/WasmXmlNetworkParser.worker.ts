@@ -201,7 +201,10 @@ function finalAssembly() {
     } else {
       network[col] = []
       for (const chunk of _cleanLinks) {
-        network[col].push(...chunk[col])
+        // safari has a small stack, dont use ...spread operator
+        for (let i = 0; i < chunk[col].length; i++) {
+          network[col].push(chunk[col][i])
+        }
         chunk[col] = null
       }
     }
@@ -240,7 +243,7 @@ async function parseXML(props?: {
   let _decoder = new TextDecoder()
 
   // 8MB seems to be the sweet spot for Firefox. Chrome doesn't care
-  // const MAX_CHUNK_SIZE = 1024 * 1024 // * 8
+  // const MAX_CHUNK_SIZE = 1024 * 1024 * 8
 
   // read one chunk at a time. This sends backpressure to the server
   const strategy = new CountQueuingStrategy({ highWaterMark: 1 })
@@ -274,13 +277,17 @@ async function parseXML(props?: {
           let entireChunk = new Uint8Array(_preBytes.length + incomingChunk.length)
           entireChunk.set(_preBytes)
           entireChunk.set(incomingChunk, _preBytes.length)
+          _preBytes = new Uint8Array(0)
+
           const cutoff = entireChunk.lastIndexOf(10)
           if (cutoff > -1) {
             _preBytes = entireChunk.slice(cutoff + 1)
-            entireChunk = entireChunk.slice(0, cutoff)
+            entireChunk = entireChunk.subarray(0, cutoff)
           }
 
           let text = _leftovers + _decoder.decode(entireChunk)
+          entireChunk = null as any
+          _leftovers = ''
 
           if (_numChunks == 1) {
             if (!_crs) {
