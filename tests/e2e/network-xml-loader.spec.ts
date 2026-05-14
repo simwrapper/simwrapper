@@ -10,8 +10,7 @@ test('networks: load berlin v6.4 network.xml.gz', async ({ page }) => {
   // })
 
   await page.goto('e2e-tests/networks/viz-map-berlin-v6.4.yaml')
-  await page.waitForSelector('.legend-section', { timeout: 90_000 })
-
-  const legend = page.locator('.legend-section p')
-  await expect(legend).toHaveCount(1)
+  await page.waitForSelector('.row-label', { timeout: 90_000 })
+  const legendRows = page.locator('.row-label')
+  await expect(legendRows).toHaveCount(8)
 })
