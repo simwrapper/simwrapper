@@ -1,11 +1,10 @@
 [package]
 name = "matsim-event-streamer"
-version = "0.1.0"
-edition = "2021"
-
+version = "0.2.0"
+edition = "2024"
 
 [lib]
-crate-type = ["cdylib"] # Required for WASM
+crate-type = ["cdylib", "rlib"] # Required for WASM
 path = "src/matsim-event-streamer.rs"
 
 [[bin]]
@@ -17,4 +16,10 @@ libz-rs-sys = "0.5.1"
 roxmltree = "0.20.0"
 wasm-bindgen = { version ="0.2" , default-features = false }
 zlib-rs = { version = "0.4.0", default-features = false,  features = ["rust-allocator"] }
+ruzstd = { version = "0.7", default-features = false }
+console_error_panic_hook = "0.1"
 
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"

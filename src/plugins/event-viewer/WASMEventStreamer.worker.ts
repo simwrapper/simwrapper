@@ -56,8 +56,9 @@ const Task = {
       const { filename, fsConfig } = props
 
       await init()
-      this._eventStreamer = new EventStreamer()
-      console.log('EVENT STREAM survived INIT')
+      const compression = filename.toLowerCase().endsWith('.zst') ? 'zstd' : 'gzip'
+      this._eventStreamer = new EventStreamer(compression)
+      console.log('EVENT STREAM survived INIT, compression =', compression)
 
       this._cbReporter = cbReportNewData
 
@@ -123,16 +124,17 @@ const Task = {
           return new Promise(async (resolve, reject) => {
             if (parent._isCancelled) reject()
 
-            // console.log('====GOT LARGE CHUNK', entireChunk.length)
             const parseIt = async (smallChunk: Uint8Array, chunkId: number) => {
               if (parent._isCancelled) reject()
 
-              // console.log('--sending chunk to WASM:', entireChunk.length)
-              const rawEvents: string = await parent._eventStreamer.process(smallChunk)
-              // console.log('--got text. parsing raw json string:', rawEvents.length)
-              const events = JSON.parse(rawEvents)
-              // console.log('--handling event rows:', events.length)
-              await parent.handleText(events)
+              try {
+                const rawEvents: string = await parent._eventStreamer.process(smallChunk)
+                const events = JSON.parse(rawEvents)
+                await parent.handleText(events)
+              } catch (err) {
+                console.error('[worker] process() threw:', err)
+                throw err
+              }
             }
 
             parent._numChunks++
