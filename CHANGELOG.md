@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.6.0](https://github.com/simwrapper/simwrapper/compare/v4.5.1...v4.6.0) (2026-05-14)
+
+
+### Features
+
+* Event streamer supports .zstd compression now ([617ad10](https://github.com/simwrapper/simwrapper/commit/617ad1074660ff545c13e6d748f088c2d387ee00))
+* Support .zst "ZStandard" file compression formats ([2845233](https://github.com/simwrapper/simwrapper/commit/284523333153edff69c3c29017d76b599a5720be))
+
+
+### Bug Fixes
+
+* MATSim XML network parser failed on (some) large networks, but only on Firefox/Safari ([5819c14](https://github.com/simwrapper/simwrapper/commit/5819c140db51bbd90182afa96aed046b826d700e)), closes [#521](https://github.com/simwrapper/simwrapper/issues/521)
+
 ### [4.5.1](https://github.com/simwrapper/simwrapper/compare/v4.5.0...v4.5.1) (2026-04-21)
 
 
