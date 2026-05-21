@@ -80,6 +80,7 @@ Each element in a row has the following properties. This defines both the how th
 |description|A brief description, displayed below the title||
 |height|Set the panel height here, 5 is default and larger numbers make taller panels | 5 |
 |width|Set _relative widths_ of panels sharing space on the same row by specifying the width of each panel here. Panels have a default width of 1, and total row width is additive. For example in a row with 3 panels, if the width of the first panel is set to 2, then [2+1+1] is four, thus the first panel fills 50% of the row, and the remaining two fill 25% each. | 1 |
+|info|Additional text information about a chart or its data can be provided in the `info` field. If present, an ℹ️info icon will appear in the titlebar. Toggle the info icon to reveal/hide the text information.||
 |_Other properties_|Every panel type has its own set of properties. Include those as `key: value` lines in the configuration, as needed. See the individual chart docs in the API Reference.<br/> _The chart type determines the set of valid properties!_||
 
 ## Full example: dashboard-summary.yaml
