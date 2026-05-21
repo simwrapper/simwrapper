@@ -156,6 +156,8 @@ export default defineComponent({
 
         let dataset = await this.datamanager.getDataset(this.config, { subfolder: this.subfolder })
 
+        if (dataset.comments?.length) this.$emit('comments', dataset.comments)
+
         // no filter? we are done
         if (!this.config.filters) return dataset
 
