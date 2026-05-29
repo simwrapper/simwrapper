@@ -899,7 +899,9 @@ maplibregl-ctrl-attrib-button {
 }
 
 .xcardinfo-block {
-  background-color: var(--bgSplash);
+  background-color: var(--bgBold);
+  border-top: 1px solid #bbbbbb40;
+  opacity: 0.95;
   padding: 0.4rem 0.5rem;
 
   h1,

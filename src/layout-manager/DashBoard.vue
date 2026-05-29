@@ -40,14 +40,14 @@
             h3 {{ card.title }}
             p(v-if="card.description") {{ card.description }}
 
-          //- zoom button
+          //- info/zoom buttons
           .header-buttons
             button.button.is-small.is-white(
               v-if="card.info"
               @click="handleToggleInfoClick(card)"
               :title="infoToggle[card.id] ? 'Hide Info':'Show Info'"
             )
-              i.fa.fa-info-circle
+              i.fa.fa-info-circle(style="font-size: 1rem")
 
             button.button.is-small.is-white(
               @click="toggleZoom(card)"
