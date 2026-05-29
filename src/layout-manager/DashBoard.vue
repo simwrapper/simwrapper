@@ -43,11 +43,13 @@
           //- info/zoom buttons
           .header-buttons
             button.button.is-small.is-white(
-              v-if="card.info"
+              v-show="card.info || card.comments"
               @click="handleToggleInfoClick(card)"
               :title="infoToggle[card.id] ? 'Hide Info':'Show Info'"
             )
-              i.fa.fa-info-circle(style="font-size: 1rem")
+              i.fa.fa-info-circle(v-if="!infoToggle[card.id]" style="font-size: 1rem")
+              i.fa.fa-times(v-if="infoToggle[card.id]" style="font-size: 1rem")
+              | &nbsp;Info
 
             button.button.is-small.is-white(
               @click="toggleZoom(card)"
@@ -204,12 +206,18 @@ export default defineComponent({
   },
 
   methods: {
-    mdInfo(card: { info: any }) {
+    mdInfo(card: { info: any; comments: any }) {
+      let info = ''
       if (card.info) {
         const html = MarkdownRenderer.render(card.info)
-        return html
+        info += html
       }
-      return ''
+      if (card.comments) {
+        if (info) info += '<hr>\n'
+        const html = MarkdownRenderer.render(card.comments)
+        info += html
+      }
+      return info
     },
 
     clickedFavorite() {
@@ -656,9 +664,15 @@ export default defineComponent({
 
     handleComments(card: any, comments: string[]) {
       console.log('GOT COMMENTS')
+      Vue.set(card, 'comments', '')
       console.log(comments)
-      const html = '<pre>\n' + comments.join('\n') + '</pre>'
-      card.comments = html
+      if (comments?.length) {
+        const mdRaw = comments
+          .map(c => c.slice(1).trim())
+          .filter(c => !c.startsWith('EPSG:')) // hide EPSG codez which are special
+          .join('\n')
+        card.comments = mdRaw
+      }
     },
 
     async handleCardIsLoaded(card: any) {
