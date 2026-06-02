@@ -861,9 +861,11 @@ const CarrierPlugin = defineComponent({
     // this happens if viz is the full page, not a thumbnail on a project page
     buildRouteFromUrl() {
       const params = this.$route.params
+      console.log('ROUTE PARAMS', params)
       if (!params.project || !params.pathMatch) {
         console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
         return
+
       }
 
       // subfolder and config file
@@ -966,12 +968,14 @@ const CarrierPlugin = defineComponent({
       let latitude = 0
 
       if (this.vizDetails.center) {
+        console.log('Centering map on vizDetails.center', this.vizDetails.center)
         if (typeof this.vizDetails.center == 'string') {
           this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
         }
         longitude = this.vizDetails.center[0]
         latitude = this.vizDetails.center[1]
       } else if (!this.vizDetails.center) {
+        console.log('No center specified, calculating from network links')
         this.data = Object.entries(this.links)
 
         if (!this.data.length) return
@@ -1049,7 +1053,7 @@ const CarrierPlugin = defineComponent({
       this.selectAllTours()
     },
 
-    updateLegendColors() {},
+    updateLegendColors() { },
 
     async loadCarriers() {
       // this.myState.statusMessage = '' + this.$i18n.t('message.tours')
@@ -1256,6 +1260,8 @@ const CarrierPlugin = defineComponent({
     await this.$nextTick() // update UI update before network load begins
     this.links = await this.loadNetwork()
     this.setMapCenter()
+
+    this.isLoaded = true
 
     this.myState.statusMessage = ''
 

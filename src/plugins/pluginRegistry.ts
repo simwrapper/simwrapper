@@ -153,6 +153,11 @@ const plugins = [
     filePatterns: ['**/viz-imoger*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./imoger/VehicleAnimation.vue')),
   },
+  {
+    kebabName: 'select-link',
+    filePatterns: ['**/viz-sla*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./select-link-analysis/SelectLinkAnalysis.vue')),
+  },
 ]
 
 export const pluginComponents: { [key: string]: AsyncComponent } = {}

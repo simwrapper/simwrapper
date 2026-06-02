@@ -44,6 +44,7 @@ export default defineConfig(({ command, mode }) => {
         'shapefile/dbf/read',
         'shapefile/dbf/string',
       ],
+      exclude: ['@sqlite.org/sqlite-wasm'],
     },
     plugins: [
       // vue
