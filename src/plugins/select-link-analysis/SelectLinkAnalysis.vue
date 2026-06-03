@@ -372,6 +372,7 @@ const SelectLinkAnalysis = defineComponent({
                 uint8Array.byteLength,
                 sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE | sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE
             );
+
         },
 
         async loadParquetData() {
@@ -414,6 +415,10 @@ const SelectLinkAnalysis = defineComponent({
 
         },
 
+        splitString(str: string, delimiter: string): string[] {
+            return str.split(delimiter);
+        },
+
         async queryLinksForSelectedLink(linkId: number, hour: number) {
             try {
                 if (this.conn && this.chosenFormat === 'Parquet') {
@@ -441,54 +446,36 @@ const SelectLinkAnalysis = defineComponent({
                 }
                 if (this.dbSql && this.chosenFormat === 'SQLite') {
                     console.time("SQLite Query Execution Time");
-                    const rows = [];
 
+                    const rows:any = [];
                     this.dbSql.exec({
                         sql: `
-                WITH RECURSIVE
-                traversals AS (
-                    SELECT leg_id
-                    FROM link_traversals
-                    WHERE link_id = ${linkId}
-                    AND hour = ${hour}
-                ),
-                split(leg_id, link_id, rest) AS (
-                    SELECT
-                        leg_id,
-                        '',
-                        leg_sequence
-                    FROM leg_sequences
-                    WHERE leg_id IN (SELECT leg_id FROM traversals)
-
-                    UNION ALL
-
-                    SELECT
-                        leg_id,
-                        substr(rest, 1, instr(rest, '|') - 1),
-                        substr(rest, instr(rest, '|') + 1)
-                    FROM split
-                    WHERE rest <> ''
-                    AND instr(rest, '|') > 0
-                )
-                SELECT
-                    CAST(link_id AS INTEGER) AS link_id,
-                    COUNT(*) AS count
-                FROM split
-                WHERE link_id <> ''
-                GROUP BY link_id
-            `,
+        WITH traversals AS (
+            SELECT leg_id
+            FROM link_traversals
+            WHERE link_id = ? AND hour = ?
+        ),
+        sequences AS (
+            SELECT value AS link_id
+            FROM leg_sequences, json_each('["' || REPLACE(leg_sequence, '|', '","') || '"]')
+            WHERE leg_id IN (SELECT leg_id FROM traversals)
+        )
+        SELECT link_id, COUNT(*) AS count
+        FROM sequences
+        GROUP BY link_id
+    `,
+                        bind: [linkId, hour],
                         rowMode: 'object',
-                        resultRows: rows
+                        callback: (row:any) => rows.push(row)
                     });
+
+                    console.log(rows);
 
                     console.timeEnd("SQLite Query Execution Time");
 
                     return Object.fromEntries(
-                        rows.map(row => [
-                            row.link_id.toString(),
-                            Number(row.count)
-                        ])
-                    );
+                        rows.map(row => [row.link_id.toString(), Number(row.count)])
+                    )
                 }
             } catch (e) {
                 console.error('Error querying links for selected link:', e);
