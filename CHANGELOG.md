@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.7.0](https://github.com/simwrapper/simwrapper/compare/v4.6.0...v4.7.0) (2026-06-05)
+
+
+### Features
+
+* **csv:** Show comments in CSV file headers with "#" lines as info blocks ([630fe50](https://github.com/simwrapper/simwrapper/commit/630fe50a785cf0a66a907bf31159a886a56b7505))
+
 ## [4.6.0](https://github.com/simwrapper/simwrapper/compare/v4.5.1...v4.6.0) (2026-05-14)
 
 
