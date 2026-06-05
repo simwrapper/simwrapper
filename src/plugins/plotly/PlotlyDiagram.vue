@@ -895,6 +895,7 @@ const MyComponent = defineComponent({
           { dataset: ds.file },
           { highPrecision: true, subfolder: this.subfolder }
         )
+        if (csvData.comments?.length) this.$emit('comments', csvData.comments)
 
         ds.data = csvData.allRows
         ds.name = name

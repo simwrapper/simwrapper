@@ -898,6 +898,39 @@ maplibregl-ctrl-attrib-button {
   overflow-x: auto;
 }
 
+.xcardinfo-block {
+  background-color: var(--bgCardInfo);
+  border-top: 1px solid #bbbbbb40;
+  opacity: 0.95;
+  padding: 0.4rem 0.5rem;
+  max-height: 100%;
+  overflow-y: auto;
+
+  hr {
+    height: 1px;
+    background-color: var(--borderColor);
+    margin: 5px 0;
+  }
+
+  h1,
+  h2 {
+    font-size: 1.15rem;
+  }
+  h3,
+  h4 {
+    font-size: 1.1rem;
+  }
+  p {
+    line-height: 1.2rem;
+  }
+  ul {
+    line-height: 1.2rem;
+    list-style: disc !important;
+    list-style-position: inside !important;
+    margin-left: 0.5rem !important;
+  }
+}
+
 @media only screen and (max-width: 640px) {
   .breadcrumbs {
     padding-left: 1rem;

@@ -23,7 +23,6 @@ import * as Comlink from 'comlink'
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 import WasmXmlNetworkParser from '@/workers/WasmXmlNetworkParser.worker.ts?worker'
-import Coords from './Coords'
 
 interface configuration {
   dataset: string

@@ -6,6 +6,7 @@ plotly-diagram.plotly-panel(
   :thumbnail="false"
   :resize="resizeEvent"
   @error="$emit('error', $event)"
+  @comments="$emit('comments', $event)"
 )
 </template>
 

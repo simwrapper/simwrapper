@@ -40,25 +40,22 @@
             h3 {{ card.title }}
             p(v-if="card.description") {{ card.description }}
 
-          //- zoom button
+          //- info/zoom buttons
           .header-buttons
             button.button.is-small.is-white(
-              v-if="card.info"
+              v-show="card.info || card.comments"
               @click="handleToggleInfoClick(card)"
               :title="infoToggle[card.id] ? 'Hide Info':'Show Info'"
             )
-              i.fa.fa-info-circle
+              i.fa.fa-info-circle(v-if="!infoToggle[card.id]" style="font-size: 1rem")
+              i.fa.fa-times(v-if="infoToggle[card.id]" style="font-size: 1rem")
+              | &nbsp;Info
 
             button.button.is-small.is-white(
               @click="toggleZoom(card)"
               :title="fullScreenCardId ? 'Restore':'Enlarge'"
             )
               i.fa.fa-expand
-
-        //- info contents
-        .info(v-show="infoToggle[card.id]")
-          p
-          p {{ card.info }}
 
         //- card contents
         .spinner-box(v-if="getCardComponent(card)"
@@ -79,10 +76,17 @@
             :cardTitle="card.title"
             :allConfigFiles="allConfigFiles"
             @isLoaded="handleCardIsLoaded(card)"
+            @comments="handleComments(card, $event)"
             @dimension-resizer="setDimensionResizer"
             @titles="setCardTitles(card, $event)"
             @error="setCardError(card, $event)"
           )
+
+          //- info contents
+          .xcardinfo-block(v-show="infoToggle[card.id]" v-html="mdInfo(card)")
+
+          //- .card-comments(v-if="card.comments" v-html="card.comments")
+
           .error-text(v-if="card.errors.length")
             span.clear-error(@click="card.errors=[]") &times;
             p(v-for="err,i in card.errors" :key="i") {{ err }}
@@ -93,6 +97,7 @@
 import Vue, { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
+import Markdown from 'markdown-it'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
@@ -116,6 +121,12 @@ chartTypes.forEach((key: any) => {
   namedCharts[`card-${key}`] = panelLookup[key] // key // charts[key] as any
   // //@ts-ignore
   // if (plotlyCharts[key]) plotlyChartTypes[key] = true
+})
+
+const MarkdownRenderer = new Markdown({
+  html: false,
+  linkify: true,
+  breaks: true,
 })
 
 export default defineComponent({
@@ -195,6 +206,20 @@ export default defineComponent({
   },
 
   methods: {
+    mdInfo(card: { info: any; comments: any }) {
+      let info = ''
+      if (card.info) {
+        const html = MarkdownRenderer.render(card.info)
+        info += html
+      }
+      if (card.comments) {
+        if (info) info += '<hr>\n'
+        const html = MarkdownRenderer.render(card.comments)
+        info += html
+      }
+      return info
+    },
+
     clickedFavorite() {
       let hint = `${this.root}/${this.xsubfolder}`
       let finalFolder = this.xsubfolder || this.root
@@ -637,6 +662,19 @@ export default defineComponent({
       return tag
     },
 
+    handleComments(card: any, comments: string[]) {
+      console.log('GOT COMMENTS')
+      Vue.set(card, 'comments', '')
+      console.log(comments)
+      if (comments?.length) {
+        const mdRaw = comments
+          .map(c => c.slice(1).trim())
+          .filter(c => !c.startsWith('EPSG:')) // hide EPSG codez which are special
+          .join('\n')
+        card.comments = mdRaw
+      }
+    },
+
     async handleCardIsLoaded(card: any) {
       card.isLoaded = true
       this.opacity[card.id] = 1.0
@@ -920,6 +958,22 @@ li.is-not-active b a {
     line-height: 1.2rem;
     margin: 0 0;
   }
+}
+
+.card-comments {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
+
+.xcardinfo-block {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
 }
 
 .clear-error {
