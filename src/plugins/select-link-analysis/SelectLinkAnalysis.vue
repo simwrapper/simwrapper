@@ -97,6 +97,10 @@ import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
+import type { Sqlite3Static } from '@sqlite.org/sqlite-wasm';
+import Papa from '@simwrapper/papaparse'
+
+
 
 import {
     FileSystem,
@@ -112,6 +116,14 @@ import {
     DataTable,
 } from '@/Globals'
 import LegendStore from '@/js/LegendStore'
+
+export interface MapData {
+    linkId: String
+    agentId: String
+    legId: String
+    hour: Number
+    mode: String
+}
 
 
 
@@ -266,12 +278,15 @@ const SelectLinkAnalysis = defineComponent({
             links: null as any,
             selectedLinkTraversals: new Map<number, number>() as any,
             queriedAgents: new Map<number, any>() as any,
+            sqlite3: null as Sqlite3Static | null,
 
             chosenFormat: 'Parquet' as string,
 
             myMap: new Map<string, number[]>(),
 
             thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+
+            csvLinkTraversalData: [] as any[],
 
             // DataManager might be passed in from the dashboard; or we might be
             // in single-view mode, in which case we need to create one for ourselves
@@ -332,6 +347,7 @@ const SelectLinkAnalysis = defineComponent({
         async updateParentValue(value: any) {
             this.selectedLink = value;
             let results = await this.queryLinksForSelectedLink(this.selectedLink.link.id, this.selectedHour)
+            // console.log("number of traversals for selected link:", results.length)
             let agentResults = await this.queryAgentsForSelectedLink(this.selectedLink.link.id, this.selectedHour)
             // console.log("Max:", Math.max(...results.))
             // console.log("Min:", Math.min(...results.values()))
@@ -349,10 +365,24 @@ const SelectLinkAnalysis = defineComponent({
 
             await this.loadParquetData()
             await this.loadSQLiteData()
+
+            this.csvLinkTraversalData = await this.loadAndPrepareCSVData()
+            console.log('CSV data loaded and prepared:', this.csvLinkTraversalData)
         },
 
         async loadSQLiteData() {
-            const sqlite3 = await sqlite3InitModule();
+
+            if (this.dbSql) {
+                this.dbSql.close();
+                this.dbSql = null;
+            }
+
+            // Only initialize once
+            if (!this.sqlite3) {
+                this.sqlite3 = await sqlite3InitModule();
+            }
+            const sqlite3 = this.sqlite3;
+
 
             // Load sla.db as a blob
             const blob = await this.fileApi.getFileBlob('sla.db');
@@ -375,44 +405,44 @@ const SelectLinkAnalysis = defineComponent({
 
         },
 
+
+        // csv will be loaded as direct path for the moment - will work on incorporating it into dashboard structure after Zwischenpräsi
+        async loadAndPrepareCSVData() {
+            const filename = 'link-traversals-sorted.csv'
+            try {
+                const rawText = await this.fileApi.getFileText(filename)
+                const csv = Papa.parse(rawText, {
+                    comments: '#',
+                    delimitersToGuess: [';', '\t', ',', ' '],
+                    dynamicTyping: true,
+                    header: false,
+                    skipEmptyLines: true,
+                })
+                return csv
+            } catch (e) {
+                console.error('' + e)
+                this.$emit('error', 'Error loading: ' + filename)
+            }
+            return []
+
+
+        },
+
         async loadParquetData() {
-            // Select a bundle based on browser checks
             this.bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
-            // Instantiate the asynchronous version of DuckDB-wasm
             this.worker = new Worker(this.bundle.mainWorker!);
             this.logger = new duckdb.ConsoleLogger();
             this.db = new duckdb.AsyncDuckDB(this.logger, this.worker);
             await this.db.instantiate(this.bundle.mainModule, this.bundle.pthreadWorker);
-            console.log('DuckDB-wasm instantiated', this.db.config);
             this.conn = await this.db.connect();
-            console.log('Connected to DuckDB-wasm');
 
-            const filename_links = `link-traversals.parquet`
-            const filename_legs = `leg-sequences.parquet`
-            const filename_agents = `agents.parquet`
+            const traversalsUrl = this.fileApi.cleanURL('link-traversals-sorted.parquet')
+            const legSeqUrl = this.fileApi.cleanURL('leg-sequences-sorted.parquet')
 
-            const blob_links = await this.fileApi.getFileBlob(filename_links)
-            const blob_legs = await this.fileApi.getFileBlob(filename_legs)
-            const blob_agents = await this.fileApi.getFileBlob(filename_agents)
+            console.log('Registering:', traversalsUrl, legSeqUrl)
 
-            // const pickedFile: File = letUserPickFile();
-            await this.db.registerFileHandle('link-traversals.parquet',
-                blob_links,
-                duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
-            await this.db.registerFileHandle('leg_sequences.parquet',
-                blob_legs,
-                duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
-            await this.db.registerFileHandle('agents.parquet',
-                blob_agents,
-                duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
-
-            // attempted to do counting with JS after duckdb query, but it is faster to do it in duckdb directly, see below.
-
-            // const result = await this.conn.query('SELECT * FROM "leg_sequences.parquet" WHERE leg_id IN (SELECT leg_id FROM "link-traversals.parquet" WHERE link_id = 3757 AND hour = 8)')
-
-            // result.toArray().forEach(row => this.myMap.set(row.leg_id, row.leg_sequence.split('|').map((d: string) => parseInt(d))))
-            // return this.myMap
-
+            await this.db.registerFileURL('link-traversals-sorted.parquet', traversalsUrl, duckdb.DuckDBDataProtocol.HTTP, false)
+            await this.db.registerFileURL('leg-sequences-sorted.parquet', legSeqUrl, duckdb.DuckDBDataProtocol.HTTP, false)
         },
 
         splitString(str: string, delimiter: string): string[] {
@@ -423,59 +453,61 @@ const SelectLinkAnalysis = defineComponent({
             try {
                 if (this.conn && this.chosenFormat === 'Parquet') {
                     console.time('DuckDB Query Execution Time');
+                    // old query with link traversals table:
+                    // const result = await this.conn.query(`
+                    //                         WITH sequences AS (
+                    //                         SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS link_id
+                    //                         FROM "leg-sequences.parquet" ls
+                    //                         INNER JOIN "link-index.parquet" lt
+                    //                             ON ls.leg_id = lt.leg_id
+                    //                         WHERE lt.link_id = '${linkId}' AND lt.hour = ${hour}
+                    //                     )
+                    //                     SELECT link_id, COUNT(*) AS count
+                    //                     FROM sequences
+                    //                     GROUP BY link_id
+                    //                         `)
+
+                    // const result = await this.conn.query(`
+                    // SELECT co_link_id, count AS traversal_count
+                    // FROM "link-index.parquet"
+                    // WHERE link_id = '${linkId}'AND hour = ${hour} `)
+
                     const result = await this.conn.query(`
-                                            WITH traversals AS (
-                                                SELECT leg_id
-                                                FROM "link-traversals.parquet"
-                                                WHERE link_id = ${linkId} AND hour = ${hour}
-                                            ),
-                                            sequences AS (
-                                                SELECT UNNEST(string_split(leg_sequence, '|'))::INTEGER AS link_id
-                                                FROM "leg_sequences.parquet"
-                                                WHERE leg_id IN (SELECT leg_id FROM traversals)
-                                            )
-                                            SELECT link_id, COUNT(*) AS count
-                                            FROM sequences
-                                            GROUP BY link_id
-                                            `)
+    WITH sequences AS (
+        SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
+        FROM 'link-traversals-sorted.parquet' lt
+        INNER JOIN 'leg-sequences-sorted.parquet' ls ON lt.leg_id = ls.leg_id
+        WHERE lt.link_id = '${linkId}' AND lt.hour = ${hour}
+    )
+    SELECT co_link_id, COUNT(*) AS traversal_count
+    FROM sequences
+    GROUP BY co_link_id
+    ORDER BY traversal_count DESC
+`)
 
                     console.timeEnd('DuckDB Query Execution Time');
                     return Object.fromEntries(
-                        result.toArray().map(row => [row.link_id.toString(), Number(row.count)])
+                        result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
                     )
                 }
                 if (this.dbSql && this.chosenFormat === 'SQLite') {
                     console.time("SQLite Query Execution Time");
 
-                    const rows:any = [];
-                    this.dbSql.exec({
-                        sql: `
-        WITH traversals AS (
-            SELECT leg_id
-            FROM link_traversals
-            WHERE link_id = ? AND hour = ?
-        ),
-        sequences AS (
-            SELECT value AS link_id
-            FROM leg_sequences, json_each('["' || REPLACE(leg_sequence, '|', '","') || '"]')
-            WHERE leg_id IN (SELECT leg_id FROM traversals)
-        )
-        SELECT link_id, COUNT(*) AS count
-        FROM sequences
-        GROUP BY link_id
-    `,
+                    const rows = this.dbSql.exec({
+                        sql: `SELECT co_link_id, count AS traversal_count
+      FROM link_index
+      WHERE link_id = ? AND hour = ?
+      ORDER BY co_link_id`,
                         bind: [linkId, hour],
+                        returnValue: 'resultRows',
                         rowMode: 'object',
-                        callback: (row:any) => rows.push(row)
                     });
-
-                    console.log(rows);
 
                     console.timeEnd("SQLite Query Execution Time");
 
                     return Object.fromEntries(
-                        rows.map(row => [row.link_id.toString(), Number(row.count)])
-                    )
+                        rows.map((row) => [row.co_link_id.toString(), row.traversal_count])
+                    );
                 }
             } catch (e) {
                 console.error('Error querying links for selected link:', e);
@@ -484,32 +516,33 @@ const SelectLinkAnalysis = defineComponent({
         },
 
         async queryAgentsForSelectedLink(linkId: number, hour: number) {
-            try {
-                if (this.conn) {
-                    const result = await this.conn.query(`
-                        WITH traversals AS (
-                            SELECT agent_id
-                            FROM "link-traversals.parquet"
-                            WHERE link_id = ${linkId} AND hour = ${hour}
-                        )
-                        SELECT *
-                        FROM "agents.parquet"
-                        WHERE agent_id IN (SELECT agent_id FROM traversals)
-                    `)
+            // try {
+            //     if (this.conn) {
+            //         const result = await this.conn.query(`
+            //             WITH traversals AS (
+            //                 SELECT agent_id
+            //                 FROM "link-traversals.parquet"
+            //                 WHERE link_id = ${linkId} AND hour = ${hour}
+            //             )
+            //             SELECT *
+            //             FROM "agents.parquet"
+            //             WHERE agent_id IN (SELECT agent_id FROM traversals)
+            //         `)
 
-                    return Object.fromEntries(
-                        result.toArray().map(row => {
-                            for (let key in row) {
-                                row[key] = typeof row[key] === 'bigint' ? Number(row[key]) : row[key];
-                            }
-                            return [row.agent_id.toString(), row];
-                        })
-                    )
-                }
-            } catch (e) {
-                console.error('Error querying agents for selected link:', e);
-                return {};
-            }
+            //         return Object.fromEntries(
+            //             result.toArray().map(row => {
+            //                 for (let key in row) {
+            //                     row[key] = typeof row[key] === 'bigint' ? Number(row[key]) : row[key];
+            //                 }
+            //                 return [row.agent_id.toString(), row];
+            //             })
+            //         )
+            //     }
+            // } catch (e) {
+            //     console.error('Error querying agents for selected link:', e);
+            //     return {};
+            // }
+            return {} // agent details are not implemented yet, but this is where that query would go
         },
 
 
