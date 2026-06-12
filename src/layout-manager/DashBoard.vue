@@ -43,7 +43,7 @@
           //- info/zoom buttons
           .header-buttons
             button.button.is-small.is-white(
-              v-show="card.info || card.comments"
+              v-show="card.info || hasCardComments(card)"
               @click="handleToggleInfoClick(card)"
               :title="infoToggle[card.id] ? 'Hide Info':'Show Info'"
             )
@@ -206,16 +206,28 @@ export default defineComponent({
   },
 
   methods: {
+    hasCardComments(card: any): string {
+      if (!card.comments) return ''
+      return Array.isArray(card.comments)
+        ? card.comments.join('')
+        : Object.values(card.comments).join('')
+    },
+
     mdInfo(card: { info: any; comments: any }) {
       let info = ''
       if (card.info) {
         const html = MarkdownRenderer.render(card.info)
         info += html
       }
+
       if (card.comments) {
-        if (info) info += '<hr>\n'
-        const html = MarkdownRenderer.render(card.comments)
-        info += html
+        if (info) info += '\n<hr>\n'
+        Object.values(card.comments).forEach((comments: any, index) => {
+          if (!comments) return
+          if (index > 0) info += '\n<hr>\n'
+          const html = MarkdownRenderer.render(comments)
+          info += html
+        })
       }
       return info
     },
@@ -662,17 +674,18 @@ export default defineComponent({
       return tag
     },
 
-    handleComments(card: any, comments: string[]) {
-      console.log('GOT COMMENTS')
-      Vue.set(card, 'comments', '')
-      console.log(comments)
-      if (comments?.length) {
-        const mdRaw = comments
+    handleComments(card: any, comments: string[] | { filename: string; comments: string[] }) {
+      if (!card.comments) card.comments = {} as { [filename: string]: string[] }
+      let filename = Array.isArray(comments) ? '' : comments.filename
+      let commentStrings = Array.isArray(comments) ? comments : comments.comments
+      let mdRaw = ''
+      if (commentStrings?.length) {
+        mdRaw = commentStrings
           .map(c => c.slice(1).trim())
           .filter(c => !c.startsWith('EPSG:')) // hide EPSG codez which are special
           .join('\n')
-        card.comments = mdRaw
       }
+      card.comments[filename] = mdRaw
     },
 
     async handleCardIsLoaded(card: any) {

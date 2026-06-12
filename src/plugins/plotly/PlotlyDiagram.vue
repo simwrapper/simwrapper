@@ -889,13 +889,17 @@ const MyComponent = defineComponent({
 
     async loadDataset(name: string, ds: DataSet): Promise<DataSet> {
       this.loadingText = 'Loading datasets...'
+      this.$emit('comments', { filename: name, comments: [] })
 
       try {
         const csvData = await this.myDataManager.getDataset(
           { dataset: ds.file },
           { highPrecision: true, subfolder: this.subfolder }
         )
-        if (csvData.comments?.length) this.$emit('comments', csvData.comments)
+
+        if (csvData.comments?.length) {
+          this.$emit('comments', { filename: name, comments: csvData.comments })
+        }
 
         ds.data = csvData.allRows
         ds.name = name
@@ -1145,7 +1149,10 @@ const MyComponent = defineComponent({
 
         const dataColumn = dataTable[column]
         for (let i = 0; i < n; i++) {
-          if (hasMatchedFilters[i] && !this.checkFilterValue(fullSpecification, dataColumn.values[i])) {
+          if (
+            hasMatchedFilters[i] &&
+            !this.checkFilterValue(fullSpecification, dataColumn.values[i])
+          ) {
             hasMatchedFilters[i] = false
           }
         }
