@@ -586,9 +586,9 @@ const MyComponent = defineComponent({
             !f.startsWith('._')
         )
         this.stopFacilities = transitSchedule
-
-        if (!transitSchedule) {
+        if (!transitSchedule.length) {
           console.error('no transit schedule found.')
+          this.$emit('error', 'No transit schedule found.')
           this.vizDetails.stopFacilitiesFile = ''
         } else {
           this.vizDetails.stopFacilitiesFile = transitSchedule[0]
