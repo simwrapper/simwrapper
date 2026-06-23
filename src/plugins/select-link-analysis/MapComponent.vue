@@ -146,13 +146,9 @@ export default defineComponent({
 
       const finalLayers = []
 
-      const lineLayer = typeof this.cbLineWidth == 'number' ? LineLayer : LineOffsetLayer
-
-      // console.log('first few feature ids:', this.features?.slice(0, 5).map((f: any) => f.id))
-      // console.log('first few countMap values:', [...this.countMap.values()].slice(0, 5))
       finalLayers.push(
 
-        new lineLayer({
+        new LineOffsetLayer({
           id: 'linksLayer',
           data: this.features,
           getColor: (feature: any) => {

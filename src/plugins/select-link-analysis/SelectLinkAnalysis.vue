@@ -11,11 +11,22 @@
                     h4(style="margin-left: 5px;"): b Select database format:
                     .button-group
                         button.button-toggle(
-                        v-for="format in ['Parquet', 'SQLite']"
+                        v-for="format in ['Parquet', 'Csv']"
                         :key="format"
                         :class="{ 'button-active': chosenFormat === format }"
                         @click="chosenFormat = format"
                         ) {{ format }}
+                .query-info(v-if="selectedLink.link && queryTime > 0")
+                    h4 Selected Link: {{ selectedLink.link.id }}
+                    p Count of all link traversals: {{ Object.values(selectedLinkTraversals).reduce((a, b) => a + b, 0) }}
+                    p Number of legs traversing this link: {{ selectedLinkTraversals[selectedLink.link.id] || 0 }}
+                    p Query time: {{ Math.round(queryTime * 100) / 100 }} ms
+                    p avg. traversals per leg: {{ Math.round((Object.values(selectedLinkTraversals).reduce((a, b) => a + b, 0) / (selectedLinkTraversals[selectedLink.link.id] || 0) || 0) * 100) / 100 }}
+                .filter-box(v-if="queriedAgents && Object.keys(queriedAgents).length")
+                    ul
+                        h4 Economic Groups
+                        li(v-for="group in economicGroups" :key="group" @click="filterAgentGroups(group)") {{ group }}
+
                 legend-box(:legendStore="legendStore")
                 .agent-list.scrolly(v-if="queriedAgents && Object.keys(queriedAgents).length")
                     .agent-header: b Agents traversing selected link:
@@ -201,11 +212,15 @@ const SelectLinkAnalysis = defineComponent({
             linkLayerId: Math.floor(1e12 * Math.random()),
             isAreaMode: false,
             db: null as duckdb.AsyncDuckDB | null,
-            dbSql: null as any,
+            dbCsv: null as any,
             worker: null as Worker | null,
             logger: null as duckdb.ConsoleLogger | null,
             bundle: null as duckdb.DuckDBBundle | null,
+            bundleCsv: null as duckdb.DuckDBBundle | null,
+            workerCsv: null as Worker | null,
+            loggerCsv: null as duckdb.ConsoleLogger | null,
             conn: null as duckdb.AsyncDuckDBConnection | null,
+            connCsv: null as duckdb.AsyncDuckDBConnection | null,
             globalState: globalStore.state,
             isLoaded: false,
             show3dBuildings: false,
@@ -232,6 +247,10 @@ const SelectLinkAnalysis = defineComponent({
             selectedHour: ref(6) as any,
             timeRange: [8, 14] as Number[],
             allTimes: [8 * 3600, 9 * 3600, 10 * 3600, 11 * 3600, 12 * 3600, 13 * 3600, 14 * 3600] as any[],
+            queryTime: 0 as number,
+
+            originalAgents: {} as any,
+            originalTraversals: {} as any,
 
             tooltipHtml: '' as string,
             tooltipIsFixed: false as boolean,
@@ -250,6 +269,13 @@ const SelectLinkAnalysis = defineComponent({
 
             highlightedLinkIndex: -1 as number,
             wantToClearTooltip: false,
+
+            // demograpic data
+            economicGroups: ['low', 'medium', 'high'] as String[],
+            selectedEconomicGroup: '',
+            filteredAgents: [] as string[],
+            currentlyQueriedLinkId: null as number | null,
+            currentlyQueriedHour: null as number | null,
 
             vizDetails: {
                 network: '',
@@ -310,6 +336,11 @@ const SelectLinkAnalysis = defineComponent({
                 console.log('no such project')
                 throw Error
             }
+            // else {console.log('found project', )}
+            // svnProject[0].baseURL = svnProject[0].baseURL + "/" + this.subfolder
+            console.log('Using file system config:', svnProject[0])
+            console.log('subfolder:', this.subfolder)
+            console.log('full URL for file system:', svnProject[0].baseURL + '/' + this.subfolder)
             return svnProject[0]
         },
         allProps() {
@@ -347,83 +378,92 @@ const SelectLinkAnalysis = defineComponent({
         async updateParentValue(value: any) {
             this.selectedLink = value;
             let results = await this.queryLinksForSelectedLink(this.selectedLink.link.id, this.selectedHour)
-            // console.log("number of traversals for selected link:", results.length)
             let agentResults = await this.queryAgentsForSelectedLink(this.selectedLink.link.id, this.selectedHour)
-            // console.log("Max:", Math.max(...results.))
-            // console.log("Min:", Math.min(...results.values()))
-            // const firstQueryKey = Object.keys(results)[0]
-            // const matchingFeature = this.boundaries.find((b: any) => b.id === firstQueryKey)
-            // console.log('first query key:', firstQueryKey, 'matching feature:', matchingFeature)
-            // console.log('Queried traversals:', this.selectedLinkTraversals)
-            // console.log('Queried agents:', agentResults)
-            // to this (plain object, string keys matching feature.id):
             this.selectedLinkTraversals = results
             this.queriedAgents = agentResults
         },
 
         async loadAndPrepareData() {
-
+            this.logger = new duckdb.ConsoleLogger();
             await this.loadParquetData()
-            await this.loadSQLiteData()
-
-            this.csvLinkTraversalData = await this.loadAndPrepareCSVData()
+            // await this.loadSQLiteData()
+            await this.loadAndPrepareCSVData()
             console.log('CSV data loaded and prepared:', this.csvLinkTraversalData)
         },
 
-        async loadSQLiteData() {
+        // async loadSQLiteData() {
 
-            if (this.dbSql) {
-                this.dbSql.close();
-                this.dbSql = null;
-            }
+        //     if (this.dbSql) {
+        //         this.dbSql.close();
+        //         this.dbSql = null;
+        //     }
 
-            // Only initialize once
-            if (!this.sqlite3) {
-                this.sqlite3 = await sqlite3InitModule();
-            }
-            const sqlite3 = this.sqlite3;
+        //     // Only initialize once
+        //     if (!this.sqlite3) {
+        //         this.sqlite3 = await sqlite3InitModule();
+        //     }
+        //     const sqlite3 = this.sqlite3;
 
 
-            // Load sla.db as a blob
-            const blob = await this.fileApi.getFileBlob('sla.db');
-            const arrayBuffer = await blob.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
+        //     // Load sla.db as a blob
+        //     const blob = await this.fileApi.getFileBlob('sla.db');
+        //     const arrayBuffer = await blob.arrayBuffer();
+        //     const uint8Array = new Uint8Array(arrayBuffer);
 
-            // Create a new database in memory
-            this.dbSql = new sqlite3.oo1.DB('/mydb', 'c');
+        //     // Create a new database in memory
+        //     this.dbSql = new sqlite3.oo1.DB('/mydb', 'c');
 
-            // Import the sla.db file into the in-memory database
-            const pDb = sqlite3.wasm.allocFromTypedArray(uint8Array);
-            sqlite3.capi.sqlite3_deserialize(
-                this.dbSql.pointer,
-                'main',
-                pDb,
-                uint8Array.byteLength,
-                uint8Array.byteLength,
-                sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE | sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE
-            );
+        //     // Import the sla.db file into the in-memory database
+        //     const pDb = sqlite3.wasm.allocFromTypedArray(uint8Array);
+        //     sqlite3.capi.sqlite3_deserialize(
+        //         this.dbSql.pointer,
+        //         'main',
+        //         pDb,
+        //         uint8Array.byteLength,
+        //         uint8Array.byteLength,
+        //         sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE | sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE
+        //     );
 
-        },
+        // },
 
 
         // csv will be loaded as direct path for the moment - will work on incorporating it into dashboard structure after Zwischenpräsi
         async loadAndPrepareCSVData() {
-            const filename = 'link-traversals-sorted.csv'
-            try {
-                const rawText = await this.fileApi.getFileText(filename)
-                const csv = Papa.parse(rawText, {
-                    comments: '#',
-                    delimitersToGuess: [';', '\t', ',', ' '],
-                    dynamicTyping: true,
-                    header: false,
-                    skipEmptyLines: true,
-                })
-                return csv
-            } catch (e) {
-                console.error('' + e)
-                this.$emit('error', 'Error loading: ' + filename)
-            }
-            return []
+            this.bundleCsv = await duckdb.selectBundle(MANUAL_BUNDLES);
+            this.workerCsv = new Worker(this.bundleCsv.mainWorker!);
+            this.dbCsv = new duckdb.AsyncDuckDB(this.loggerCsv ?? new duckdb.ConsoleLogger(), this.workerCsv)
+            await this.dbCsv.instantiate(this.bundleCsv.mainModule, this.bundleCsv.pthreadWorker);
+            this.connCsv = await this.dbCsv.connect();
+
+            const traversalsUrl = this.fileApi.cleanURL(this.subfolder + '/link-traversals-sorted.csv.zst')
+            const legSeqUrl = this.fileApi.cleanURL(this.subfolder + '/leg-sequences-sorted.csv.zst')
+
+            await this.dbCsv.registerFileURL(
+                'link-traversals-sorted.csv.zst',
+                traversalsUrl,
+                duckdb.DuckDBDataProtocol.HTTP,
+                false
+            )
+            await this.dbCsv.registerFileURL(
+                'leg-sequences-sorted.csv.zst',
+                legSeqUrl,
+                duckdb.DuckDBDataProtocol.HTTP,
+                false
+            )
+
+            // if (this.connCsv) {
+            //     try {
+            //         const initialResult = await this.connCsv.query(`
+            //             SELECT COUNT(*) AS count
+            //             FROM "link-traversals-sorted.csv.zst"
+            //             WHERE hour = ${this.selectedHour}
+            //         `)
+            //         console.log('caching csv to allow for faster subsequent queries:', initialResult.toArray())
+
+            //     } catch (e) {
+            //         console.error('Error querying CSV data:', e)
+            //     }
+            // }
 
 
         },
@@ -431,18 +471,30 @@ const SelectLinkAnalysis = defineComponent({
         async loadParquetData() {
             this.bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
             this.worker = new Worker(this.bundle.mainWorker!);
-            this.logger = new duckdb.ConsoleLogger();
-            this.db = new duckdb.AsyncDuckDB(this.logger, this.worker);
+            this.db = new duckdb.AsyncDuckDB(this.logger ?? new duckdb.ConsoleLogger(), this.worker);
             await this.db.instantiate(this.bundle.mainModule, this.bundle.pthreadWorker);
             this.conn = await this.db.connect();
 
-            const traversalsUrl = this.fileApi.cleanURL('link-traversals-sorted.parquet')
-            const legSeqUrl = this.fileApi.cleanURL('leg-sequences-sorted.parquet')
 
-            console.log('Registering:', traversalsUrl, legSeqUrl)
+            const traversalsUrl = this.fileApi.cleanURL(this.subfolder + '/link-traversals-sorted.parquet')
+            const legSeqUrl = this.fileApi.cleanURL(this.subfolder + '/leg-sequences-sorted.parquet')
+            const agentsUrl = this.fileApi.cleanURL(this.subfolder + '/agents-sorted.parquet')
+
+            console.log('Registering:', traversalsUrl, legSeqUrl, agentsUrl)
 
             await this.db.registerFileURL('link-traversals-sorted.parquet', traversalsUrl, duckdb.DuckDBDataProtocol.HTTP, false)
             await this.db.registerFileURL('leg-sequences-sorted.parquet', legSeqUrl, duckdb.DuckDBDataProtocol.HTTP, false)
+            await this.db.registerFileURL('agents-sorted.parquet', agentsUrl, duckdb.DuckDBDataProtocol.HTTP, false)
+
+            // // initial query to warm up the system; also gives us a count of total traversals for the selected hour, which is useful info to have right away
+            // const initialResult = await this.conn.query(`
+            //     SELECT COUNT(*) AS count
+            //     FROM "link-traversals-sorted.parquet"
+            //     WHERE hour = ${this.selectedHour}
+            // `)
+
+            // console.log('caching parquet to allow for faster subsequent queries:', initialResult.toArray())
+
         },
 
         splitString(str: string, delimiter: string): string[] {
@@ -450,9 +502,10 @@ const SelectLinkAnalysis = defineComponent({
         },
 
         async queryLinksForSelectedLink(linkId: number, hour: number) {
+            const start = performance.now();
             try {
                 if (this.conn && this.chosenFormat === 'Parquet') {
-                    console.time('DuckDB Query Execution Time');
+
                     // old query with link traversals table:
                     // const result = await this.conn.query(`
                     //                         WITH sequences AS (
@@ -473,40 +526,46 @@ const SelectLinkAnalysis = defineComponent({
                     // WHERE link_id = '${linkId}'AND hour = ${hour} `)
 
                     const result = await this.conn.query(`
-    WITH sequences AS (
-        SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
-        FROM 'link-traversals-sorted.parquet' lt
-        INNER JOIN 'leg-sequences-sorted.parquet' ls ON lt.leg_id = ls.leg_id
-        WHERE lt.link_id = '${linkId}' AND lt.hour = ${hour}
-    )
-    SELECT co_link_id, COUNT(*) AS traversal_count
-    FROM sequences
-    GROUP BY co_link_id
-    ORDER BY traversal_count DESC
-`)
+                        WITH sequences AS (
+                            SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
+                            FROM 'link-traversals-sorted.parquet' lt
+                            INNER JOIN 'leg-sequences-sorted.parquet' ls ON lt.leg_id = ls.leg_id
+                            WHERE lt.link_id = '${linkId}' AND lt.hour = ${hour}
+                        )
+                        SELECT co_link_id, COUNT(*) AS traversal_count
+                        FROM sequences
+                        GROUP BY co_link_id
+                        ORDER BY traversal_count DESC
+                    `)
 
-                    console.timeEnd('DuckDB Query Execution Time');
-                    return Object.fromEntries(
+                    this.queryTime = performance.now() - start;
+
+                    this.originalTraversals = Object.fromEntries(
                         result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
                     )
+
+                    return this.originalTraversals
                 }
-                if (this.dbSql && this.chosenFormat === 'SQLite') {
-                    console.time("SQLite Query Execution Time");
+                if (this.connCsv && this.dbCsv && this.chosenFormat === 'Csv') {
+                    const start = performance.now();
 
-                    const rows = this.dbSql.exec({
-                        sql: `SELECT co_link_id, count AS traversal_count
-      FROM link_index
-      WHERE link_id = ? AND hour = ?
-      ORDER BY co_link_id`,
-                        bind: [linkId, hour],
-                        returnValue: 'resultRows',
-                        rowMode: 'object',
-                    });
+                    const result = await this.connCsv.query(`
+                        WITH sequences AS (
+                            SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
+                            FROM 'link-traversals-sorted.csv.zst' lt
+                            INNER JOIN 'leg-sequences-sorted.csv.zst' ls ON lt.leg_id = ls.leg_id
+                            WHERE lt.link_id = '${linkId}' AND lt.hour = ${hour}
+                        )
+                        SELECT co_link_id, COUNT(*) AS traversal_count
+                        FROM sequences
+                        GROUP BY co_link_id
+                        ORDER BY traversal_count DESC
+                    `)
 
-                    console.timeEnd("SQLite Query Execution Time");
+                    this.queryTime = performance.now() - start;
 
                     return Object.fromEntries(
-                        rows.map((row) => [row.co_link_id.toString(), row.traversal_count])
+                        result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
                     );
                 }
             } catch (e) {
@@ -516,53 +575,108 @@ const SelectLinkAnalysis = defineComponent({
         },
 
         async queryAgentsForSelectedLink(linkId: number, hour: number) {
-            // try {
-            //     if (this.conn) {
-            //         const result = await this.conn.query(`
-            //             WITH traversals AS (
-            //                 SELECT agent_id
-            //                 FROM "link-traversals.parquet"
-            //                 WHERE link_id = ${linkId} AND hour = ${hour}
-            //             )
-            //             SELECT *
-            //             FROM "agents.parquet"
-            //             WHERE agent_id IN (SELECT agent_id FROM traversals)
-            //         `)
+            this.currentlyQueriedLinkId = linkId
+            this.currentlyQueriedHour = hour
+            try {
+                if (this.conn) {
+                    const result = await this.conn.query(`
+                        SELECT a.*
+                        FROM "agents-sorted.parquet" a
+                        INNER JOIN "link-traversals-sorted.parquet" lt
+                            ON a.agent_id = lt.agent_id
+                        WHERE lt.link_id = '${linkId}' AND lt.hour = ${hour}
+                    `)
 
-            //         return Object.fromEntries(
-            //             result.toArray().map(row => {
-            //                 for (let key in row) {
-            //                     row[key] = typeof row[key] === 'bigint' ? Number(row[key]) : row[key];
-            //                 }
-            //                 return [row.agent_id.toString(), row];
-            //             })
-            //         )
-            //     }
-            // } catch (e) {
-            //     console.error('Error querying agents for selected link:', e);
-            //     return {};
-            // }
+                    this.originalAgents = Object.fromEntries(
+                        result.toArray().map(row => {
+                            for (let key in row) {
+                                row[key] = typeof row[key] === 'bigint' ? Number(row[key]) : row[key];
+                            }
+                            return [row.agent_id.toString(), row];
+                        })
+                    )
+                    return this.originalAgents
+                }
+            } catch (e) {
+                console.error('Error querying agents for selected link:', e);
+                return {};
+            }
             return {} // agent details are not implemented yet, but this is where that query would go
+        },
+
+        async filterAgentGroups(group: string) {
+            this.selectedEconomicGroup = group
+            // this is where we would apply filters to the queriedAgents based on economicGroups or other demographic data
+            // for now, it just logs the selected groups and doesn't actually filter anything
+            // console.log('Filtering agents based on selected economic groups:', this.economicGroups)
+            // if (!this.queriedAgents || Object.keys(this.queriedAgents).length === 0) return
+
+            // if (!this.economicGroups || this.economicGroups.length === 0) {
+            //     return
+            // }
+
+            // console.log('Filtering agents based on economic status:', this.selectedEconomicGroup)
+            // console.log('Queried agents before filtering:', this.queriedAgents)
+            this.queriedAgents = Object.fromEntries(
+                Object.entries(this.originalAgents)
+                    .filter(([agentId, agent]) => {
+                        const matches = agent.economic_status === this.selectedEconomicGroup
+                        if (matches) {
+                            this.filteredAgents.push(agentId) // keep track of filtered agents so we can show them in the UI if needed
+                        }
+                        return matches
+                    })
+            )
+            if (this.conn) {
+                try {
+                    const result = await this.conn.query(`
+                        WITH sequences AS (
+                            SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
+                            FROM 'link-traversals-sorted.parquet' lt
+                            INNER JOIN 'leg-sequences-sorted.parquet' ls
+                                ON lt.leg_id = ls.leg_id
+                            WHERE lt.link_id = '${this.currentlyQueriedLinkId}'
+                            AND lt.hour = ${this.currentlyQueriedHour}
+                            AND lt.agent_id IN (
+                                SELECT UNNEST(string_split('${this.filteredAgents.join("|")}', '|'))
+                            )
+                        )
+                        SELECT co_link_id, COUNT(*) AS traversal_count
+                        FROM sequences
+                        GROUP BY co_link_id
+                        ORDER BY traversal_count DESC
+                    `);
+                    this.selectedLinkTraversals = Object.fromEntries(
+                        result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
+                    );
+
+                } catch (e) {
+                    console.error('Error querying links for selected link:', e);
+                    return {};
+                }
+            }
+
         },
 
 
         // this happens if viz is the full page, not a thumbnail on a project page
-        // buildRouteFromUrl() {
-        //     const params = this.$route.params
-        //     console.log('ROUTE PARAMS', params)
-        //     if (!params.project || !params.pathMatch) {
-        //         console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-        //         return
-        //     }
+        buildRouteFromUrl() {
+            const params = this.$route.params
+            console.log('ROUTE PARAMS', params)
+            if (!params.project || !params.pathMatch) {
+                console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
+                return
+            }
 
-        //     // subfolder and config file
-        //     const sep = 1 + params.pathMatch.lastIndexOf('/')
-        //     const subfolder = params.pathMatch.substring(0, sep)
-        //     const config = params.pathMatch.substring(sep)
 
-        //     this.myState.subfolder = subfolder
-        //     // this.myState.yamlConfig = config
-        // },
+            // subfolder and config file
+            const sep = 1 + params.pathMatch.lastIndexOf('/')
+            const subfolder = params.pathMatch.substring(0, sep)
+            const config = params.pathMatch.substring(sep)
+
+            this.myState.subfolder = subfolder
+            // this.myState.yamlConfig = config
+        },
 
         async getVizDetails() {
             // are we in a dashboard?
@@ -1099,13 +1213,14 @@ const SelectLinkAnalysis = defineComponent({
 
 
         globalStore.commit('setFullScreen', !this.thumbnail)
+        this.buildRouteFromUrl()
 
         this.myState.thumbnail = this.thumbnail
         this.myState.subfolder = this.subfolder
 
         // if (!this.yamlConfig) {
         //     console.log(this.yamlConfig, this.yamlConfig)
-        //     this.buildRouteFromUrl()
+
         // } else {
         //     this.myState.yamlConfig = this.yamlConfig
         // }
@@ -1171,6 +1286,29 @@ const SelectLinkAnalysis = defineComponent({
     },
 
     beforeDestroy() {
+
+        this.selectedLinkTraversals.clear();
+        this.queriedAgents.clear();
+
+        // Close DuckDB connections and databases
+        if (this.conn) {
+            this.conn.close().catch(console.error);
+        }
+        if (this.db) {
+            this.db.terminate().catch(console.error);
+        }
+        if (this.dbCsv) {
+            this.dbCsv.close().catch(console.error);
+        }
+        if (this.worker) {
+            this.worker.terminate();
+        }
+
+        // Clean up other resources
+        // delete window.__testdata__;
+        this.data = [];
+        this.guiController?.destroy();
+        this.$store.commit('setFullScreen', false);
         //@ts-ignore
         delete window.__testdata__
 
@@ -1213,11 +1351,36 @@ export default SelectLinkAnalysis
     position: relative;
     // flex: 1;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     background-color: var(--bgBold);
     height: 100%;
     z-index: 0;
 }
+
+.query-info {
+    // position: absolute;
+    margin-top: 0.5rem;
+    margin-left: 0.5rem;
+    // background-color: var(--bgCardFrame);
+    padding: 0.25rem 0.5rem;
+    // border-radius: 4px;
+    border: #FFF 1px solid;
+    // font-size: 0.8rem;
+    // z-index: 2;
+}
+
+.filter-box {
+    // position: absolute;
+    margin-top: 0.5rem;
+    margin-left: 0.5rem;
+    // background-color: var(--bgCardFrame);
+    padding: 0.25rem 0.5rem;
+    // border-radius: 4px;
+    border: #FFF 1px solid;
+    // font-size: 0.8rem;
+    // z-index: 2;
+}
+
 
 .agent-list {
     // margin-top: 1rem;
@@ -1227,12 +1390,12 @@ export default SelectLinkAnalysis
     background-color: var(--bgCardFrame);
     border-radius: 4px;
     position: absolute;
-    height: 50%;
+    height: 30%;
 }
 
 .agent-list.scrolly {
     width: 100%;
-    max-height: 400px;
+    max-height: 40%;
     /* or whatever height you want */
     overflow: auto;
     /* enables scrolling if content overflows */
@@ -1277,7 +1440,7 @@ export default SelectLinkAnalysis
 
 .new-rightside-info-panel {
     // grid-row: 1 / 2;
-    grid-column: 4;
+    grid-column: 3;
     background-color: var(--bgCardFrame);
     position: relative;
     height: 100%;
