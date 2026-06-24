@@ -172,7 +172,7 @@ export default defineComponent({
             this.highlightedLinkIndex == -1 ? null : this.highlightedLinkIndex,
           highlightColor: [255, 255, 255, 160], // [255, 0, 204, 255],
           opacity: 1,
-          widthMinPixels: 2,
+          widthMinPixels: 1,
           transitions: {
             getColor: 200,
             getWidth: 200,
@@ -204,6 +204,8 @@ export default defineComponent({
       center,
       zoom,
       canvasContextAttributes: { preserveDrawingBuffer: true },
+      pixelRatio: window.devicePixelRatio,
+
     })
     // console.log('map container dimensions:',
     //   document.getElementById(container)?.offsetWidth,

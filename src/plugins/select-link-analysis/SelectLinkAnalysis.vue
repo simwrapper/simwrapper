@@ -683,6 +683,9 @@ const SelectLinkAnalysis = defineComponent({
             if (this.config) {
                 // Merge config into existing vizDetails to preserve required shape
                 Object.assign(this.vizDetails, this.config)
+                this.vizDetails.network = this.config.shapes.file || this.config.network || this.config.features
+                console.log('Using config from dashboard:', this.vizDetails)
+                console.log('Using config from dashboard:', this.config)
                 return
             }
 
@@ -723,6 +726,8 @@ const SelectLinkAnalysis = defineComponent({
             // Road network: first try the most obvious network filename:
             const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
 
+            console.log('files in subfolder:', files)
+
             let network = this.myState.yamlConfig.replaceAll('selectLink', 'network')
             // if the obvious network file doesn't exist, just grab... the first network file:
             if (files.indexOf(network) == -1) {
@@ -743,6 +748,7 @@ const SelectLinkAnalysis = defineComponent({
 
         async loadNetwork() {
             console.log('LOADING NETWORK')
+            console.log("vizDetails.network:", this.vizDetails.network)
             this.myState.statusMessage = 'Loading network...'
 
             if (
