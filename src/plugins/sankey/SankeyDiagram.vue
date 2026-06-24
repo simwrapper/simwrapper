@@ -35,7 +35,6 @@ import Papa from '@simwrapper/papaparse'
 import globalStore from '@/store'
 import { FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { title } from 'process'
 
 enum Size {
   small,
@@ -285,7 +284,6 @@ const MyComponent = defineComponent({
             link[2] = 0
           }
         }
-        console.log(links)
       }
 
       // something like, for from_nodes, if to_node is different, find flipped relationship and see which abosulte sum is higher - take difference and save it in answers.
