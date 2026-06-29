@@ -1,5 +1,5 @@
 $mainFont: Figtree, Roboto, Helvetica, Arial, sans-serif;
-$fancyFont: FiraSans, Figtree, Roboto, Helvetica, Arial, sans-serif;
+$fancyFont: Figtree, Roboto, Helvetica, Arial, sans-serif;
 $appTag: #53b589;
 $matsimBlue: #4b7cc4;
 $tuRed: #b40d1e;
@@ -18,8 +18,8 @@ $navHeight: 3.25rem;
 $bannerHighlight: #1d3355;
 $sizeMobile: 30em;
 $sizeVessel: 70rem;
-$thumbnailHeight: 10rem;
 $dashboardWidth: 70rem;
+$thumbnailHeight: 10rem;
 $filterShadow: drop-shadow(0px 3px 5px #22222244);
 $yellowHighlight: #deef6f;
 $cardSpacing: 1.25rem;
@@ -52,6 +52,7 @@ $cardSpacing: 1.25rem;
   --bgTag: #fdffa3;
   --bgSplash: #eaeaef;
   --bgSplashPage: linear-gradient(25deg, #ebe9f4, #e4ebf7, #e0f4f7);
+  // --bgSplashPage: linear-gradient(25deg, #ececf0, #f8f8fa);
   --bgScrollbar: #888888aa;
   --bgTabBanner: linear-gradient(150deg, #345be6, #29d299);
   --bgTreeItem: #d9f5cb;
@@ -147,4 +148,17 @@ $cardSpacing: 1.25rem;
   --opacityAttribution: opacity(60%);
   --yellowHighlight: #edf6ae;
   --iconShowHide: #183d36;
+}
+
+:root,
+[data-dash-theme='cards'] {
+  --dashTitleSize: 1.1rem;
+  --dashTitleLineHeight: 1.5rem;
+  --dashCardMargin: 0 1.25rem 1.25rem 0;
+}
+
+[data-dash-theme='notebook'] {
+  --dashTitleSize: 1.5rem;
+  --dashTitleLineHeight: 1.7rem;
+  --dashCardMargin: 0 3rem 3rem 0rem;
 }

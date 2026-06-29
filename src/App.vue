@@ -898,7 +898,7 @@ maplibregl-ctrl-attrib-button {
   overflow-x: auto;
 }
 
-.xcardinfo-block {
+.md-card-format {
   background-color: var(--bgCardInfo);
   border-top: 1px solid #bbbbbb40;
   opacity: 0.95;
@@ -921,14 +921,30 @@ maplibregl-ctrl-attrib-button {
     font-size: 1.1rem;
   }
   p {
-    line-height: 1.2rem;
+    line-height: 1.4rem;
   }
   ul {
-    line-height: 1.2rem;
+    line-height: 1.4rem;
     list-style: disc !important;
     list-style-position: inside !important;
     margin-left: 0.5rem !important;
   }
+}
+
+.card-caption p {
+  margin-bottom: 0.7rem;
+  line-height: 1.5rem;
+}
+.card-caption ul {
+  margin-left: 0 !important;
+  margin-bottom: 0.7rem;
+  line-height: 1.5rem;
+  padding-left: 0rem;
+}
+.card-caption li {
+  padding-left: 2rem;
+  text-indent: -1.6rem;
+  margin-bottom: 0.4rem;
 }
 
 @media only screen and (max-width: 640px) {

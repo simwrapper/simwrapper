@@ -32,6 +32,7 @@
       br
       .metric-label Color scheme
       b-select.form-select.is-small(
+        expanded
         v-model="vizDetails.colorScheme"
         @input="vizDetails = {...vizDetails}"
       )
@@ -800,7 +801,7 @@ export default MyComponent
   flex-direction: column;
   gap: 5px;
   width: max-content;
-  margin: 0.25rem 0.5rem 0.5rem 0;
+  margin: 0.25rem 1rem 0.5rem 0;
 }
 
 .metric-button {
@@ -817,8 +818,11 @@ export default MyComponent
 }
 
 .metric-label {
+  text-transform: uppercase;
   font-weight: bold;
-  font-size: 1.3rem;
+  font-size: 1.1rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
 }
 
 .button-row {
@@ -870,8 +874,10 @@ export default MyComponent
 }
 
 .right-side-panel {
+  background-color: var(--bgCream5);
   flex: 1;
   padding-left: 15px;
+  z-index: 20;
 
   p:hover {
     font-weight: bold !important;
