@@ -701,7 +701,9 @@ const MyComponent = defineComponent({
 
       const traces: any = []
 
+      // console.log({ capLookup: this.capLookup })
       for (const vehicle of trips) {
+        // console.log(vehicle)
         vehNumber++
 
         let time = vehicle.timestamps[0]
@@ -726,7 +728,9 @@ const MyComponent = defineComponent({
             segments = []
             time = nextTime
           } else {
-            const capKep = this.capLookup.kep[vehicle.id].reduceRight((a, b) => {
+            const kep = this.capLookup.kep[vehicle.id]
+            if (!kep) continue
+            const capKep = kep.reduceRight((a, b) => {
               // console.log(b.endTime, time)
               return time < b.endTime ? b.cap : a
             }, 0)
@@ -828,27 +832,33 @@ const MyComponent = defineComponent({
 
     this.setWallClock()
 
-    this.myState.statusMessage = 'Loading...'
+    this.myState.statusMessage = 'Loading files...'
     console.log('loading files')
     const { trips, drtRequests, kepLookup, humanLookup } = await this.loadFiles()
 
     this.capLookup = { kep: kepLookup, human: humanLookup }
 
-    console.log('parsing vehicle motion')
+    this.myState.statusMessage = 'Analyzing vehicle motion'
+    console.log(this.myState.statusMessage)
+    await this.$nextTick()
     this.myState.statusMessage = `${this.$t('vehicles')}...`
     this.paths = this.parseVehicles(trips)
     this.pathStart = this.paths.dimension(d => d.t0)
     this.pathEnd = this.paths.dimension(d => d.t1)
     this.pathVehicle = this.paths.dimension(d => d.v)
 
-    console.log('Routes...')
+    this.myState.statusMessage = 'Analyzing routes...'
+    console.log(this.myState.statusMessage)
+    await this.$nextTick()
     this.myState.statusMessage = `${this.$t('routes')}...`
     this.traces = await this.parseRouteTraces(trips)
     this.traceStart = this.traces.dimension(d => d.t0)
     this.traceEnd = this.traces.dimension(d => d.t1)
     this.traceVehicle = this.traces.dimension(d => d.v)
 
-    console.log('Requests...')
+    this.myState.statusMessage = 'Analyzing requests...'
+    console.log(this.myState.statusMessage)
+    await this.$nextTick()
     this.myState.statusMessage = `${this.$t('requests')}...`
     this.requests = await this.parseDrtRequests(drtRequests)
     this.requestStart = this.requests.dimension(d => d[0]) // time0
