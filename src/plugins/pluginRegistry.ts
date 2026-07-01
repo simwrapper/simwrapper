@@ -153,6 +153,11 @@ const plugins = [
     filePatterns: ['**/viz-imoger*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./imoger/VehicleAnimation.vue')),
   },
+  {
+    kebabName: 'plans',
+    filePatterns: ['**/*plans.parquet', '**/viz-plans*.y?(a)ml*'],
+    component: defineAsyncComponent(() => import('./plans/PlansViewer.vue')),
+  },
 ]
 
 export const pluginComponents: { [key: string]: AsyncComponent } = {}
