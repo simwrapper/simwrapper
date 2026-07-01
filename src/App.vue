@@ -947,6 +947,10 @@ maplibregl-ctrl-attrib-button {
   margin-bottom: 0.4rem;
 }
 
+.speed-slider .b-slider-track {
+  background-color: var(--bgCardFrame2);
+}
+
 @media only screen and (max-width: 640px) {
   .breadcrumbs {
     padding-left: 1rem;

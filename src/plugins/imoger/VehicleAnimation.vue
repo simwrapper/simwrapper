@@ -133,7 +133,7 @@ import LegendColors from './LegendColors.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { arrayBufferToBase64, gUnzip } from '@/js/util'
+import { arrayBufferToBase64, gUnzip, sleep } from '@/js/util'
 import DeckMap from './DeckMapComponent.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import BackgroundLayers from '@/js/BackgroundLayers'
@@ -766,6 +766,8 @@ const MyComponent = defineComponent({
       // DRT CAPACITIES
       if (this.vizDetails.capacities) {
         try {
+          this.myState.statusMessage = 'Loading capacities'
+          await sleep(0)
           const { allRows } = await this.myDataManager.getDataset({
             dataset: this.vizDetails.capacities,
           })
@@ -783,6 +785,8 @@ const MyComponent = defineComponent({
       }
 
       try {
+        this.myState.statusMessage = 'Loading DRT trips'
+        await sleep(0)
         if (this.vizDetails.drtTrips.endsWith('json')) {
           const json = await this.fileApi.getFileJson(
             this.myState.subfolder + '/' + this.vizDetails.drtTrips
@@ -840,7 +844,7 @@ const MyComponent = defineComponent({
 
     this.myState.statusMessage = 'Analyzing vehicle motion'
     console.log(this.myState.statusMessage)
-    await this.$nextTick()
+    await sleep(0)
     this.myState.statusMessage = `${this.$t('vehicles')}...`
     this.paths = this.parseVehicles(trips)
     this.pathStart = this.paths.dimension(d => d.t0)
@@ -849,7 +853,7 @@ const MyComponent = defineComponent({
 
     this.myState.statusMessage = 'Analyzing routes...'
     console.log(this.myState.statusMessage)
-    await this.$nextTick()
+    await sleep(0)
     this.myState.statusMessage = `${this.$t('routes')}...`
     this.traces = await this.parseRouteTraces(trips)
     this.traceStart = this.traces.dimension(d => d.t0)
@@ -858,7 +862,7 @@ const MyComponent = defineComponent({
 
     this.myState.statusMessage = 'Analyzing requests...'
     console.log(this.myState.statusMessage)
-    await this.$nextTick()
+    await sleep(0)
     this.myState.statusMessage = `${this.$t('requests')}...`
     this.requests = await this.parseDrtRequests(drtRequests)
     this.requestStart = this.requests.dimension(d => d[0]) // time0
@@ -910,13 +914,13 @@ export default MyComponent
   grid-template-columns: 1fr auto auto;
   min-height: $thumbnailHeight;
   height: 100%;
-  background-color: var(--bg);
+  background-color: var(--bgCream2);
 }
 
 .area-map {
   grid-row: 1 / 2;
   grid-column: 1 / 2;
-  background-color: var(--bgBold);
+  // background-color: var(--bgBold);
   position: relative;
 }
 
@@ -1023,7 +1027,7 @@ export default MyComponent
   display: flex;
   flex-direction: column;
   padding: 0.5rem 0.5rem;
-  background-color: var(--bgCardFrame2);
+  background-color: var(--bgPanel3);
 }
 
 .bottom-area {
@@ -1055,7 +1059,7 @@ export default MyComponent
 .clock {
   color: white;
   background-color: #000000cc;
-  border: 3px solid white;
+  border: 2px solid white;
   color: white;
 }
 
@@ -1076,7 +1080,7 @@ export default MyComponent
 
 input {
   border: none;
-  background-color: var(--bgCream);
+  background-color: var(--bgCardFrame2);
   color: #ccc;
 }
 

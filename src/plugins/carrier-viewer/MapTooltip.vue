@@ -68,7 +68,7 @@ export default defineComponent({
 
   methods: {
     renderTooltip(hoverInfo: any) {
-      console.log({ hoverInfo })
+      // console.log({ hoverInfo })
       this.tooltipType = TooltipType.NONE
 
       const { object } = hoverInfo
