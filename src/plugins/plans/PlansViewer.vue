@@ -3,37 +3,32 @@
                 :style='{"background": urlThumbnail}'
                 oncontextmenu="return false")
 
-  .container-1(
-      @mousemove="dividerDragging"
-      @mouseup="dividerDragEnd"
-  )
+  .container-1(@mousemove="dividerDragging" @mouseup="dividerDragEnd")
+
     .main-panel
+
       DeckMapComponent.anim(
-                  activeTab="tours"
-                  :bgLayers="backgroundLayers"
-                  :shipments="shownShipments"
-                  :depots="shownDepots"
-                  :legs="shownLegs"
-                  :stopActivities="stopActivities"
-                  :dark="globalState.isDarkMode"
-                  :center="vizDetails.center"
-                  :viewId="linkLayerId"
-                  :settings="vizSettings"
-                  :numSelectedTours="selectedTours.length"
-                  :onClick="handleClick"
-                  :projection="vizDetails.projection"
-                  :services="vizDetails.services || false"
-                  :show3dBuildings="show3dBuildings")
+        activeTab="tours"
+        :bgLayers="backgroundLayers"
+        :shipments="shownShipments"
+        :depots="shownDepots"
+        :legs="shownLegs"
+        :stopActivities="stopActivities"
+        :dark="globalState.isDarkMode"
+        :center="vizDetails.center"
+        :viewId="linkLayerId"
+        :settings="vizSettings"
+        :numSelectedTours="selectedTours.length"
+        :onClick="handleClick"
+        :projection="vizDetails.projection"
+        :services="vizDetails.services || false"
+        :show3dBuildings="show3dBuildings")
 
       ZoomButtons(v-if="!thumbnail" corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
 
       .x-status-message(v-if="myState.statusMessage"): h3 {{ myState.statusMessage }}
 
-    .dragger(
-        @mousedown="dividerDragStart"
-        @mouseup="dividerDragEnd"
-        @mousemove.stop="dividerDragging"
-    )
+    .dragger(@mousedown="dividerDragStart" @mouseup="dividerDragEnd" @mousemove.stop="dividerDragging")
 
     .right-panel(:darkMode="true" :style="{width: `${legendSectionWidth}px`}")
       h3 {{ $t('plansExplorer') }}
@@ -43,16 +38,21 @@
         form(autocomplete="off")
         .field
           p.control.has-icons-left
-            input.input.is-small(type="text" :placeholder="`${$t('search')}...`" v-model="searchTerm")
+            input.input.is-small(type="text" :placeholder="`${$t('searchHint')}...`" v-model="searchTerm")
             span.icon.is-small.is-left
               i.fas.fa-search
 
-      .carrier-list(data-testid="carrier-list")
-        .carrier(v-for="carrier in carriers" :key="carrier.$id"
-                 :class="{selected: carrier.$id===selectedCarrier}"
-                 @click="handleSelectCarrier(carrier)")
-          .carrier-title {{ carrier.$id }}
+      .filter-plans
+          b-switch(v-model="vizSettings.selectedPlansOnly")
+            span(v-html="$t('selectedPlansOnly')")
 
+      .carrier-list(data-testid="plan-list")
+        .carrier(v-for="plan,i in plans" :key="plan.plan_num"
+                 :class="{selected: selectedPlans.indexOf(i) > -1 }"
+                 @click="handleSelectPlan(i)")
+          .carrier-title {{ `${plan[0].person_id}:&nbsp;&nbsp;${plan[0].plan_num}&nbsp;&nbsp;${plan[0].plan_selected=='yes' ? '(*)':''}` }}
+
+        b-loading(v-model="isQueryRunning" :is-full-page="false")
       h4 {{ selectedCarrier || 'Details' }}
 
 
@@ -108,12 +108,12 @@
             .leaf.tour(v-for="service,i in services" :key="`${i}-${service.$id}`") {{ `${service.$id}` }}
 
       .switchbox
-        .switches
-          p {{$t('scaleSize')}}&nbsp;
-          b-slider.speed-slider(:tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactor")
+        //- .switches
+        //-   p {{$t('scaleSize')}}&nbsp;
+        //-   b-slider.speed-slider(:tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactor")
         .switches
           b-switch(v-model="vizSettings.shipmentDotsOnTourMap")
-            span(v-html="$t('shipmentDots')")
+            span(v-html="$t('showActivities')")
           b-switch(v-model="vizSettings.simplifyTours")
             span(v-html="$t('flatten')")
 
@@ -136,7 +136,10 @@ const i18n = {
       shipmentDots: 'Show shipments',
       scaleSize: 'Widths',
       scaleFactor: 'Width',
+      selectedPlansOnly: 'Selected plans only',
+      showActivities: 'Show activities',
       search: 'Search',
+      searchHint: 'Person_id or pattern*',
       service: 'Service',
     },
     de: {
@@ -221,6 +224,18 @@ interface ActivityLocation {
   ptTo: number[]
 }
 
+interface Plan {
+  person_id: string
+  plan_num: number
+  plan_selected: string
+  element: string
+  route_text: string
+  activity_link: string
+  activity_lon: number
+  activity_lat: number
+  activity_type: string
+}
+
 const CarrierPlugin = defineComponent({
   name: 'CarrierPlugin',
   i18n,
@@ -242,6 +257,9 @@ const CarrierPlugin = defineComponent({
     return {
       duck: {} as AsyncDuckDB,
       debounceUpdateSearch: {} as Function,
+      plans: [] as Plan[][],
+      selectedPlans: [] as number[],
+      isQueryRunning: false,
       linkLayerId: Math.floor(1e12 * Math.random()),
 
       vizSettings: {
@@ -249,6 +267,7 @@ const CarrierPlugin = defineComponent({
         scaleShipmentSizes: true,
         shipmentDotsOnTourMap: true,
         scaleFactor: 0, // 0 means don't scale at all
+        selectedPlansOnly: false,
       },
 
       vizDetails: {
@@ -289,7 +308,7 @@ const CarrierPlugin = defineComponent({
       globalState: globalStore.state,
       isLoaded: true,
       showHelp: false,
-      activeTab: 'shipments',
+      activeTab: 'tours',
 
       speedStops: [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10],
       speed: 1,
@@ -314,7 +333,6 @@ const CarrierPlugin = defineComponent({
       services: [] as any[],
       stopActivities: [] as any[],
       tours: [] as any[],
-      plans: [] as any[],
 
       shownShipments: [] as any[],
       shipmentIdsInTour: [] as any[],
@@ -391,6 +409,11 @@ const CarrierPlugin = defineComponent({
   },
 
   watch: {
+    'vizSettings.selectedPlansOnly'() {
+      this.selectedPlans = []
+      this.updateSearch()
+    },
+
     '$store.state.viewState'() {
       if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
       REACT_VIEW_HANDLES[this.linkLayerId]()
@@ -406,32 +429,35 @@ const CarrierPlugin = defineComponent({
   },
 
   methods: {
-    async updateSearch() {
-      if (!this.duck.ping) return
-
-      console.log(this.searchTerm)
+    handleSelectPlan(i: number) {
       this.shownLegs = []
-      this.stopActivities = []
 
-      // let's search for persons
+      if (this.selectedPlans.length && i == this.selectedPlans[0]) {
+        this.selectedPlans = []
+      } else {
+        this.selectedPlans = [i]
+      }
 
-      // -------
-      const url = `${this.fileSystem.baseURL}/${this.subfolder}/${this.yamlConfig}`
-      console.log(url)
+      let plans = [] as Plan[]
 
-      const dbconn = await this.duck.connect()
+      const showPlans = this.selectedPlans.length
+        ? this.selectedPlans
+        : [...Array(this.plans.length).keys()]
 
-      const stmt = await dbconn.prepare(
-        `select * from '${url}' where person_id = ?;` //  order by person_id,step;`
-      )
-      const table = await stmt.query(this.searchTerm)
-      dbconn.close()
+      for (let n of showPlans) {
+        plans.push(...this.plans[n])
+      }
 
-      const rows = table.toArray().map(r => r.toJSON())
-      const routes = rows.filter(r => r.route_text && !r.route_text.startsWith('{'))
-      const activities = rows.filter(r => r.activity_link)
+      // "selected=yes" ?
+      if (this.vizSettings.selectedPlansOnly) {
+        plans = plans.filter(r => r.plan_selected == 'yes')
+      }
 
-      console.log({ rows, routes, activities })
+      const routes = plans.filter(r => r.route_text && !r.route_text.startsWith('{'))
+      const activities = plans.filter(r => r.activity_link)
+
+      console.log({ plans, routes, activities })
+
       // -------
       // Now let's add the routes like a crazy person
       routes.forEach((route, i) => {
@@ -439,14 +465,14 @@ const CarrierPlugin = defineComponent({
         this.addRouteToMap(tour, { links: tour.legs, shipmentsOnBoard: [], totalSize: 100 }, i)
       })
       // -------
-      // Fine! Add the activities too!
+      // YOLO! Add the activities too!
       // TODO: split out activities per PLAN, not one big list
       const stopActivities = [] as any[]
-      activities.forEach((activity, i) => {
+      activities.forEach((activity: any, i) => {
         const link = activity.activity_link
         const ptFrom = [this.links[link][0], this.links[link][1]]
         const ptTo = [this.links[link][2], this.links[link][3]]
-        const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+        // const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
 
         const lnglat = [activity.activity_lon, activity.activity_lat]
         const actType = activity.activity_type // this.$t(activity.$type)
@@ -469,6 +495,85 @@ const CarrierPlugin = defineComponent({
         stopActivities.push(act)
       })
       this.stopActivities = stopActivities
+    },
+
+    async updateSearch() {
+      if (!this.duck.ping) return
+
+      this.isQueryRunning = true
+
+      console.log(this.searchTerm)
+      this.shownLegs = []
+      this.stopActivities = []
+      this.selectedPlans = []
+
+      // let's search for persons
+
+      // -------
+      const url = `${this.fileSystem.baseURL}/${this.subfolder}/${this.yamlConfig}`
+      console.log(url)
+
+      const dbconn = await this.duck.connect()
+
+      const stmt = await dbconn.prepare(
+        `select * from '${url}' where person_id GLOB ?;` //  order by person_id,step;`
+      )
+      const table = await stmt.query(this.searchTerm)
+      dbconn.close()
+
+      let rows = table.toArray().map(r => r.toJSON())
+
+      // selected="yes" ?
+      if (this.vizSettings.selectedPlansOnly) rows = rows.filter(r => r.plan_selected == 'yes')
+
+      const plans: any[] = Object.values(
+        Object.groupBy(rows, row => `${row.person_id}/${row.plan_num}`)
+      )
+      this.plans = plans
+
+      const routes = rows.filter(r => r.route_text && !r.route_text.startsWith('{'))
+      const activities = rows.filter(r => r.activity_link)
+
+      console.log({ plans, rows, routes, activities })
+
+      // -------
+      // Now let's add the routes like a crazy person
+      routes.forEach((route, i) => {
+        const tour = { tourNumber: i, legs: route.route_text.split(' ') }
+        this.addRouteToMap(tour, { links: tour.legs, shipmentsOnBoard: [], totalSize: 100 }, i)
+      })
+      // -------
+      // YOLO! Add the activities too!
+      // TODO: split out activities per PLAN, not one big list
+      const stopActivities = [] as any[]
+      activities.forEach((activity, i) => {
+        const link = activity.activity_link
+        const ptFrom = [this.links[link][0], this.links[link][1]]
+        const ptTo = [this.links[link][2], this.links[link][3]]
+        // const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+
+        const lnglat = [activity.activity_lon, activity.activity_lat]
+        const actType = activity.activity_type // this.$t(activity.$type)
+
+        // get details: remove coords, IDs, that we don't need to show the user in UI.
+        const { from, fromX, fromY, to, toX, toY, id, ...details } = activity
+
+        const act = {
+          id: '', //  shipment.$id,
+          type: actType,
+          count: i + 1,
+          link,
+          midpoint: lnglat,
+          label: '',
+          tour: activity,
+          details,
+          ptFrom,
+          ptTo,
+        }
+        stopActivities.push(act)
+      })
+      this.stopActivities = stopActivities
+      this.isQueryRunning = false
     },
 
     dividerDragStart(e: MouseEvent) {
@@ -731,6 +836,7 @@ const CarrierPlugin = defineComponent({
           type: 'leg',
         },
       ])
+      this.shownLegs = [...this.shownLegs]
     },
 
     handleSelectCarrier(carrier: any) {
@@ -1271,23 +1377,23 @@ const CarrierPlugin = defineComponent({
       this.dropdownIsActive = !this.dropdownIsActive
     },
 
-    selectPlan(plan: any) {
-      // Set all plans to unselected
-      for (let i = 0; i < this.plans.length; i++) {
-        this.plans[i].$selected = 'false'
-      }
+    // selectPlan(plan: any) {
+    //   // Set all plans to unselected
+    //   for (let i = 0; i < this.plans.length; i++) {
+    //     this.plans[i].$selected = 'false'
+    //   }
 
-      // Select new plan
-      plan.$selected = 'true'
+    //   // Select new plan
+    //   plan.$selected = 'true'
 
-      this.selectedPlanIndex = this.plans.indexOf(plan)
+    //   this.selectedPlanIndex = this.plans.indexOf(plan)
 
-      // Unselect all tours
-      this.selectedTours = []
+    //   // Unselect all tours
+    //   this.selectedTours = []
 
-      this.selectDropdown()
-      this.selectedPlan = plan
-    },
+    //   this.selectDropdown()
+    //   this.selectedPlan = plan
+    // },
   },
 
   async mounted() {
@@ -1416,6 +1522,11 @@ h4 {
   border: none;
   background-color: var(--bgCardFrame2);
   color: var(--text);
+}
+
+.input::placeholder {
+  color: var(--text);
+  opacity: 0.7;
 }
 
 .nav {
@@ -1553,19 +1664,26 @@ input {
   }
 }
 
-.carrier.selected {
-  font-weight: bold;
-  background-color: $themeColorPale;
-  box-shadow: 0 0 3px 0 rgba(0, 0, 0, 0.3) inset;
-  color: white;
+.filter-plans {
+  margin: 1rem 0 1rem 0;
 }
 
 .carrier-list {
+  position: relative;
   user-select: none;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   cursor: pointer;
+  background-color: var(--bgPanel);
+  border: 1px solid var(--bgScrollbar);
+}
+
+.carrier.selected {
+  font-weight: bold;
+  background-color: $themeColorPale;
+  box-shadow: 0 0 3px 0 rgba(0, 0, 0, 0.3) inset;
+  color: white;
 }
 
 .detail-area {

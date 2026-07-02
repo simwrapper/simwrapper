@@ -205,7 +205,7 @@ export default defineComponent({
               getWidth: 3 + ((this.settings.scaleFactor - 0) * (40 - 3)) / (100 - 0),
               getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
               opacity: 1,
-              widthMinPixels: 3,
+              widthMinPixels: 8,
               widthMaxPixels: 40,
               widthUnits: 'pixels',
               // widthScale: widthScale,
@@ -230,7 +230,7 @@ export default defineComponent({
             id: 'dest-labels',
             background: true,
             data: this.stopActivities,
-            backgroundPadding: [3, 2, 3, 2], // this.numSelectedTours !== 1 ? [2, 1, 2, 1] : [3, 2, 3, 1],
+            backgroundPadding: [3, 0, 3, 0], // this.numSelectedTours !== 1 ? [2, 1, 2, 1] : [3, 2, 3, 1],
             getColor: [0, 0, 0],
             getBackgroundColor: [255, 255, 255],
             // getBackgroundColor: (d: any) => {
@@ -247,8 +247,8 @@ export default defineComponent({
             //   if (deliveries) return ActivityColor.delivery
             //   return [240, 130, 0]
             // },
-            getPosition: (d: any) => d.midpoint,
-            getText: (d: any) => d.type, // 'here', //  + d.count,
+            getPosition: (d: any, i: number) => [...d.midpoint, (i + 1) * 4],
+            getText: (d: any) => 'x', // d.type, // 'here', //  + d.count,
             // d.label == 'Depot' ? d.label : this.numSelectedTours !== 1 ? ' ' : `${d.label}`,
             getSize: 11, // (d: any) => (d.label == 'Depot' ? 11 : this.numSelectedTours !== 1 ? 4 : 11),
             getTextAnchor: 'middle',
@@ -256,7 +256,7 @@ export default defineComponent({
             opacity: 1,
             noAlloc: false,
             billboard: true,
-            sizeScale: 1,
+            // sizeScale: 5,
             pickable: true,
             autoHighlight: true,
             highlightColor: [255, 255, 255],

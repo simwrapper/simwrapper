@@ -8,7 +8,7 @@
 
   .tooltip.flex-col(v-if="tooltipType == 2")
     b {{ hoverInfo.object?.$id }}
-    h5(style="padding-top: 0.2rem") Activity Type:<br/> {{ hoverInfo.object.type }}
+    h5(style="padding-top: 0.2rem") {{ hoverInfo.object.type }}
 
   .tooltip.flex-col(v-if="tooltipType == 9")
     b {{hoverInfo.object?.tour?.vehicleId}}
