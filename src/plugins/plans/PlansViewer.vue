@@ -13,6 +13,7 @@
         :shipments="shownShipments"
         :depots="shownDepots"
         :legs="shownLegs"
+        :nonRoutedLegs="nonRoutedLegs"
         :stopActivities="stopActivities"
         :dark="globalState.isDarkMode"
         :center="vizDetails.center"
@@ -136,7 +137,7 @@ const i18n = {
       shipmentDots: 'Show shipments',
       scaleSize: 'Widths',
       scaleFactor: 'Width',
-      selectedPlansOnly: 'Selected plans only',
+      selectedPlansOnly: 'Selected plans (*) only',
       showActivities: 'Show activities',
       search: 'Search',
       searchHint: 'Person_id or pattern*',
@@ -224,11 +225,14 @@ interface ActivityLocation {
   ptTo: number[]
 }
 
-interface Plan {
+export interface Plan {
   person_id: string
   plan_num: number
   plan_selected: string
   element: string
+  leg_mode: string
+  route_start_link: string
+  route_end_link: string
   route_text: string
   activity_link: string
   activity_lon: number
@@ -236,8 +240,8 @@ interface Plan {
   activity_type: string
 }
 
-const CarrierPlugin = defineComponent({
-  name: 'CarrierPlugin',
+const PlansViewerPlugin = defineComponent({
+  name: 'PlansViewer',
   i18n,
   components: {
     DeckMapComponent,
@@ -245,6 +249,7 @@ const CarrierPlugin = defineComponent({
     ToggleButton,
     ZoomButtons,
   },
+
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
@@ -253,10 +258,12 @@ const CarrierPlugin = defineComponent({
     thumbnail: Boolean,
     datamanager: { type: Object as PropType<DashboardDataManager> },
   },
+
   data() {
     return {
       duck: {} as AsyncDuckDB,
       debounceUpdateSearch: {} as Function,
+      nonRoutedLegs: [] as { start: number[]; end: number[]; mode: string }[],
       plans: [] as Plan[][],
       selectedPlans: [] as number[],
       isQueryRunning: false,
@@ -431,6 +438,7 @@ const CarrierPlugin = defineComponent({
   methods: {
     handleSelectPlan(i: number) {
       this.shownLegs = []
+      this.nonRoutedLegs = []
 
       if (this.selectedPlans.length && i == this.selectedPlans[0]) {
         this.selectedPlans = []
@@ -453,17 +461,33 @@ const CarrierPlugin = defineComponent({
         plans = plans.filter(r => r.plan_selected == 'yes')
       }
 
-      const routes = plans.filter(r => r.route_text && !r.route_text.startsWith('{'))
       const activities = plans.filter(r => r.activity_link)
+      const routedRoutes = plans.filter(r => r.route_text && !r.route_text.startsWith('{'))
+      const nonRoutedRoutes = plans.filter(
+        r =>
+          r.route_start_link && r.route_end_link && (r.route_text?.startsWith('{') || !r.route_text)
+      )
 
-      console.log({ plans, routes, activities })
+      console.log({ plans, routedRoutes, nonRoutedRoutes, activities })
 
       // -------
       // Now let's add the routes like a crazy person
-      routes.forEach((route, i) => {
+      routedRoutes.forEach((route, i) => {
         const tour = { tourNumber: i, legs: route.route_text.split(' ') }
         this.addRouteToMap(tour, { links: tour.legs, shipmentsOnBoard: [], totalSize: 100 }, i)
       })
+
+      // Non-routed routes can be shown as arcs, by mode
+      nonRoutedRoutes.forEach((leg, i) => {
+        let ptFrom = [this.links[leg.route_start_link][0], this.links[leg.route_start_link][1]]
+        let ptTo = [this.links[leg.route_start_link][2], this.links[leg.route_start_link][3]]
+        const startMidpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+        ptFrom = [this.links[leg.route_end_link][0], this.links[leg.route_end_link][1]]
+        ptTo = [this.links[leg.route_end_link][2], this.links[leg.route_end_link][3]]
+        const endMidpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+        this.nonRoutedLegs.push({ start: startMidpoint, end: endMidpoint, mode: leg.leg_mode })
+      })
+
       // -------
       // YOLO! Add the activities too!
       // TODO: split out activities per PLAN, not one big list
@@ -504,6 +528,7 @@ const CarrierPlugin = defineComponent({
 
       console.log(this.searchTerm)
       this.shownLegs = []
+      this.nonRoutedLegs = []
       this.stopActivities = []
       this.selectedPlans = []
 
@@ -532,16 +557,32 @@ const CarrierPlugin = defineComponent({
       plans.sort((a, b) => naturalSort(a[0].person_id, b[0].person_id))
       this.plans = plans
 
-      const routes = rows.filter(r => r.route_text && !r.route_text.startsWith('{'))
       const activities = rows.filter(r => r.activity_link)
+      const routes = rows.filter(r => r.route_text && !r.route_text.startsWith('{'))
+      const nonRoutedRoutes = rows.filter(
+        r =>
+          r.route_start_link && r.route_end_link && (r.route_text?.startsWith('{') || !r.route_text)
+      )
 
-      console.log({ plans, rows, routes, activities })
+      console.log({ plans, routes, nonRoutedRoutes, activities })
 
       // -------
       // Now let's add the routes like a crazy person
       routes.forEach((route, i) => {
         const tour = { tourNumber: i, legs: route.route_text.split(' ') }
         this.addRouteToMap(tour, { links: tour.legs, shipmentsOnBoard: [], totalSize: 100 }, i)
+      })
+
+      // Non-routed routes can be shown as arcs, by mode
+      nonRoutedRoutes.forEach((leg, i) => {
+        let ptFrom = [this.links[leg.route_start_link][0], this.links[leg.route_start_link][1]]
+        let ptTo = [this.links[leg.route_start_link][2], this.links[leg.route_start_link][3]]
+        const startMidpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+        ptFrom = [this.links[leg.route_end_link][0], this.links[leg.route_end_link][1]]
+        ptTo = [this.links[leg.route_end_link][2], this.links[leg.route_end_link][3]]
+        const endMidpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+
+        this.nonRoutedLegs.push({ start: startMidpoint, end: endMidpoint, mode: leg.leg_mode })
       })
       // -------
       // YOLO! Add the activities too!
@@ -603,7 +644,7 @@ const CarrierPlugin = defineComponent({
         if (!this.selectedTours.length || this.selectedShipment == null) {
           const carrier = this.carriers.filter(c => c.$id == this.selectedCarrier)
           this.selectedCarrier = ''
-          this.handleSelectCarrier(carrier[0])
+          // this.handleSelectCarrier(carrier[0])
         }
 
         return
@@ -840,52 +881,47 @@ const CarrierPlugin = defineComponent({
       this.shownLegs = [...this.shownLegs]
     },
 
-    handleSelectCarrier(carrier: any) {
-      this.dropdownIsActive = false
+    // handleSelectCarrier(carrier: any) {
+    //   this.dropdownIsActive = false
 
-      if (!this.links) return
+    //   if (!this.links) return
 
-      const id = carrier.$id
+    //   const id = carrier.$id
 
-      this.vehicles = []
-      this.shipments = []
-      this.services = []
-      this.tours = []
-      this.plans = []
-      this.shownShipments = []
-      this.shownDepots = []
-      this.selectedShipment = null
-      this.shipmentIdsInTour = []
-      this.stopActivities = []
-      this.shownLegs = []
+    //   this.vehicles = []
+    //   this.shipments = []
+    //   this.services = []
+    //   this.tours = []
+    //   this.plans = []
+    //   this.shownShipments = []
+    //   this.shownDepots = []
+    //   this.selectedShipment = null
+    //   this.shipmentIdsInTour = []
+    //   this.stopActivities = []
+    //   this.shownLegs = []
 
-      // unselect carrier
-      if (this.selectedCarrier === id) {
-        this.selectedCarrier = ''
-        return
-      }
+    //   // unselect carrier
+    //   if (this.selectedCarrier === id) {
+    //     this.selectedCarrier = ''
+    //     return
+    //   }
 
-      this.selectedCarrier = id
+    //   this.selectedCarrier = id
 
-      // vehicles
-      let vehicles = carrier.capabilities.vehicles.vehicle || []
-      this.vehicles = vehicles.sort((a: any, b: any) => naturalSort(a, b))
+    //   // vehicles
+    //   let vehicles = carrier.capabilities.vehicles.vehicle || []
+    //   this.vehicles = vehicles.sort((a: any, b: any) => naturalSort(a, b))
 
-      // depots
-      this.setupDepots()
+    //   // depots
+    //   this.setupDepots()
 
-      // shipments
-      this.shipments = this.processShipments(carrier)
+    //   if (carrier.services?.service?.length)
+    //     this.services = carrier.services.service.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
 
-      if (carrier.services?.service?.length)
-        this.services = carrier.services.service.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-
-      this.tours = this.processTours(carrier)
-
-      // select all everything
-      this.shownShipments = this.shipments
-      this.selectAllTours()
-    },
+    //   // select all everything
+    //   this.shownShipments = this.shipments
+    //   this.selectAllTours()
+    // },
 
     getAllPlans(carrier: any) {
       // Add plan to plans[] if there is no plans-tag and only one plan
@@ -913,123 +949,6 @@ const CarrierPlugin = defineComponent({
           }
           this.selectedPlan = carrier.plans.plan[i]
         }
-      }
-    },
-
-    processTours(carrier: any) {
-      this.getAllPlans(carrier)
-
-      if (!this.selectPlan || !this.plans.length) return []
-
-      if (!Array.isArray(this.selectedPlan.tour)) {
-        this.selectedPlan.tour = [this.selectedPlan.tour]
-      }
-
-      const tours: any[] = this.selectedPlan.tour.map((tour: any, i: number) => {
-        // reconstitute the plan. Our XML library builds
-        // two arrays: one for acts and one for legs.
-        // We need them stitched back together in the correct order.
-        const plan = [tour.act[0]]
-        const shipmentsOnBoard = new Set()
-
-        for (let i = 1; i < tour.act.length; i++) {
-          // insert list of shipments onboard
-          tour.leg[i - 1].shipmentsOnBoard = [...shipmentsOnBoard]
-          plan.push(tour.leg[i - 1])
-          plan.push(tour.act[i])
-
-          // account for pickups/deliveries
-          if (tour.act[i].$type == 'pickup' && tour.act[i].$shipmentId)
-            shipmentsOnBoard.add(tour.act[i].$shipmentId)
-          if (tour.act[i].$type == 'delivery' && tour.act[i].$shipmentId)
-            shipmentsOnBoard.delete(tour.act[i].$shipmentId)
-        }
-
-        // Parse any route strings "123434 234143 14241"
-        const legs = tour.leg
-          .filter((leg: any) => leg.route && leg.route.length)
-          .map((leg: any) => {
-            // store shipment object, not id
-            const shipmentsOnBoard = leg.shipmentsOnBoard.map((id: any) => this.shipmentLookup[id])
-            const totalSize = shipmentsOnBoard.reduce(
-              (prev: number, curr: any) => prev + parseFloat(curr?.$size || 0),
-              0
-            )
-            return {
-              shipmentsOnBoard,
-              totalSize,
-              links: leg.route ? leg.route.split(' ') : [],
-            }
-          })
-
-        const p = {
-          vehicleId: tour.$vehicleId,
-          tourId: tour.$tourId,
-          plan,
-          legs, // legs.links, legs.shipmentsOnBoard, legs.totalSize
-          tourNumber: 0,
-        }
-        return p
-      })
-
-      tours.sort((a: any, b: any) => naturalSort(a.vehicleId, b.vehicleId))
-
-      // now assign them numbers based on their sorted order
-      tours.forEach((tour, i) => (tour.tourNumber = i))
-
-      return tours
-    },
-
-    processShipments(carrier: any) {
-      this.shipmentLookup = {} as any
-      var shipments = []
-      // if there are no shipments, look for services
-      if (!carrier.shipments?.shipment?.length) {
-        if (!carrier.services?.service?.length) {
-          return []
-        } else {
-          shipments = carrier.services.service.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-          this.processServices(carrier, shipments)
-        }
-      } else {
-        shipments = carrier.shipments.shipment.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-      }
-
-      try {
-        for (const shipment of shipments) {
-          // shipment has link id, so we go from link.from to link.to
-          shipment.fromX = 0.5 * (this.links[shipment.$from][0] + this.links[shipment.$from][2])
-          shipment.fromY = 0.5 * (this.links[shipment.$from][1] + this.links[shipment.$from][3])
-          shipment.toX = 0.5 * (this.links[shipment.$to][0] + this.links[shipment.$to][2])
-          shipment.toY = 0.5 * (this.links[shipment.$to][1] + this.links[shipment.$to][3])
-
-          this.shipmentLookup[shipment.$id] = shipment
-        }
-      } catch (e) {
-        // if xy are missing, skip this -- just means network isn't loaded yet.
-      }
-
-      return shipments
-    },
-
-    processServices(carrier: any, shipments: any[]) {
-      // *** For each service, we lookup check the plans for an act with the service_id that matches,
-      // then take the first link of that corresponding leg's route.
-      // That is then the from link and the to link we grabe from the service object. ***
-
-      this.vizDetails.services = true
-
-      try {
-        for (const shipment of shipments) {
-          // shipment has link id, so we go from link.from to link.to
-          shipment.toX = 0.5 * (this.links[shipment.$to][0] + this.links[shipment.$to][2])
-          shipment.toY = 0.5 * (this.links[shipment.$to][1] + this.links[shipment.$to][3])
-          shipment.type = 'service'
-
-          this.shipmentLookup[shipment.$id] = shipment
-        }
-      } catch (e) {
-        // if xy are missing, skip this -- just means network isn't loaded yet.
       }
     },
 
@@ -1451,7 +1370,7 @@ const CarrierPlugin = defineComponent({
   },
 })
 
-export default CarrierPlugin
+export default PlansViewerPlugin
 </script>
 
 <style scoped lang="scss">

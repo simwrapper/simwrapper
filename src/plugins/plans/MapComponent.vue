@@ -48,6 +48,12 @@ const ActivityColor = {
   service: [255, 64, 255],
 }
 
+const LegModeColor = {
+  walk: [255, 220, 0, 255],
+  bike: [50, 255, 80, 255],
+  pt: [228, 0, 255, 255],
+} as { [mode: string]: number[] }
+
 export default defineComponent({
   name: 'MyDeckComponent',
   components: { MapTooltip },
@@ -57,6 +63,7 @@ export default defineComponent({
     dark: { type: Boolean, required: true },
     depots: { type: Array as PropType<{ link: string; midpoint: number[]; coords: number[] }[]> },
     legs: { type: Array, required: true },
+    nonRoutedLegs: { type: Array, required: true },
     mapIsIndependent: { type: Boolean },
     numSelectedTours: { type: Number, required: true },
     onClick: { type: Function },
@@ -139,261 +146,293 @@ export default defineComponent({
       const extraLayers = this.bgLayers?.layers()
       if (extraLayers) allLayers.push(...extraLayers.layersBelow)
 
-      if (this.activeTab == 'tours') {
+      // if (this.activeTab == 'tours') {
+      allLayers.push(
+        //@ts-ignore:
+        new PathLayer({
+          id: 'shipmentLocationDashedLine',
+          data: this.stopActivities,
+          getPath: (d: any) => [d.ptFrom, d.ptTo],
+          getColor: [128, 128, 128],
+          getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
+          opacity: 1,
+          getWidth: this.settings.scaleFactor / 2,
+          widthMinPixels: 3,
+          widthMaxPixels: 200,
+          jointRounded: true,
+          shadowEnabled: false,
+          pickable: false,
+          autoHighlight: false,
+          highlightColor: [255, 255, 255],
+          parameters: { depthTest: false },
+          getDashArray: [3, 2],
+          dashJustified: true,
+          extensions: [new PathStyleExtension({ dash: true })],
+        } as any)
+      )
+
+      if (this.nonRoutedLegs.length) {
+        allLayers.push(
+          //@ts-ignore:
+          new ArcLayer({
+            id: 'non-routed-leg-arcs',
+            data: this.nonRoutedLegs,
+            getSourcePosition: (d: any) => d.start,
+            getTargetPosition: (d: any) => d.end,
+            getSourceColor: (d: any) => LegModeColor[d.mode] || [200, 200, 200, 192],
+            getTargetColor: (d: any) => LegModeColor[d.mode] || [200, 200, 200, 192],
+            // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
+            getWidth: 2, // 2 + ((this.settings.scaleFactor - 0) * (40 - 2)) / (100 - 0),
+            getHeight: 0.6,
+            widthMinPixels: 1,
+            widthMaxPixels: 40,
+            widthUnits: 'pixels',
+            // widthScale: widthScale,
+            opacity: 0.9,
+            parameters: { depthTest: false },
+            updateTriggers: { getWidth: [this.settings.scaleFactor] },
+            transitions: { getWidth: 150 },
+            pickable: true,
+            autoHighlight: true,
+            highlightColor: [255, 255, 255], // [64, 255, 64],
+            onHover: this.getTooltip,
+            //TODO: ONHOVER
+            // onHover: setHoverInfo,
+          } as any)
+        )
+      }
+
+      if (this.settings.simplifyTours) {
+        allLayers.push(
+          //@ts-ignore:
+          new ArcLayer({
+            id: 'leg-arcs',
+            data: this.legs,
+            getSourcePosition: (d: any) => d.points[0],
+            getTargetPosition: (d: any) => d.points[d.points.length - 1],
+            getSourceColor: (d: any) => d.color, // [200, 32, 224],
+            getTargetColor: (d: any) => d.color, // [200, 32, 224],
+            // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
+            getWidth: 2, //  + ((this.settings.scaleFactor - 0) * (40 - 2)) / (100 - 0),
+            getHeight: 0.5,
+            widthMinPixels: 2,
+            widthMaxPixels: 40,
+            widthUnits: 'pixels',
+            // widthScale: widthScale,
+            opacity: 0.9,
+            parameters: { depthTest: false },
+            updateTriggers: { getWidth: [this.settings.scaleFactor] },
+            transitions: { getWidth: 150 },
+            pickable: true,
+            autoHighlight: true,
+            highlightColor: [255, 255, 255], // [64, 255, 64],
+            onHover: this.getTooltip,
+            //TODO: ONHOVER
+            // onHover: setHoverInfo,
+          } as any)
+        )
+      } else {
         allLayers.push(
           //@ts-ignore:
           new PathLayer({
-            id: 'shipmentLocationDashedLine',
-            data: this.stopActivities,
-            getPath: (d: any) => [d.ptFrom, d.ptTo],
-            getColor: [128, 128, 128],
+            id: 'deliveryroutes',
+            data: this.legs,
+            getPath: (d: any) => d.points,
+            getColor: [0, 128, 230], // d.color,
+            // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
+            getWidth: 2, // 3 + ((this.settings.scaleFactor - 0) * (40 - 3)) / (100 - 0),
             getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
             opacity: 1,
-            getWidth: this.settings.scaleFactor / 2,
             widthMinPixels: 3,
-            widthMaxPixels: 200,
+            widthMaxPixels: 40,
+            widthUnits: 'pixels',
+            // widthScale: widthScale,
             jointRounded: true,
             shadowEnabled: false,
-            pickable: false,
-            autoHighlight: false,
-            highlightColor: [255, 255, 255],
-            parameters: { depthTest: false },
-            getDashArray: [3, 2],
-            dashJustified: true,
-            extensions: [new PathStyleExtension({ dash: true })],
-          } as any)
-        )
-
-        if (this.settings.simplifyTours) {
-          allLayers.push(
-            //@ts-ignore:
-            new ArcLayer({
-              id: 'leg-arcs',
-              data: this.legs,
-              getSourcePosition: (d: any) => d.points[0],
-              getTargetPosition: (d: any) => d.points[d.points.length - 1],
-              getSourceColor: (d: any) => d.color, // [200, 32, 224],
-              getTargetColor: (d: any) => d.color, // [200, 32, 224],
-              // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
-              getWidth: 2 + ((this.settings.scaleFactor - 0) * (40 - 2)) / (100 - 0),
-              getHeight: 0.5,
-              widthMinPixels: 2,
-              widthMaxPixels: 40,
-              widthUnits: 'pixels',
-              // widthScale: widthScale,
-              opacity: 0.9,
-              parameters: { depthTest: false },
-              updateTriggers: { getWidth: [this.settings.scaleFactor] },
-              transitions: { getWidth: 150 },
-              pickable: true,
-              autoHighlight: true,
-              highlightColor: [255, 255, 255], // [64, 255, 64],
-              onHover: this.getTooltip,
-              //TODO: ONHOVER
-              // onHover: setHoverInfo,
-            } as any)
-          )
-        } else {
-          allLayers.push(
-            //@ts-ignore:
-            new PathLayer({
-              id: 'deliveryroutes',
-              data: this.legs,
-              getPath: (d: any) => d.points,
-              getColor: (d: any) => d.color,
-              // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
-              getWidth: 3 + ((this.settings.scaleFactor - 0) * (40 - 3)) / (100 - 0),
-              getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
-              opacity: 1,
-              widthMinPixels: 8,
-              widthMaxPixels: 40,
-              widthUnits: 'pixels',
-              // widthScale: widthScale,
-              jointRounded: true,
-              shadowEnabled: false,
-              pickable: true,
-              autoHighlight: true,
-              highlightColor: [255, 255, 255], // [64, 255, 64],
-              parameters: { depthTest: false },
-              updateTriggers: { getWidth: [this.settings.scaleFactor] },
-              transitions: { getWidth: 150 },
-              onHover: this.getTooltip,
-              // onHover: setHoverInfo,
-            } as any)
-          )
-        }
-
-        // destination labels
-        allLayers.push(
-          //@ts-ignore
-          new TextLayer({
-            id: 'dest-labels',
-            background: true,
-            data: this.stopActivities,
-            backgroundPadding: [3, 0, 3, 0], // this.numSelectedTours !== 1 ? [2, 1, 2, 1] : [3, 2, 3, 1],
-            getColor: [0, 0, 0],
-            getBackgroundColor: [255, 255, 255],
-            // getBackgroundColor: (d: any) => {
-            //   const pickups = d.visits.reduce(
-            //     (prev: number, visit: any) => prev + visit.pickup.length,
-            //     0
-            //   )
-            //   const deliveries = d.visits.reduce(
-            //     (prev: number, visit: any) => prev + visit.delivery.length,
-            //     0
-            //   )
-            //   if (pickups && deliveries) return [0, 0, 255]
-            //   if (pickups) return ActivityColor.pickup
-            //   if (deliveries) return ActivityColor.delivery
-            //   return [240, 130, 0]
-            // },
-            getPosition: (d: any, i: number) => [...d.midpoint, (i + 1) * 4],
-            getText: (d: any) => 'x', // d.type, // 'here', //  + d.count,
-            // d.label == 'Depot' ? d.label : this.numSelectedTours !== 1 ? ' ' : `${d.label}`,
-            getSize: 11, // (d: any) => (d.label == 'Depot' ? 11 : this.numSelectedTours !== 1 ? 4 : 11),
-            getTextAnchor: 'middle',
-            getAlignmentBaseline: 'center',
-            opacity: 1,
-            noAlloc: false,
-            billboard: true,
-            // sizeScale: 5,
             pickable: true,
             autoHighlight: true,
-            highlightColor: [255, 255, 255],
-            visible: this.settings.shipmentDotsOnTourMap,
-            onHover: this.getTooltip,
-          } as any)
-        )
-      }
-
-      // shipment panel
-      if (this.activeTab == 'shipments') {
-        allLayers.push(
-          //@ts-ignore:
-          new ScatterplotLayer({
-            id: 'deliveries',
-            data: this.pickupsAndDeliveries.deliveries,
-            getPosition: (d: any) => d.coord,
-            getFillColor: ActivityColor.delivery,
-            getRadius: 3,
-            opacity: 0.9,
+            highlightColor: [255, 255, 255], // [64, 255, 64],
             parameters: { depthTest: false },
-            pickable: true,
-            radiusUnits: 'pixels',
+            updateTriggers: { getWidth: [this.settings.scaleFactor] },
+            transitions: { getWidth: 150 },
             onHover: this.getTooltip,
             // onHover: setHoverInfo,
           } as any)
         )
-        allLayers.push(
-          //@ts-ignore:
-          new ScatterplotLayer({
-            id: 'pickups',
-            data: this.stopActivities,
-            getPosition: (d: any) => d.midpoint,
-            getFillColor: [255, 255, 255], // ActivityColor.pickup,
-            getRadius: 5,
-            opacity: 1,
-            parameters: { depthTest: false },
-            pickable: true,
-            radiusUnits: 'pixels',
-            onHover: this.getTooltip,
-            // onHover: setHoverInfo,
-          } as any)
-        )
-
-        const opacity = this.shipments.length > 1 ? 32 : 255
-
-        if (this.services) {
-          allLayers.push(
-            //@ts-ignore:
-            new ScatterplotLayer({
-              id: 'services',
-              data: this.shipments,
-              getPosition: (d: any) => [d.toX, d.toY],
-              getColor: [240, 0, 60, 224],
-              getRadius: 4,
-              opacity: 0.9,
-              parameters: { depthTest: false },
-              pickable: true,
-              radiusUnits: 'pixels',
-              onHover: this.getTooltip,
-              // onHover: setHoverInfo,
-            } as any)
-          )
-        } else {
-          allLayers.push(
-            //@ts-ignore:
-            new ArcLayer({
-              id: 'shipments',
-              data: this.shipments,
-              getSourcePosition: (d: any) => [d.fromX, d.fromY],
-              getTargetPosition: (d: any) => [d.toX, d.toY],
-              getSourceColor: [0, 228, 255, opacity],
-              getTargetColor: [240, 0, 60, 224],
-              // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
-              getWidth: 1 + ((this.settings.scaleFactor - 0) * (50 - 1)) / (100 - 0),
-              widthUnits: 'pixels',
-              getHeight: 0.5,
-              opacity: 0.9,
-              parameters: { depthTest: false },
-              // widthScale: widthScale,
-              widthMinPixels: 1,
-              widthMaxPixels: 50,
-              updateTriggers: { getWidth: [this.settings.scaleFactor] },
-              transitions: { getWidth: 200 },
-              onHover: this.getTooltip,
-            } as any)
-          )
-        }
       }
 
-      if (this.activeTab == 'services') {
-        if (this.services) {
-          allLayers.push(
-            //@ts-ignore:
-            new ScatterplotLayer({
-              id: 'services',
-              data: this.shipments,
-              getPosition: (d: any) => [d.toX, d.toY],
-              getColor: [240, 0, 60, 224],
-              getRadius: 4,
-              opacity: 0.9,
-              parameters: { depthTest: false },
-              pickable: true,
-              radiusUnits: 'pixels',
-              onHover: this.getTooltip,
-              // onHover: setHoverInfo,
-            } as any)
-          )
-        }
-      }
-
-      // DEPOTS ------
+      // destination labels
       allLayers.push(
-        //@ts-ignore:
+        //@ts-ignore
         new TextLayer({
-          id: 'depots',
-          data: this.depots,
+          id: 'dest-labels',
           background: true,
-          backgroundPadding: [3, 2, 3, 1],
-          getColor: [255, 255, 255],
-          getBackgroundColor: [0, 150, 240],
-          getPosition: (d: any) => d.midpoint,
-          getText: (d: any) => 'Depot',
+          data: this.stopActivities,
+          backgroundPadding: [3, 0, 3, 0], // this.numSelectedTours !== 1 ? [2, 1, 2, 1] : [3, 2, 3, 1],
+          getColor: [0, 0, 0],
+          getBackgroundColor: [255, 255, 255],
+          // getBackgroundColor: (d: any) => {
+          //   const pickups = d.visits.reduce(
+          //     (prev: number, visit: any) => prev + visit.pickup.length,
+          //     0
+          //   )
+          //   const deliveries = d.visits.reduce(
+          //     (prev: number, visit: any) => prev + visit.delivery.length,
+          //     0
+          //   )
+          //   if (pickups && deliveries) return [0, 0, 255]
+          //   if (pickups) return ActivityColor.pickup
+          //   if (deliveries) return ActivityColor.delivery
+          //   return [240, 130, 0]
+          // },
+          getPosition: (d: any, i: number) => [...d.midpoint, (i + 1) * 4],
+          getText: (d: any) => 'x', // d.type, // 'here', //  + d.count,
+          // d.label == 'Depot' ? d.label : this.numSelectedTours !== 1 ? ' ' : `${d.label}`,
+          getSize: 11, // (d: any) => (d.label == 'Depot' ? 11 : this.numSelectedTours !== 1 ? 4 : 11),
           getTextAnchor: 'middle',
           getAlignmentBaseline: 'center',
-          getSize: 11,
           opacity: 1,
           noAlloc: false,
           billboard: true,
-          sizeScale: 1,
+          // sizeScale: 5,
           pickable: true,
           autoHighlight: true,
           highlightColor: [255, 255, 255],
+          visible: this.settings.shipmentDotsOnTourMap,
           onHover: this.getTooltip,
-          // onHover: setHoverInfo,
         } as any)
       )
+
+      // }
+
+      // // shipment panel
+      // if (this.activeTab == 'shipments') {
+      //   allLayers.push(
+      //     //@ts-ignore:
+      //     new ScatterplotLayer({
+      //       id: 'deliveries',
+      //       data: this.pickupsAndDeliveries.deliveries,
+      //       getPosition: (d: any) => d.coord,
+      //       getFillColor: ActivityColor.delivery,
+      //       getRadius: 3,
+      //       opacity: 0.9,
+      //       parameters: { depthTest: false },
+      //       pickable: true,
+      //       radiusUnits: 'pixels',
+      //       onHover: this.getTooltip,
+      //       // onHover: setHoverInfo,
+      //     } as any)
+      //   )
+      //   allLayers.push(
+      //     //@ts-ignore:
+      //     new ScatterplotLayer({
+      //       id: 'pickups',
+      //       data: this.stopActivities,
+      //       getPosition: (d: any) => d.midpoint,
+      //       getFillColor: [255, 255, 255], // ActivityColor.pickup,
+      //       getRadius: 5,
+      //       opacity: 1,
+      //       parameters: { depthTest: false },
+      //       pickable: true,
+      //       radiusUnits: 'pixels',
+      //       onHover: this.getTooltip,
+      //       // onHover: setHoverInfo,
+      //     } as any)
+      //   )
+
+      //   const opacity = this.shipments.length > 1 ? 32 : 255
+
+      //   if (this.services) {
+      //     allLayers.push(
+      //       //@ts-ignore:
+      //       new ScatterplotLayer({
+      //         id: 'services',
+      //         data: this.shipments,
+      //         getPosition: (d: any) => [d.toX, d.toY],
+      //         getColor: [240, 0, 60, 224],
+      //         getRadius: 4,
+      //         opacity: 0.9,
+      //         parameters: { depthTest: false },
+      //         pickable: true,
+      //         radiusUnits: 'pixels',
+      //         onHover: this.getTooltip,
+      //         // onHover: setHoverInfo,
+      //       } as any)
+      //     )
+      //   } else {
+      //     allLayers.push(
+      //       //@ts-ignore:
+      //       new ArcLayer({
+      //         id: 'shipments',
+      //         data: this.shipments,
+      //         getSourcePosition: (d: any) => [d.fromX, d.fromY],
+      //         getTargetPosition: (d: any) => [d.toX, d.toY],
+      //         getSourceColor: [0, 228, 255, opacity],
+      //         getTargetColor: [240, 0, 60, 224],
+      //         // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
+      //         getWidth: 1 + ((this.settings.scaleFactor - 0) * (50 - 1)) / (100 - 0),
+      //         widthUnits: 'pixels',
+      //         getHeight: 0.5,
+      //         opacity: 0.9,
+      //         parameters: { depthTest: false },
+      //         // widthScale: widthScale,
+      //         widthMinPixels: 1,
+      //         widthMaxPixels: 50,
+      //         updateTriggers: { getWidth: [this.settings.scaleFactor] },
+      //         transitions: { getWidth: 200 },
+      //         onHover: this.getTooltip,
+      //       } as any)
+      //     )
+      //   }
+      // }
+
+      // if (this.activeTab == 'services') {
+      //   if (this.services) {
+      //     allLayers.push(
+      //       //@ts-ignore:
+      //       new ScatterplotLayer({
+      //         id: 'services',
+      //         data: this.shipments,
+      //         getPosition: (d: any) => [d.toX, d.toY],
+      //         getColor: [240, 0, 60, 224],
+      //         getRadius: 4,
+      //         opacity: 0.9,
+      //         parameters: { depthTest: false },
+      //         pickable: true,
+      //         radiusUnits: 'pixels',
+      //         onHover: this.getTooltip,
+      //         // onHover: setHoverInfo,
+      //       } as any)
+      //     )
+      //   }
+      // }
+
+      // // DEPOTS ------
+      // allLayers.push(
+      //   //@ts-ignore:
+      //   new TextLayer({
+      //     id: 'depots',
+      //     data: this.depots,
+      //     background: true,
+      //     backgroundPadding: [3, 2, 3, 1],
+      //     getColor: [255, 255, 255],
+      //     getBackgroundColor: [0, 150, 240],
+      //     getPosition: (d: any) => d.midpoint,
+      //     getText: (d: any) => 'Depot',
+      //     getTextAnchor: 'middle',
+      //     getAlignmentBaseline: 'center',
+      //     getSize: 11,
+      //     opacity: 1,
+      //     noAlloc: false,
+      //     billboard: true,
+      //     sizeScale: 1,
+      //     pickable: true,
+      //     autoHighlight: true,
+      //     highlightColor: [255, 255, 255],
+      //     onHover: this.getTooltip,
+      //     // onHover: setHoverInfo,
+      //   } as any)
+      // )
 
       // ON-TOP layers
       if (extraLayers) allLayers.push(...extraLayers.layersOnTop)
