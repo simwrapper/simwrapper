@@ -50,7 +50,7 @@
         .carrier(v-for="plan,i in plans" :key="plan.plan_num"
                  :class="{selected: selectedPlans.indexOf(i) > -1 }"
                  @click="handleSelectPlan(i)")
-          .carrier-title {{ `${plan[0].person_id}:&nbsp;&nbsp;${plan[0].plan_num}&nbsp;&nbsp;${plan[0].plan_selected=='yes' ? '(*)':''}` }}
+          .carrier-title {{ `${plan[0].person_id}&nbsp;/&nbsp;${plan[0].plan_num}&nbsp;&nbsp;${plan[0].plan_selected=='yes' ? '(*)':''}` }}
 
         b-loading(v-model="isQueryRunning" :is-full-page="false")
       h4 {{ selectedCarrier || 'Details' }}
@@ -529,6 +529,7 @@ const CarrierPlugin = defineComponent({
       const plans: any[] = Object.values(
         Object.groupBy(rows, row => `${row.person_id}/${row.plan_num}`)
       )
+      plans.sort((a, b) => naturalSort(a[0].person_id, b[0].person_id))
       this.plans = plans
 
       const routes = rows.filter(r => r.route_text && !r.route_text.startsWith('{'))
@@ -1491,7 +1492,6 @@ export default CarrierPlugin
 .main-panel {
   position: relative;
   flex: 1;
-  background-color: var(--bgBold);
 }
 
 h4 {
