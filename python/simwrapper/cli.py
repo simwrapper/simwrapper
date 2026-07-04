@@ -8,7 +8,7 @@ from importlib.metadata import version
 
 from . import sites
 from . import MiniFileServer
-from . import FlaskApp
+from . import ApiApp
 
 default_port = 8000
 SINGLE_PAGE_APP_PORT = 8050
@@ -83,11 +83,11 @@ def here():
 # @click.option('--cert', default=None, help="PEM Certificate filename. Provide both a certificate and key to serve HTTPS")
 # @click.option('--key', default=None, help="PEM Key filename. Provide both a certificate and key to serve HTTPS")
 def run(config, port, debug):
-    """Run the SimWrapper 'flask' app for local or networked files
+    """Run the SimWrapper FastAPI app for local or networked files
 
     CONFIG is the path to the config.py file containing the root paths to be served. Defaults to the current folder if not provided.
     """
     # if (cert and not key) or (not cert and key):
     #   raise click.BadParameter("need both a cert and a key to enable HTTPS")
 
-    FlaskApp.startFlask(config, port, debug)
+    ApiApp.startServer(config, port, debug)

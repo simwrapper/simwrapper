@@ -1,0 +1,15 @@
+[Unit]
+Description=SimWrapper API app (FastAPI/Uvicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=sandag
+WorkingDirectory=/home/username/simwrapper/app
+ExecStart=uv run simwrapper run CONFIG.yaml
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+
