@@ -5,12 +5,27 @@ serving, and the CORS/Private-Network preflight against a temporary data
 directory, using FastAPI's TestClient.
 """
 
+import h5py
 import numpy as np
 import openmatrix as omx
 import pytest
 from fastapi.testclient import TestClient
 
 from simwrapper import ApiApp
+from simwrapper.SimpleH5File import SimpleH5File
+
+
+def make_fake_omx(path):
+    """Build a plain HDF5 "fake OMX" file: matrices as datasets directly under
+    root (each with a 'name' attribute), mappings under '/lookup', and crucially
+    NO OMX_VERSION or SHAPE root attrs -- so openmatrix rejects it and ApiApp
+    falls back to the h5py-backed SimpleH5File reader.
+    """
+    with h5py.File(str(path), "w") as f:
+        d = f.create_dataset("FAKE1", data=np.arange(9, dtype="float64").reshape(3, 3))
+        d.attrs["name"] = b"FAKE1"
+        lookup = f.create_group("lookup")
+        lookup.create_dataset("zone", data=np.array([201, 202, 203]))
 
 
 @pytest.fixture
@@ -218,3 +233,90 @@ def test_safe_join_confines_to_base(tmp_path):
     assert ApiApp.safe_join(base, "../../../etc/passwd") is None
     # an absolute-looking prefix is treated as relative, kept inside base
     assert ApiApp.safe_join(base, "/etc/passwd") is not None
+
+
+# --- fake OMX (h5py-backed SimpleH5File) ------------------------------------
+
+@pytest.fixture
+def fake_client(tmp_path, monkeypatch):
+    """TestClient whose storage holds a plain-HDF5 fake-OMX file, forcing the
+    SimpleH5File (h5py) read path in the /omx endpoint."""
+    make_fake_omx(tmp_path / "fake.omx")
+    monkeypatch.setattr(ApiApp, "STORAGE", {"data": str(tmp_path)})
+    monkeypatch.setattr(ApiApp, "CONFIG", {"storage": {}})
+    monkeypatch.setattr(ApiApp, "ZONES", {})
+    return TestClient(ApiApp.app)
+
+
+def test_fake_omx_catalog(fake_client):
+    r = fake_client.get("/omx/data", params={"prefix": "fake.omx"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["catalog"] == ["FAKE1"]
+    assert body["shape"] == [3, 3]        # derived from the first matrix (no SHAPE attr)
+    assert body["lookups"] == ["zone"]
+
+
+def test_fake_omx_lookup(fake_client):
+    r = fake_client.get("/omx/data", params={"prefix": "fake.omx", "lookup": "zone"})
+    assert r.status_code == 200
+    assert r.json() == [201, 202, 203]
+
+
+def test_fake_omx_table_blosc_roundtrip(fake_client):
+    import blosc
+
+    r = fake_client.get("/omx/data", params={"prefix": "fake.omx", "table": "FAKE1"})
+    assert r.status_code == 200
+    decoded = np.frombuffer(blosc.decompress(r.content), dtype="float64")
+    assert decoded.tolist() == list(range(9))
+
+
+# --- SimpleH5File unit ------------------------------------------------------
+
+def test_simpleh5file_public_api(tmp_path):
+    make_fake_omx(tmp_path / "fake.omx")
+    f = SimpleH5File.open_file(str(tmp_path / "fake.omx"), "r")
+    try:
+        assert f.version() is None            # no OMX_VERSION attr
+        assert f.list_matrices() == ["FAKE1"]
+        assert f.shape() == (3, 3)
+        assert f.list_mappings() == ["zone"]
+        assert [int(x) for x in f.map_entries("zone")] == [201, 202, 203]
+        assert len(f) == 1
+        assert "FAKE1" in f
+        assert f["FAKE1"].read().tolist() == [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+    finally:
+        f.close()
+
+
+def test_simpleh5file_write_is_rejected(tmp_path):
+    make_fake_omx(tmp_path / "fake.omx")
+    with pytest.raises(Exception):
+        SimpleH5File.open_file(str(tmp_path / "fake.omx"), "w")
+
+
+def test_simpleh5file_name_attr_vs_key(tmp_path):
+    # a dataset whose HDF5 key differs from its stored 'name' attribute
+    p = tmp_path / "named.omx"
+    with h5py.File(str(p), "w") as h:
+        d = h.create_dataset("ds0", data=np.ones((2, 2)))
+        d.attrs["name"] = b"DISPLAY"
+
+    f = SimpleH5File.open_file(str(p), "r")
+    try:
+        assert f.list_matrices() == ["DISPLAY"]       # catalog uses the name attr
+        assert f["DISPLAY"].read().shape == (2, 2)     # resolvable by name attr
+        assert f["ds0"].read().shape == (2, 2)         # and by raw key
+    finally:
+        f.close()
+
+
+def test_simpleh5file_missing_mapping_raises(tmp_path):
+    make_fake_omx(tmp_path / "fake.omx")
+    f = SimpleH5File.open_file(str(tmp_path / "fake.omx"), "r")
+    try:
+        with pytest.raises(LookupError):
+            f.map_entries("nope")
+    finally:
+        f.close()

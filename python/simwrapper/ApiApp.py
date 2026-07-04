@@ -26,7 +26,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
 import blosc
-from tables import CArray
 import openmatrix as omx
 
 from .SimpleH5File import SimpleH5File

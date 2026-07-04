@@ -1,28 +1,85 @@
-import numpy as np
-import tables  # requires pytables >= 3.1
+import h5py
 
 class ShapeError(Exception):
     pass
 
-class SimpleH5File(tables.File):
-    """
-    OMX File class, which contains all the methods for adding, removing, manipulating tables
-    and mappings in an OMX file.
+
+class _Matrix:
+    """Lightweight adapter around an h5py.Dataset that mimics the small slice of
+    the PyTables CArray API this project relies on (notably `.read()`), so a
+    fake-OMX matrix and an openmatrix/PyTables matrix can be used interchangeably.
     """
 
-    def __init__(self, f,m,t,r,f1, **kwargs):
-        tables.File.__init__(self,f,m,t,r,f1,**kwargs)
+    def __init__(self, dataset):
+        self._ds = dataset
+
+    def read(self):
+        # Read the whole dataset into a numpy array (PyTables CArray.read()).
+        return self._ds[()]
+
+    @property
+    def shape(self):
+        return self._ds.shape
+
+    @property
+    def attrs(self):
+        return self._ds.attrs
+
+    @property
+    def name(self):
+        # Fake-OMX files may carry a display name in a 'name' attribute; fall
+        # back to the HDF5 dataset key when it is absent.
+        raw = self._ds.attrs.get('name')
+        if raw is None:
+            return self._ds.name.split('/')[-1]
+        if isinstance(raw, bytes):
+            return raw.decode('utf-8')
+        return raw
+
+
+class SimpleH5File:
+    """
+    Read-only reader for "fake OMX" files: plain HDF5 files whose matrices are
+    stored as datasets directly under the root group, with optional mappings
+    under a '/lookup' group. Used for files that are not real OMX (i.e. they do
+    not carry an OMX_VERSION root attribute).
+
+    This preserves the public API the project used when the class subclassed
+    tables.File, but is backed by h5py instead of PyTables.
+    """
+
+    def __init__(self, filename, mode='r'):
+        if mode != 'r':
+            raise Exception("Cannot write non-standard OMX files")
+        self._h5 = h5py.File(filename, mode)
         self._shape = None
 
+    def close(self):
+        self._h5.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
+    # ---- internal helpers -------------------------------------------------
+    def _matrix_datasets(self):
+        """The h5py.Datasets sitting directly under root (the 'matrices').
+
+        Groups such as '/lookup' (and '/data' on real OMX files) are skipped
+        because they are Groups, not Datasets.
+        """
+        return [self._h5[key] for key in self._h5.keys()
+                if isinstance(self._h5[key], h5py.Dataset)]
+
+    # ----------------------------------------------------------------------
     def version(self):
         """
-        Return the OMX file format of this OMX file, embedded in the OMX_VERSION file attribute.
-        Returns None if the OMX_VERSION attribute is not set.
+        Return the OMX file format version, from the OMX_VERSION root attribute,
+        or None if it is not set.
         """
-        if 'OMX_VERSION' in self.root._v_attrs:
-            return self.root._v_attrs['OMX_VERSION']
-        else:
-            return None
+        return self._h5.attrs.get('OMX_VERSION')
 
     def shape(self):
         """
@@ -38,32 +95,20 @@ class SimpleH5File(tables.File):
         if self._shape:
             return self._shape
 
-        # If shape is already set in root node attributes, grab it
-        if 'SHAPE' in self.root._v_attrs:
-            # Shape is stored as a numpy.array:
-            arrayshape = self.root._v_attrs['SHAPE']
-            # which must be converted to a tuple:
-            realshape = (arrayshape[0],arrayshape[1])
-            self._shape = realshape
+        # If shape is already set in root attributes, grab it
+        if 'SHAPE' in self._h5.attrs:
+            # Shape is stored as an array of [rows, columns]
+            arrayshape = self._h5.attrs['SHAPE']
+            self._shape = (arrayshape[0], arrayshape[1])
             return self._shape
 
-        # Inspect the first CArray object to determine its shape
-        if len(self) > 0:
-            # jwd: generator has no next funtion in python 3
-            # next() function supported in both in python 2.6+ and python 3
-            self._shape = next(self.iter_nodes(self.root,'CArray')).shape
-
-            # Store it if we can
-            if self._iswritable():
-                storeshape = np.array(
-                    [self._shape[0],self._shape[1]],
-                    dtype='int32')
-                self.root._v_attrs['SHAPE'] = storeshape
-
+        # Otherwise inspect the first matrix to determine its shape
+        datasets = self._matrix_datasets()
+        if len(datasets) > 0:
+            self._shape = datasets[0].shape
             return self._shape
 
-        else:
-            return None
+        return None
 
 
     def list_matrices(self):
@@ -73,43 +118,30 @@ class SimpleH5File(tables.File):
         Returns
         -------
         matrices : list
-            List of all matrix names stored in this OMX file.
+            List of all matrix names stored in this file.
         """
-        allnodes = self.list_nodes(self.root, 'CArray')
-
-        return [node.attrs.name.decode('utf-8') for node in self.list_nodes(self.root,'CArray')]
+        return [_Matrix(d).name for d in self._matrix_datasets()]
 
 
     def list_all_attributes(self):
         """
-        Return set of all attributes used for any Matrix in this File
-
-        Returns
-        -------
-        all_attributes : set
-            The combined set of all attribute names that exist on any matrix in this file.
+        Return sorted list of all attribute names used on any matrix in this File
         """
         all_tags = set()
-        for m in self.iter_nodes(self.root, 'CArray'):
-            all_tags.update(m.attrs._v_attrnamesuser)
+        for d in self._matrix_datasets():
+            all_tags.update(d.attrs.keys())
         return sorted(all_tags)
 
 
     # MAPPINGS -----------------------------------------------
     def list_mappings(self):
         """
-        List all mappings in this file
-
-        Returns:
-        --------
-        mappings : list
-            List of the names of all mappings in the OMX file. Mappings
-            are stored internally in the 'lookup' subset of the HDF5 file
-            structure. Returns empty list if there are no mappings.
+        List all mappings in this file. Mappings live in the '/lookup' group.
+        Returns an empty list if there are no mappings.
         """
         try:
-            return [m.name for m in self.list_nodes(self.root.lookup)]
-        except:
+            return list(self._h5['lookup'].keys())
+        except Exception:
             return []
 
 
@@ -121,75 +153,54 @@ class SimpleH5File(tables.File):
         -------
         LookupError : if the specified mapping does not exist.
         """
-
         try:
-            self.remove_node(self.root.lookup, title)
-        except:
-            raise LookupError('No such mapping: '+title)
+            del self._h5['lookup'][title]
+        except Exception:
+            raise LookupError('No such mapping: ' + title)
 
 
     def mapping(self, title):
         """
-        Return dict containing key:value pairs for specified mapping. Keys
-        represent the map item and value represents the array offset.
-
-        Parameters:
-        -----------
-        title : string
-            Name of the mapping to be returned
-
-        Returns:
-        --------
-        mapping : dict
-            Dictionary where each key is the map item, and the value
-            represents the array offset.
+        Return dict of key:value pairs for the specified mapping, where each key
+        is the map item and the value is its array offset.
 
         Raises:
         -------
         LookupError : if the specified mapping does not exist.
         """
-
         try:
-            # fetch entries
-            entries = []
-            entries.extend(self.get_node(self.root.lookup, title)[:])
+            entries = list(self._h5['lookup'][title][:])
 
-            # build reverse key-lookup
             keymap = {}
             for i in range(len(entries)):
                 keymap[entries[i]] = i
 
             return keymap
 
-        except:
-            raise LookupError('No such mapping: '+title)
+        except Exception:
+            raise LookupError('No such mapping: ' + title)
 
     def map_entries(self, title):
         """Return a list of entries for the specified mapping.
            Throws LookupError if the specified mapping does not exist.
         """
         try:
-            # fetch entries
-            entries = []
-            entries.extend(self.get_node(self.root.lookup, title)[:])
+            return list(self._h5['lookup'][title][:])
 
-            return entries
-
-        except:
-            raise LookupError('No such mapping: '+title)
+        except Exception:
+            raise LookupError('No such mapping: ' + title)
 
 
     # The following functions implement Python list/dictionary lookups. ----
-    def __getitem__(self,key):
+    def __getitem__(self, key):
         """Return a matrix by name, or a list of matrices by attributes"""
 
         if isinstance(key, str):
-            if (key in self.root):
-                node = self.get_node(self.root, key)
-                return node
-            matrices = self.list_nodes(self.root,'CArray')
-            for m in matrices:
-                if m.attrs.name.decode('utf-8') == key:
+            if key in self._h5 and isinstance(self._h5[key], h5py.Dataset):
+                return _Matrix(self._h5[key])
+            for d in self._matrix_datasets():
+                m = _Matrix(d)
+                if m.name == key:
                     return m
             raise LookupError('Name not unique')
 
@@ -197,7 +208,7 @@ class SimpleH5File(tables.File):
             raise LookupError('Key %s not found' % key)
 
         # Loop through key/value pairs
-        mats = self.list_nodes(self.root, 'CArray')
+        mats = [_Matrix(d) for d in self._matrix_datasets()]
         for a in key.keys():
             mats = self._getMatricesByAttribute(a, key[a], mats)
 
@@ -208,21 +219,21 @@ class SimpleH5File(tables.File):
         answer = []
 
         if matrices is None:
-            matrices = self.list_nodes(self.root,'CArray')
+            matrices = [_Matrix(d) for d in self._matrix_datasets()]
 
         for m in matrices:
             if m.attrs is None:
                 continue
 
             # Only test if key is present in matrix attributes
-            if key in m.attrs._v_attrnames and m.attrs[key] == value:
+            if key in m.attrs and m.attrs[key] == value:
                 answer.append(m)
 
         return answer
 
 
     def __len__(self):
-        return len(self.list_nodes(self.root, 'CArray'))
+        return len(self._matrix_datasets())
 
 
     def __setitem__(self, key, dataset):
@@ -230,63 +241,38 @@ class SimpleH5File(tables.File):
 
 
     def __delitem__(self, key):
-        self.remove_node(self.root, key)
+        del self._h5[key]
 
 
     def __iter__(self):
-        """Iterate over the keys in this container"""
-        return self.iter_nodes(self.root, 'CArray')
+        """Iterate over the matrices in this container"""
+        return iter(_Matrix(d) for d in self._matrix_datasets())
 
 
     def __contains__(self, item):
-        return item in self.root._v_children
+        return item in self._h5
 
     @staticmethod
-    def open_file(filename, mode='r', title='', root_uep='/',
-                 filters=tables.Filters(complevel=1, shuffle=True, fletcher32=False, complib='zlib'),
-                 shape=None, **kwargs):
+    def open_file(filename, mode='r', **kwargs):
         """
-        Open or create a new OMX file. New files will be created with default
-        zlib compression enabled.
+        Open a fake-OMX (plain HDF5) file for reading.
 
         Parameters
         ----------
         filename : string
             Name or path and name of file
         mode : string
-            'r' for read-only;
-            'w' to write (erases existing file);
-            'a' to read/write an existing file (will create it if doesn't exist).
-            Ignored in read-only mode.
-        title : string
-            Short description of this file, used when creating the file. Default is ''.
-            Ignored in read-only mode.
-        filters : tables.Filters
-            HDF5 default filter options for compression, shuffling, etc. Default for
-            OMX standard file format is: zlib compression level 1, and shuffle=True.
-            Only specify this if you want something other than the recommended standard
-            HDF5 zip compression.
-            'None' will create enormous uncompressed files.
-            Only 'zlib' compression is guaranteed to be available on all HDF5 implementations.
-            See HDF5 docs for more detail.
-        shape: array-like
-            Shape of matrices in this file. Default is None. Specify a valid shape
-            (e.g. (1000,1200)) to enforce shape-checking for all added objects.
-            If shape is not specified, the first added matrix will not be shape-checked
-            and all subsequently added matrices must match the shape of the first matrix.
-            All tables in an OMX file must have the same shape.
+            Only 'r' (read-only) is supported.
 
         Returns
         -------
-        f : openmatrix.File
-            The file object for reading and writing.
+        f : SimpleH5File
+            The file object for reading.
         """
         if mode != 'r':
             raise Exception("Cannot write non-standard OMX files")
 
-        f = SimpleH5File(filename, mode, title, root_uep, filters, **kwargs)
-
-        return f
+        return SimpleH5File(filename, mode)
 
     # BACKWARD COMPATIBILITY:
     # PyTables switched from camelCaseMethods to camel_case_methods
@@ -297,4 +283,3 @@ class SimpleH5File(tables.File):
     listMappings = list_mappings
     mapentries = map_entries
     mapEntries = map_entries
-
