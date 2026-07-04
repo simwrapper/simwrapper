@@ -110,3 +110,23 @@ def plans2parquet(input, output, crs, chunk_size):
     # when this command actually runs, not on every `simwrapper` invocation.
     from . import plans2parquet as p2p
     p2p.run(input, output, crs, chunk_size)
+
+# -----------------------
+@cli.command(name="events2parquet", help="Flatten a MATSim events XML into a single Parquet file")
+@click.argument('input', type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option('-o', '--output', type=click.Path(dir_okay=False, path_type=Path), default=None,
+              help="Output parquet path (default: <input stem>.parquet)")
+@click.option('--crs', default=None,
+              help="Source CRS for event x/y (e.g. EPSG:25832). When given, adds projected lon/lat columns after y.")
+@click.option('--chunk-size', type=int, default=500000,
+              help="Events per intermediate parquet chunk (default 500000).")
+@click.option('-j', '--jobs', type=int, default=4,
+              help="Parallel worker processes (default 4). 1 = sequential.")
+def events2parquet(input, output, crs, chunk_size, jobs):
+    """Flatten a MATSim events XML (.xml, .xml.gz, .xml.zst) into a single
+    Parquet file: one row per event, one column per attribute.
+    """
+    # Imported lazily so the heavy pyarrow/pandas/lxml stack is only loaded
+    # when this command actually runs, not on every `simwrapper` invocation.
+    from . import events2parquet as e2p
+    e2p.run(input, output, crs, chunk_size, jobs)
