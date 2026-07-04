@@ -1,7 +1,7 @@
 <template lang="pug">
 .deck-map.flex-col
   .map-container(:id="`map-${viewId}`")
-  MapTooltip.deck-tooltip(v-if="tip" :hoverInfo="tip" :style="tooltipStyle")
+  MapTooltip.deck-tooltip(v-if="tip" :hoverInfo="tip" :style="tooltipCoord")
 </template>
 
 <script lang="ts">
@@ -25,6 +25,7 @@ import BackgroundLayers from '@/js/BackgroundLayers'
 import globalStore from '@/store'
 import MapTooltip from './MapTooltip.vue'
 import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
+import { LegModeColor } from './PlansViewer.vue'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -47,12 +48,6 @@ const ActivityColor = {
   delivery: [240, 0, 60],
   service: [255, 64, 255],
 }
-
-const LegModeColor = {
-  walk: [255, 220, 0, 255],
-  bike: [50, 255, 80, 255],
-  pt: [228, 0, 255, 255],
-} as { [mode: string]: number[] }
 
 export default defineComponent({
   name: 'MyDeckComponent',
@@ -88,16 +83,7 @@ export default defineComponent({
       deckOverlay: null as InstanceType<typeof MapboxOverlay> | null,
       globalState: globalStore.state,
       tip: null as any,
-      tooltipStyle: {
-        position: 'absolute',
-        padding: '4px 8px',
-        display: 'block',
-        top: 0,
-        left: 0,
-        color: this.dark ? '#ccc' : '#223',
-        backgroundColor: this.dark ? '#2a3c4f' : 'white',
-        zIndex: 20000,
-      } as any,
+      tooltipCoord: { top: 0, left: 0, display: 'block' } as any,
     }
   },
 
@@ -210,9 +196,8 @@ export default defineComponent({
             data: this.legs,
             getSourcePosition: (d: any) => d.points[0],
             getTargetPosition: (d: any) => d.points[d.points.length - 1],
-            getSourceColor: (d: any) => d.color, // [200, 32, 224],
-            getTargetColor: (d: any) => d.color, // [200, 32, 224],
-            // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
+            getSourceColor: (d: any) => LegModeColor[d.mode] || [0, 128, 230], // d.color,
+            getTargetColor: (d: any) => LegModeColor[d.mode] || [0, 128, 230], // d.color,
             getWidth: 2, //  + ((this.settings.scaleFactor - 0) * (40 - 2)) / (100 - 0),
             getHeight: 0.5,
             widthMinPixels: 2,
@@ -238,7 +223,7 @@ export default defineComponent({
             id: 'deliveryroutes',
             data: this.legs,
             getPath: (d: any) => d.points,
-            getColor: [0, 128, 230], // d.color,
+            getColor: (d: any) => LegModeColor[d.mode] || [0, 128, 230], // d.color,
             // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
             getWidth: 2, // 3 + ((this.settings.scaleFactor - 0) * (40 - 3)) / (100 - 0),
             getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
@@ -264,37 +249,19 @@ export default defineComponent({
       // destination labels
       allLayers.push(
         //@ts-ignore
-        new TextLayer({
-          id: 'dest-labels',
-          background: true,
+        new ScatterplotLayer({
+          id: 'activity-locations',
           data: this.stopActivities,
-          backgroundPadding: [3, 0, 3, 0], // this.numSelectedTours !== 1 ? [2, 1, 2, 1] : [3, 2, 3, 1],
-          getColor: [0, 0, 0],
-          getBackgroundColor: [255, 255, 255],
-          // getBackgroundColor: (d: any) => {
-          //   const pickups = d.visits.reduce(
-          //     (prev: number, visit: any) => prev + visit.pickup.length,
-          //     0
-          //   )
-          //   const deliveries = d.visits.reduce(
-          //     (prev: number, visit: any) => prev + visit.delivery.length,
-          //     0
-          //   )
-          //   if (pickups && deliveries) return [0, 0, 255]
-          //   if (pickups) return ActivityColor.pickup
-          //   if (deliveries) return ActivityColor.delivery
-          //   return [240, 130, 0]
-          // },
+          getLineColor: [128, 128, 128],
+          getFillColor: (d: any) => (d.type?.startsWith('home') ? [70, 128, 255] : [255, 64, 255]),
+          getLineWidth: 0.5,
+          stroked: true,
           getPosition: (d: any, i: number) => [...d.midpoint, (i + 1) * 4],
-          getText: (d: any) => 'x', // d.type, // 'here', //  + d.count,
-          // d.label == 'Depot' ? d.label : this.numSelectedTours !== 1 ? ' ' : `${d.label}`,
-          getSize: 11, // (d: any) => (d.label == 'Depot' ? 11 : this.numSelectedTours !== 1 ? 4 : 11),
-          getTextAnchor: 'middle',
-          getAlignmentBaseline: 'center',
-          opacity: 1,
+          getRadius: 3, // (d: any) => (d.label == 'Depot' ? 11 : this.numSelectedTours !== 1 ? 4 : 11),
+          radiusUnits: 'pixels',
+          lineWidthUnits: 'pixels',
+          opacity: 0.9,
           noAlloc: false,
-          billboard: true,
-          // sizeScale: 5,
           pickable: true,
           autoHighlight: true,
           highlightColor: [255, 255, 255],
@@ -498,7 +465,10 @@ export default defineComponent({
       this.deckOverlay = new MapboxOverlay({
         layers: this.layers,
         interleaved: true,
+        pickingRadius: 2,
         onClick: this.handleClick,
+        getCursor: ({ isDragging, isHovering }) =>
+          isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab',
       })
       this.mymap?.addControl(this.deckOverlay)
     })
@@ -530,16 +500,16 @@ export default defineComponent({
       const { x, y, object } = tip
 
       if (!object) {
-        this.tooltipStyle.display = 'none'
+        this.tooltipCoord.display = 'none'
         this.tip = null
         return
       }
 
       this.tip = { ...tip }
 
-      this.tooltipStyle.display = 'block'
-      this.tooltipStyle.top = `${y + 12}px`
-      this.tooltipStyle.left = `${x + 12}px`
+      this.tooltipCoord.display = 'block'
+      this.tooltipCoord.top = `${y + 12}px`
+      this.tooltipCoord.left = `${x + 12}px`
     },
 
     handleClick(event: any) {
@@ -572,7 +542,6 @@ export default defineComponent({
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 10000;
   pointer-events: none;
 }
 </style>

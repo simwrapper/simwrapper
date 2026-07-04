@@ -47,15 +47,20 @@
           b-switch(v-model="vizSettings.selectedPlansOnly")
             span(v-html="$t('selectedPlansOnly')")
 
-      .carrier-list(data-testid="plan-list")
+      .carrier-list.mb1(data-testid="plan-list")
         .carrier(v-for="plan,i in plans" :key="plan.plan_num"
                  :class="{selected: selectedPlans.indexOf(i) > -1 }"
                  @click="handleSelectPlan(i)")
           .carrier-title {{ `${plan[0].person_id}&nbsp;/&nbsp;${plan[0].plan_num}&nbsp;&nbsp;${plan[0].plan_selected=='yes' ? '(*)':''}` }}
 
         b-loading(v-model="isQueryRunning" :is-full-page="false")
-      h4 {{ selectedCarrier || 'Details' }}
 
+      .detail-area
+        .speed-label(style="margin-bottom: 0.5rem") Legend
+
+        .mode-color(v-for="c in legModeColors" :key="c[0]")
+          .flex-row
+            span(:style="{color: `rgb(${c[1][0]},${c[1][1]},${c[1][2]})`}") ───&nbsp;{{ c[0]}}
 
       b-field.detail-buttons(v-if="selectedCarrier" size="is-small")
 
@@ -68,7 +73,6 @@
         b-radio-button(v-if="services.length" v-model="activeTab" native-value="services" size="is-small" type="is-warning")
           span {{ $t('services') }}
 
-      .detail-area
         .shipments(v-if="activeTab=='shipments' && !vizDetails.services")
             span {{ $t('jobs')}}: {{ shipments.length}}
             .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
@@ -82,36 +86,8 @@
                 :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"
             ) {{ `${shipment.$id}` }}
 
-        .tours(v-if="activeTab=='tours'")
-            .dropdown(v-if="this.plans.length > 1" :class="{'is-active': dropdownIsActive}" style="width: 100%")
-              .dropdown-trigger(@click="selectDropdown()")
-                button
-                  span Plan {{ selectedPlanIndex + 1 }}
-                  span.icon.is-small
-                    i.fas.fa-angle-down
-              .dropdown-menu
-                .dropdown-content
-                  a.dropdown-item(v-for="(plan, index) in this.plans" @click="selectPlan(plan)" :class="{'is-active': plan.$selected == 'true'}") Plan {{ index + 1 }}
-
-            span {{ $t('tours')}}: {{ tours.length}}
-            .leaf.tour(v-for="tour,i in tours" :key="`${i}-${tour.$id}`"
-                @click="handleSelectTour(tour)"
-                :class="{selected: selectedTours.includes(tour)}")
-                div(v-if="tour.tourId") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
-                div(v-else) {{ `${tour.vehicleId}` }}
-
-        .vehicles(v-if="activeTab=='vehicles'")
-            span {{ $t('vehicles')}}: {{ vehicles.length}}
-            .leaf.tour(v-for="veh,i in vehicles" :key="`${i}-${veh.$id}`") {{ veh.$id }}
-
-        .services(v-if="activeTab=='services'")
-            span {{ $t('services')}}: {{ services.length}}
-            .leaf.tour(v-for="service,i in services" :key="`${i}-${service.$id}`") {{ `${service.$id}` }}
 
       .switchbox
-        //- .switches
-        //-   p {{$t('scaleSize')}}&nbsp;
-        //-   b-slider.speed-slider(:tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactor")
         .switches
           b-switch(v-model="vizSettings.shipmentDotsOnTourMap")
             span(v-html="$t('showActivities')")
@@ -160,7 +136,6 @@ const i18n = {
     },
   },
 }
-
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import { ToggleButton } from 'vue-js-toggle-button'
@@ -209,6 +184,16 @@ interface NetworkLinks {
   projection: String
 }
 
+export const LegModeColor = {
+  bike: [0, 225, 50, 255],
+  car: [0, 128, 240, 255],
+  drt: [180, 0, 228, 255],
+  freight: [255, 128, 255, 255],
+  pt: [255, 0, 40, 255],
+  ride: [0, 255, 255, 255],
+  walk: [255, 220, 0, 255],
+} as { [mode: string]: number[] }
+
 naturalSort.insensitive = true
 
 // An ActivityLocation is a link on which activities occur.
@@ -234,6 +219,7 @@ export interface Plan {
   route_start_link: string
   route_end_link: string
   route_text: string
+  route_type: string
   activity_link: string
   activity_lon: number
   activity_lat: number
@@ -268,7 +254,8 @@ const PlansViewerPlugin = defineComponent({
       selectedPlans: [] as number[],
       isQueryRunning: false,
       linkLayerId: Math.floor(1e12 * Math.random()),
-
+      legModeColors: Object.entries(LegModeColor),
+      // ------
       vizSettings: {
         simplifyTours: false,
         scaleShipmentSizes: true,
@@ -355,6 +342,7 @@ const PlansViewerPlugin = defineComponent({
         tour: any
         color: number[]
         type: string
+        mode: string
       }[],
 
       selectedCarrier: '',
@@ -437,9 +425,7 @@ const PlansViewerPlugin = defineComponent({
 
   methods: {
     handleSelectPlan(i: number) {
-      this.shownLegs = []
-      this.nonRoutedLegs = []
-
+      console.log('i', i)
       if (this.selectedPlans.length && i == this.selectedPlans[0]) {
         this.selectedPlans = []
       } else {
@@ -461,38 +447,46 @@ const PlansViewerPlugin = defineComponent({
         plans = plans.filter(r => r.plan_selected == 'yes')
       }
 
-      const activities = plans.filter(r => r.activity_link)
-      const routedRoutes = plans.filter(r => r.route_text && !r.route_text.startsWith('{'))
-      const nonRoutedRoutes = plans.filter(
-        r =>
-          r.route_start_link && r.route_end_link && (r.route_text?.startsWith('{') || !r.route_text)
-      )
+      this.drawThePlans(plans)
+    },
 
-      console.log({ plans, routedRoutes, nonRoutedRoutes, activities })
+    drawThePlans(rows: Plan[]) {
+      console.log(this.searchTerm)
+      this.shownLegs = []
+      this.nonRoutedLegs = []
+      this.stopActivities = []
+
+      const activities = rows.filter(r => r.activity_link)
+      const legs = rows.filter(r => r.element == 'leg')
+      const linkRoutes = [] as Plan[],
+        nonLinkRoutes = [] as Plan[]
+      for (const r of legs) (r.route_type == 'links' ? linkRoutes : nonLinkRoutes).push(r)
+
+      console.log({ linkRoutes, nonLinkRoutes, activities })
 
       // -------
-      // Now let's add the routes like a crazy person
-      routedRoutes.forEach((route, i) => {
-        const tour = { tourNumber: i, legs: route.route_text.split(' ') }
+      // add the routes like a crazy person
+      linkRoutes.forEach((route, i) => {
+        const tour = { tourNumber: i, legs: route.route_text.split(' '), mode: route.leg_mode }
         this.addRouteToMap(tour, { links: tour.legs, shipmentsOnBoard: [], totalSize: 100 }, i)
       })
 
       // Non-routed routes can be shown as arcs, by mode
-      nonRoutedRoutes.forEach((leg, i) => {
+      nonLinkRoutes.forEach((leg, i) => {
         let ptFrom = [this.links[leg.route_start_link][0], this.links[leg.route_start_link][1]]
         let ptTo = [this.links[leg.route_start_link][2], this.links[leg.route_start_link][3]]
         const startMidpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
         ptFrom = [this.links[leg.route_end_link][0], this.links[leg.route_end_link][1]]
         ptTo = [this.links[leg.route_end_link][2], this.links[leg.route_end_link][3]]
         const endMidpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+
         this.nonRoutedLegs.push({ start: startMidpoint, end: endMidpoint, mode: leg.leg_mode })
       })
 
-      // -------
       // YOLO! Add the activities too!
       // TODO: split out activities per PLAN, not one big list
       const stopActivities = [] as any[]
-      activities.forEach((activity: any, i) => {
+      activities.forEach((activity, i) => {
         const link = activity.activity_link
         const ptFrom = [this.links[link][0], this.links[link][1]]
         const ptTo = [this.links[link][2], this.links[link][3]]
@@ -502,7 +496,7 @@ const PlansViewerPlugin = defineComponent({
         const actType = activity.activity_type // this.$t(activity.$type)
 
         // get details: remove coords, IDs, that we don't need to show the user in UI.
-        const { from, fromX, fromY, to, toX, toY, id, ...details } = activity
+        const { from, fromX, fromY, to, toX, toY, id, ...details } = activity as any
 
         const act = {
           id: '', //  shipment.$id,
@@ -526,25 +520,17 @@ const PlansViewerPlugin = defineComponent({
 
       this.isQueryRunning = true
 
-      console.log(this.searchTerm)
-      this.shownLegs = []
-      this.nonRoutedLegs = []
-      this.stopActivities = []
-      this.selectedPlans = []
-
       // let's search for persons
 
-      // -------
       const url = `${this.fileSystem.baseURL}/${this.subfolder}/${this.yamlConfig}`
       console.log(url)
 
+      // -------------
       const dbconn = await this.duck.connect()
-
-      const stmt = await dbconn.prepare(
-        `select * from '${url}' where person_id GLOB ?;` //  order by person_id,step;`
-      )
+      const stmt = await dbconn.prepare(`select * from '${url}' where person_id GLOB ?;`)
       const table = await stmt.query(this.searchTerm)
       dbconn.close()
+      // -------------
 
       let rows = table.toArray().map(r => r.toJSON())
 
@@ -557,64 +543,9 @@ const PlansViewerPlugin = defineComponent({
       plans.sort((a, b) => naturalSort(a[0].person_id, b[0].person_id))
       this.plans = plans
 
-      const activities = rows.filter(r => r.activity_link)
-      const routes = rows.filter(r => r.route_text && !r.route_text.startsWith('{'))
-      const nonRoutedRoutes = rows.filter(
-        r =>
-          r.route_start_link && r.route_end_link && (r.route_text?.startsWith('{') || !r.route_text)
-      )
+      this.selectedPlans = []
 
-      console.log({ plans, routes, nonRoutedRoutes, activities })
-
-      // -------
-      // Now let's add the routes like a crazy person
-      routes.forEach((route, i) => {
-        const tour = { tourNumber: i, legs: route.route_text.split(' ') }
-        this.addRouteToMap(tour, { links: tour.legs, shipmentsOnBoard: [], totalSize: 100 }, i)
-      })
-
-      // Non-routed routes can be shown as arcs, by mode
-      nonRoutedRoutes.forEach((leg, i) => {
-        let ptFrom = [this.links[leg.route_start_link][0], this.links[leg.route_start_link][1]]
-        let ptTo = [this.links[leg.route_start_link][2], this.links[leg.route_start_link][3]]
-        const startMidpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
-        ptFrom = [this.links[leg.route_end_link][0], this.links[leg.route_end_link][1]]
-        ptTo = [this.links[leg.route_end_link][2], this.links[leg.route_end_link][3]]
-        const endMidpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
-
-        this.nonRoutedLegs.push({ start: startMidpoint, end: endMidpoint, mode: leg.leg_mode })
-      })
-      // -------
-      // YOLO! Add the activities too!
-      // TODO: split out activities per PLAN, not one big list
-      const stopActivities = [] as any[]
-      activities.forEach((activity, i) => {
-        const link = activity.activity_link
-        const ptFrom = [this.links[link][0], this.links[link][1]]
-        const ptTo = [this.links[link][2], this.links[link][3]]
-        // const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
-
-        const lnglat = [activity.activity_lon, activity.activity_lat]
-        const actType = activity.activity_type // this.$t(activity.$type)
-
-        // get details: remove coords, IDs, that we don't need to show the user in UI.
-        const { from, fromX, fromY, to, toX, toY, id, ...details } = activity
-
-        const act = {
-          id: '', //  shipment.$id,
-          type: actType,
-          count: i + 1,
-          link,
-          midpoint: lnglat,
-          label: '',
-          tour: activity,
-          details,
-          ptFrom,
-          ptTo,
-        }
-        stopActivities.push(act)
-      })
-      this.stopActivities = stopActivities
+      this.drawThePlans(rows)
       this.isQueryRunning = false
     },
 
@@ -867,18 +798,17 @@ const PlansViewerPlugin = defineComponent({
         points.push([this.links[link][2], this.links[link][3]])
       }
 
-      this.shownLegs = this.shownLegs.concat([
-        {
-          tour,
-          shipmentsOnBoard: leg.shipmentsOnBoard,
-          totalSize: leg.totalSize,
-          count: count_route,
-          points,
-          color: this.rgb[(3 + tour.tourNumber) % this.rgb.length],
-          type: 'leg',
-        },
-      ])
-      this.shownLegs = [...this.shownLegs]
+      this.shownLegs.push({
+        tour,
+        shipmentsOnBoard: leg.shipmentsOnBoard,
+        totalSize: leg.totalSize,
+        count: count_route,
+        points,
+        color: this.rgb[(3 + tour.tourNumber) % this.rgb.length],
+        mode: tour.mode,
+        type: 'leg',
+      })
+      // this.shownLegs = [...this.shownLegs]
     },
 
     // handleSelectCarrier(carrier: any) {
@@ -1414,7 +1344,7 @@ export default PlansViewerPlugin
 }
 
 h4 {
-  border-top: 1px solid #bbb;
+  // border-top: 1px solid #bbb;
   margin: 1rem 0.25rem 0.5rem 0.25rem;
   padding-top: 0.25rem;
   font-weight: bold;
@@ -1430,6 +1360,7 @@ h4 {
   background-color: var(--bgCream2);
   padding: 0.25rem 0.5rem;
   overflow-y: auto;
+  z-index: 20000;
 
   h3 {
     text-transform: uppercase;
@@ -1594,24 +1525,22 @@ input {
   overflow-y: auto;
   overflow-x: hidden;
   cursor: pointer;
-  background-color: var(--bgPanel);
-  border: 1px solid var(--bgScrollbar);
+  background-color: var(--bgCream2);
+  border: var(--borderFaint);
 }
 
 .carrier.selected {
   font-weight: bold;
-  background-color: $themeColorPale;
-  box-shadow: 0 0 3px 0 rgba(0, 0, 0, 0.3) inset;
+  background-color: var(--link);
   color: white;
 }
 
 .detail-area {
   user-select: none;
-  flex: 1;
+  // flex: 1;
   overflow-x: hidden;
   cursor: pointer;
-  margin: 0 0.25rem 0.25rem 0.25rem;
-  // border-bottom: 1px solid #555;
+  margin: 0 0.25rem 2rem 0.25rem;
 }
 
 .carrier-section {
@@ -1736,6 +1665,11 @@ input {
   font-size: 0.8rem;
   font-weight: bold;
   text-transform: uppercase;
+}
+
+.mode-color {
+  font-size: 0.9rem;
+  font-weight: bold;
 }
 
 @media only screen and (max-width: 640px) {

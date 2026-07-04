@@ -155,7 +155,8 @@ const plugins = [
   },
   {
     kebabName: 'plans',
-    filePatterns: ['**/*plans.parquet', '**/viz-plans*.y?(a)ml*'],
+    // filePatterns: ['**/*plans.parquet', '**/viz-plans*.y?(a)ml*'],
+    filePatterns: ['**/*plans.parquet'],
     component: defineAsyncComponent(() => import('./plans/PlansViewer.vue')),
   },
 ]

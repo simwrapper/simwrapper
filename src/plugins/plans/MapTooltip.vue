@@ -1,5 +1,5 @@
 <template lang="pug">
-.flex-col(v-if="tooltipType")
+.my-tooltip.flex-col(v-if="tooltipType")
   .tooltip(v-if="tooltipType == 9")
     table(style="max-width: 30rem; font-size: 0.8rem"): tbody
       tr
@@ -7,8 +7,7 @@
         td(style="padding-top: 0.2rem") {{ hoverInfo.object.shipmentIds.join(', ') }}
 
   .tooltip.flex-col(v-if="tooltipType == 2")
-    b {{ hoverInfo.object?.$id }}
-    h5(style="padding-top: 0.2rem") {{ hoverInfo.object.type }}
+    h5(style="padding-top: 0.2rem") {{ hoverInfo.object?.mode || hoverInfo.object?.tour?.mode || hoverInfo.object?.type || hoverInfo.object }}
 
   .tooltip.flex-col(v-if="tooltipType == 9")
     b {{hoverInfo.object?.tour?.vehicleId}}
@@ -120,14 +119,17 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
+@import '@/styles.scss';
+.my-tooltip {
+  font-size: 0.9rem;
+  filter: $filterShadow;
+  padding: 0px 5px 2px 5px;
+  background-color: var(--bgBold) !important;
+}
+
 .tooltip {
-  background-color: '#334455ee';
-  box-shadow: '2.5px 2px 4px rgba(0,0,0,0.25)';
-  color: '#eee';
-  padding: '0.5rem 0.5rem';
+  color: var(--textBold);
   position: 'absolute';
   opacity: 0.9;
-  // left: x + 20,
-  // top: y + 20,
 }
 </style>
