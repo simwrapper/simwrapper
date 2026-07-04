@@ -4,6 +4,7 @@
 import click       # cmdline generator! https://click.palletsprojects.com/en/8.0.x
 import webbrowser
 import os
+from pathlib import Path
 from importlib.metadata import version
 
 from . import sites
@@ -91,3 +92,21 @@ def run(config, port, debug):
     #   raise click.BadParameter("need both a cert and a key to enable HTTPS")
 
     ApiApp.startServer(config, port, debug)
+
+# -----------------------
+@cli.command(name="plans2parquet", help="Flatten a MATSim population XML into a single Parquet file")
+@click.argument('input', type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option('-o', '--output', type=click.Path(dir_okay=False, path_type=Path), default=None,
+              help="Output parquet path (default: <input stem>.parquet)")
+@click.option('--crs', default=None,
+              help="Source CRS for activity_x/y (e.g. EPSG:25832). Overrides the population's coordinateReferenceSystem attribute.")
+@click.option('--chunk-size', type=int, default=20000,
+              help="Persons per intermediate parquet chunk (default 20000).")
+def plans2parquet(input, output, crs, chunk_size):
+    """Flatten a MATSim population XML (.xml, .xml.gz, .xml.zst) into a single
+    Parquet file: one row per activity or leg inside each plan.
+    """
+    # Imported lazily so the heavy pyarrow/pandas/lxml stack is only loaded
+    # when this command actually runs, not on every `simwrapper` invocation.
+    from . import plans2parquet as p2p
+    p2p.run(input, output, crs, chunk_size)

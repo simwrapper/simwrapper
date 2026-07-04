@@ -11,7 +11,12 @@ dependencies = [
     "click>=8.0",
     "fastapi>=0.115.0",
     "h5py>=3.0",
+    "lxml>=5.0",
+    "numpy>=1.24",
     "openmatrix>=0.3.5.0",
+    "pandas>=2.0",
+    "pyarrow>=15.0",
+    "pyproj>=3.5",
     "pyyaml>=6.0.2",
     "uvicorn[standard]>=0.30.0",
 ]
