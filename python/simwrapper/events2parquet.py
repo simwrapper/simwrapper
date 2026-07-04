@@ -334,6 +334,17 @@ def convert_parallel(input_path: Path, parquet_path: Path,
     tmp_dir = Path(tempfile.mkdtemp(prefix="events_chunks_", dir=parquet_path.parent))
     results: list[tuple[int, str, int]] = []
     max_inflight = jobs * 2
+    n_rows = 0
+
+    def collect(fut) -> None:
+        # Each worker writes its own chunk parquet; log a status line here in the
+        # parent as the result lands (completion order, not index order) to keep
+        # output from interleaving across worker processes.
+        nonlocal n_rows
+        index, path, rows = fut.result()
+        results.append((index, path, rows))
+        n_rows += rows
+        print(f"  wrote chunk {len(results)}: {rows} rows ({n_rows} rows so far)", flush=True)
 
     try:
         with ProcessPoolExecutor(max_workers=jobs, initializer=_init_worker,
@@ -345,9 +356,9 @@ def convert_parallel(input_path: Path, parquet_path: Path,
                     if len(pending) >= max_inflight:
                         done, pending = wait(pending, return_when=FIRST_COMPLETED)
                         for fut in done:
-                            results.append(fut.result())
+                            collect(fut)
                 for fut in pending:
-                    results.append(fut.result())
+                    collect(fut)
 
         n_events = sum(n for _, _, n in results)
         print(f"parsed {n_events} events total; merging {len(results)} chunk(s)...", flush=True)

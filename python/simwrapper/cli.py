@@ -14,17 +14,17 @@ from . import ApiApp
 default_port = 8000
 SINGLE_PAGE_APP_PORT = 8050
 
-try:
-  print('------------------')
-  print(' SimWrapper', version("simwrapper"))
-  print('------------------')
-except:
-  pass
-
-
 @click.group()
 def cli():
-    pass
+    # Print the banner here rather than at import time so it fires once per CLI
+    # invocation, not in every spawned worker process (multiprocessing on macOS
+    # re-imports this module in each worker).
+    try:
+      print('------------------')
+      print(' SimWrapper', version("simwrapper"))
+      print('------------------')
+    except:
+      pass
 
 # -----------------------
 @cli.command(help="Start a local file server in this folder")
@@ -100,16 +100,18 @@ def run(config, port, debug):
               help="Output parquet path (default: <input stem>.parquet)")
 @click.option('--crs', default=None,
               help="Source CRS for activity_x/y (e.g. EPSG:25832). Overrides the population's coordinateReferenceSystem attribute.")
-@click.option('--chunk-size', type=int, default=20000,
-              help="Persons per intermediate parquet chunk (default 20000).")
-def plans2parquet(input, output, crs, chunk_size):
+@click.option('--chunk-size', type=int, default=10000,
+              help="Persons per intermediate parquet chunk (default 10000).")
+@click.option('-j', '--jobs', type=int, default=4,
+              help="Parallel worker processes (default 4). 1 = sequential.")
+def plans2parquet(input, output, crs, chunk_size, jobs):
     """Flatten a MATSim population XML (.xml, .xml.gz, .xml.zst) into a single
     Parquet file: one row per activity or leg inside each plan.
     """
     # Imported lazily so the heavy pyarrow/pandas/lxml stack is only loaded
     # when this command actually runs, not on every `simwrapper` invocation.
     from . import plans2parquet as p2p
-    p2p.run(input, output, crs, chunk_size)
+    p2p.run(input, output, crs, chunk_size, jobs)
 
 # -----------------------
 @cli.command(name="events2parquet", help="Flatten a MATSim events XML into a single Parquet file")
@@ -130,3 +132,9 @@ def events2parquet(input, output, crs, chunk_size, jobs):
     # when this command actually runs, not on every `simwrapper` invocation.
     from . import events2parquet as e2p
     e2p.run(input, output, crs, chunk_size, jobs)
+
+# -----------------------
+# Short aliases: "plans2pq" and "events2pq" are easier to type than the full
+# "plans2parquet"/"events2parquet" names.
+cli.add_command(plans2parquet, name="plans2pq")
+cli.add_command(events2parquet, name="events2pq")

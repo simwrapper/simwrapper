@@ -7,8 +7,10 @@ bounded in memory.
 
 from __future__ import annotations
 
+import io
 import shutil
 import tempfile
+from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from pathlib import Path
 
 import numpy as np
@@ -324,6 +326,184 @@ def convert(input_path: Path, parquet_path: Path,
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
+def _read_header(stream, read_size: int = 1 << 20) -> bytes:
+    """Read decompressed bytes up to (not including) the first <person element.
+
+    This spans the XML prolog, the <population> open tag, and the population-level
+    <attributes> block that carries the coordinateReferenceSystem, so it is all we
+    need to detect the CRS without parsing a single <person>."""
+    data = b""
+    while True:
+        chunk = stream.read(read_size)
+        if not chunk:
+            return data
+        data += chunk
+        i = data.find(b"<person")
+        if i != -1:
+            return data[:i]
+
+
+def population_crs_from_header(header: bytes) -> str | None:
+    """Extract the population CRS from the header bytes returned by _read_header.
+    Closes the dangling <population> so the fragment parses, then reuses
+    population_crs()."""
+    try:
+        parser = etree.XMLParser(recover=True)
+        root = etree.fromstring(header + b"</population>", parser=parser)
+    except etree.XMLSyntaxError:
+        return None
+    if root is None:
+        return None
+    return population_crs(root)
+
+
+def iter_person_blocks(stream, chunk_persons: int, read_size: int = 8 << 20):
+    """Yield (index, raw_bytes) ordered blocks of complete <person>...</person>
+    elements.
+
+    Splits the decompressed stream only at </person> boundaries so a <person>
+    element is never divided across blocks. Does no XML parsing -- only C-level
+    bytes scanning -- so this sequential stage stays cheap."""
+    MARKER = b"</person>"
+    index = 0
+    carry = b""        # bytes past the last </person> (a partial trailing person)
+    buf = b""          # complete persons pending in the current block
+    count = 0          # persons accumulated in buf
+    started = False    # have we passed the prolog / <population> header?
+
+    while True:
+        data = stream.read(read_size)
+        if not data:
+            break
+        data = carry + data
+        if not started:
+            i = data.find(b"<person")
+            if i == -1:
+                # Still inside the header; keep only a tail that could hold a
+                # <person marker split across this read boundary.
+                carry = data[-(len(b"<person") - 1):]
+                continue
+            data = data[i:]
+            started = True
+        end = data.rfind(MARKER)
+        if end == -1:
+            carry = data
+            continue
+        split = end + len(MARKER)
+        complete, carry = data[:split], data[split:]
+        buf += complete
+        count += complete.count(MARKER)
+        if count >= chunk_persons:
+            yield index, buf
+            index += 1
+            buf = b""
+            count = 0
+
+    # EOF: carry holds only trailing whitespace / </population> (no whole person).
+    buf += carry
+    end = buf.rfind(b"</population>")
+    if end != -1:
+        buf = buf[:end]
+    if started and buf.strip():
+        yield index, buf
+
+
+# Per-worker globals, set once by the pool initializer so only (index, raw)
+# needs to cross the process boundary.
+_W_CRS: str | None = None
+_W_TMP: Path | None = None
+
+
+def _init_worker(crs: str | None, tmp_dir: str) -> None:
+    global _W_CRS, _W_TMP
+    _W_CRS = crs
+    _W_TMP = Path(tmp_dir)
+
+
+def _convert_block(index: int, raw: bytes) -> tuple[int, str, int]:
+    """Worker: parse one raw block of whole <person> elements into a per-block
+    parquet chunk."""
+    builder = ColumnBuilder()
+    doc = b"<population>\n" + raw + b"</population>"
+    try:
+        context = etree.iterparse(io.BytesIO(doc), events=("end",), tag="person")
+        root = None
+        for _, person in context:
+            if root is None:
+                root = person.getparent()
+            emit_person(person, builder)
+            person.clear()
+            while person.getprevious() is not None:
+                del root[0]
+    except etree.XMLSyntaxError as e:
+        # lxml's exception carries an unpicklable error log; re-raise plainly
+        # so the real message survives the process boundary.
+        raise RuntimeError(f"block {index} parse failed: {e}") from None
+    table = finalize_chunk(builder, _W_CRS)
+    chunk_path = _W_TMP / f"chunk_{index:06d}.parquet"
+    pq.write_table(table, chunk_path, compression="zstd")
+    return index, str(chunk_path), table.num_rows
+
+
+def convert_parallel(input_path: Path, parquet_path: Path,
+                     crs_override: str | None, chunk_persons: int, jobs: int) -> int:
+    """Parallel variant of convert(): a single sequential reader slices the
+    stream into ordered blocks of whole <person> elements dispatched to `jobs`
+    worker processes, then the chunks are merged in block order. Exact person
+    order is preserved and no <person> is ever split across a block boundary."""
+    tmp_dir = Path(tempfile.mkdtemp(prefix="plans_chunks_", dir=parquet_path.parent))
+    results: list[tuple[int, str, int]] = []
+    max_inflight = jobs * 2
+
+    try:
+        # The CRS lives in the population <attributes> header, ahead of every
+        # <person>, so detect it once up front (unless overridden) and hand it
+        # to the workers.
+        crs = crs_override
+        if crs is None:
+            with open_xml(input_path) as fh:
+                crs = population_crs_from_header(_read_header(fh))
+        if crs:
+            print(f"  detected CRS: {crs}", flush=True)
+
+        n_rows = 0
+
+        def collect(fut) -> None:
+            # Each worker writes its own chunk parquet; log a status line here in
+            # the parent as the result lands (completion order, not index order)
+            # to keep output from interleaving across worker processes.
+            nonlocal n_rows
+            index, path, rows = fut.result()
+            results.append((index, path, rows))
+            n_rows += rows
+            print(f"  wrote chunk {len(results)}: {rows} rows ({n_rows} rows so far)", flush=True)
+
+        with ProcessPoolExecutor(max_workers=jobs, initializer=_init_worker,
+                                 initargs=(crs, str(tmp_dir))) as ex:
+            with open_xml(input_path) as fh:
+                pending: set = set()
+                for index, raw in iter_person_blocks(fh, chunk_persons):
+                    pending.add(ex.submit(_convert_block, index, raw))
+                    if len(pending) >= max_inflight:
+                        done, pending = wait(pending, return_when=FIRST_COMPLETED)
+                        for fut in done:
+                            collect(fut)
+                for fut in pending:
+                    collect(fut)
+
+        print(f"parsed {len(results)} block(s); merging...", flush=True)
+
+        if not results:
+            pq.write_table(pa.table({}), parquet_path, compression="zstd")
+            return 0
+
+        results.sort(key=lambda r: r[0])  # restore exact person order
+        chunk_paths = [Path(p) for _, p, _ in results]
+        return merge_chunks(chunk_paths, parquet_path)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 def default_output_path(input_path: Path) -> Path:
     """Derive the default parquet path from the input: strip a trailing
     compression suffix and .xml, then append .parquet."""
@@ -335,14 +515,18 @@ def default_output_path(input_path: Path) -> Path:
 
 
 def run(input_path: Path, parquet_path: Path | None = None,
-        crs: str | None = None, chunk_size: int = 20000) -> Path:
-    """Convert one MATSim population XML to parquet, defaulting the output
-    path when not given. Returns the parquet path written."""
+        crs: str | None = None, chunk_size: int = 10000, jobs: int = 4) -> Path:
+    """Convert one MATSim population XML to parquet, defaulting the output path
+    when not given. Uses the parallel path unless jobs <= 1. Returns the path
+    written."""
     input_path = Path(input_path)
     if parquet_path is None:
         parquet_path = default_output_path(input_path)
     parquet_path = Path(parquet_path)
 
-    n = convert(input_path, parquet_path, crs, chunk_size)
+    if jobs <= 1:
+        n = convert(input_path, parquet_path, crs, chunk_size)
+    else:
+        n = convert_parallel(input_path, parquet_path, crs, chunk_size, jobs)
     print(f"Wrote {n} rows to {parquet_path}")
     return parquet_path

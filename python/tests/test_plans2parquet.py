@@ -95,6 +95,25 @@ def test_crs_override_beats_file_attribute(population_file, tmp_path):
     assert any(v == 600000.0 for v in lons)
 
 
+def test_parallel_matches_sequential(population_file, tmp_path):
+    seq = tmp_path / "seq.parquet"
+    par = tmp_path / "par.parquet"
+    p2p.run(population_file, seq, crs="EPSG:25832", chunk_size=20000, jobs=1)
+    # chunk_size=1 with jobs=2 forces each <person> into its own block, split
+    # across worker processes.
+    p2p.run(population_file, par, crs="EPSG:25832", chunk_size=1, jobs=2)
+
+    ds = pq.read_table(seq)
+    dp = pq.read_table(par)
+
+    assert dp.num_rows == ds.num_rows == 6
+    assert dp.column_names == ds.column_names
+    # exact person order must be preserved across the parallel split/merge, and
+    # each <person> must survive whole (all its activity/leg rows present).
+    from pandas.testing import assert_frame_equal
+    assert_frame_equal(dp.to_pandas(), ds.to_pandas())
+
+
 def test_cli_command_writes_parquet(population_file, tmp_path):
     out = tmp_path / "explicit.parquet"
     runner = CliRunner()
