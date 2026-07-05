@@ -1,6 +1,7 @@
 <template lang="pug">
 .carrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
                 :style='{"background": urlThumbnail}'
+                spellcheck="false"
                 oncontextmenu="return false")
 
   .container-1(@mousemove="dividerDragging" @mouseup="dividerDragEnd")
@@ -23,7 +24,8 @@
         :onClick="handleClick"
         :projection="vizDetails.projection"
         :services="vizDetails.services || false"
-        :show3dBuildings="show3dBuildings")
+        :show3dBuildings="show3dBuildings"
+      )
 
       ZoomButtons(v-if="!thumbnail" corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
 
@@ -53,7 +55,7 @@
                  @click="handleSelectPlan(i)")
           .carrier-title {{ `${plan[0].person_id}&nbsp;/&nbsp;${plan[0].plan_num}&nbsp;&nbsp;${plan[0].plan_selected=='yes' ? '(*)':''}` }}
 
-        b-loading(v-model="isQueryRunning" :is-full-page="false")
+        b-loading.loader-theme(v-model="isQueryRunning" :is-full-page="false")
 
       .detail-area
         .speed-label(style="margin-bottom: 0.5rem") Legend
@@ -141,7 +143,10 @@ import type { PropType } from 'vue'
 import { ToggleButton } from 'vue-js-toggle-button'
 
 import DuckDB from '@/js/duckdb'
-import type { AsyncDuckDB } from '~/@duckdb/duckdb-wasm/dist/types/src/targets/duckdb.js'
+import type {
+  AsyncDuckDB,
+  AsyncDuckDBConnection,
+} from '~/@duckdb/duckdb-wasm/dist/types/src/targets/duckdb.js'
 import colorMap from 'colormap'
 import naturalSort from 'javascript-natural-sort'
 import readBlob from 'read-blob'
@@ -255,6 +260,8 @@ const PlansViewerPlugin = defineComponent({
       isQueryRunning: false,
       linkLayerId: Math.floor(1e12 * Math.random()),
       legModeColors: Object.entries(LegModeColor),
+      dbUrl: '',
+
       // ------
       vizSettings: {
         simplifyTours: false,
@@ -467,7 +474,8 @@ const PlansViewerPlugin = defineComponent({
       // -------
       // add the routes like a crazy person
       linkRoutes.forEach((route, i) => {
-        const tour = { tourNumber: i, legs: route.route_text.split(' '), mode: route.leg_mode }
+        const linksOnThisRoute = route.route_text.split(' ')
+        const tour = { tourNumber: i, legs: linksOnThisRoute, mode: route.leg_mode }
         this.addRouteToMap(tour, { links: tour.legs, shipmentsOnBoard: [], totalSize: 100 }, i)
       })
 
@@ -515,24 +523,82 @@ const PlansViewerPlugin = defineComponent({
       this.stopActivities = stopActivities
     },
 
+    async setupDbUrl() {
+      // Local files: DuckDB can handle FileHandles from the filesystem but they must be registered.
+      // Flask filesystem: URL
+      // S3: URL
+      // Remote: URL
+      let url = `${this.fileSystem.baseURL}/${this.subfolder}/${this.yamlConfig}`
+
+      if (!this.fileSystem.handle) {
+        // await this.duck.registerFileURL('plans.parquet', url, DuckDB.DuckDBDataProtocol.HTTP, true)
+        // return 'plans.parquet'
+        return url
+      }
+
+      url = 'plans.parquet' // this.yamlConfig || 'datafile.parquet'
+
+      // retrieve file handle
+      const dir = await this.fileApi.getDirectory(this.subfolder)
+      const handle = dir.handles[this.yamlConfig || url]
+      const file = await handle.getFile()
+      // console.log({ dir, handle })
+
+      // register file handle with DuckDB using filename
+      await this.duck.registerFileHandle(
+        url,
+        file, // the file from the FileSystemFileHandle
+        // handle, // the FileSystemFileHandle itself
+        DuckDB.DuckDBDataProtocol.BROWSER_FILEREADER,
+        false
+      )
+      return url
+    },
+
+    async performQuery(conn: AsyncDuckDBConnection, term: string) {
+      // chrome fs doesn't handle IN very well, use glob
+      if (this.fileSystem.handle) {
+        const fcn = /.\?|.\*/.test(term) ? 'GLOB' : '='
+        const stmt = await conn.prepare(`SELECT * FROM '${this.dbUrl}' WHERE person_id ${fcn} ?;`)
+        const table = await stmt.query(term)
+        return table
+      }
+
+      // wildcards need glob
+      if (/.\?|.\*/.test(term)) {
+        const stmt = await conn.prepare(
+          `SELECT DISTINCT person_id FROM '${this.dbUrl}' WHERE person_id GLOB ?;`
+        )
+        let table = await stmt.query(term)
+        const personIDs: string[] = table.getChild('person_id')?.toArray() || []
+
+        if (personIDs.length) {
+          const inList = personIDs.map(v => `'${v.replace(/'/g, "''")}'`).join(', ')
+          const q = `SELECT * FROM '${this.dbUrl}' WHERE person_id IN (${inList});`
+          table = await conn.query(q)
+        }
+        return table
+      }
+
+      // no wildcards: direct search is faster and less network
+      const stmt = await conn.prepare(`SELECT * FROM '${this.dbUrl}' WHERE person_id = ?;`)
+      const table = await stmt.query(term)
+      return table
+    },
+
     async updateSearch() {
       if (!this.duck.ping) return
 
       this.isQueryRunning = true
 
       // let's search for persons
+      let rows = [] as any[]
 
-      const url = `${this.fileSystem.baseURL}/${this.subfolder}/${this.yamlConfig}`
-      console.log(url)
-
-      // -------------
       const dbconn = await this.duck.connect()
-      const stmt = await dbconn.prepare(`select * from '${url}' where person_id GLOB ?;`)
-      const table = await stmt.query(this.searchTerm)
+      const table = await this.performQuery(dbconn, this.searchTerm)
       dbconn.close()
-      // -------------
 
-      let rows = table.toArray().map(r => r.toJSON())
+      rows = table.toArray().map(r => r.toJSON())
 
       // selected="yes" ?
       if (this.vizSettings.selectedPlansOnly) rows = rows.filter(r => r.plan_selected == 'yes')
@@ -1035,6 +1101,7 @@ const PlansViewerPlugin = defineComponent({
 
     handleClick(object: any) {
       console.log('CLICK!', object)
+      return
       if (!object) this.clickedEmptyMap()
       if (object?.type == 'depot') this.clickedDepot(object)
       if (object?.type == 'leg') this.clickedLeg(object)
@@ -1292,10 +1359,13 @@ const PlansViewerPlugin = defineComponent({
     }
     // finally, make sure duckdb is ready
     this.duck = await db
+    this.dbUrl = await this.setupDbUrl()
   },
 
   beforeDestroy() {
     this.myState.isRunning = false
+
+    if (this.fileSystem.handle && this.dbUrl) this.duck.dropFile?.(this.dbUrl)
     this.duck.terminate?.()
   },
 })

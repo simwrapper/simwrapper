@@ -951,6 +951,10 @@ maplibregl-ctrl-attrib-button {
   background-color: var(--bgCardFrame2);
 }
 
+.loader-theme .loading-background {
+  background-color: var(--bgMap);
+}
+
 @media only screen and (max-width: 640px) {
   .breadcrumbs {
     padding-left: 1rem;
