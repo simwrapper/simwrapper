@@ -33,27 +33,31 @@ def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=512*1024):
     '''
     if start is not None: infile.seek(start)
     while 1:
-        to_read = min(bufsize, stop + 1 - infile.tell() if stop else bufsize)
+        to_read = min(bufsize, stop + 1 - infile.tell() if stop is not None else bufsize)
         buf = infile.read(to_read)
         if not buf:
             break
         outfile.write(buf)
 
-BYTE_RANGE_RE = re.compile(r'bytes=(\d+)-(\d+)?$')
+BYTE_RANGE_RE = re.compile(r'bytes=(\d+)?-(\d+)?$')
 def parse_byte_range(byte_range):
     '''Returns the two numbers in 'bytes=123-456' or throws ValueError.
 
-    The last number or both numbers may be None.
+    Supports three forms (RFC 7233):
+    - 'bytes=123-456'  (first, last)  -> (123, 456)
+    - 'bytes=123-'     (open-ended)   -> (123, None)
+    - 'bytes=-500'     (suffix)       -> (None, 500)   last N bytes
     '''
-    if byte_range.strip() == '':
-        return None, None
-
-    m = BYTE_RANGE_RE.match(byte_range)
+    m = BYTE_RANGE_RE.match(byte_range.strip())
     if not m:
         raise ValueError('Invalid byte range %s' % byte_range)
 
-    first, last = [x and int(x) for x in m.groups()]
-    if last and last < first:
+    first, last = [None if x is None else int(x) for x in m.groups()]
+
+    # 'bytes=-' is meaningless (neither endpoint given)
+    if first is None and last is None:
+        raise ValueError('Invalid byte range %s' % byte_range)
+    if first is not None and last is not None and last < first:
         raise ValueError('Invalid byte range %s' % byte_range)
     return first, last
 
@@ -69,11 +73,10 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
             self.range = None
             return SimpleHTTPRequestHandler.send_head(self)
         try:
-            self.range = parse_byte_range(self.headers['Range'])
+            first, last = parse_byte_range(self.headers['Range'])
         except ValueError as e:
             self.send_error(400, 'Invalid byte range')
             return None
-        first, last = self.range
 
         # Mirroring SimpleHTTPServer.py here
         path = self.translate_path(self.path)
@@ -87,22 +90,45 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
         fs = os.fstat(f.fileno())
         file_len = fs[6]
-        if first >= file_len:
-            self.send_error(416, 'Requested Range Not Satisfiable')
-            return None
+
+        # Normalize the request into a concrete inclusive [start, end] byte
+        # window, covering open-ended ('bytes=123-'), suffix ('bytes=-500'),
+        # and bounded ('bytes=123-456') forms alike.
+        if first is None:
+            # Suffix range: the last `last` bytes of the file.
+            if last == 0 or file_len == 0:
+                f.close()
+                self.send_range_not_satisfiable(file_len)
+                return None
+            start = max(0, file_len - last)
+            end = file_len - 1
+        else:
+            if first >= file_len:
+                f.close()
+                self.send_range_not_satisfiable(file_len)
+                return None
+            start = first
+            end = file_len - 1 if (last is None or last >= file_len) else last
+
+        # Stash the concrete window for copyfile().
+        self.range = (start, end)
+        response_length = end - start + 1
 
         self.send_response(206)
         self.send_header('Content-type', ctype)
-
-        if last is None or last >= file_len:
-            last = file_len - 1
-        response_length = last - first + 1
-
-        self.send_header('Content-Range', 'bytes %s-%s/%s' % (first, last, file_len))
+        self.send_header('Content-Range', 'bytes %s-%s/%s' % (start, end, file_len))
         self.send_header('Content-Length', str(response_length))
         self.send_header('Last-Modified', self.date_time_string(fs.st_mtime))
         self.end_headers()
         return f
+
+    def send_range_not_satisfiable(self, file_len):
+        # RFC 7233: a 416 response should carry Content-Range: bytes */<len>
+        # so the client learns the current resource size.
+        self.send_response(416, 'Requested Range Not Satisfiable')
+        self.send_header('Content-Range', 'bytes */%s' % file_len)
+        self.send_header('Content-Length', '0')
+        self.end_headers()
 
     def copyfile(self, source, outputfile):
         if not self.range:
