@@ -232,7 +232,7 @@ def finalize_chunk(builder: ColumnBuilder, crs: str | None) -> pa.Table:
 
 
 def merge_chunks(chunk_paths: list[Path], parquet_path: Path,
-                 batch_size: int = 50000) -> int:
+                 n_persons: int = 0, batch_size: int = 50000) -> int:
     """Stream chunk parquets into the final parquet with a unified schema
     (union of all chunk columns, in first-seen order). Bounded memory."""
     fields: dict[str, pa.Field] = {}
@@ -245,8 +245,17 @@ def merge_chunks(chunk_paths: list[Path], parquet_path: Path,
                 fields[f.name] = f
     unified = pa.schema(list(fields.values()))
 
+    # person_id is high-cardinality and the natural point-lookup key, so give it
+    # a Bloom filter to let readers skip row groups that can't hold a given id.
+    # Size it to the distinct-id count (one per person) rather than pyarrow's
+    # 1M default, which would bloat small files with an oversized bitset.
+    bloom_opts = None
+    if "person_id" in unified.names:
+        bloom_opts = {"person_id": {"ndv": max(n_persons, 1), "fpp": 0.01}}
+
     n_total = 0
-    writer = pq.ParquetWriter(parquet_path, unified, compression="zstd")
+    writer = pq.ParquetWriter(parquet_path, unified, compression="zstd",
+                              bloom_filter_options=bloom_opts)
     try:
         for p in chunk_paths:
             pf = pq.ParquetFile(p)
@@ -321,7 +330,7 @@ def convert(input_path: Path, parquet_path: Path,
             pq.write_table(pa.table({}), parquet_path, compression="zstd")
             return 0
 
-        return merge_chunks(chunk_paths, parquet_path)
+        return merge_chunks(chunk_paths, parquet_path, n_persons)
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
@@ -420,11 +429,12 @@ def _init_worker(crs: str | None, tmp_dir: str) -> None:
     _W_TMP = Path(tmp_dir)
 
 
-def _convert_block(index: int, raw: bytes) -> tuple[int, str, int]:
+def _convert_block(index: int, raw: bytes) -> tuple[int, str, int, int]:
     """Worker: parse one raw block of whole <person> elements into a per-block
-    parquet chunk."""
+    parquet chunk. Returns (index, path, num_rows, num_persons)."""
     builder = ColumnBuilder()
     doc = b"<population>\n" + raw + b"</population>"
+    n_persons = 0
     try:
         context = etree.iterparse(io.BytesIO(doc), events=("end",), tag="person")
         root = None
@@ -432,6 +442,7 @@ def _convert_block(index: int, raw: bytes) -> tuple[int, str, int]:
             if root is None:
                 root = person.getparent()
             emit_person(person, builder)
+            n_persons += 1
             person.clear()
             while person.getprevious() is not None:
                 del root[0]
@@ -442,7 +453,7 @@ def _convert_block(index: int, raw: bytes) -> tuple[int, str, int]:
     table = finalize_chunk(builder, _W_CRS)
     chunk_path = _W_TMP / f"chunk_{index:06d}.parquet"
     pq.write_table(table, chunk_path, compression="zstd")
-    return index, str(chunk_path), table.num_rows
+    return index, str(chunk_path), table.num_rows, n_persons
 
 
 def convert_parallel(input_path: Path, parquet_path: Path,
@@ -452,7 +463,7 @@ def convert_parallel(input_path: Path, parquet_path: Path,
     worker processes, then the chunks are merged in block order. Exact person
     order is preserved and no <person> is ever split across a block boundary."""
     tmp_dir = Path(tempfile.mkdtemp(prefix="plans_chunks_", dir=parquet_path.parent))
-    results: list[tuple[int, str, int]] = []
+    results: list[tuple[int, str, int, int]] = []
     max_inflight = jobs * 2
 
     try:
@@ -473,8 +484,8 @@ def convert_parallel(input_path: Path, parquet_path: Path,
             # the parent as the result lands (completion order, not index order)
             # to keep output from interleaving across worker processes.
             nonlocal n_rows
-            index, path, rows = fut.result()
-            results.append((index, path, rows))
+            index, path, rows, persons = fut.result()
+            results.append((index, path, rows, persons))
             n_rows += rows
             print(f"  wrote chunk {len(results)}: {rows} rows ({n_rows} rows so far)", flush=True)
 
@@ -498,8 +509,9 @@ def convert_parallel(input_path: Path, parquet_path: Path,
             return 0
 
         results.sort(key=lambda r: r[0])  # restore exact person order
-        chunk_paths = [Path(p) for _, p, _ in results]
-        return merge_chunks(chunk_paths, parquet_path)
+        chunk_paths = [Path(p) for _, p, _, _ in results]
+        n_persons = sum(persons for _, _, _, persons in results)
+        return merge_chunks(chunk_paths, parquet_path, n_persons)
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
