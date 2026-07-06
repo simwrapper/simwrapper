@@ -29,6 +29,8 @@
 
       ZoomButtons(v-if="!thumbnail" corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
 
+      PlanTable(v-if="selectedPlans.length" :plans="plans[selectedPlans[0]]" :searchTerm="searchTerm")
+
       .x-status-message(v-if="myState.statusMessage"): h3 {{ myState.statusMessage }}
 
     .dragger(@mousedown="dividerDragStart" @mouseup="dividerDragEnd" @mousemove.stop="dividerDragging")
@@ -167,6 +169,7 @@ import {
 import DashboardDataManager from '@/js/DashboardDataManager'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 import DeckMapComponent from './MapComponent.vue'
+import PlanTable from './PlanTable.vue'
 import BackgroundLayers from '@/js/BackgroundLayers'
 
 import {
@@ -237,6 +240,7 @@ const PlansViewerPlugin = defineComponent({
   components: {
     DeckMapComponent,
     LegendColors,
+    PlanTable,
     ToggleButton,
     ZoomButtons,
   },
