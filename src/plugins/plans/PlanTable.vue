@@ -162,7 +162,7 @@ export default PlanTable
   margin: 0.5rem 0.5rem;
   max-height: 35%;
   // pointer-events: none;
-  // font-size: 1.2rem;
+  font-size: 0.9rem;
   overflow: auto;
 }
 
