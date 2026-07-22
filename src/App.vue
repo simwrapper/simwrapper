@@ -955,6 +955,11 @@ maplibregl-ctrl-attrib-button {
   background-color: var(--bgMap);
 }
 
+.modebar-group {
+  margin-top: -9px !important;
+  margin-right: -0.5rem !important;
+}
+
 @media only screen and (max-width: 640px) {
   .breadcrumbs {
     padding-left: 1rem;
