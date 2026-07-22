@@ -387,8 +387,10 @@ export default defineComponent({
 
       // split panel?
       if (pathMatch.startsWith('split/')) {
-        // if (!isNavigateNeeded) return
-        const payload = pathMatch.substring(6)
+        // drop 'split/'
+        let payload = pathMatch.substring(6)
+        // drop trailing slash
+        if (payload.endsWith('/')) payload = payload.slice(0, payload.length - 1)
         try {
           const content = atob(payload)
           const json = JSON.parse(content)
