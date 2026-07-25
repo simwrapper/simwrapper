@@ -2,14 +2,14 @@
 .xpanel
 
   h2(style="margin-top: 1rem") Run {{ runId }}
-    b-button.button-run-again.floatright(
+    o-button.button-run-again.floatright(
       v-if="job.status && 'Draft' !== job.status"
-      type="is-warning"
+      variant="warning"
       @click="clickedRunAgain"
     ) Run again...
-    b-button.button-run-again.floatright(
+    o-button.button-run-again.floatright(
       v-if="'Draft' == job.status"
-      type="is-success"
+      variant="success"
       @click="clickedLaunch"
     ) Launch Run
 
@@ -31,7 +31,7 @@
              style="backgroundColor: #ffffff88; margin-bottom: 1px"
              :label="kv[1]"
              v-model="job[kv[0]]"
-             @input="handleFieldChanged(kv[0])"
+             @update:modelValue="handleFieldChanged(kv[0])"
            )
 
   .files-table
@@ -69,14 +69,14 @@ const i18n = {
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import { VueGoodTable } from 'vue-good-table'
+import { VueGoodTable } from 'vue-good-table-next'
 import { filesize } from 'filesize'
 
 import globalStore from '@/store'
 import DropFile from './DropFile.vue'
 import EditableField from '@/components/EditableField.vue'
 
-import 'vue-good-table/dist/vue-good-table.css'
+import 'vue-good-table-next/dist/vue-good-table-next.css'
 
 import { JOBSTATUS } from './SimRunner.vue'
 

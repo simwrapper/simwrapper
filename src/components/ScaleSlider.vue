@@ -1,9 +1,9 @@
 <template lang="pug">
-b-slider.time-slider(v-if="options.data.length"
+o-slider.time-slider(v-if="options.data.length"
   v-bind="options"
   v-model="sliderValue"
 )
-  b-slider-tick(v-for="tick,i in options.data" :key="i" :value="i")
+  o-slider-tick(v-for="tick,i in options.data" :key="i" :value="i")
 </template>
 
 <script lang="ts">
@@ -23,7 +23,7 @@ export default defineComponent({
         tooltip: self.tooltip,
         'tooltip-always': self.tooltip,
         min: 0,
-        size: 'is-small',
+        size: 'small',
         max: 100,
         indicator: true,
         data: [] as any[], //this.stops,

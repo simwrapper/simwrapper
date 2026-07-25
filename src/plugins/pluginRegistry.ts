@@ -1,4 +1,4 @@
-import { AsyncComponent, defineAsyncComponent } from 'vue'
+import { Component, defineAsyncComponent } from 'vue'
 
 // EVERY plugin must be registered here:
 
@@ -161,7 +161,7 @@ const plugins: any[] = [
   // },
 ]
 
-export const pluginComponents: { [key: string]: AsyncComponent } = {}
+export const pluginComponents: { [key: string]: Component } = {}
 
 plugins.forEach(p => {
   pluginComponents[p.kebabName] = p.component

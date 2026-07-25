@@ -14,7 +14,7 @@
   .widgets
     .widget
       b Choose a dataset from files in this folder:
-      b-select.selector(expanded v-model="fileChoice")
+      o-select.selector(expanded v-model="fileChoice")
         option(value="" label="Select file...")
         option(v-for="filename in filesInFolder" :value="filename" :label="filename")
 
@@ -29,20 +29,23 @@
         @validated="handleFilesValidated"
         @changed="handleFilesChanged")
 
-          | or&nbsp;
-          b: a browse your files
+          template(#default)
+            | or&nbsp;
+            b: a browse your files
 
-          .section-top(slot="top")
-            br
-            p Drop files into this area.
-            p No size limit, but large datasets could crash your browser :-)
-            br
-            p Supported file types:&nbsp;
-              b {{ validDataTypes.join(', ')}}
+          template(#top)
+            .section-top
+              br
+              p Drop files into this area.
+              p No size limit, but large datasets could crash your browser :-)
+              br
+              p Supported file types:&nbsp;
+                b {{ validDataTypes.join(', ')}}
 
-          .section-bottom(slot="loader")
-            p: b Processing files<br/>
-            p: i Please wait...
+          template(#loader)
+            .section-bottom
+              p: b Processing files<br/>
+              p: i Please wait...
 
       br
       p.center

@@ -2,7 +2,7 @@
 .color-ramp-picker
   .widgets
     .widget
-        b-select.selector(expanded v-model="dataColumn")
+        o-select.selector(expanded v-model="dataColumn")
           option(label="Single color" value="")
           optgroup(v-for="dataset in datasetChoices()"
                   :key="dataset" :label="dataset")
@@ -19,7 +19,7 @@
     .widgets
       .widget
         p Steps
-        b-input(v-model="steps"
+        o-input(v-model="steps"
             placeholder="Number"
             type="number"
             min="2"
@@ -27,7 +27,7 @@
 
       .widget
         p Reverse
-        b-checkbox.hello(v-model="flip")
+        o-checkbox.hello(v-model="flip")
 
     .color-ramp(v-for="choice of colorChoices" :key="choice.ramp"
       @click="pickColor(choice)"

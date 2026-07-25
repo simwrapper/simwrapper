@@ -10,8 +10,8 @@
       .content(v-html="md")
 
     footer.modal-card-foot
-      b-button.xbutton(v-if="buttons.length == 1" class="button is-link" @click="clicked(buttons[0])") {{ buttons[0] }}
-      b-button.xbutton(v-for="label,i in buttons" :key="label" ref="xbutton"
+      o-button.xbutton(v-if="buttons.length == 1" class="button is-link" @click="clicked(buttons[0])") {{ buttons[0] }}
+      o-button.xbutton(v-for="label,i in buttons" :key="label" ref="xbutton"
         :class="{'is-danger': i == 0, 'is-outlined': i==0}"
         :style="{'margin-right': i == 0 ? 'auto' : '0.5rem'}"
         @click="clicked(i)"

@@ -9,9 +9,10 @@
     .has-errors(v-else)
 
       .clear-button
-        b-button.is-small(
+        o-button.is-small(
           v-if="state.statusErrors.length || state.statusWarnings.length"
-          type="is-warning is-outlined"
+          variant="warning"
+          outlined
           expanded
           @click="clearAllButtons()"
         ) Clear all messages

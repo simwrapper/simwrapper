@@ -5,7 +5,7 @@
   .output-table(v-if="entries.length" data-testid="entry-table")
     .row(v-for="row,i in entries" :key="'entry'+i")
       .cell.top-label(:style="row.style") {{ row.title }}
-      b-input.b-input-tight.cell.top-value(
+      o-input.b-input-tight.cell.top-value(
         v-model="row.value"
         :style="row.style"
         @input="boxChanged"

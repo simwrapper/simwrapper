@@ -145,7 +145,7 @@ const i18n = {
   },
 }
 
-import Vue, { defineComponent } from 'vue'
+import { defineComponent } from 'vue'
 
 import { Route } from 'vue-router'
 import micromatch from 'micromatch'
@@ -865,8 +865,7 @@ export default defineComponent({
 
     setCardTitles(card: any, event: any) {
       if (typeof event == 'string') {
-        // card.title = event // this isn't working, use Vue.set() instead
-        Vue.set(card, 'title', event)
+        card.title = event
         card.description = ''
       } else {
         card.title = event.title

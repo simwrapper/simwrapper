@@ -1,9 +1,9 @@
 <template lang="pug">
 .slider-thingy
-  b-slider.slider(
+  o-slider.slider(
     v-model="sliderValue"
     v-bind="sliderOptions"
-    size="is-large"
+    size="large"
     @dragging="dragging"
     @dragstart="dragStart"
     @dragend="dragEnd"

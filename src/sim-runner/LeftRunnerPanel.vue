@@ -31,13 +31,13 @@
 
       .add-details(v-if="showAddResource")
         p Label
-        b-input.b-input(v-model="addNickname" size="is-small" placeholder="server" maxlength="255")
+        o-input.b-input(v-model="addNickname" size="small" placeholder="server" maxlength="255")
         p Server URL
-        b-input.b-input(v-model="addUrl" size="is-small" placeholder="https://server" maxlength="255")
+        o-input.b-input(v-model="addUrl" size="small" placeholder="https://server" maxlength="255")
         p Authentication Key
-        b-input.b-input(v-model="addKey" size="is-small" placeholder="user-123456" maxlength="255")
+        o-input.b-input(v-model="addKey" size="small" placeholder="user-123456" maxlength="255")
 
-        b-button.add-button.is-small(type="is-warning" @click="addServer") &nbsp;&nbsp;Add&nbsp;&nbsp;
+        o-button.add-button.is-small(variant="warning" @click="addServer") &nbsp;&nbsp;Add&nbsp;&nbsp;
 </template>
 
 <script lang="ts">

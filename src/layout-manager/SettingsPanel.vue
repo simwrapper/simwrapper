@@ -7,33 +7,33 @@
     // theme ------------------
     .option
       h5 {{ $t('theme') }}
-      b-button.button.is-small.is-white(@click="setTheme('light')"
+      o-button.button.is-small.is-white(@click="setTheme('light')"
         outlined
         :style="isLight") {{ $t('light') }}
 
-      b-button.button.is-small.is-white(@click="setTheme('dark')"
+      o-button.button.is-small.is-white(@click="setTheme('dark')"
         outlined
         :style="isDark") {{ $t('dark') }}
 
     // language ---------------
     .option
       h5 {{ $t('language') }}
-      b-button.button.is-small.is-white(@click="setLanguage('en')"
+      o-button.button.is-small.is-white(@click="setLanguage('en')"
         outlined
         :style="isEN") EN
 
-      b-button.button.is-small.is-gray(@click="setLanguage('de')"
+      o-button.button.is-small.is-gray(@click="setLanguage('de')"
         outlined
         :style="isDE") DE
 
     // gamepad axes
     .option
       h5 {{ $t('gamepad') }}
-      b-button.button.is-small.is-white(@click="setGamepad(1)"
+      o-button.button.is-small.is-white(@click="setGamepad(1)"
         outlined
         :style="isNormal") {{ $t('gamepad-normal') }}
 
-      b-button.button.is-small.is-gray(@click="setGamepad(-1)"
+      o-button.button.is-small.is-gray(@click="setGamepad(-1)"
         outlined
         :style="isInverted") {{ $t('gamepad-inverted') }}
 

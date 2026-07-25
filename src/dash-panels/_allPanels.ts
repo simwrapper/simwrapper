@@ -1,10 +1,10 @@
-import { AsyncComponent, defineAsyncComponent } from 'vue'
+import { Component, defineAsyncComponent } from 'vue'
 
 // add every chart type here.
 // the name of the import will be the chart "type" in YAML.
 
 // resizable charts:
-export const panelLookup: { [key: string]: AsyncComponent } = {
+export const panelLookup: { [key: string]: Component } = {
   // aggregate: defineAsyncComponent(() => import('./aggregate-od.vue')),
   // area: defineAsyncComponent(() => import('./area.vue')),
   bar: defineAsyncComponent(() => import('./bar.vue')),

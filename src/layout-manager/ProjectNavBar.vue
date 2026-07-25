@@ -1,41 +1,33 @@
 <template lang="pug">
-b-navbar#site-nav-bar(
+nav#site-nav-bar.navbar(
   :style="getNavbarStyle(navbar)"
-  :type="isDark ? 'is-black' : 'is-white'"
+  :class="isDark ? 'is-black' : 'is-white'"
 )
 
-  template("#brand" v-if="navbar.logo")
-    b-navbar-item(
-      @click="navigate(navbar.logo.url)" :style="getStyle(navbar.logo)"
-    ): img(:src="navbar.logo.image" :style="getStyle(navbar.logo)")
+  .navbar-brand(v-if="navbar.logo")
+    a.navbar-item(@click="navigate(navbar.logo.url)" :style="getStyle(navbar.logo)")
+      img(:src="navbar.logo.image" :style="getStyle(navbar.logo)")
 
-  template("#start")
+  .navbar-menu
+    .navbar-start
+      template(v-for="item,i in navbar.left" :key="`left-${i}`")
+        .navbar-item.has-dropdown.is-hoverable(v-if="item.dropdown" :style="getStyle(item)")
+          a.navbar-link {{ getLabel(item) }}
+          .navbar-dropdown
+            a.navbar-item(v-for="child in item.dropdown" :key="`lchild-${i}-${child.url}`"
+              @click="navigate(child.url)"
+            ) {{ getLabel(child) }}
+        a.navbar-item(v-else :style="getStyle(item)" @click="navigate(item.url)") {{ getLabel(item) }}
 
-    component(v-for="item,i in navbar.left" :key="`${i}`"
-      hoverable
-      :is="item.dropdown ? 'BNavbarDropdown' : 'BNavbarItem'"
-      :style="getStyle(item)"
-      :label="item.dropdown ? getLabel(item) : undefined"
-      @click="navigate(item.url)"
-    ) {{ item.dropdown ? undefined : getLabel(item) }}
-
-      b-navbar-item(v-for="child in item.dropdown" :key="`child-${i}`"
-        @click="navigate(child.url)"
-      ) {{ getLabel(child) }}
-
-  template("#end")
-
-    component(v-for="item,i in navbar.right" :key="`${i}`"
-      hoverable
-      :is="item.dropdown ? 'BNavbarDropdown' : 'BNavbarItem'"
-      :style="getStyle(item)"
-      :label="item.dropdown ? getLabel(item) : undefined"
-      @click="navigate(item.url)"
-    ) {{ item.dropdown ? undefined : getLabel(item) }}
-
-      b-navbar-item(v-for="child,j in item.dropdown" :key="`child-${j}`"
-        @click="navigate(child.url)"
-      ) {{ getLabel(child) }}
+    .navbar-end
+      template(v-for="item,i in navbar.right" :key="`right-${i}`")
+        .navbar-item.has-dropdown.is-hoverable(v-if="item.dropdown" :style="getStyle(item)")
+          a.navbar-link {{ getLabel(item) }}
+          .navbar-dropdown
+            a.navbar-item(v-for="child in item.dropdown" :key="`rchild-${i}-${child.url}`"
+              @click="navigate(child.url)"
+            ) {{ getLabel(child) }}
+        a.navbar-item(v-else :style="getStyle(item)" @click="navigate(item.url)") {{ getLabel(item) }}
 
 </template>
 
