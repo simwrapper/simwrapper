@@ -16,30 +16,30 @@ const routes = [
       subfolder: '',
     }),
   },
-  {
-    path: BASE_URL + 'matrix',
-    component: () => import('@/plugins/matrix/MatrixViewer.vue'),
-    props: (route: Route) => ({
-      root: '',
-      subfolder: '',
-    }),
-  },
-  {
-    path: BASE_URL + 'map',
-    component: () => import('@/plugins/layer-map/LayerMap.vue'),
-    props: (route: Route) => ({
-      root: '',
-      subfolder: '',
-    }),
-  },
-  {
-    path: BASE_URL + 'maps',
-    component: () => import('@/plugins/layer-map/LayerMap.vue'),
-    props: (route: Route) => ({
-      root: '',
-      subfolder: '',
-    }),
-  },
+  // {
+  //   path: BASE_URL + 'matrix',
+  //   component: () => import('@/plugins/matrix/MatrixViewer.vue'),
+  //   props: (route: Route) => ({
+  //     root: '',
+  //     subfolder: '',
+  //   }),
+  // },
+  // {
+  //   path: BASE_URL + 'map',
+  //   component: () => import('@/plugins/layer-map/LayerMap.vue'),
+  //   props: (route: Route) => ({
+  //     root: '',
+  //     subfolder: '',
+  //   }),
+  // },
+  // {
+  //   path: BASE_URL + 'maps',
+  //   component: () => import('@/plugins/layer-map/LayerMap.vue'),
+  //   props: (route: Route) => ({
+  //     root: '',
+  //     subfolder: '',
+  //   }),
+  // },
   {
     path: BASE_URL + 'runconfig/:id',
     component: () => import('@/sim-runner/RunConfigurator.vue'),
@@ -57,31 +57,6 @@ const routes = [
     redirect: BASE_URL,
   },
 ]
-
-// // // individual viz plugins all go into /v/* subpaths
-// function vizPlugins(): any[] {
-//   const plugins = []
-//   for (const plugin of globalStore.state.visualizationTypes.values()) {
-//     plugins.push({
-//       path: BASE_URL + 'v/' + plugin.kebabName + '/:slug/*',
-//       name: plugin.kebabName,
-//       component: plugin.component,
-//       props: (route: Route) => {
-//         const match = route.params.pathMatch
-//         const subfolder = match.substring(0, match.lastIndexOf('/'))
-//         const yamlConfig = match.substring(match.lastIndexOf('/') + 1)
-//         return {
-//           root: route.params.slug,
-//           subfolder,
-//           yamlConfig,
-//           thumbnail: false,
-//         }
-//       },
-//     })
-//   }
-
-//   return plugins
-// }
 
 const router = new VueRouter({
   mode: 'history',
