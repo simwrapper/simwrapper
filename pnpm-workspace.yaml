@@ -1,0 +1,6 @@
+patchedDependencies:
+  crossfilter2@1.5.4: patches/crossfilter2@1.5.4.patch
+  dbf@0.1.4: patches/dbf@0.1.4.patch
+  zstd-wasm-decoder@0.2.3: patches/zstd-wasm-decoder@0.2.3.patch
+  '@h5web/lib': patches/@h5web__lib@14.0.1.patch
+  '@h5web/h5wasm': patches/@h5web__h5wasm.patch

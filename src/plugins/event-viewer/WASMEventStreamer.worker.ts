@@ -5,6 +5,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 
 import init, { EventStreamer } from 'matsim-event-streamer'
+// import wasmUrl from 'matsim-event-streamer/matsim_event_streamer_bg.wasm?url'
 
 import AllEventLayers from './_views'
 
@@ -55,7 +56,10 @@ const Task = {
       console.log('----starting event stream')
       const { filename, fsConfig } = props
 
+      // await init(wasmUrl)
       await init()
+      console.log('----survived init()')
+
       const compression = filename.toLowerCase().endsWith('.zst') ? 'zstd' : 'gzip'
       this._eventStreamer = new EventStreamer(compression)
       console.log('EVENT STREAM survived INIT, compression =', compression)

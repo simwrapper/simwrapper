@@ -44,6 +44,7 @@ export default defineConfig(({ command, mode }) => {
         'shapefile/dbf/read',
         'shapefile/dbf/string',
       ],
+      exclude: ['matsim-event-streamer'],
     },
     plugins: [
       // vue
