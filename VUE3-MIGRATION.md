@@ -11,7 +11,8 @@ dashboard chart panels are still removed/commented out** and are the next body o
 This doc is the playbook for re-migrating them.
 
 Stack now: Vue 3.5, vue-router 4, vuex 4, vue-i18n 9 (**Legacy/Options API mode**),
-Oruga UI (replacing Buefy) + Bulma, Vite 6 with `@vitejs/plugin-vue`, Vitest 4, pnpm.
+Oruga UI (replacing Buefy) + Bulma, **Vite 8 (Rolldown bundler)** with `@vitejs/plugin-vue`,
+Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 ---
 
@@ -92,6 +93,10 @@ Most core components needed almost none of this (the codebase was already `defin
   if a plugin uses one, replace with mitt or props/emits.
 - **i18n**: keep the component-local `i18n: { messages: { en, de } }` option and `$t()` —
   they work in Legacy mode. Do **not** convert plugins to `useI18n`/Composition.
+- **SCSS**: in a component `<style lang="scss">`, use `@use '@/variables' as *;` (as the
+  first line) to access shared Sass variables — **not** `@import '@/styles.scss'` (deprecated,
+  and it re-emits the whole global theme). The global theme CSS + library CSS are loaded once
+  in `main.ts`. CSS custom properties (`var(--x)`) are global and need no import at all.
 - **Lifecycle**: `beforeDestroy` → `beforeUnmount`, `destroyed` → `unmounted` (still warns
   but works; fix when touching a file). Note `SimRunner.vue` still has `beforeDestroy`.
 - **React interop** (h5web / matrix viewer): the `createRoot` mount path was removed with

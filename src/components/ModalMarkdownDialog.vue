@@ -51,7 +51,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .xmodal {
   margin: 3rem auto 0 0;

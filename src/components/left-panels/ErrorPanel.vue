@@ -108,7 +108,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .panel {
   user-select: none;

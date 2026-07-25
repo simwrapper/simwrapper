@@ -3,6 +3,16 @@ import { createI18n } from 'vue-i18n'
 import { createOruga, OrugaComponentPlugins } from '@oruga-ui/oruga-next'
 import { bulmaConfig } from '@oruga-ui/theme-bulma'
 
+// Global stylesheets (order matters): resets/libs first, then app theme.
+// These live here rather than in App.vue's <style> so they don't collide with
+// Sass's "@use must come first" rule.
+import 'the-new-css-reset/css/reset.css'
+import 'lil-gui/dist/lil-gui.min.css'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import 'bulma/css/bulma.min.css'
+import '@oruga-ui/theme-bulma/style.css'
+import '@/styles.scss'
+
 // order of these is important:
 import locale from '@/localeSettings'
 import store from '@/store'

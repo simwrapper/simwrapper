@@ -290,7 +290,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 .color-ramp-picker {
   padding-right: 0rem;
 }

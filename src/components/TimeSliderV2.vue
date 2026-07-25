@@ -458,7 +458,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .time-slider-component {
   display: flex;

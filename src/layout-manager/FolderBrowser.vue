@@ -683,7 +683,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .folder-browser {
   margin-top: 1rem;

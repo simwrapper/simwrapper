@@ -1,28 +1,6 @@
-$mainFont: Figtree, Roboto, Helvetica, Arial, sans-serif;
-$fancyFont: Figtree, Roboto, Helvetica, Arial, sans-serif;
-$appTag: #53b589;
-$matsimBlue: #4b7cc4;
-$tuRed: #b40d1e;
-$steelGray: #2a3c4f;
-$themeColor: $matsimBlue;
-$themeColorPale: #363645; // #364673;
-$themeColorPaler: #b9c9df;
-$colorBoldBackground: $steelGray;
-$colorPurple: #6a1b9a;
-$colorYellow: #ffdf80;
-$colorSimWrapperYellow: #ffe07f;
-$paleBackground: #dbd9d7;
-$panelTitle: #5555ccdd;
-$darkBackground: #181a1b;
-$navHeight: 3.25rem;
-$bannerHighlight: #1d3355;
-$sizeMobile: 30em;
-$sizeVessel: 70rem;
-$dashboardWidth: 70rem;
-$thumbnailHeight: 10rem;
-$filterShadow: drop-shadow(0px 3px 5px #22222244);
-$yellowHighlight: #deef6f;
-$cardSpacing: 1.25rem;
+// Shared Sass variables now live in _variables.scss (no CSS output there).
+// This file emits the global theme CSS custom properties.
+@use './variables' as *;
 
 :root {
   --bg: #edebe4;

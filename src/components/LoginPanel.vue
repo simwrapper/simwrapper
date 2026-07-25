@@ -99,7 +99,7 @@ export default defineComponent({
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .boop {
   padding-top: 1rem;

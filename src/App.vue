@@ -219,13 +219,8 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
-@import '~/the-new-css-reset/css/reset.css';
-@import '~/lil-gui/dist/lil-gui.min.css';
-@import '~/maplibre-gl/dist/maplibre-gl.css';
-@import '~/bulma/css/bulma.min.css';
-@import '~/@oruga-ui/theme-bulma/dist/theme.css';
-
-@import '@/styles.scss';
+// Sass variables only; global CSS libs + theme are imported in main.ts.
+@use '@/variables' as *;
 
 @font-face {
   font-family: 'FiraSans';

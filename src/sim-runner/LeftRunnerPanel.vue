@@ -192,7 +192,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 .panel {
   display: flex;
   flex-direction: column;

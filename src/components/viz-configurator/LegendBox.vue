@@ -100,7 +100,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .legend-box {
   font-size: 0.85rem;
