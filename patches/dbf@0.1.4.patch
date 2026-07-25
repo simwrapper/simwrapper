@@ -1,7 +1,7 @@
-diff --git a/node_modules/dbf/src/structure.js b/node_modules/dbf/src/structure.js
-index 4b02783..f2b4c0b 100644
---- a/node_modules/dbf/src/structure.js
-+++ b/node_modules/dbf/src/structure.js
+diff --git a/src/structure.js b/src/structure.js
+index 4b02783fe52f8c1cc31220242d34633f6a90db70..f2b4c0bb34b6a9ca451908a2fd3ad5a6a21bd18b 100644
+--- a/src/structure.js
++++ b/src/structure.js
 @@ -55,7 +55,7 @@ module.exports = function structure(data, meta) {
          if (f.type == 'N') view.setInt8(32 + i * 32 + 17, 3);
      });
