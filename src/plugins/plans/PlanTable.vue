@@ -142,26 +142,25 @@ export default PlanTable
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-/* SCROLLBARS
-   The emerging W3C standard is currently Firefox-only */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--bgBold) var(--bgPanel2);
-}
+// /* SCROLLBARS
+//    The emerging W3C standard is currently Firefox-only */
+// * {
+//   scrollbar-width: thin;
+//   scrollbar-color: var(--bgBold) var(--bgPanel2);
+// }
 
-/* And this works on Chrome/Edge/Safari */
-*::-webkit-scrollbar {
-  width: 10px;
-}
+// /* And this works on Chrome/Edge/Safari */
+// *::-webkit-scrollbar {
+//   width: 10px;
+// }
 
 .plan-table {
   position: absolute;
-  bottom: 1rem;
+  bottom: 0;
   left: 0;
   right: 0;
-  margin: 0.5rem 0.5rem;
+  // margin: 0.5rem 0.5rem;
   max-height: 35%;
-  // pointer-events: none;
   font-size: 0.9rem;
   overflow: auto;
 }
@@ -199,5 +198,10 @@ thead {
   z-index: 10;
   background-color: var(--bgBold);
   filter: drop-shadow(0px 2px 4px #00000020);
+}
+
+tbody tr:nth-child(even) {
+  background-color: var(--bgCream);
+  color: var(--textBold);
 }
 </style>
