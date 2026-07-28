@@ -30,7 +30,7 @@ export default defineComponent({
     cbTooltip: { type: Function, required: true },
     cbClickEvent: { type: Function, required: false },
     viewId: { type: Number, required: true },
-    selectedLinkPaths: { type: Map as PropType<Map<number, number>>, required: false },
+    selectedLinkPaths: { type: Object as PropType<Map<number, number>>, required: false },
     dark: { type: Boolean, required: true },
     data: { type: Array, required: true },
     mapIsIndependent: { type: Boolean, required: true },
@@ -123,22 +123,6 @@ export default defineComponent({
       return result
     },
 
-    cbLineWidth() {
-      let lineWidth // can be callback OR a plain string in simple mode
-      if (typeof this.lineWidths == 'number') {
-        // simple width mode
-        lineWidth = this.lineWidths
-      } else {
-        // array of widths
-        lineWidth = (_: any, o: DeckObject) => {
-          // this is what we really want
-          //@ts-ignore
-          return this.lineWidths[o.index]
-        }
-      }
-      return lineWidth
-    },
-
     // ================= LAYERS ================
 
     layers() {
@@ -220,6 +204,7 @@ export default defineComponent({
       this.deckOverlay = new MapboxOverlay({
         interleaved: true,
         layers: this.layers,
+        pickingRadius: 10,
         onHover: this.handleHover,
         onClick: this.handleClick,
       })
@@ -270,11 +255,12 @@ export default defineComponent({
     },
 
     handleHover(target: any, event: any) {
+
+      target.color = [255, 0, 0, 255]
       if (target.index == -1) {
         this.cbTooltip(-1, null)
         return
       }
-      // console.log('hover', target, event)
       this.getTooltip(target)
       // this.tooltipStyle.display = 'none'
       // if (this.cbClickEvent) this.cbClickEvent(event)

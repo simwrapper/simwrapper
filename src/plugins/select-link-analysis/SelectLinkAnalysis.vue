@@ -17,36 +17,24 @@
                         @click="chosenFormat = format"
                         ) {{ format }}
                 .query-info(v-if="selectedLink.link && queryTime > 0")
+
                     h4 Selected Link: {{ selectedLink.link.id }}
                     p Count of all link traversals: {{ Object.values(selectedLinkTraversals).reduce((a, b) => a + b, 0) }}
                     p Number of legs traversing this link: {{ selectedLinkTraversals[selectedLink.link.id] || 0 }}
                     p Query time: {{ Math.round(queryTime * 100) / 100 }} ms
                     p avg. traversals per leg: {{ Math.round((Object.values(selectedLinkTraversals).reduce((a, b) => a + b, 0) / (selectedLinkTraversals[selectedLink.link.id] || 0) || 0) * 100) / 100 }}
-                .filter-box(v-if="queriedAgents && Object.keys(queriedAgents).length")
-                    ul
-                        h4 Economic Groups
-                        li(v-for="group in economicGroups" :key="group" @click="filterAgentGroups(group)") {{ group }}
+                    //- .tooltip-html.flex-col(v-if="tooltipHtml && !statusText"
+                    //-     @mouseover="wantToClearTooltip=false" @mouseout="wantToClearTooltip=true"
+                    //-     )
+                    //-     .the-html(v-html="tooltipHtml")
+                    //-     .edit-hint(v-if="tooltipDesiredColumns.length" style="text-align: right;")
+                    //-         a(@click="showTooltipConfigurator=true") Show/hide...
 
-                legend-box(:legendStore="legendStore")
-                .agent-list.scrolly(v-if="queriedAgents && Object.keys(queriedAgents).length")
-                    .agent-header: b Agents traversing selected link:
-                      table.agent-table
-                        thead
-                            tr
-                                th Agent ID
-                                th(v-for="prop in allProps" :key="prop") {{ prop }}
-                        tbody
-                        tr(v-for="(agent, agentId) in queriedAgents" :key="agentId")
-                            td {{ agentId }}
-                            td(v-for="prop in allProps" :key="prop") {{ agent[prop] }}
-        //-         //- .bglayer-section.flex-col(v-if="Object.keys(bgLayers).length")
-        //-         //- h5 Layers
-        //-         //- b-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)" :key="
-        //-         @mouseover="wantToClearTooltip=false" @mouseout="wantToClearTooltip=true"
-        //-     )
-        //-         .the-html(v-html="tooltipHtml")
-        //-         .edit-hint(v-if="tooltipDesiredColumns.length" style="text-align: right;")
-        //-         a(@click="showTooltipConfigurator=true") Show/hide...
+                    //- //- .filter-box(v-if="queriedAgents && Object.keys(queriedAgents).length")
+                    //- ul
+                    //-     h4 Economic Groups
+                    //-     li(v-for="group in economicGroups" :key="group" @click="filterAgentGroups(group)") {{ group }}
+
         MapComponent.anim(v-if="!needsInitialMapExtent"
         :features="boundaries"
         :mapIsIndependent="true"
@@ -78,6 +66,18 @@
         //- )
 
         .tooltip(v-if="tooltip" v-html="tooltip.html" :style="tooltip.style")
+    .legend-footer
+        legend-box(:legendStore="legendStore")
+        .agent-list.scrolly(v-if="queriedAgents && Object.keys(queriedAgents).length")
+            table.agent-table
+                thead
+                    tr
+                        th Agent ID
+                        th(v-for="prop in allProps" :key="prop") {{ prop }}
+                tbody
+                    tr(v-for="(agent, agentId) in queriedAgents" :key="agentId")
+                        td {{ agentId }}
+                        td(v-for="prop in allProps" :key="prop") {{ agent[prop] }}
 
 </template>
 
@@ -302,7 +302,7 @@ const SelectLinkAnalysis = defineComponent({
             },
 
             links: null as any,
-            selectedLinkTraversals: new Map<number, number>() as any,
+            selectedLinkTraversals: new Object() as any,
             queriedAgents: new Map<number, any>() as any,
             sqlite3: null as Sqlite3Static | null,
 
@@ -451,21 +451,6 @@ const SelectLinkAnalysis = defineComponent({
                 false
             )
 
-            // if (this.connCsv) {
-            //     try {
-            //         const initialResult = await this.connCsv.query(`
-            //             SELECT COUNT(*) AS count
-            //             FROM "link-traversals-sorted.csv.zst"
-            //             WHERE hour = ${this.selectedHour}
-            //         `)
-            //         console.log('caching csv to allow for faster subsequent queries:', initialResult.toArray())
-
-            //     } catch (e) {
-            //         console.error('Error querying CSV data:', e)
-            //     }
-            // }
-
-
         },
 
         async loadParquetData() {
@@ -486,7 +471,7 @@ const SelectLinkAnalysis = defineComponent({
             await this.db.registerFileURL('leg-sequences-sorted.parquet', legSeqUrl, duckdb.DuckDBDataProtocol.HTTP, false)
             await this.db.registerFileURL('agents-sorted.parquet', agentsUrl, duckdb.DuckDBDataProtocol.HTTP, false)
 
-            // // initial query to warm up the system; also gives us a count of total traversals for the selected hour, which is useful info to have right away
+            // initial query to warm up the system; also gives us a count of total traversals for the selected hour, which is useful info to have right away
             // const initialResult = await this.conn.query(`
             //     SELECT COUNT(*) AS count
             //     FROM "link-traversals-sorted.parquet"
@@ -505,25 +490,6 @@ const SelectLinkAnalysis = defineComponent({
             const start = performance.now();
             try {
                 if (this.conn && this.chosenFormat === 'Parquet') {
-
-                    // old query with link traversals table:
-                    // const result = await this.conn.query(`
-                    //                         WITH sequences AS (
-                    //                         SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS link_id
-                    //                         FROM "leg-sequences.parquet" ls
-                    //                         INNER JOIN "link-index.parquet" lt
-                    //                             ON ls.leg_id = lt.leg_id
-                    //                         WHERE lt.link_id = '${linkId}' AND lt.hour = ${hour}
-                    //                     )
-                    //                     SELECT link_id, COUNT(*) AS count
-                    //                     FROM sequences
-                    //                     GROUP BY link_id
-                    //                         `)
-
-                    // const result = await this.conn.query(`
-                    // SELECT co_link_id, count AS traversal_count
-                    // FROM "link-index.parquet"
-                    // WHERE link_id = '${linkId}'AND hour = ${hour} `)
 
                     const result = await this.conn.query(`
                         WITH sequences AS (
@@ -683,7 +649,9 @@ const SelectLinkAnalysis = defineComponent({
             if (this.config) {
                 // Merge config into existing vizDetails to preserve required shape
                 Object.assign(this.vizDetails, this.config)
-                this.vizDetails.network = this.config.shapes.file || this.config.network || this.config.features
+                console.log('Using config from dashboard:', this.vizDetails)
+                console.log('Using config from dashboard:', this.config.network)
+                this.vizDetails.network = this.config.network
                 console.log('Using config from dashboard:', this.vizDetails)
                 console.log('Using config from dashboard:', this.config)
                 return
@@ -985,6 +953,9 @@ const SelectLinkAnalysis = defineComponent({
         },
 
         cbTooltip(index: number, object: any, forceUpdate: boolean = false) {
+
+            console.log('cbTooltip called with index:', index, 'object:', object, 'forceUpdate:', forceUpdate)
+
             if (this.tooltipIsFixed && !forceUpdate) return
 
             if (object === null || !this.boundaries[index]?.properties) {
@@ -1079,6 +1050,7 @@ const SelectLinkAnalysis = defineComponent({
             let finalHTML = propList.join('')
             const html = `<table>${finalHTML}</table>`
             this.tooltipHtml = html
+            console.log('tooltip html:', this.tooltipHtml)
         },
 
         async calculateAndMoveToCenter() {
@@ -1138,60 +1110,6 @@ const SelectLinkAnalysis = defineComponent({
             return value
         },
 
-        async generateCentroidsAndMapCenter() {
-            this.statusText = 'Calculating centroids...'
-            await this.$nextTick()
-            const idField = this.config?.shapes?.join || 'id'
-
-            // Find the map center while we're here
-            let centerLong = 0
-            let centerLat = 0
-            let count = 0
-
-            for (const feature of this.boundaries) {
-                let centroid = {} as any
-                try {
-                    centroid = turf.centerOfMass(feature as any)
-                } catch (e) {
-                    console.warn('no coordinates:')
-                    console.warn(feature)
-                    continue
-                }
-
-                if (!centroid.properties) centroid.properties = {}
-
-                if (feature.properties[this.config.boundariesLabel]) {
-                    centroid.properties.label = feature.properties[this.config.boundariesLabel]
-                }
-
-                centroid.properties.id = feature.properties[idField]
-                if (centroid.properties.id === undefined) centroid.properties.id = feature[idField]
-
-                this.centroids.push(centroid)
-
-                if (centroid.geometry) {
-                    centerLong += centroid.geometry.coordinates[0]
-                    centerLat += centroid.geometry.coordinates[1]
-                    count++
-                }
-            }
-
-            centerLong /= count
-            centerLat /= count
-
-            console.log('CENTER', centerLong, centerLat)
-            if (this.needsInitialMapExtent && !this.vizDetails.center) {
-                this.$store.commit('setMapCamera', {
-                    center: [centerLong, centerLat],
-                    bearing: 0,
-                    pitch: 0,
-                    zoom: 9,
-                    initial: true,
-                })
-                this.needsInitialMapExtent = false
-            }
-        },
-
         updateLegendColors() { },
 
         async buildThumbnail() {
@@ -1210,7 +1128,6 @@ const SelectLinkAnalysis = defineComponent({
             }
         },
 
-
     },
 
     async mounted() {
@@ -1219,7 +1136,7 @@ const SelectLinkAnalysis = defineComponent({
 
 
         globalStore.commit('setFullScreen', !this.thumbnail)
-        this.buildRouteFromUrl()
+        // this.buildRouteFromUrl()
 
         this.myState.thumbnail = this.thumbnail
         this.myState.subfolder = this.subfolder
@@ -1289,6 +1206,7 @@ const SelectLinkAnalysis = defineComponent({
         this.isLoaded = true
         this.$emit('isLoaded')
         this.showLegend = true
+        this.statusText = ''
     },
 
     beforeDestroy() {
@@ -1342,15 +1260,15 @@ export default SelectLinkAnalysis
 
 .container-1 {
     display: grid;
-    height: 100%;
     grid-template-columns: 1fr auto auto;
-    grid-template-rows: 1fr;
+    grid-template-rows: 1fr auto; // second row for the full-width footer
     pointer-events: auto;
     height: 100%;
 }
 
-// .select-link-viewer.hide-thumbnail {
-//     background: none;
+// .legend-footer {
+//     grid-column: 1 / -1; // span all 3 columns
+//     width: 100%;
 // }
 
 .main-panel {
@@ -1368,7 +1286,8 @@ export default SelectLinkAnalysis
     margin-top: 0.5rem;
     margin-left: 0.5rem;
     // background-color: var(--bgCardFrame);
-    padding: 0.25rem 0.5rem;
+    padding: 0.5rem 0.5rem;
+    width: 20rem;
     // border-radius: 4px;
     border: #FFF 1px solid;
     // font-size: 0.8rem;
@@ -1387,61 +1306,47 @@ export default SelectLinkAnalysis
     // z-index: 2;
 }
 
+.legend-footer {
+    grid-column: 1 / -1;
+    width: 100%;
+    position: relative; // contains any absolutely-positioned children if needed later
+    background-color: var(--bgCardFrame);
+}
 
 .agent-list {
-    // margin-top: 1rem;
-    // padding: 0.5rem;
     padding: 0 0.5rem;
-    bottom: 0;
     background-color: var(--bgCardFrame);
     border-radius: 4px;
-    position: absolute;
-    height: 30%;
 }
 
 .agent-list.scrolly {
     width: 100%;
-    max-height: 40%;
-    /* or whatever height you want */
-    overflow: auto;
-    /* enables scrolling if content overflows */
-    //   border: 1px solid #ddd;
-    //   border-radius: 4px;
-    //   padding: 8px;
+    max-height: 300px;
+    overflow: auto; // handles BOTH vertical and horizontal scroll here, in one place
     box-sizing: border-box;
 }
 
-.agent-list.scrolly.p.b {
-    top: 0;
-}
-
-
 .agent-table {
     width: 100%;
-    border-collapse: collapse;
-    // table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+    white-space: nowrap;
 }
 
 .agent-table th,
 .agent-table td {
-    border: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+    border-right: 1px solid #ddd;
     padding: 8px;
     text-align: left;
-    word-wrap: break-word;
 }
 
 .agent-table th {
     background-color: #f2f2f2;
     position: sticky;
     top: 0;
-}
-
-.agent-list.scrolly .agent-header {
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-    color: var(--text);
-    position: sticky;
-    top: 0;
+    z-index: 2;
+    box-shadow: inset 0 -1px 0 #ddd;
 }
 
 .new-rightside-info-panel {
@@ -1481,6 +1386,26 @@ export default SelectLinkAnalysis
     }
 }
 
+.tooltip-when-no-legend-present {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    z-index: 20;
+    font-size: 0.8rem;
+    padding: 0.25rem;
+    margin: 0.25rem 0.25rem;
+    min-width: 12rem;
+    text-align: left;
+    background-color: var(--bgCardFrame);
+    border: 1px solid #8888;
+    max-height: 50%;
+    filter: drop-shadow(2px 4px 6px #0004);
+}
+
+// .the-html {
+//     overflow-y: auto;
+// }
+
 .time-slider-area {
     position: absolute;
     bottom: 0.5rem;
@@ -1515,5 +1440,17 @@ export default SelectLinkAnalysis
     background: #007bff;
     color: white;
     border-color: #007bff;
+}
+
+.status-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    z-index: 200;
+    background-color: var(--bgPanel2);
+    padding: 1rem 1rem;
+    font-size: 1.1rem;
+    margin-bottom: 6px;
+    border: 1px solid var(--);
 }
 </style>
