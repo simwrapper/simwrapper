@@ -41,11 +41,12 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 | | enabled | verified in a browser |
 |---|---|---|
-| dash-panels | `area` `bar` `bubble` `csv` `heatmap` `line` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` |
-| plugins | `image-view` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all seven |
+| dash-panels | `area` `bar` `bubble` `csv` `heatmap` `hexagons` `line` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` |
+| plugins | `hexagons` `image-view` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all eight |
 
-Still removed: `aggregate` `gridmap` `hexagons` `transit` `vehicles` panels, and all the
-full-screen map plugins.
+Still removed: `aggregate` `gridmap` `transit` `vehicles` panels, and the remaining
+full-screen map plugins (`layers` `area-map` `carriers` `flowmap` `links` `matrix` `xytime`
+`events` `logistics` `plans` `aeq-reader` …).
 
 The `video` **panel** and the `video-player` **plugin** are different components serving the
 same fixture folder two ways: `/e2e-tests/video-player` renders `dashboard-movie.yaml` through
@@ -232,11 +233,15 @@ boundary breaks:
 objects and arrays, returning anything else untouched — **this matters**:
 `FileSystemConfig.handle` is a real `FileSystemAPIHandle`, and a naive deep-copy would
 silently break Chrome local-folder access. Currently applied to the four `postMessage`
-payloads in `DashboardDataManager.ts`, the three in `TopSheet.vue`, and the one in
-`XmlViewer.vue`.
+payloads in `DashboardDataManager.ts`, the three in `TopSheet.vue`, the one in
+`XmlViewer.vue`, and the two in `xy-hexagons/XyHexagons.vue`.
 
-**Wrap every new `worker.postMessage()` in it.** This has now bitten four separate places
-(dashboard datasets, vega, topsheet, xml-viewer); assume it will bite the next worker too.
+**Wrap every new `worker.postMessage()` in it.** This has now bitten five separate places
+(dashboard datasets, vega, topsheet, xml-viewer, xy-hexagons); assume it will bite the next
+worker too. Note the symptom varies: xy-hexagons didn't error visibly, it just **hung
+forever** — both e2e tests sat at the 2-minute timeout, and passed in ~15s once wrapped.
+Only `postMessage` from the *main thread* is affected; a `postMessage` inside a `.worker.ts`
+(worker → main) carries no proxies and needs nothing.
 Note the payload doesn't have to be a `config` prop — `XmlViewer.vue` posted a
 `FileSystemConfig` pulled straight from `$store.state.svnProjects`, which is just as
 proxied. Anything reachable from props *or* store state counts.
@@ -411,8 +416,14 @@ Most core components needed almost none of this (the codebase was already `defin
 | `type="is-x is-outlined"` | `variant="x"` + `outlined` | |
 | `b-navbar` / `b-navbar-item` | native Bulma `nav.navbar` markup | Oruga has no navbar |
 | `b-menu-list` | Bulma `p.menu-label` (or `o-menu`) | |
-| `vue-js-toggle-button` | `o-switch` | |
+| `vue-js-toggle-button` | `o-switch` | package is uninstalled — see note below |
+| Buefy slider `:duration` / `:dotSize` | *(drop them)* | not Oruga props; they'd fall through as DOM attrs |
 | slider option `size:'is-small'` | `'small'` | |
+
+⚠️ **`vue-js-toggle-button` is not installed and not in `package.json`.** A restored file
+importing it will fail to build. `XyHexagons.vue` imported *and registered* `ToggleButton`
+without ever using it in the template, so the fix was simply deleting both lines — check
+whether a leftover import is actually used before reaching for `o-switch`.
 
 **Oruga registration** (already done in `main.ts`): the default plugin registers **no**
 components unless you pass them —

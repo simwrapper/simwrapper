@@ -57,11 +57,11 @@ const plugins: any[] = [
     filePatterns: ['(topsheet|table)*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./calculation-table/CalculationTable.vue')),
   },
-  // {
-  //   kebabName: 'hexagons',
-  //   filePatterns: ['**/viz-xy-*.y?(a)ml', '*output_trips.csv?(.gz)?(.zst)'],
-  //   component: defineAsyncComponent(() => import('./xy-hexagons/XyHexagons.vue')),
-  // },
+  {
+    kebabName: 'hexagons',
+    filePatterns: ['**/viz-xy-*.y?(a)ml', '*output_trips.csv?(.gz)?(.zst)'],
+    component: defineAsyncComponent(() => import('./xy-hexagons/XyHexagons.vue')),
+  },
   // {
   //   kebabName: 'links',
   //   component: defineAsyncComponent(() => import('./links-gl/NetworkLinks.vue')),
