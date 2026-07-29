@@ -1,0 +1,99 @@
+/**
+ * Styles shared for sqlite-backed readers (AequilibraE, Polaris, etc.)
+ * Centralized so all sqlite-map based readers have consistent appearance.
+ */
+
+/* Main container styles */
+.c-aequilibrae-viewer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--bgCardFrame);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Map container */
+.map-viewer {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+}
+
+/* Loading state indicator */
+.loading {
+  padding: 2rem;
+  text-align: center;
+  font-size: 1.2rem;
+  color: var(--textFancy);
+
+  /* Add subtle animation for loading state */
+  &::after {
+    content: '...';
+    display: inline-block;
+    animation: loading-dots 1.5s steps(4, end) infinite;
+  }
+}
+
+@keyframes loading-dots {
+  0%,
+  20% {
+    content: '';
+  }
+  40% {
+    content: '.';
+  }
+  60% {
+    content: '..';
+  }
+  80%,
+  100% {
+    content: '...';
+  }
+}
+
+/* Database content display styles */
+.database-content {
+  padding: 0.5rem 0;
+
+  h3 {
+    margin-bottom: 1rem;
+    color: var(--textFancy);
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  h4 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--link);
+    font-weight: bold;
+    font-size: 1.1rem;
+  }
+
+  p {
+    margin: 0.25rem 0;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .columns {
+    margin-left: 1rem;
+    font-size: 0.9rem;
+    color: var(--textFancy);
+
+    div {
+      margin: 0.1rem 0;
+      padding: 0.1rem 0;
+
+      &:hover {
+        background-color: var(--bgHover);
+        padding-left: 0.25rem;
+        border-left: 2px solid var(--link);
+      }
+    }
+  }
+}

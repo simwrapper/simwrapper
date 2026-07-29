@@ -40,11 +40,18 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 | | enabled | verified in a browser |
 |---|---|---|
-| dash-panels | `area` `bar` `bubble` `csv` `heatmap` `line` `pie` `plotly` `sankey` `scatter` `slideshow` `vega` | all except `pie` |
+| dash-panels | `area` `bar` `bubble` `csv` `heatmap` `line` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` | all except `pie` |
 | plugins | `plotly` `sankey` `summary-table` `vega-lite` | all four |
 
-Still removed: `aggregate` `gridmap` `hexagons` `text` `tile` `transit` `vehicles` `video`
-`xml` panels, and all the full-screen map plugins.
+Still removed: `aggregate` `gridmap` `hexagons` `transit` `vehicles` `video` `xml` panels,
+and all the full-screen map plugins.
+
+`sqlite-map` is restored and migrated, but it isn't a plugin — it's a **support library**.
+It's deliberately absent from `pluginRegistry.ts`: `tile.vue` uses its `db`/`loader`/
+`helpers` modules for SQL-backed tiles, and `SqliteMapComponent.vue` is a headless
+scoped-slot provider awaiting a consumer (the AequilibraE / Polaris readers, still removed —
+`reader.scss` is theirs and is currently unimported). Covered by
+`tests/unit/sqlite-map.test.ts` since nothing else compiles it.
 
 ## Verifying a change
 
@@ -64,6 +71,13 @@ Non-zero exit on any console error / uncaught page error; screenshots land in
 every card renders "Unknown panel type" (that just means the panel is still commented out
 in `_allPanels.ts`), and a chart can be blank with its error text tucked inside a card.
 
+⚠️ **`pnpm build` does not compile an unreferenced `.vue` file.** If a restored component
+isn't imported by anything (not in `_allPanels.ts`, not in `pluginRegistry.ts`, not imported
+by a sibling), the bundler never touches it — a broken template or a Vue 2 leftover there
+produces a perfectly green build. `src/plugins/sqlite-map/SqliteMapComponent.vue` is in that
+state; `tests/unit/sqlite-map.test.ts` mounts it purely so *something* compiles it. Do the
+same for any component you migrate but can't yet render.
+
 ### Getting real data in front of a panel
 
 Test data is **not** in this repo. The `e2e-tests` filesystem points at
@@ -72,7 +86,7 @@ Test data is **not** in this repo. The `e2e-tests` filesystem points at
 `svn.vsp.tu-berlin.de` URL; `src/fileSystemConfig.ts` has a deliberate uncommitted local
 override). Browse it at `/e2e-tests/<folder>`.
 
-Useful folders: `charts/` (many CSVs + plotly dashboards), `plotly/`, `vega-charts/`,
+Useful folders: `charts/` (many CSVs + plotly dashboards), `tiles/`, `plotly/`, `vega-charts/`,
 `sankey/`, `table/`.
 
 ⚠️ **Don't try to use `public/data` (the `files` filesystem) in dev.** Directory listings
@@ -82,13 +96,21 @@ This costs an hour if you don't know it. Use the `:8000` server instead.
 
 ### e2e tests
 
-`tests/e2e/dash-panels.spec.ts` covers `bar`/`area`/`line`/`scatter`/`bubble` (7 tests,
-green on chromium + firefox + webkit). It drives the **"Panels" tab** of
-`e2e-tests/charts`, backed by `charts/dashboard-8-panels.yaml` in the testdata SVN repo —
-**that fixture lives outside git**, so the spec fails for anyone without it committed.
+Two specs were added for the re-migrated panels, both green on chromium + firefox + webkit:
 
-Useful selectors: `.dash-card-headers` (card titles), `.plotly-plot` (one per chart),
-`.error-text` (card errors — assert `toHaveCount(0)`), `.legendtext`, `.xtitle`/`.ytitle`.
+- `tests/e2e/dash-panels.spec.ts` — `bar`/`area`/`line`/`scatter`/`bubble` (7 tests). Drives
+  the **"Panels" tab** of `e2e-tests/charts`.
+- `tests/e2e/tiles.spec.ts` — the `tile` panel (5 tests): both dataset forms, icon
+  resolution (local asset vs font-awesome), and link/non-clickable states. Drives
+  `e2e-tests/tiles`.
+
+**Both depend on fixtures that live outside git** (see Loose ends), so they fail on a
+machine without that testdata.
+
+Useful selectors: `.dash-card-headers` (card titles), `.dash-card-frame` (scope per card),
+`.plotly-plot` (one per chart), `.error-text` (card errors — assert `toHaveCount(0)`),
+`.legendtext`, `.xtitle`/`.ytitle`, `.tile` / `.tile-title` / `.tile-value` /
+`.tile-image`.
 
 When adding specs, mutation-check them: break the fixture on purpose and confirm the test
 actually fails. Counting `.plotly-plot` elements passes just as happily on an empty chart.
@@ -174,6 +196,28 @@ collapsed to ~21px and `overflow: hidden` clipped every row.
 counts `tbody tr` in the DOM, and the rows were there, just clipped. Only the screenshot
 showed it. If a panel type has no `defaultHeight`, keep its root in normal flow.
 
+### 6. Custom directives: every hook was renamed, and `vnode.context` is gone
+
+Like `beforeDestroy`, a Vue 2 directive hook name is simply an unknown key in Vue 3 — no
+warning, the directive just never runs. `text.vue`'s `v-markdown-links` had two problems:
+
+| Vue 2 | Vue 3 |
+|---|---|
+| `bind` | `beforeMount` |
+| `inserted` | `mounted` |
+| `update` / `componentUpdated` | `updated` |
+| `unbind` | `unmounted` |
+
+And **`vnode.context` was removed** — the component instance is now `binding.instance`:
+
+```ts
+// Vue 2                              // Vue 3
+vnode.context.$route.path             binding.instance.$route.path
+const mythis = vnode.context          const mythis = binding.instance
+```
+
+`grep -rn "inserted(\|unbind(\|componentUpdated(\|vnode.context" src/` should stay empty.
+
 ### Not bugs — don't chase these
 
 - **Plotly reverses legend order for stacked traces.** A stacked `area` chart legends as
@@ -246,6 +290,11 @@ Most core components needed almost none of this (the codebase was already `defin
 - **Anything crossing a worker or clone boundary** — if the component hands its `config`
   prop (or store state) to a worker or to a library that clones, de-proxy it first. See
   [trap #1](#1-a-reactive-proxy-cannot-be-structuredcloned).
+- **Custom directives** (`directives: { … }`): every hook name changed and `vnode.context`
+  is gone. Silently dead if missed — see
+  [trap #6](#6-custom-directives-every-hook-was-renamed-and-vnodecontext-is-gone).
+- **`this.` in template expressions** — `v-for="x in this.foo"` / `:class="this.bar"` worked
+  in Vue 2; drop the `this.` (hit in `table.vue` and `tile.vue`).
 - **Async `mounted()` + the dashboard resizer** — guard redraw entry points with a
   "loaded" flag. See [trap #3](#3-the-dashboard-calls-your-resizer-before-your-data-has-loaded).
 - **React interop** (h5web / matrix viewer): the `createRoot` mount path was removed with
@@ -311,7 +360,14 @@ Removed because they had zero usage in the stripped core; plugins may need them 
 
 ## Loose ends
 
-- `tests/unit/tile.test.ts` still fails to import — `tile.vue` is not restored.
+- `tests/unit/tile.test.ts` fails to load, and **not** because of `tile.vue` (which is now
+  restored and renders fine). `src/js/avro.js` is a 33-byte shim whose whole body is
+  `export default avro` — a bare global supplied in the browser by
+  `<script src="/src/js/avro-browserify.js">` in `index.html`. Vitest has no equivalent
+  (no `setupFiles` are configured), so evaluating it throws `ReferenceError: avro is not
+  defined`. The import chain is `tile.vue` → `DashboardDataManager` → `avro.js`. Fixing it
+  means giving vitest a setup file that defines the global, or making `avro.js` a real
+  module — not a Vue 3 issue.
 - `tests/unit/table.test.js` now **runs** (table.vue is back) and **fails**, for two stale
   reasons unrelated to Vue 3: its `getDataset` mock returns a bare column map instead of
   `{ allRows: … }`, so `prepareData()` throws on `Object.entries(undefined)`; and it asserts
@@ -323,26 +379,41 @@ Removed because they had zero usage in the stripped core; plugins may need them 
   (`prefer-const`, unused vars in workers); `--fix` handles most. When judging whether
   *your* change added a lint error, `git stash` and diff the counts — most files already
   have some.
-- Two fixtures added to the testdata SVN repo (**not** git — commit them there or they're
-  lost): `charts/dashboard-8-panels.yaml` (backs `dash-panels.spec.ts`) and
-  `charts/dashboard-9-slideshow.yaml`. Both add a tab to the `charts` dashboard, which is
-  the only existing dashboard folder — the image-bearing folders (`cottbus`, `logistics`,
-  `emissions`) are all file-browser folders backing other specs, and dropping a
-  `dashboard*.yaml` in one would flip its view mode and break them.
+- Fixtures added under `/Users/billy/public-svn/shared/simwrapper-testdata/` (**not** in
+  git — they only exist on this machine):
+  - `charts/dashboard-8-panels.yaml` — backs `tests/e2e/dash-panels.spec.ts`
+  - `charts/dashboard-9-slideshow.yaml` — images via a relative `../logistics/*.png` path
+  - `tiles/dashboard-10-tiles.yaml` + `tiles/tile-metrics.csv` — backs
+    `tests/e2e/tiles.spec.ts`; both dataset forms (CSV and inline list)
+
+  Note `svn status` reports `shared/simwrapper-testdata/charts` as `?` — that whole tree is
+  **unversioned** in the working copy (root is `/Users/billy/public-svn`), so these can't
+  just be `svn commit`ed; the testdata needs adding first, or publishing another way.
+
+  Adding a dashboard to `charts/` is safe because it's already a dashboard folder. Do
+  **not** drop a `dashboard*.yaml` into `cottbus/`, `logistics/`, or `emissions/` — they're
+  file-browser folders backing other specs, and a dashboard file flips their view mode and
+  breaks those specs.
 - One `@import '@/styles.scss'` survives, in
   `src/components/ColorMapSelector/Btn.module.css`. It's a plain CSS module for the
   React/h5web bridge, not Sass — the `@use` rule doesn't apply. Left alone deliberately.
+- `src/plugins/sqlite-map/viewstate-normalizer.ts` is dead — nothing imports it, and
+  `SqliteMapComponent.vue` carries a comment saying it was removed. Delete it or wire it
+  back up; left in place for now.
 
 ## Next up
 
-`text` and `tile` are registered in `_allPanels.ts` but their `.vue` files don't exist, so
-they are **commented out** for now — uncomment when the files come back. (A registry entry
-pointing at a missing file 500s `_allPanels.ts`, which cascades to a
-`Failed to fetch dynamically imported module: LayoutManager.vue` and a blank app. `pnpm dev`
-survives until something imports it; `pnpm build` fails outright.)
+All restored files are migrated; `pnpm build` is green and every enabled panel/plugin has
+been rendered except `pie` (no fixture uses it).
 
 To bring back a panel/plugin: restore its file(s), work the checklist, uncomment its
 registry entry, and render it against a `:8000` fixture.
+
+⚠️ **Don't uncomment a registry entry before its file exists.** A missing target makes
+`_allPanels.ts` return a 500, which cascades into
+`Failed to fetch dynamically imported module: LayoutManager.vue` and a completely blank app
+— the symptom points at LayoutManager, not at the panel. `pnpm dev` survives until
+something imports it; `pnpm build` fails outright.
 
 ### Third-party packages: check for a Vue 3 fork first
 
