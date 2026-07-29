@@ -28,13 +28,14 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
   checkboxes, switch, sidebar; native Bulma navbar).
 - i18n stays on the **Options API** — every component keeps its inline `i18n: { messages }`
   option and `$t()` unchanged. **Do the same in plugins** (see below).
-- `pnpm test:run` (vitest, unit only): 8 pass. 2 fail (`tests/unit/table.test.js`,
-  `tile.test.ts`) **only** because they import removed panels (`dash-panels/table.vue`,
-  `tile.vue`) — pre-existing, not a regression. e2e specs target removed plugins; ignore
-  them until plugins return.
-- **No `vue-tsc` in this repo** — `.vue` files are never type-checked. `pnpm build`
+- `pnpm test:run` (vitest, unit only): 8 pass, 1 fails (`tests/unit/table.test.js`) and
+  `tests/unit/tile.test.ts` fails to load. Both panels are restored and render fine — the
+  failures are stale-test issues, diagnosed under Loose ends. e2e specs for still-removed
+  plugins will fail; ignore those until their plugins return.
+- **No `vue-tsc` in this repo** — `.vue` files are never type-checked, and `pnpm build`
   (Rolldown) strips types without checking them, so type errors inside SFCs are invisible.
-  Don't rely on the build to catch them.
+  This is a deliberate, measured decision — see
+  [Why there's no vue-tsc](#why-theres-no-vue-tsc-evaluated-deferred).
 
 ### Migrated & verified so far
 
@@ -55,8 +56,94 @@ Check both when touching either.
 It's deliberately absent from `pluginRegistry.ts`: `tile.vue` uses its `db`/`loader`/
 `helpers` modules for SQL-backed tiles, and `SqliteMapComponent.vue` is a headless
 scoped-slot provider awaiting a consumer (the AequilibraE / Polaris readers, still removed —
-`reader.scss` is theirs and is currently unimported). Covered by
-`tests/unit/sqlite-map.test.ts` since nothing else compiles it.
+`reader.scss` is theirs and is currently unimported). **Nothing currently compiles
+`SqliteMapComponent.vue`** — see the warning about unreferenced `.vue` files under
+"Verifying a change".
+
+### Why there's no vue-tsc (evaluated, deferred)
+
+`vue-tsc` is the SFC-aware type checker from the Vue language tools (Volar). It runs the same
+TypeScript compiler but understands `.vue`: it extracts the `<script lang="ts">` block and,
+for **HTML** templates, generates a virtual render function so template expressions, props,
+slots and emits get checked. Plain `tsc` silently skips `.vue` files entirely — which is why
+`tsconfig.json` already lists `src/**/*.vue` in `include` and it has never done anything.
+
+Measured on this repo:
+
+| finding | value |
+|---|---|
+| `tsc --noEmit` errors today, `.ts`/`.tsx` only | **148** across 45 files |
+| …that are only missing dependency types (TS2307 / TS7016) | 31 (21%) |
+| components using `<template lang="pug">` | **87 of 89** |
+| `as any` in `.vue` / files containing `@ts-ignore` | 245 / 18 |
+
+**The decisive reason: Volar does not type-check pug templates.** With 87 of 89 components on
+pug, the headline benefit — wrong props, unknown components, typo'd bindings — is unavailable
+for ~98% of the codebase. Adopting it buys `<script>`-block checking only.
+
+Two further costs: `vue-tsc` v2+ requires TypeScript 5.x while `package.json` pins
+`typescript: ^4.2.0` (resolves to 4.9.5), and that bump alone will churn the existing 148
+errors; and `src/shims-vue.d.ts` declares `module '*.vue'` as `DefineComponent<{}, {}, any>`,
+erasing cross-component prop types, so it would have to be deleted for vue-tsc to add any
+cross-component value.
+
+**Calibration — don't oversell it.** Against the bugs actually found during this migration:
+
+- *Would* have caught: `import Vue from 'vue'` / `Vue.component()` in
+  `xml-viewer/TreeItem.vue` + `TreeView.vue`; the missing `vue-good-table` package in
+  `table.vue` (TS2307).
+- *Would not* have caught: the 17 dead `beforeDestroy` hooks (Vue's component-options type is
+  permissive — precisely why a custom `i18n: {…}` option compiles); the reactive-Proxy
+  `postMessage`/`structuredClone` failures (types are compatible, it fails at runtime); the
+  `table.vue` card collapse (CSS).
+
+**If revisited**, get `tsc --noEmit` to zero first, *then* add `vue-tsc` as a non-blocking
+`pnpm typecheck` script — not a CI gate. But see the next section: that cleanup is blocked
+on plugin restoration.
+
+Reproduce the numbers:
+
+```bash
+node_modules/.bin/tsc --noEmit 2>&1 | grep -cE "error TS"              # 85 (was 148)
+grep -rl 'template lang="pug"' src --include=*.vue | wc -l             # 87
+grep -rl "<template" src --include=*.vue | wc -l                       # 89
+```
+
+### The tsc backlog — wait for the plugins
+
+An attempt to clear the backlog was **deliberately stopped**: most of what's left lives in
+files belonging to plugins that haven't been restored, so it can't be fixed properly yet.
+
+**Done (kept):** `src/layers/GeojsonOffsetLayer.ts` used to deep-import
+`@/../node_modules/@deck.gl/layers/src/geojson-layer/sub-layer-map` for one internal helper.
+deck.gl ships its TypeScript *source*, so that single import made `tsc` load and check the
+whole deck.gl layers source tree — **63 of the original 148 errors were in node_modules**.
+The helper is now vendored verbatim in `src/layers/deckgl-forward-props.ts` (MIT, ~28 lines).
+148 → 85, node_modules errors → 0, build verified. An ambient `declare module` for that path
+does *not* work — the `@/*` path mapping resolves it to a real file first, so the source
+still gets loaded. Vendoring is the only clean fix.
+
+**Blocked on plugin restoration.** Three packages are imported but **not installed and not in
+`package.json`**: `@luma.gl/core`, `@luma.gl/shadertools`, `@visx/scale`. The files importing
+them (`src/layers/flowmap/*`, `src/layers/moving-icons/*`, `src/layers/PathTraceLayer.ts`,
+`src/components/ColorMapSelector/*`) are orphans of the removed flowmap / vehicle-animation /
+matrix plugins — they can't build today, and `pnpm build` only passes because nothing
+reachable imports them. Adding `declare module` shims would silence tsc while leaving them
+unbuildable. Re-add the real dependencies with their plugins instead.
+
+**Do not bump `@types/react` on its own.** `react` is `^18.3.1` while `@types/react` is
+`^16.9.49` (pnpm warns about this). Upgrading types to 18 made things *worse* — 84 → 98 —
+because the React-16-era `.tsx` bridge files then fail on `ReactNode`/`children` variance,
+and there are three `@types/react` copies in the tree (16, 18, 19) which is what produces
+`TS2786 'Icon' cannot be used as a JSX component`. Of those `.tsx` files only `Selector.tsx`
+is actually imported by any component; `Btn`, `ColorMapSelector`, `ScaleOption` and
+`MdGraphicEqRotated` are unreferenced. Fix this together with the matrix/h5web plugin, with a
+`pnpm.overrides` pin for `@types/react`.
+
+**Then the genuinely fixable core:** `src/js/DeckMap.ts` alone has 30 (27 × TS2339 — mostly
+undeclared class fields like `_map` and props such as `screenshotFilename` missing from
+`DeckProps`), plus `shapefile-to-geojson.ts` (6), `HTTPFileSystem.ts` (4), and small counts in
+`util.ts` and `sqlite-map/`.
 
 ## Verifying a change
 

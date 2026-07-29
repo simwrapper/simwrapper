@@ -1,6 +1,6 @@
 import { GeoJsonLayer } from '@deck.gl/layers'
 import PathOffsetLayer from '@/layers/PathOffsetLayer'
-import { forwardProps } from '@/../node_modules/@deck.gl/layers/src/geojson-layer/sub-layer-map'
+import { forwardProps } from '@/layers/deckgl-forward-props'
 
 const OFFSET_TYPE = {
   NONE: 0,
