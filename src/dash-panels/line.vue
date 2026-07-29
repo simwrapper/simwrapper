@@ -3,9 +3,7 @@ VuePlotly.myplot(
   :data="data"
   :layout="layout"
   :options="options"
-  :class="className"
 )
-
 </template>
 
 <script lang="ts">
@@ -13,17 +11,16 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import { buildColors } from '@/js/ColorsAndWidths'
 
-import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
+
+import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
+import globalStore from '@/store'
 import { buildCleanTitle } from './_allPanels'
 
-import globalStore from '@/store'
-
 export default defineComponent({
-  name: 'BarChartPanel',
+  name: 'LineChartPanel',
   components: { VuePlotly },
-
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
     subfolder: { type: String, required: true },
@@ -31,22 +28,18 @@ export default defineComponent({
     config: { type: Object as any, required: true },
     cardTitle: { type: String, required: true },
     cardId: String,
-    datamanager: Object as PropType<DashboardDataManager>,
+    datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
   },
-
   data: () => {
     return {
       globalState: globalStore.state,
-      id: 'bar-' + Math.floor(1e12 * Math.random()),
-      plotID: Math.floor(1e12 * Math.random()).toString(),
-      className: '',
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
+      id: ('line-' + Math.floor(1e12 * Math.random())) as any,
       colorMap: {} as { [category: string]: string },
-      YAMLrequirementsBar: { dataset: '', x: '' },
+      YAMLrequirementsLine: { dataset: '', x: '' },
+      YAMLdeprecations: ['usedCol'],
       layout: {
-        barmode: 'overlay',
-        bargap: 0.08,
         height: 300,
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
         font: {
@@ -64,6 +57,7 @@ export default defineComponent({
           autorange: true,
           title: { text: '', standoff: 16 },
           animate: true,
+          rangemode: 'tozero',
         },
         legend: {
           orientation: 'v',
@@ -71,12 +65,10 @@ export default defineComponent({
           y: 1,
         },
       },
-
       data: [] as any[],
-
       options: {
-        responsive: true,
         displaylogo: false,
+        responsive: true,
         modeBarButtonsToRemove: [
           'pan2d',
           'zoom2d',
@@ -93,7 +85,7 @@ export default defineComponent({
         ],
         toImageButtonOptions: {
           format: 'png', // one of png, svg, jpeg, webp
-          filename: 'bar-chart',
+          filename: 'line-chart',
           width: null,
           height: null,
         },
@@ -101,17 +93,14 @@ export default defineComponent({
     }
   },
   async mounted() {
-    this.updateLayout()
     this.updateTheme()
+    this.options.toImageButtonOptions.filename = buildCleanTitle(this.cardTitle, this.subfolder)
+
     this.dataSet = await this.loadData()
     this.updateChart()
 
-    this.options.toImageButtonOptions.filename = buildCleanTitle(this.cardTitle, this.subfolder)
-
     this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
-
-    this.checkWarningsAndErrors()
   },
   beforeUnmount() {
     this.datamanager?.removeFilterListener(
@@ -125,26 +114,31 @@ export default defineComponent({
       this.updateTheme()
     },
   },
-
   methods: {
     changeDimensions(dimensions: { width: number; height: number }) {
       this.layout = Object.assign({}, this.layout, dimensions)
     },
 
-    checkWarningsAndErrors() {
-      // Check this plot for warnings and errors
+    handleFilterChanged() {
+      if (!this.datamanager) return
 
-      var plotTitle = this.cardTitle
-      // warnings
-      // missing title
-      if (plotTitle.length == 0) {
-        this.$emit('error', {
-          type: Status.WARNING,
-          msg: `The plot title is missing!`,
-          desc: "Please add a plot title in the .yaml-file (title: 'Example title')",
+      const { filteredRows } = this.datamanager.getFilteredDataset(this.config) as any
+
+      if (!filteredRows || !filteredRows.length) {
+        this.dataSet = { allRows: {} }
+      } else {
+        const allRows = {} as any
+
+        const keys = Object.keys(filteredRows[0])
+        keys.forEach(key => (allRows[key] = { name: key, values: [] as any }))
+
+        filteredRows.forEach((row: any) => {
+          keys.forEach(key => allRows[key].values.push(row[key]))
         })
+        this.dataSet = { allRows }
       }
-      // errors
+
+      this.updateChart()
     },
 
     updateTheme() {
@@ -156,65 +150,15 @@ export default defineComponent({
       this.layout = Object.assign({}, this.layout, colors)
     },
 
-    updateLayout() {
-      this.layout.xaxis.title.text = this.config.xAxisTitle || this.config.xAxisName || ''
-      this.layout.yaxis.title.text = this.config.yAxisTitle || this.config.yAxisName || ''
-    },
-
-    async handlePlotlyClick(click: any) {
-      try {
-        const { x, y, data } = click.points[0]
-
-        const filter = this.config.groupBy
-        const value = x
-
-        // TODO this.datamanager.setFilter(this.config.dataset, filter, value)
-      } catch (e) {
-        console.error(e)
-      }
-    },
-
-    async handleFilterChanged() {
-      if (!this.datamanager) return
-      try {
-        const { filteredRows } = this.datamanager.getFilteredDataset(this.config) as any
-
-        // is filter UN-selected?
-        if (!filteredRows) {
-          this.data = [this.data[0]]
-          this.data[0].opacity = 1.0
-          return
-        }
-
-        const fullDataCopy = Object.assign({}, this.data[0])
-
-        fullDataCopy.x = filteredRows.x
-        fullDataCopy.y = filteredRows.y
-        fullDataCopy.opacity = 1.0
-        fullDataCopy.name = 'Filtered'
-        // let plotly manage bar colors EXCEPT the filter
-        fullDataCopy.marker = { color: '#ffaf00' } // 3c6' }
-
-        this.data = [this.data[0], fullDataCopy]
-        this.data[0].opacity = 0.3
-        this.data[0].name = 'All'
-      } catch (e) {
-        const message = '' + e
-        console.log(message)
-        this.dataSet = {}
-      }
-    },
-
     async loadData() {
-      if (!this.datamanager) return {}
-
       try {
         this.validateYAML()
+
         let dataset = await this.datamanager.getDataset(this.config, { subfolder: this.subfolder })
 
         if (dataset.comments?.length) this.$emit('comments', dataset.comments)
 
-        // no filter? we are done:
+        // no filter? we are done
         if (!this.config.filters) return dataset
 
         // filter data before returning:
@@ -232,7 +176,6 @@ export default defineComponent({
           }
           this.datamanager.setFilter(filter)
         }
-
         // empty for now; filtered data will come back later via handleFilterChanged async.
         return { allRows: {} }
       } catch (e) {
@@ -243,80 +186,62 @@ export default defineComponent({
     },
 
     validateYAML() {
-      for (const key in this.YAMLrequirementsBar) {
+      for (const key in this.YAMLrequirementsLine) {
         if (key in this.config === false) {
           this.$emit('error', {
             type: Status.ERROR,
-            msg: `Bar chart missing required key: ${key}`,
-            desc: `Bar chart requires ${Object.keys(this.YAMLrequirementsBar)}`,
+            msg: `line chart: missing required key: ${key}`,
+            desc: JSON.stringify(this.config),
+          })
+        }
+      }
+
+      for (const deprecated of this.YAMLdeprecations) {
+        if (this.config[deprecated]) {
+          this.$emit('error', {
+            type: Status.WARNING,
+            msg: `line chart: deprecated field: ${deprecated}`,
+            desc: JSON.stringify(this.config),
           })
         }
       }
     },
 
     updateChart() {
+      this.layout.xaxis.title.text = this.config.xAxisTitle || this.config.xAxisName || ''
+      this.layout.yaxis.title.text = this.config.yAxisTitle || this.config.yAxisName || ''
+
       try {
         if (this.config.groupBy) this.updateChartWithGroupBy()
         else this.updateChartSimple()
       } catch (e) {
         const msg = '' + e
-        this.$emit('error', { type: Status.ERROR, msg })
+        this.$emit('error', {
+          type: Status.ERROR,
+          msg,
+          desc: 'Add a desription...',
+        })
       }
     },
 
     updateChartWithGroupBy() {
-      this.className = this.plotID // stacked bug-fix hack
-
-      // TODO: re-implement grouping
-
-      // const { x, y } = this.dataRows
-
-      // this.data = [
-      //   {
-      //     x,
-      //     y,
-      //     name: this.config.groupBy,
-      //     type: 'bar',
-      //     textinfo: 'label+percent',
-      //     textposition: 'inside',
-      //     automargin: true,
-      //     opacity: 1.0,
-      //   },
-      // ]
+      // tba
     },
 
     updateChartSimple() {
-      let x: any[] = []
-
-      var useOwnNames = false
-
-      const allRows = this.dataSet.allRows || ({} as any)
-      const columnNames = Object.keys(allRows)
-
-      if (!columnNames.length) return
+      let useOwnNames = false
 
       // old configs called it "usedCol" --> now "columns"
       let columns = this.config.columns || this.config.usedCol
-
-      // Or maybe user didn't specify: then use all the columns!
-      if (!columns && columnNames.length) {
-        columns = columnNames.filter(col => col !== this.config.x).sort()
-      }
-
-      // Build colors for each column of data
-      this.colorMap = buildColors(columns, this.config.colorRamp)
 
       // old legendname field
       if (this.config.legendName) this.config.legendTitles = this.config.legendName
       if (this.config.legendTitles?.length) useOwnNames = true
 
-      if (this.config.stacked) {
-        this.layout.barmode = 'stack'
-      } else {
-        this.layout.barmode = 'group'
-      }
+      const allRows = this.dataSet.allRows || ({} as any)
+      const columnNames = Object.keys(allRows)
 
-      if (this.config.stacked) this.className = this.plotID
+      if (!columnNames.length) return
 
       // check for x column
       if (!allRows[this.config.x]) {
@@ -327,14 +252,18 @@ export default defineComponent({
         return
       }
 
-      const xColumn = allRows[this.config.x]
+      let x = allRows[this.config.x].values || []
+      if (this.config.skipFirstRow) x = x.slice(1)
 
-      if (!xColumn) {
-        throw Error(`File ${this.config.dataset}: Could not find column ${this.config.x}`)
+      // Or maybe user didn't specify: then use all the columns!
+      if (!columns && columnNames.length) {
+        columns = columnNames.filter(col => col !== this.config.x).sort()
       }
 
-      x = xColumn.values
-      if (this.config.skipFirstRow) x = x.slice(1)
+      // Build colors for each column of data
+      this.colorMap = buildColors(columns, this.config.colorRamp)
+
+      const lines = [] as any[]
 
       for (let i = 0; i < columns.length; i++) {
         const col = columns[i]
@@ -346,18 +275,18 @@ export default defineComponent({
         // are durations in 00:00:00 format?
         if (this.config.convertToSeconds) values = this.convertToSeconds(values)
 
-        this.data.push({
+        lines.push({
           x: x,
           y: values,
           name: legendName,
-          type: 'bar',
+          type: 'line',
           textinfo: 'label+percent',
           textposition: 'inside',
-          automargin: true,
-          opacity: 1.0,
+          automargin: false,
           marker: { color: this.colorMap[col] },
         })
       }
+      this.data = lines
     },
 
     convertToSeconds(values: any[]) {
@@ -373,8 +302,6 @@ export default defineComponent({
     },
   },
 })
-
-//
 </script>
 
 <style scoped lang="scss">

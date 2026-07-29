@@ -665,7 +665,7 @@ export default defineComponent({
       this.isMobile = false
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
     this.clearStyles()
   },

@@ -52,11 +52,11 @@ const plugins: any[] = [
   //   filePatterns: ['**/viz-vehicles*.y?(a)ml'],
   //   component: defineAsyncComponent(() => import('./vehicle-animation/VehicleAnimation.vue')),
   // },
-  // {
-  //   kebabName: 'summary-table',
-  //   filePatterns: ['(topsheet|table)*.y?(a)ml'],
-  //   component: defineAsyncComponent(() => import('./calculation-table/CalculationTable.vue')),
-  // },
+  {
+    kebabName: 'summary-table',
+    filePatterns: ['(topsheet|table)*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./calculation-table/CalculationTable.vue')),
+  },
   // {
   //   kebabName: 'hexagons',
   //   filePatterns: ['**/viz-xy-*.y?(a)ml', '*output_trips.csv?(.gz)?(.zst)'],
@@ -93,21 +93,21 @@ const plugins: any[] = [
   //   filePatterns: ['**/viz-matrix*.y?(a)ml', '**/*.h5', '**/*.omx'],
   //   component: defineAsyncComponent(() => import('./matrix/MatrixViewer.vue')),
   // },
-  // {
-  //   kebabName: 'plotly',
-  //   filePatterns: ['**/plotly*.y?(a)ml'],
-  //   component: defineAsyncComponent(() => import('./plotly/PlotlyDiagram.vue')),
-  // },
-  // {
-  //   kebabName: 'vega',
-  //   filePatterns: ['**/*.vega.json'],
-  //   component: defineAsyncComponent(() => import('./vega-lite/VegaLite.vue')),
-  // },
-  // {
-  //   kebabName: 'sankey',
-  //   filePatterns: ['**/sankey*.y?(a)ml', '**/viz-sankey*.y?(a)ml'],
-  //   component: defineAsyncComponent(() => import('./sankey/SankeyDiagram.vue')),
-  // },
+  {
+    kebabName: 'plotly',
+    filePatterns: ['**/plotly*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./plotly/PlotlyDiagram.vue')),
+  },
+  {
+    kebabName: 'vega',
+    filePatterns: ['**/*.vega.json'],
+    component: defineAsyncComponent(() => import('./vega-lite/VegaLite.vue')),
+  },
+  {
+    kebabName: 'sankey',
+    filePatterns: ['**/sankey*.y?(a)ml', '**/viz-sankey*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./sankey/SankeyDiagram.vue')),
+  },
   // {
   //   kebabName: 'events',
   //   filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)?(.zst)'],

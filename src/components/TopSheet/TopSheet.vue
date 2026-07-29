@@ -56,7 +56,7 @@ export default defineComponent({
     if (this.files.length) this.runTopSheet()
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     try {
       if (this.solverThread) {
         this.solverThread.terminate()

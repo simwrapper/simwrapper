@@ -12,6 +12,7 @@
  */
 
 import { rollup } from 'd3-array'
+import { toRaw } from 'vue'
 
 import globalStore from '@/store'
 import HTTPFileSystem from './HTTPFileSystem'
@@ -57,6 +58,28 @@ export interface NetworkLinks {
 //@ts-ignore
 const isChrome = !!window.showDirectoryPicker
 const isFirefox = !isChrome
+
+function isPlainObject(thing: any) {
+  if (Object.prototype.toString.call(thing) !== '[object Object]') return false
+  const proto = Object.getPrototypeOf(thing)
+  return proto === null || proto === Object.prototype
+}
+
+/**
+ * Vue 3 exposes props and store state as reactive Proxies, and a Proxy cannot be
+ * structured-cloned -- postMessage() to a worker fails with DataCloneError. Dashboard
+ * panels hand us their `config` prop directly, so unwrap reactivity from everything
+ * crossing the worker boundary. Anything that isn't a plain object or array (e.g. a
+ * FileSystemAPIHandle) is passed through as-is so it stays cloneable.
+ */
+function unreactive<T>(thing: T): T {
+  const raw: any = toRaw(thing as any)
+  if (Array.isArray(raw)) return raw.map(unreactive) as any
+  if (!isPlainObject(raw)) return raw
+  const copy: any = {}
+  for (const key of Object.keys(raw)) copy[key] = unreactive(raw[key])
+  return copy
+}
 
 export default class DashboardDataManager {
   constructor(...args: string[]) {
@@ -252,7 +275,7 @@ export default class DashboardDataManager {
             // wait for ready signal
             if (e.data.ready) {
               this.threads.push(thread)
-              thread.postMessage({ config: fullConfig, featureProperties })
+              thread.postMessage(unreactive({ config: fullConfig, featureProperties }))
               return
             }
             thread.terminate()
@@ -535,13 +558,15 @@ export default class DashboardDataManager {
           // wait for ready signal and then begin work:
           if (e.data.ready) {
             // this.threads.push(thread)
-            thread.postMessage({
-              fileSystemConfig: this.fileApi,
-              subfolder: options?.subfolder || this.subfolder,
-              files,
-              config: config,
-              options,
-            })
+            thread.postMessage(
+              unreactive({
+                fileSystemConfig: this.fileApi,
+                subfolder: options?.subfolder || this.subfolder,
+                files,
+                config: config,
+                options,
+              })
+            )
             return
           }
           thread.terminate()
@@ -724,12 +749,14 @@ export default class DashboardDataManager {
               }
             }
 
-            wasmWorker.postMessage({
-              path,
-              crs: options.crs || '',
-              fsConfig: this.fileApi,
-              options,
-            })
+            wasmWorker.postMessage(
+              unreactive({
+                path,
+                crs: options.crs || '',
+                fsConfig: this.fileApi,
+                options,
+              })
+            )
           })
           const network = await promise
           resolve(network)
@@ -774,13 +801,15 @@ export default class DashboardDataManager {
           resolve(e.data.links)
         }
 
-        thread.postMessage({
-          filePath: path,
-          fileSystem: this.fileApi,
-          options,
-          extraColumns: !!props.extra, // include freespeed, length (off by default!)
-          isFirefox, // we need this for now, because Firefox bug #260
-        })
+        thread.postMessage(
+          unreactive({
+            filePath: path,
+            fileSystem: this.fileApi,
+            options,
+            extraColumns: !!props.extra, // include freespeed, length (off by default!)
+            isFirefox, // we need this for now, because Firefox bug #260
+          })
+        )
       } catch (err) {
         thread.terminate()
         console.error(err)

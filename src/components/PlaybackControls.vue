@@ -53,7 +53,7 @@ export default defineComponent({
     window.addEventListener('keyup', this.onKeyPressed)
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('keyup', this.onKeyPressed)
   },
   watch: {

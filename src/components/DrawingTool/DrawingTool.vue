@@ -82,7 +82,7 @@ export default defineComponent({
     this.updateLayers()
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.showShapeDrawer = false
     this.layerManager.destroy()
   },

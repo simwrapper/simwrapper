@@ -139,7 +139,7 @@ const Component = defineComponent({
     },
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.resizer?.disconnect()
   },
 

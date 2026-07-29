@@ -21,7 +21,7 @@ export default defineComponent({
   data: () => {
     return {}
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.legendStore.clear()
   },
   computed: {

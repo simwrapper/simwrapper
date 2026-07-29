@@ -3,27 +3,24 @@ VuePlotly.myplot(
   :data="data"
   :layout="layout"
   :options="options"
-  :class="className"
 )
-
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import { buildColors } from '@/js/ColorsAndWidths'
 
-import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
-import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
+import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
+import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
 import { buildCleanTitle } from './_allPanels'
+import { buildColors } from '@/js/ColorsAndWidths'
 
 import globalStore from '@/store'
 
 export default defineComponent({
-  name: 'BarChartPanel',
+  name: 'AreaChartPanel',
   components: { VuePlotly },
-
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
     subfolder: { type: String, required: true },
@@ -31,22 +28,19 @@ export default defineComponent({
     config: { type: Object as any, required: true },
     cardTitle: { type: String, required: true },
     cardId: String,
-    datamanager: Object as PropType<DashboardDataManager>,
+    datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
   },
 
   data: () => {
     return {
       globalState: globalStore.state,
-      id: 'bar-' + Math.floor(1e12 * Math.random()),
-      plotID: Math.floor(1e12 * Math.random()).toString(),
-      className: '',
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
+      id: 'area-' + Math.floor(1e12 * Math.random()),
       colorMap: {} as { [category: string]: string },
-      YAMLrequirementsBar: { dataset: '', x: '' },
+      YAMLrequirementsArea: { dataset: '', x: '' },
+      data: [] as any[],
       layout: {
-        barmode: 'overlay',
-        bargap: 0.08,
         height: 300,
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
         font: {
@@ -64,6 +58,7 @@ export default defineComponent({
           autorange: true,
           title: { text: '', standoff: 16 },
           animate: true,
+          showgrid: false,
         },
         legend: {
           orientation: 'v',
@@ -71,12 +66,10 @@ export default defineComponent({
           y: 1,
         },
       },
-
-      data: [] as any[],
-
       options: {
-        responsive: true,
         displaylogo: false,
+        responsive: true,
+        automargin: true,
         modeBarButtonsToRemove: [
           'pan2d',
           'zoom2d',
@@ -93,7 +86,7 @@ export default defineComponent({
         ],
         toImageButtonOptions: {
           format: 'png', // one of png, svg, jpeg, webp
-          filename: 'bar-chart',
+          filename: 'area-chart',
           width: null,
           height: null,
         },
@@ -103,15 +96,14 @@ export default defineComponent({
   async mounted() {
     this.updateLayout()
     this.updateTheme()
-    this.dataSet = await this.loadData()
-    this.updateChart()
 
     this.options.toImageButtonOptions.filename = buildCleanTitle(this.cardTitle, this.subfolder)
 
+    this.dataSet = await this.loadData()
+    this.updateChart()
+
     this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
-
-    this.checkWarningsAndErrors()
   },
   beforeUnmount() {
     this.datamanager?.removeFilterListener(
@@ -119,32 +111,19 @@ export default defineComponent({
       this.handleFilterChanged
     )
   },
-
   watch: {
     'globalState.isDarkMode'() {
       this.updateTheme()
     },
   },
-
   methods: {
     changeDimensions(dimensions: { width: number; height: number }) {
       this.layout = Object.assign({}, this.layout, dimensions)
     },
 
-    checkWarningsAndErrors() {
-      // Check this plot for warnings and errors
-
-      var plotTitle = this.cardTitle
-      // warnings
-      // missing title
-      if (plotTitle.length == 0) {
-        this.$emit('error', {
-          type: Status.WARNING,
-          msg: `The plot title is missing!`,
-          desc: "Please add a plot title in the .yaml-file (title: 'Example title')",
-        })
-      }
-      // errors
+    updateLayout() {
+      this.layout.xaxis.title.text = this.config.xAxisTitle || this.config.xAxisName || ''
+      this.layout.yaxis.title.text = this.config.yAxisTitle || this.config.yAxisName || ''
     },
 
     updateTheme() {
@@ -156,53 +135,26 @@ export default defineComponent({
       this.layout = Object.assign({}, this.layout, colors)
     },
 
-    updateLayout() {
-      this.layout.xaxis.title.text = this.config.xAxisTitle || this.config.xAxisName || ''
-      this.layout.yaxis.title.text = this.config.yAxisTitle || this.config.yAxisName || ''
-    },
-
-    async handlePlotlyClick(click: any) {
-      try {
-        const { x, y, data } = click.points[0]
-
-        const filter = this.config.groupBy
-        const value = x
-
-        // TODO this.datamanager.setFilter(this.config.dataset, filter, value)
-      } catch (e) {
-        console.error(e)
-      }
-    },
-
-    async handleFilterChanged() {
+    handleFilterChanged() {
       if (!this.datamanager) return
-      try {
-        const { filteredRows } = this.datamanager.getFilteredDataset(this.config) as any
 
-        // is filter UN-selected?
-        if (!filteredRows) {
-          this.data = [this.data[0]]
-          this.data[0].opacity = 1.0
-          return
-        }
+      const { filteredRows } = this.datamanager.getFilteredDataset(this.config) as any
 
-        const fullDataCopy = Object.assign({}, this.data[0])
+      if (!filteredRows || !filteredRows.length) {
+        this.dataSet = { allRows: {} }
+      } else {
+        const allRows = {} as any
 
-        fullDataCopy.x = filteredRows.x
-        fullDataCopy.y = filteredRows.y
-        fullDataCopy.opacity = 1.0
-        fullDataCopy.name = 'Filtered'
-        // let plotly manage bar colors EXCEPT the filter
-        fullDataCopy.marker = { color: '#ffaf00' } // 3c6' }
+        const keys = Object.keys(filteredRows[0])
+        keys.forEach(key => (allRows[key] = { name: key, values: [] as any }))
 
-        this.data = [this.data[0], fullDataCopy]
-        this.data[0].opacity = 0.3
-        this.data[0].name = 'All'
-      } catch (e) {
-        const message = '' + e
-        console.log(message)
-        this.dataSet = {}
+        filteredRows.forEach((row: any) => {
+          keys.forEach(key => allRows[key].values.push(row[key]))
+        })
+        this.dataSet = { allRows }
       }
+
+      this.updateChart()
     },
 
     async loadData() {
@@ -214,7 +166,7 @@ export default defineComponent({
 
         if (dataset.comments?.length) this.$emit('comments', dataset.comments)
 
-        // no filter? we are done:
+        // no filter? we are done
         if (!this.config.filters) return dataset
 
         // filter data before returning:
@@ -232,7 +184,6 @@ export default defineComponent({
           }
           this.datamanager.setFilter(filter)
         }
-
         // empty for now; filtered data will come back later via handleFilterChanged async.
         return { allRows: {} }
       } catch (e) {
@@ -243,12 +194,12 @@ export default defineComponent({
     },
 
     validateYAML() {
-      for (const key in this.YAMLrequirementsBar) {
+      for (const key in this.YAMLrequirementsArea) {
         if (key in this.config === false) {
           this.$emit('error', {
             type: Status.ERROR,
-            msg: `Bar chart missing required key: ${key}`,
-            desc: `Bar chart requires ${Object.keys(this.YAMLrequirementsBar)}`,
+            msg: `Area chart missing required key: ${key}`,
+            desc: `Required keys: ${Object.keys(this.YAMLrequirementsArea)}`,
           })
         }
       }
@@ -265,33 +216,14 @@ export default defineComponent({
     },
 
     updateChartWithGroupBy() {
-      this.className = this.plotID // stacked bug-fix hack
-
-      // TODO: re-implement grouping
-
-      // const { x, y } = this.dataRows
-
-      // this.data = [
-      //   {
-      //     x,
-      //     y,
-      //     name: this.config.groupBy,
-      //     type: 'bar',
-      //     textinfo: 'label+percent',
-      //     textposition: 'inside',
-      //     automargin: true,
-      //     opacity: 1.0,
-      //   },
-      // ]
+      // tba
     },
 
     updateChartSimple() {
-      let x: any[] = []
-
-      var useOwnNames = false
-
       const allRows = this.dataSet.allRows || ({} as any)
       const columnNames = Object.keys(allRows)
+      let useOwnNames = false
+      let x: any[] = []
 
       if (!columnNames.length) return
 
@@ -310,14 +242,6 @@ export default defineComponent({
       if (this.config.legendName) this.config.legendTitles = this.config.legendName
       if (this.config.legendTitles?.length) useOwnNames = true
 
-      if (this.config.stacked) {
-        this.layout.barmode = 'stack'
-      } else {
-        this.layout.barmode = 'group'
-      }
-
-      if (this.config.stacked) this.className = this.plotID
-
       // check for x column
       if (!allRows[this.config.x]) {
         this.$emit(
@@ -327,13 +251,9 @@ export default defineComponent({
         return
       }
 
-      const xColumn = allRows[this.config.x]
-
-      if (!xColumn) {
-        throw Error(`File ${this.config.dataset}: Could not find column ${this.config.x}`)
-      }
-
-      x = xColumn.values
+      // convert the data
+      const convertedData: any = {}
+      x = allRows[this.config.x].values || []
       if (this.config.skipFirstRow) x = x.slice(1)
 
       for (let i = 0; i < columns.length; i++) {
@@ -345,19 +265,17 @@ export default defineComponent({
 
         // are durations in 00:00:00 format?
         if (this.config.convertToSeconds) values = this.convertToSeconds(values)
-
-        this.data.push({
+        convertedData[col] = {
+          name: legendName,
           x: x,
           y: values,
-          name: legendName,
-          type: 'bar',
-          textinfo: 'label+percent',
-          textposition: 'inside',
-          automargin: true,
-          opacity: 1.0,
+          stackgroup: 'one', // so they stack
+          mode: 'none', // no background lines
           marker: { color: this.colorMap[col] },
-        })
+        }
       }
+
+      this.data = Object.values(convertedData)
     },
 
     convertToSeconds(values: any[]) {
@@ -373,8 +291,6 @@ export default defineComponent({
     },
   },
 })
-
-//
 </script>
 
 <style scoped lang="scss">

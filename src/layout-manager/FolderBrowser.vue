@@ -666,7 +666,7 @@ export default defineComponent({
     },
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.resizeObserver?.disconnect()
   },
 

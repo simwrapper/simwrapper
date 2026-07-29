@@ -1,5 +1,5 @@
 <template lang="pug">
-VuePlotly.myplot(v-if="data[0].values.length"
+VuePlotly.myplot(
   :data="data"
   :layout="layout"
   :options="options"
@@ -18,7 +18,7 @@ import { buildCleanTitle } from './_allPanels'
 import { buildColors } from '@/js/ColorsAndWidths'
 
 export default defineComponent({
-  name: 'PieChartPanel',
+  name: 'BarChartPanel',
   components: { VuePlotly },
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
@@ -32,14 +32,13 @@ export default defineComponent({
   data: () => {
     return {
       globalState: globalStore.state,
-      id: ('pie-' + Math.floor(1e12 * Math.random())) as any,
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
-      YAMLrequirementsPie: { dataset: '', useLastRow: '' },
       colorMap: {} as { [category: string]: string },
+      id: ('scatter-' + Math.floor(1e12 * Math.random())) as any,
       layout: {
         height: 300,
-        margin: { t: 4, b: 4, l: 0, r: 0, pad: 2 },
+        margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
         font: {
           color: '#444444',
           family: UI_FONT,
@@ -57,27 +56,12 @@ export default defineComponent({
           animate: true,
         },
         legend: {
-          // yanchor: 'top',
-          // xanchor: 'center',
           orientation: 'v',
           x: 1,
           y: 1,
         },
       },
-
-      data: [
-        {
-          sort: false, // to keep colors consistent across plots
-          labels: [] as any[],
-          values: [] as any[],
-          type: 'pie',
-          hole: 0,
-          textinfo: 'label+percent',
-          textposition: 'inside',
-          automargin: true,
-          marker: undefined as any,
-        },
-      ],
+      data: [] as any[],
       options: {
         displaylogo: false,
         responsive: true,
@@ -97,7 +81,7 @@ export default defineComponent({
         ],
         toImageButtonOptions: {
           format: 'png', // one of png, svg, jpeg, webp
-          filename: 'pie-chart',
+          filename: 'scatter-plot',
           width: null,
           height: null,
         },
@@ -127,7 +111,6 @@ export default defineComponent({
       this.updateTheme()
     },
   },
-
   methods: {
     changeDimensions(dimensions: { width: number; height: number }) {
       this.layout = Object.assign({}, this.layout, dimensions)
@@ -166,7 +149,6 @@ export default defineComponent({
 
     async loadData() {
       try {
-        this.validateYAML()
         let dataset = await this.datamanager.getDataset(this.config, { subfolder: this.subfolder })
         if (dataset.comments?.length) this.$emit('comments', dataset.comments)
 
@@ -197,19 +179,10 @@ export default defineComponent({
       return { allRows: {} }
     },
 
-    validateYAML() {
-      for (const key in this.YAMLrequirementsPie) {
-        if (key in this.config === false) {
-          this.$emit('error', {
-            type: Status.ERROR,
-            msg: `Pie chart missing required key: ${key}`,
-            desc: `Required keys: ${Object.keys(this.YAMLrequirementsPie)}`,
-          })
-        }
-      }
-    },
-
     updateChart() {
+      this.layout.xaxis.title.text = this.config.xAxisTitle || this.config.xAxisName || ''
+      this.layout.yaxis.title.text = this.config.yAxisTitle || this.config.yAxisName || ''
+
       try {
         if (this.config.groupBy) this.updateChartWithGroupBy()
         else this.updateChartSimple()
@@ -227,17 +200,67 @@ export default defineComponent({
       // tba
     },
 
+    // size circle
+    // color is data
     updateChartSimple() {
-      const allRows = this.dataSet.allRows || {}
+      var useOwnNames = false
 
-      const keys = Object.keys(allRows)
-      this.data[0].labels = keys
-      this.data[0].values = Object.values(allRows)
+      const allRows = this.dataSet.allRows || ({} as any)
+      const columnNames = Object.keys(allRows)
 
-      // build colors for all alternatives
-      const categories = this.config.categories || [...new Set(keys)]
-      this.colorMap = buildColors(categories, this.config.colorRamp)
-      this.data[0].marker = { colors: keys.map((v: any) => this.colorMap[v]) }
+      if (!columnNames.length) return
+
+      const factor = this.config.factor || 1.0
+
+      // // old configs called it "usedCol" --> now "columns"
+      const columns = this.config.columns || this.config.usedCol || [this.config.y] || []
+
+      let legendname = columns
+      if (this.config.legendName) legendname = this.config.legendName
+      if (this.config.legendTitle) legendname = this.config.legendTitle
+
+      // check for valid columns
+      let status = true
+      const check = ['x']
+      for (const col of check) {
+        if (!allRows[this.config[col]]) {
+          this.$emit(
+            'error',
+            `${this.cardTitle}: "${this.config.dataset}" ${check} column "${col}" missing`
+          )
+          status = false
+        }
+      }
+      if (!status) return
+
+      let x = allRows[this.config.x].values || []
+      if (this.config.skipFirstRow) x = x.slice(1)
+
+      const markerSize = this.config.markerSize || 3
+
+      // Build colors for each column of data
+      this.colorMap = buildColors(columns, this.config.colorRamp)
+
+      for (let i = 0; i < columns.length; i++) {
+        const col = columns[i]
+        const legendName = useOwnNames ? this.config.legendTitles[i] : col
+
+        let values = allRows[col].values
+        if (this.config.skipFirstRow) values = values.slice(1)
+
+        this.data.push({
+          x: x,
+          y: values,
+          name: legendName,
+          mode: 'markers',
+          type: 'scatter',
+          textinfo: 'label+percent',
+          textposition: 'inside',
+          automargin: true,
+          showlegend: true,
+          marker: { size: markerSize, color: this.colorMap[i] },
+        })
+      }
     },
   },
 })

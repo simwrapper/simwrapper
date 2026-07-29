@@ -91,7 +91,7 @@ export default defineComponent({
     window.addEventListener('mousemove', this.dragging)
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.resizer?.disconnect()
     window.removeEventListener('mouseup', this.dragEnd)
     window.removeEventListener('mousemove', this.dragging)

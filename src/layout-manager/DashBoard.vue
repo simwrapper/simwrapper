@@ -781,7 +781,7 @@ export default defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.resizers = {}
     this.isDestroying = true
     this.narrowPanelObserver?.disconnect()
