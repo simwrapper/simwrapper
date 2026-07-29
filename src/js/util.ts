@@ -2,6 +2,31 @@ import micromatch from 'micromatch'
 import { XMLParser } from 'fast-xml-parser'
 import { format } from 'mathjs'
 import * as ZStd from 'zstd-wasm-decoder'
+import { toRaw } from 'vue'
+
+function isPlainObject(thing: any) {
+  if (Object.prototype.toString.call(thing) !== '[object Object]') return false
+  const proto = Object.getPrototypeOf(thing)
+  return proto === null || proto === Object.prototype
+}
+
+/**
+ * Strip Vue 3 reactivity from anything about to cross a structured-clone boundary.
+ *
+ * Vue 3 exposes props and store state as Proxies, and a Proxy cannot be
+ * structured-cloned: worker.postMessage() fails with DataCloneError. Components
+ * routinely hand their props straight to a worker, so run the payload through this
+ * first. Anything that isn't a plain object or array (e.g. a FileSystemAPIHandle)
+ * is passed through untouched so it stays cloneable/transferable.
+ */
+export function unreactive<T>(thing: T): T {
+  const raw: any = toRaw(thing as any)
+  if (Array.isArray(raw)) return raw.map(unreactive) as any
+  if (!isPlainObject(raw)) return raw
+  const copy: any = {}
+  for (const key of Object.keys(raw)) copy[key] = unreactive(raw[key])
+  return copy
+}
 
 /**
  * Useful for converting loaded PNG images to CSS
@@ -194,4 +219,5 @@ export default {
   parseXML,
   precise,
   sleep,
+  unreactive,
 }

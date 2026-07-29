@@ -343,6 +343,9 @@ importers:
       vue-router:
         specifier: ^4
         version: 4.6.4(vue@3.5.40(typescript@4.9.5))
+      vueperslides:
+        specifier: ^3.6.0
+        version: 3.6.0(vue@3.5.40(typescript@4.9.5))
       vuex:
         specifier: ^4
         version: 4.1.0(vue@3.5.40(typescript@4.9.5))
@@ -7825,6 +7828,12 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  vueperslides@3.6.0:
+    resolution: {integrity: sha512-ip2/Mvzhs9A21NnPQWsnx2JVoa0v5ecRNa3Kobyp6VTdxTH+xJRdT9bjVV3EVoK/YUyhYMpPJLExhB9udd91JA==}
+    engines: {node: '>=16.0.0', pnpm: '>=8.0.0'}
+    peerDependencies:
+      vue: ^3.2.0
 
   vuex@4.1.0:
     resolution: {integrity: sha512-hmV6UerDrPcgbSy9ORAtNXDr9M4wlNP4pEFKye4ujJF8oqgFFuxDCdOLS3eNoRTtq5O3hoBDh9Doj1bQMYHRbQ==}
@@ -17325,6 +17334,10 @@ snapshots:
       '@vue/shared': 3.5.40
     optionalDependencies:
       typescript: 4.9.5
+
+  vueperslides@3.6.0(vue@3.5.40(typescript@4.9.5)):
+    dependencies:
+      vue: 3.5.40(typescript@4.9.5)
 
   vuex@4.1.0(vue@3.5.40(typescript@4.9.5)):
     dependencies:

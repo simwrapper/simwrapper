@@ -40,13 +40,11 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 | | enabled | verified in a browser |
 |---|---|---|
-| dash-panels | `area` `bar` `bubble` `line` `pie` `plotly` `scatter` `vega` | all except `pie` |
-| plugins | `plotly` `vega-lite` `summary-table` `sankey` | `plotly`, `vega-lite` |
+| dash-panels | `area` `bar` `bubble` `csv` `heatmap` `line` `pie` `plotly` `sankey` `scatter` `slideshow` `vega` | all except `pie` |
+| plugins | `plotly` `sankey` `summary-table` `vega-lite` | all four |
 
-`summary-table` + `sankey` plugins and the `sankey` / `table` / `heatmap` dash-panels are
-**restored but not yet migrated** — they still contain `beforeDestroy` and/or
-`@import '@/styles.scss'` (see the checklist). `sankey` and `summary-table` are already
-uncommented in `pluginRegistry.ts`.
+Still removed: `aggregate` `gridmap` `hexagons` `text` `tile` `transit` `vehicles` `video`
+`xml` panels, and all the full-screen map plugins.
 
 ## Verifying a change
 
@@ -116,11 +114,14 @@ boundary breaks:
 - **Third-party libs that clone their input** — `vegaEmbed(el, spec)` clones the spec
   internally. Symptom: `DataCloneError` surfaced in the card's error box, blank chart.
 
-**Fix already in place:** `DashboardDataManager.ts` has an `unreactive()` helper applied to
-all four `postMessage` payloads. It recurses only into plain objects and arrays, returning
-anything else untouched — **this matters**: `FileSystemConfig.handle` is a real
-`FileSystemAPIHandle`, and a naive deep-copy would silently break Chrome local-folder
-access. If you add a new `postMessage` in that file, route it through `unreactive()`.
+**Fix already in place:** `unreactive()` in `src/js/util.ts`. It recurses only into plain
+objects and arrays, returning anything else untouched — **this matters**:
+`FileSystemConfig.handle` is a real `FileSystemAPIHandle`, and a naive deep-copy would
+silently break Chrome local-folder access. Currently applied to the four `postMessage`
+payloads in `DashboardDataManager.ts` and the three in `TopSheet.vue`.
+
+**Wrap every new `worker.postMessage()` in it.** This has now bitten three separate places
+(dashboard datasets, vega, topsheet); assume it will bite the next worker too.
 
 For a library call, `toRaw()` at the call site is enough (see `VegaLite.vue`). Note
 `toRaw()` only unwraps the top level — that's fine when the raw target holds raw values,
@@ -154,6 +155,24 @@ and may invoke it immediately — **before** an `async mounted()` has finished f
 
 Guard any resize/redraw entry point with a "spec/data actually loaded" flag
 (`isSpecLoaded` in `VegaLite.vue`), not just a truthiness check on the object.
+
+### 4. `@import '@/styles.scss'` no longer forwards Sass variables
+
+Under the module system a plugin doing `@import '@/styles.scss'` and then using
+`$thumbnailHeight` (or any `_variables.scss` value) fails the **build** with
+`Undefined variable` — the import no longer re-exports them. This is what
+`@use '@/variables' as *;` is for. It bit `SankeyDiagram.vue`.
+
+### 5. An absolutely-positioned panel collapses a content-sized card
+
+`DashBoard.vue` gives `text` and `csv` cards **no default height** (`defaultHeight` is
+`undefined` for those types) — they're meant to size to their content. `table.vue` styled
+its root `position: absolute; inset: 0`, which contributes zero height, so the card
+collapsed to ~21px and `overflow: hidden` clipped every row.
+
+**The console was completely clean and `csv-table.spec.ts` passed the whole time** — it
+counts `tbody tr` in the DOM, and the rows were there, just clipped. Only the screenshot
+showed it. If a panel type has no `defaultHeight`, keep its root in normal flow.
 
 ### Not bugs — don't chase these
 
@@ -264,10 +283,14 @@ Oruga-specific prop tuning when their plugins are re-enabled.
 - **Full-height layout**: Vue 3 mounts *inside* `#app` (Vue 2 replaced it). Added
   `#app { height: 100% }` in `App.vue` so the `height:100%` chain reaches `#main-app`.
   Any new full-height root needs the parent to have height.
-- **Worker `postMessage` de-proxying**: `DashboardDataManager.unreactive()` — see
+- **Worker `postMessage` de-proxying**: `unreactive()` in `src/js/util.ts` — see
   [trap #1](#1-a-reactive-proxy-cannot-be-structuredcloned). Reuse it, don't reinvent it,
   and don't "simplify" it to a `JSON.parse(JSON.stringify())` round-trip (kills
   `FileSystemAPIHandle`).
+- **A swallowed `DataCloneError` looks like a hung spinner.** `TopSheet.vue` caught its
+  worker failure and `console.log`'d it, so `smoke-check.mjs` reported the route *clean*
+  while both cards span forever. That catch now uses `console.error`. If a panel hangs on
+  its spinner with a clean console, read the `log`-level output before anything else.
 - **`REACT_VIEW_HANDLES` doc comment** in `Globals.ts` now says `beforeUnmount()`; it used
   to tell plugin authors to clean up in a hook that never fires.
 - **Router catch-all**: uses `path: '/:pathMatch(.*)'` (string). Do **not** use
@@ -280,47 +303,59 @@ Oruga-specific prop tuning when their plugins are re-enabled.
 
 Removed because they had zero usage in the stripped core; plugins may need them back:
 
-- `vueperslides` → re-add `^3`
+- ~~`vueperslides`~~ → **re-added as `^3.6.0`** for `slideshow.vue`. v3 is the Vue 3 line
+  (`peerDependencies: { vue: ^3.2.0 }`); the existing imports needed no changes.
 - `vue-virtual-scroll-list` → `vue3-virtual-scroll-list` or `vue-virtual-scroller`
 - `vuedraggable` → `^4` (uses sortablejs)
 - `vue-slide-bar` → no Vue 3 version; replace (e.g. `o-slider` or a maintained lib)
 
 ## Loose ends
 
-- `tests/unit/table.test.js` and `tile.test.ts` import removed panels. `table.vue` is now
-  restored (still unmigrated, still commented out in `_allPanels.ts`); `tile.vue` is not.
+- `tests/unit/tile.test.ts` still fails to import — `tile.vue` is not restored.
+- `tests/unit/table.test.js` now **runs** (table.vue is back) and **fails**, for two stale
+  reasons unrelated to Vue 3: its `getDataset` mock returns a bare column map instead of
+  `{ allRows: … }`, so `prepareData()` throws on `Object.entries(undefined)`; and it asserts
+  `hideHeader === false` when `data()` initialises it to `undefined` and the code that used
+  to set it is commented out. Fix the mock/expectations, don't "fix" the panel.
 - `src/fileSystemConfig.ts` has a local-only change (e2e `baseURL` → `localhost:8000`),
   intentionally **not committed**.
 - `pnpm lint` works again (Vue 3 preset) but reports ~94 pre-existing style nits
   (`prefer-const`, unused vars in workers); `--fix` handles most. When judging whether
   *your* change added a lint error, `git stash` and diff the counts — most files already
   have some.
-- `charts/dashboard-8-panels.yaml` (the `dash-panels.spec.ts` fixture) lives in the
-  testdata SVN repo, not git. It needs committing there or the spec fails for others.
+- Two fixtures added to the testdata SVN repo (**not** git — commit them there or they're
+  lost): `charts/dashboard-8-panels.yaml` (backs `dash-panels.spec.ts`) and
+  `charts/dashboard-9-slideshow.yaml`. Both add a tab to the `charts` dashboard, which is
+  the only existing dashboard folder — the image-bearing folders (`cottbus`, `logistics`,
+  `emissions`) are all file-browser folders backing other specs, and dropping a
+  `dashboard*.yaml` in one would flip its view mode and break them.
 - One `@import '@/styles.scss'` survives, in
   `src/components/ColorMapSelector/Btn.module.css`. It's a plain CSS module for the
   React/h5web bridge, not Sass — the `@use` rule doesn't apply. Left alone deliberately.
 
 ## Next up
 
-Restored but not migrated (each still has `beforeDestroy` and/or `@import '@/styles.scss'`):
+`text` and `tile` are registered in `_allPanels.ts` but their `.vue` files don't exist, so
+they are **commented out** for now — uncomment when the files come back. (A registry entry
+pointing at a missing file 500s `_allPanels.ts`, which cascades to a
+`Failed to fetch dynamically imported module: LayoutManager.vue` and a blank app. `pnpm dev`
+survives until something imports it; `pnpm build` fails outright.)
 
-- dash-panels: `sankey.vue`, `table.vue`, `heatmap.vue` — all three still commented out in
-  `_allPanels.ts`.
-- plugins: `sankey/SankeyDiagram.vue`, `calculation-table/CalculationTable.vue` — both
-  already **uncommented** in `pluginRegistry.ts`, so the build depends on them.
+To bring back a panel/plugin: restore its file(s), work the checklist, uncomment its
+registry entry, and render it against a `:8000` fixture.
 
-`table.vue` (~650 lines) needs more than the usual two-line treatment — it still imports the
-**Vue 2** package, which is not installed. The Vue 3 fork `vue-good-table-next@^0.2` *is*
-already in `package.json`, so both imports need repointing:
+### Third-party packages: check for a Vue 3 fork first
+
+`table.vue` imported `vue-good-table` (Vue 2, not installed) while the Vue 3 fork
+`vue-good-table-next@^0.2` was already in `package.json`. Both the component and its
+stylesheet had to be repointed, and the CSS path differs — dist CSS, not source SCSS:
 
 ```ts
 import 'vue-good-table/src/styles/style.scss'   →  'vue-good-table-next/dist/vue-good-table-next.css'
 import { VueGoodTable } from 'vue-good-table'   →  from 'vue-good-table-next'
 ```
 
-Its `data-testid="vue-good-table"` hook is what `tests/e2e/csv-table.spec.ts` and
-`tests/unit/table.test.js` assert on — check both still pass, and expect prop/slot renames
-between the two packages.
+The API was otherwise drop-in (`:columns` / `:rows` / `:pagination-options` unchanged).
+Check `package.json` before assuming a dependency is missing.
 
 Fixtures: `e2e-tests/table`, `e2e-tests/sankey`, `e2e-tests/calculation-table`.
