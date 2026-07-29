@@ -11,8 +11,9 @@ is migrated to Vue 3 and verified running with a clean console. Re-migration of 
 removed/commented out. This doc is the playbook for re-migrating them.
 
 **Read ["Vue 3 traps that bite at runtime"](#vue-3-traps-that-bite-at-runtime) before
-migrating anything.** Both bugs found there compiled and linted perfectly and only failed
-in a browser — a plugin that "looks migrated" is not migrated until you render it.
+migrating anything.** Every bug listed there compiled and linted perfectly and only failed in
+a browser — a plugin that "looks migrated" is not migrated until you render it, and (trap #7)
+not until you've *clicked something in it*.
 
 Stack now: Vue 3.5, vue-router 4, vuex 4, vue-i18n 9 (**Legacy/Options API mode**),
 Oruga UI (replacing Buefy) + Bulma, **Vite 8 (Rolldown bundler)** with `@vitejs/plugin-vue`,
@@ -41,12 +42,16 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 | | enabled | verified in a browser |
 |---|---|---|
-| dash-panels | `area` `bar` `bubble` `csv` `heatmap` `hexagons` `line` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` |
-| plugins | `hexagons` `image-view` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all eight |
+| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `heatmap` `hexagons` `line` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` |
+| plugins | `aeq-reader` `aggregate` `carriers` `hexagons` `image-view` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all eleven |
 
-Still removed: `aggregate` `gridmap` `transit` `vehicles` panels, and the remaining
-full-screen map plugins (`layers` `area-map` `carriers` `flowmap` `links` `matrix` `xytime`
-`events` `logistics` `plans` `aeq-reader` …).
+Still removed: `gridmap` `transit` `vehicles` panels, and the remaining
+full-screen map plugins (`layers` `area-map` `flowmap` `links` `matrix` `xytime`
+`events` `logistics` `plans` `shape-file` …).
+
+`shape-file/DeckMapComponent.vue` **is** migrated and live — `aequilibrae-map` renders through
+it — but `shape-file/ShapeFile.vue` (the plugin proper) is still unregistered and still has a
+`beforeDestroy`. Migrating that file is the remaining shape-file work.
 
 The `video` **panel** and the `video-player` **plugin** are different components serving the
 same fixture folder two ways: `/e2e-tests/video-player` renders `dashboard-movie.yaml` through
@@ -319,6 +324,69 @@ const mythis = vnode.context          const mythis = binding.instance
 
 `grep -rn "inserted(\|unbind(\|componentUpdated(\|vnode.context" src/` should stay empty.
 
+### 7. deck.gl throws a Proxy-invariant TypeError on reactive layer data
+
+Trap #1's sibling, and it does **not** involve `structuredClone`. deck.gl calls
+`Object.freeze()` on a layer's props. A frozen property is non-writable and
+non-configurable, and the JS spec then *requires* a Proxy `get` to return the target's
+actual value — a Vue reactive proxy returns a wrapped one instead, so the engine throws:
+
+```
+deck: matching of SolidPolygonLayer({id: 'background-layer-…-fill'}): 'get' on proxy:
+property 'data' is a read-only and non-configurable data property on the proxy target
+but the proxy did not return its actual value
+deck: initialization of SolidPolygonLayer(…): deck.gl: assertion failed.
+```
+
+Hit for real in `carrier-viewer`: `this.backgroundLayers = new BackgroundLayers({…})` put the
+instance in `data()`, so Vue proxied it, and `BackgroundLayers.layers()` handed
+`data: layerDetails.features` (now proxied) to deck.gl.
+
+**Fix: `markRaw()` the instance** — `this.backgroundLayers = markRaw(new BackgroundLayers(…))`.
+Applied in `carrier-viewer/CarrierViewer.vue`, `aequilibrae-map/AequilibraEMapComponent.vue`,
+and `xy-hexagons/XyHexagons.vue`. `grep -rn "new BackgroundLayers" src/` should show
+`markRaw` at every site; **`shape-file/ShapeFile.vue` has two sites still unfixed** (it
+doesn't build yet anyway).
+
+Two things make this expensive to find:
+
+- **It only fires on layer *update*, not first paint.** The word "matching" in the message is
+  deck's layer-diffing phase. A route smoke-check that loads and screenshots exits **clean**;
+  the throw needs a second render pass, so you only see it after interacting (clicking a tab,
+  dragging a slider) or re-rendering.
+- **It needs a fixture that actually has background layers.** `e2e-tests/carriers` has a
+  `backgroundLayers:` block, which is why it surfaced there and not on the `aequilibrae` or
+  `xy-hexagons` fixtures, whose configs have none. Those two were latent, not safe.
+
+Anything else that freezes or seals its input is a candidate. Prefer `markRaw` for objects
+handed to a rendering library; use `unreactive()` only for clone-across-a-boundary cases.
+
+### 8. A trailing `;` in a style *value* now warns — and drags i18n noise in with it
+
+`:style='{"background": urlThumbnail}'` where the value ends in `;`
+(`"url('assets/thumbnail.jpg') no-repeat;"`) makes Vue 3 log:
+
+```
+[Vue warn]: Unexpected semicolon at the end of 'background' style value: '…no-repeat;'
+```
+
+Harmless on its own, but **it cascades**: to build the "found in component" trace, Vue walks
+the component instance, and reading `$i18n.formatter` / `$i18n.preserveDirectiveContent`
+trips vue-i18n's legacy deprecation *getters*, which each log their own warning:
+
+```
+[intlify] Not supported 'formatter'.
+[intlify] Not supported 'preserveDirectiveContent'.
+```
+
+So three warnings × every re-render. Chasing the intlify pair directly is a dead end — they
+have nothing to do with the component's `i18n` option, and they vanish the moment the style
+warning is fixed. **If you see `[intlify] Not supported …`, look for another Vue warning
+firing next to it first.** `XyHexagons.vue` carried the same trailing-semicolon string (never
+bound to a style, so it stayed silent); both are now cleaned up. Only *JS strings* bound via
+`:style` are affected — `grep -rn "no-repeat;\"" src/` should stay empty, while a
+`background: … no-repeat;` inside a `<style>` block is ordinary CSS and perfectly fine.
+
 ### Not bugs — don't chase these
 
 - **Plotly reverses legend order for stacked traces.** A stacked `area` chart legends as
@@ -419,6 +487,26 @@ Most core components needed almost none of this (the codebase was already `defin
 | `vue-js-toggle-button` | `o-switch` | package is uninstalled — see note below |
 | Buefy slider `:duration` / `:dotSize` | *(drop them)* | not Oruga props; they'd fall through as DOM attrs |
 | slider option `size:'is-small'` | `'small'` | |
+| slider `custom-formatter` | **`formatter`** | renamed. Silently ignored under the old name — see below |
+| slider range via array `v-model` | **`:range="true"`** *plus* the array | Oruga needs the explicit prop; Buefy inferred it |
+| `b-slider` `type="is-link"` | `variant="link"` | |
+| `b-switch` | `o-switch` | drop-in |
+| `b-radio-button` (button-group radio) | **no equivalent** | Oruga's `o-radio` is a plain radio input — see below |
+
+⚠️ **`custom-formatter` → `formatter` is silent.** Under the Buefy name the prop just falls
+through as a DOM attribute, so the slider label shows the raw index instead of the mapped
+value and nothing warns. This was already live in core's `ScaleSlider.vue` (migrated earlier,
+its `custom-formatter` never ran); now fixed there and used correctly in
+`aggregate-od/LineFilterSlider.vue`. The full Oruga prop list is the authority —
+`node_modules/@oruga-ui/oruga-next/dist/types/components/slider/props.d.ts`.
+
+⚠️ **Oruga has no `b-radio-button`.** Buefy's `b-radio-button` rendered a *button group* that
+behaved like tabs. Oruga ships `o-radio` (a radio input) and no button-group variant, so the
+markup has to be rebuilt — same situation as `b-navbar`. `carrier-viewer/CarrierViewer.vue`
+does it as a Bulma `.buttons.has-addons` group of `o-button`s with
+`:variant="activeTab==='x' ? 'warning' : ''"` and `@click`, which reproduces Buefy's
+selected-button highlight. `aggregate-od`'s Origins/Destinations pair uses the same shape with
+Bulma's `is-link`/`is-active` classes.
 
 ⚠️ **`vue-js-toggle-button` is not installed and not in `package.json`.** A restored file
 importing it will fail to build. `XyHexagons.vue` imported *and registered* `ToggleButton`
@@ -522,14 +610,48 @@ Removed because they had zero usage in the stripped core; plugins may need them 
   bundled headless Chromium can't satisfy — it has no H.264 decoder. `canPlayType('video/mp4')`
   returns `"maybe"` and the frame stays black even though the mp4 serves fine. Video
   *playback* is not e2e-testable here; assert on the element and its `<source>` instead.
+- **`carrier-viewer/DetailsPanel.vue` was deleted as dead code** during this round. Worth
+  recording *how* that was established, because an unreferenced `.vue` is invisible to the
+  build and "nothing imports it" alone doesn't prove a file is dead:
+  - It read `carrier.$.id` — the xml2js nested-`$`-attributes shape. The plugin's parser
+    (`parseXML` in `CarrierViewer.loadCarriers`) emits **flattened** attributes and sorts on
+    `a.$id`, which `CarrierViewer.vue` uses throughout. So the panel was stale against its own
+    data format and would have rendered `undefined` for every id even if mounted.
+  - It declared **no `props`** and had no `mounted`/`created` and no loader, so its `carriers`
+    array could never be populated by anyone — it was neither a presentational child nor a
+    self-sufficient panel.
+  - Its `collapsible-panel` accordion had been superseded by the flat carrier list + Oruga tab
+    bar now inline in `CarrierViewer.vue`.
+
+  Apply that same three-part test (stale data shape / no way to receive data / superseded UI)
+  to the other orphans before migrating them — `sqlite-map/SqliteMapComponent.vue` is
+  deliberately *not* in this category: it's a headless provider awaiting a consumer, and
+  `aequilibrae-map` is now that consumer.
+- `aggregate-od` keeps 5 pre-existing lint errors: three `prefer-const` in
+  `AggregateDatasetStreamer.worker.ts` and two `vue/no-reserved-keys` for the `_mapExtentXYXY`
+  / `_maximum` data keys. Not introduced by the migration; the `no-reserved-keys` pair needs a
+  rename across the file.
+- Fixtures used to verify this round (all already present, none added):
+  `e2e-tests/aequilibrae` (`dashboard-combined-demo.yaml`, 7 `aequilibrae` panels),
+  `e2e-tests/agg-od` (`dashboard-0.yaml`, the `aggregate` panel), and
+  `e2e-tests/carriers/viz-carriers.yaml` (the `carriers` plugin — the only fixture with a
+  `backgroundLayers:` block, which is what exposed trap #7).
 
 ## Next up
 
-All restored files are migrated; `pnpm build` is green and every enabled panel/plugin has
-been rendered except `pie` (no fixture uses it).
+`pnpm build` is green and every enabled panel/plugin has been rendered except `pie` (no
+fixture uses it). The one restored file **not** yet migrated is
+`shape-file/ShapeFile.vue` (still has `beforeDestroy`, an `@import '@/styles.scss'`, and two
+un-`markRaw`'d `new BackgroundLayers` sites) — its `DeckMapComponent.vue` sibling *is* done.
 
 To bring back a panel/plugin: restore its file(s), work the checklist, uncomment its
 registry entry, and render it against a `:8000` fixture.
+
+**Rendering it once is not enough — interact with it.** Trap #7 exits clean on load and only
+throws on the second render pass, so after the screenshot looks right, click the plugin's
+tabs/toggles and drag its sliders with the console still attached. That is also the only way
+to check a migrated Oruga control actually works: a `b-slider` → `o-slider` rename screenshots
+identically whether or not `range` / `formatter` survived the port.
 
 ⚠️ **Don't uncomment a registry entry before its file exists.** A missing target makes
 `_allPanels.ts` return a 500, which cascades into

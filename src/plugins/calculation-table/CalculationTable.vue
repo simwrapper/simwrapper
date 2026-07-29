@@ -42,7 +42,7 @@ import { ColorScheme, FileSystemConfig, VisualizationPlugin, Status, YamlConfigs
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
 
-const thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
+const thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat"
 
 const Component = defineComponent({
   name: 'CalculationTable',

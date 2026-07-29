@@ -37,11 +37,11 @@ const plugins: any[] = [
   //   filePatterns: ['**/viz-pie*.y?(a)ml*'],
   //   component: defineAsyncComponent(() => import('./pie-chart/PieChartDemo.vue')),
   // },
-  // {
-  //   kebabName: 'carriers',
-  //   filePatterns: ['**/*carriers.xml*', '**/viz-carrier*.y?(a)ml*'],
-  //   component: defineAsyncComponent(() => import('./carrier-viewer/CarrierViewer.vue')),
-  // },
+  {
+    kebabName: 'carriers',
+    filePatterns: ['**/*carriers.xml*', '**/viz-carrier*.y?(a)ml*'],
+    component: defineAsyncComponent(() => import('./carrier-viewer/CarrierViewer.vue')),
+  },
   // {
   //   kebabName: 'gridmap',
   //   filePatterns: ['**/viz-grid*.y?(a)ml'],
@@ -78,11 +78,11 @@ const plugins: any[] = [
   //   filePatterns: ['viz-pt*.y?(a)ml', '*transitschedule.xml?(.gz)?(.zst)'],
   //   component: defineAsyncComponent(() => import('./transit-demand/TransitDemand.vue')),
   // },
-  // {
-  //   kebabName: 'aggregate',
-  //   filePatterns: ['**/viz-od*.y?(a)ml'],
-  //   component: defineAsyncComponent(() => import('./aggregate-od/AggregateOd.vue')),
-  // },
+  {
+    kebabName: 'aggregate',
+    filePatterns: ['**/viz-od*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./aggregate-od/AggregateOd.vue')),
+  },
   // {
   //   kebabName: 'flowmap',
   //   filePatterns: ['**/viz-flowmap*.y?(a)ml'],
@@ -143,11 +143,11 @@ const plugins: any[] = [
   //   ],
   //   component: defineAsyncComponent(() => import('./logistics/LogisticsViewer.vue')),
   // },
-  // {
-  //   kebabName: 'aeq-reader',
-  //   filePatterns: ['**/aeqviz-*.y?(a)ml'],
-  //   component: defineAsyncComponent(() => import('./aequilibrae-map/AequilibraEMapComponent.vue')),
-  // },
+  {
+    kebabName: 'aeq-reader',
+    filePatterns: ['**/aeqviz-*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./aequilibrae-map/AequilibraEMapComponent.vue')),
+  },
   // {
   //   kebabName: 'imoger',
   //   filePatterns: ['**/viz-imoger*.y?(a)ml'],

@@ -26,9 +26,9 @@ export const panelLookup: { [key: string]: Component } = {
 
   // full-screen map visualizations:
 
-  // aequilibrae: defineAsyncComponent(() => import('./aequilibrae-map.vue')),
-  // aggregate: defineAsyncComponent(() => import('./aggregate-od.vue')),
-  // carriers: defineAsyncComponent(() => import('./carriers.vue')),
+  aequilibrae: defineAsyncComponent(() => import('./aequilibrae-map.vue')),
+  aggregate: defineAsyncComponent(() => import('./aggregate-od.vue')),
+  carriers: defineAsyncComponent(() => import('./carriers.vue')),
   // flowmap: defineAsyncComponent(() => import('./flowmap.vue')),
   // gridmap: defineAsyncComponent(() => import('./gridmap.vue')),
   // layers: defineAsyncComponent(() => import('./layermap.vue')),

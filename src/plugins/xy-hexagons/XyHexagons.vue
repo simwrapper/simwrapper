@@ -82,7 +82,7 @@ const i18n = {
     },
   },
 }
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw } from 'vue'
 import type { PropType } from 'vue'
 
 import YAML from 'yaml'
@@ -213,7 +213,7 @@ const MyComponent = defineComponent({
       activeAggregation: '',
       isHighlightingZone: false,
       multiSelectedHexagons: {} as { [index: string]: any[] },
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
       hexStats: null as null | {
         rows: number
         numHexagons: number
@@ -284,7 +284,6 @@ const MyComponent = defineComponent({
 
       return this.$store.state.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
     },
-
   },
   watch: {
     extrudeTowers() {
@@ -727,11 +726,15 @@ const MyComponent = defineComponent({
 
     // background layers
     try {
-      this.backgroundLayers = new BackgroundLayers({
-        vizDetails: this.vizDetails,
-        fileApi: this.fileApi,
-        subfolder: this.subfolder,
-      })
+      // markRaw: deck.gl freezes its props, so handing it reactive layer data
+      // violates a Proxy invariant on update ("'get' on proxy: property 'data'...")
+      this.backgroundLayers = markRaw(
+        new BackgroundLayers({
+          vizDetails: this.vizDetails,
+          fileApi: this.fileApi,
+          subfolder: this.subfolder,
+        })
+      )
       await this.backgroundLayers.initialLoad()
     } catch (e) {
       this.$emit('error', 'Error loading background layers')

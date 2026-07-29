@@ -27,12 +27,12 @@ export default defineComponent({
         max: 100,
         indicator: true,
         data: [] as any[], //this.stops,
-        'custom-formatter': {},
+        formatter: {},
       },
     }
   },
   mounted() {
-    this.options['custom-formatter'] = (val: any) => '' + this.options.data[val]
+    this.options.formatter = (val: any) => '' + this.options.data[val]
     this.options.max = this.stops.length - 1
     this.options.data = this.stops
     this.sliderValue = this.stops.includes(this.initialValue)
