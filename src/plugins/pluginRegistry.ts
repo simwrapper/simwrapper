@@ -113,21 +113,21 @@ const plugins: any[] = [
   //   filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)?(.zst)'],
   //   component: defineAsyncComponent(() => import('./event-viewer/EventViewer.vue')),
   // },
-  // {
-  //   kebabName: 'image-view',
-  //   filePatterns: ['!(*thumbnail*).(png|jpg)'], // skip thumbnails!
-  //   component: defineAsyncComponent(() => import('./image/ImageView.vue')),
-  // },
-  // {
-  //   kebabName: 'video-player',
-  //   filePatterns: ['*.mp4'],
-  //   component: defineAsyncComponent(() => import('./video-player/VideoPlayer.vue')),
-  // },
-  // {
-  //   kebabName: 'xml',
-  //   filePatterns: ['**/*config*.xml*'],
-  //   component: defineAsyncComponent(() => import('./xml-viewer/XmlViewer.vue')),
-  // },
+  {
+    kebabName: 'image-view',
+    filePatterns: ['!(*thumbnail*).(png|jpg)'], // skip thumbnails!
+    component: defineAsyncComponent(() => import('./image/ImageView.vue')),
+  },
+  {
+    kebabName: 'video-player',
+    filePatterns: ['*.mp4'],
+    component: defineAsyncComponent(() => import('./video-player/VideoPlayer.vue')),
+  },
+  {
+    kebabName: 'xml',
+    filePatterns: ['**/*config*.xml*'],
+    component: defineAsyncComponent(() => import('./xml-viewer/XmlViewer.vue')),
+  },
   // {
   //   kebabName: 'xmas-kelheim',
   //   filePatterns: ['**/xmas-kelheim*.y?(a)ml'],

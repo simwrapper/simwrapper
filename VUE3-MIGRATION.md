@@ -40,11 +40,16 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 | | enabled | verified in a browser |
 |---|---|---|
-| dash-panels | `area` `bar` `bubble` `csv` `heatmap` `line` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` | all except `pie` |
-| plugins | `plotly` `sankey` `summary-table` `vega-lite` | all four |
+| dash-panels | `area` `bar` `bubble` `csv` `heatmap` `line` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` |
+| plugins | `image-view` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all seven |
 
-Still removed: `aggregate` `gridmap` `hexagons` `transit` `vehicles` `video` `xml` panels,
-and all the full-screen map plugins.
+Still removed: `aggregate` `gridmap` `hexagons` `transit` `vehicles` panels, and all the
+full-screen map plugins.
+
+The `video` **panel** and the `video-player` **plugin** are different components serving the
+same fixture folder two ways: `/e2e-tests/video-player` renders `dashboard-movie.yaml` through
+the panel, `/e2e-tests/video-player/movie-via.mp4` matches the plugin's `*.mp4` pattern.
+Check both when touching either.
 
 `sqlite-map` is restored and migrated, but it isn't a plugin — it's a **support library**.
 It's deliberately absent from `pluginRegistry.ts`: `tile.vue` uses its `db`/`loader`/
@@ -140,10 +145,14 @@ boundary breaks:
 objects and arrays, returning anything else untouched — **this matters**:
 `FileSystemConfig.handle` is a real `FileSystemAPIHandle`, and a naive deep-copy would
 silently break Chrome local-folder access. Currently applied to the four `postMessage`
-payloads in `DashboardDataManager.ts` and the three in `TopSheet.vue`.
+payloads in `DashboardDataManager.ts`, the three in `TopSheet.vue`, and the one in
+`XmlViewer.vue`.
 
-**Wrap every new `worker.postMessage()` in it.** This has now bitten three separate places
-(dashboard datasets, vega, topsheet); assume it will bite the next worker too.
+**Wrap every new `worker.postMessage()` in it.** This has now bitten four separate places
+(dashboard datasets, vega, topsheet, xml-viewer); assume it will bite the next worker too.
+Note the payload doesn't have to be a `config` prop — `XmlViewer.vue` posted a
+`FileSystemConfig` pulled straight from `$store.state.svnProjects`, which is just as
+proxied. Anything reachable from props *or* store state counts.
 
 For a library call, `toRaw()` at the call site is enough (see `VegaLite.vue`). Note
 `toRaw()` only unwraps the top level — that's fine when the raw target holds raw values,
@@ -263,6 +272,10 @@ Most core components needed almost none of this (the codebase was already `defin
   - `Vue.set(obj,k,v)` → `obj[k] = v` (reactivity is automatic).
   - `Vue.delete` → `delete obj[k]`.
   - `Vue.component('x', {...})` (used for recursion) → `defineComponent({ name:'x', ... })`.
+    **Hit for real** in `xml-viewer/TreeItem.vue` + `TreeView.vue`. The `name` is load-bearing:
+    Vue 2 got self-reference from the *global* registration, so in Vue 3 a recursive template
+    tag (`tree-item` inside `TreeItem.vue`) resolves only via `name: 'TreeItem'`. Drop the
+    `name` and the tree silently renders one level deep.
   - `Vue.extend({...})` → `defineComponent({...})`.
   - `import { AsyncComponent } from 'vue'` — **removed**; use `Component` or
     `ReturnType<typeof defineAsyncComponent>`.
@@ -400,6 +413,17 @@ Removed because they had zero usage in the stripped core; plugins may need them 
 - `src/plugins/sqlite-map/viewstate-normalizer.ts` is dead — nothing imports it, and
   `SqliteMapComponent.vue` carries a comment saying it was removed. Delete it or wire it
   back up; left in place for now.
+- `store.state.isFullScreen` is written (`VideoPlayer.vue`) but **never read** — the only
+  consumer, `App.vue`'s `toggleFullScreen` watcher, is commented out at `App.vue:165`.
+  Restore that watcher or drop the flag.
+- `buildRouteFromUrl()` in `ImageView.vue` / `VideoPlayer.vue` reads `$route.params.project`,
+  which the Vue 3 catch-all route no longer provides, so it logs and bails. It's only reached
+  when `yamlConfig` is empty, which doesn't happen on the plugin path — left as-is.
+- `tests/e2e/video-player.BROKEN.ts` is not collected (Playwright only matches
+  `*.spec.ts`/`*.test.ts`) and asserts `readyState === 4` plus advancing `currentTime`, which
+  bundled headless Chromium can't satisfy — it has no H.264 decoder. `canPlayType('video/mp4')`
+  returns `"maybe"` and the frame stays black even though the mp4 serves fine. Video
+  *playback* is not e2e-testable here; assert on the element and its `<source>` instead.
 
 ## Next up
 
