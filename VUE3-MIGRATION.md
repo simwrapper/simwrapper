@@ -977,6 +977,19 @@ Oruga-specific prop tuning when their plugins are re-enabled.
   calls `.startsWith`/`.substring` on it (`LeftSystemPanel.vue`, `SimRunner.vue`).
 - **vue-i18n version**: pinned `^9`. Legacy mode is removed in **v12** — do not bump past
   v11 without migrating all `i18n` options to Composition API.
+- **`this.$store` needed a type augmentation** (`src/vuex.d.ts`). Vuex 3 augmented Vue's own
+  interface, so `this.$store` was typed by installing the plugin; **Vuex 4's
+  `types/vue.d.ts` only augments `ComponentCustomOptions`** (the `store?:` option), never
+  `ComponentCustomProperties`. Every Vue 3 + Vuex 4 project has to declare it. Until then
+  the IDE red-squiggled `Property '$store' does not exist on type …` in nearly every
+  component — invisible to CI, since `pnpm build` (Rolldown) strips types and plain `tsc`
+  skips `.vue` files. `$route`/`$router` were never affected, because vue-router 4 *does*
+  ship the augmentation; that contrast is the quickest way to tell this apart from a broken
+  tsconfig. Typed as `typeof store` (not `Store<any>`) so `state` is real: all 18 distinct
+  `$store.state.X` accesses in `src/` match a declared key, and `tsc --noEmit` stays at 85.
+  ⚠️ It cannot live in `shims-vue.d.ts` — the `import` would make that file a module and
+  turn its bare `declare module 'vueperslides'`-style shims into augmentations of packages
+  that have no types to augment.
 
 ## Dependencies removed (re-add Vue 3 versions when a plugin needs them)
 
