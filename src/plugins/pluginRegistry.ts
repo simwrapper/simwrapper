@@ -42,11 +42,11 @@ const plugins: any[] = [
     filePatterns: ['**/*carriers.xml*', '**/viz-carrier*.y?(a)ml*'],
     component: defineAsyncComponent(() => import('./carrier-viewer/CarrierViewer.vue')),
   },
-  // {
-  //   kebabName: 'gridmap',
-  //   filePatterns: ['**/viz-grid*.y?(a)ml'],
-  //   component: defineAsyncComponent(() => import('./grid-map/GridMap.vue')),
-  // },
+  {
+    kebabName: 'gridmap',
+    filePatterns: ['**/viz-grid*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./grid-map/GridMap.vue')),
+  },
   // {
   //   kebabName: 'vehicles',
   //   filePatterns: ['**/viz-vehicles*.y?(a)ml'],

@@ -42,10 +42,10 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 | | enabled | verified in a browser |
 |---|---|---|
-| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `heatmap` `hexagons` `line` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` |
-| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `hexagons` `image-view` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all thirteen |
+| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `line` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` |
+| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all except `gridmap` (no fixture — see below) |
 
-Still removed: `gridmap` `transit` `vehicles` panels, and the remaining
+Still removed: `transit` `vehicles` panels, and the remaining
 full-screen map plugins (`layers` `links` `matrix` `xytime`
 `events` `logistics` `plans` …).
 
@@ -79,6 +79,35 @@ each fix):
   counting: clustering **off** → 0 warnings, clustering **on** → 2. Instrumenting our own
   accessor then showed it never emitted a bad value, which pointed at the `|| null`
   conversion rather than at the data.
+
+`gridmap` (`dash-panels/gridmap.vue` + `plugins/grid-map/GridMap.vue` + its `MapComponent.vue`)
+needed the usual checklist — `import Vue from 'vue'` + three `Vue.set` calls, two
+`beforeDestroy` hooks, three `@import '@/styles.scss'`, `this.` in two template `v-if`s, and
+the `ToggleButton` import **and** registration from the uninstalled `vue-js-toggle-button`
+(imported, registered, never used in the template — same as `XyHexagons.vue`, so both lines
+just go). Three things are worth recording beyond that:
+
+- **It is the only consumer of `components/TimeSliderV2.vue` and
+  `components/ClickThroughTimes.vue`**, which both declared `allTimes: [] as any[]` — an empty
+  array as the prop *type*, matching no constructor. Vue 3: `Prop type [] for prop "allTimes"
+  won't match anything`. Those two files were unreferenced and therefore **never compiled**
+  while grid-map was out (the unreferenced-`.vue` trap under "Verifying a change"), so
+  restoring the plugin is what surfaced it. Now `{ type: Array as PropType<any[]>, required:
+  true }`. This was also [trap #8](#8-a-trailing--in-a-style-value-now-warns--and-drags-i18n-noise-in-with-it)
+  a second time: the warning dragged two `[intlify] Not supported …` lines with it, and all
+  three vanished together.
+- ⚠️ **`beforeDestroy` here is not a slow leak, it's an immediate crash.** With the Vue 2 name
+  the maplibre map is never removed and keeps running against a detached container:
+  `PAGEERROR Cannot read properties of null (reading 'id')` on **every** navigation, plus a
+  surviving `window.__testdata__` and lil-gui panel. Guarded by `gridmap-lifecycle.spec.ts`.
+- **`markRaw` on the deck overlay is precautionary here — trap #7 does not reproduce.**
+  Verified by removing it and driving the layer through several update passes (toggling `flip`,
+  switching the column dropdown) with the console attached: still clean. The reason refines
+  trap #7 usefully: the throw needs a **plain** object or array behind the frozen prop, and
+  this layer's `data.attributes` payload is entirely **typed arrays**, which Vue's `reactive()`
+  returns *untouched* (they're `TargetType.INVALID`), so the proxy invariant is never
+  violated. Kept anyway as the robust whole-class fix — it costs nothing and the moment
+  someone hands this layer a plain array the trap is live.
 
 `area-map` is `shape-file/ShapeFile.vue` — the largest plugin in the repo (3.3k lines) and the
 **only** consumer of the whole `components/viz-configurator/` directory plus
@@ -238,11 +267,24 @@ Specs added for the re-migrated panels/plugins, all green on chromium + firefox 
 - `tests/e2e/tiles.spec.ts` — the `tile` panel (5 tests): both dataset forms, icon
   resolution (local asset vs font-awesome), and link/non-clickable states. Drives
   `e2e-tests/tiles`.
+- `tests/e2e/gridmap-lifecycle.spec.ts` — the `gridmap` panel (3 tests): console-clean on
+  both fixtures plus teardown. The two pre-existing scenario specs (`gridmap-noise`,
+  `gridmap-xmas-2025`) pass **unmodified** after the migration, but they only assert on
+  `window.__testdata__` values — they never look at the console or at unmount, which is
+  exactly where this plugin's Vue 3 problems were. Both console tests are needed: the
+  `allTimes` prop bug only appears on the **lausitz** fixture, because that is the only one
+  that mounts the time widgets.
+  ⚠️ Console filters must be **case-insensitive**. Chromium says `GPU stall … ReadPixels`;
+  firefox says `WEBGL_debug_renderer_info is deprecated` (from luma.gl). A `/WebGL/` filter
+  matches the first and misses the second, so the spec passed on chromium and failed on
+  firefox — use `/…/i`.
 - `tests/e2e/aggregate-od.spec.ts` — the `aggregate` panel **and** the plugin route
-  (8 tests). Restored from `aggregate-od.BROKEN.ts`, whose three data-count assertions
+  (11 tests). Restored from `aggregate-od.BROKEN.ts`, whose three data-count assertions
   (23 centroids / 390 spider links / 23 zone polygons) were correct all along — it was
   only broken while the plugin was removed. `video-player.BROKEN.ts` is now the last
-  `.BROKEN.ts`, and that one is unfixable here (see Loose ends).
+  `.BROKEN.ts`, and that one is unfixable here (see Loose ends). The last three tests
+  cover the **time-bin indexing bug** below and need
+  `agg-od/dashboard-1.yaml` + `one-row.csv`.
 
 The first two **depend on fixtures that live outside git** (see Loose ends), so they fail on
 a machine without that testdata.
@@ -638,8 +680,28 @@ behaved like tabs. Oruga ships `o-radio` (a radio input) and no button-group var
 markup has to be rebuilt — same situation as `b-navbar`. `carrier-viewer/CarrierViewer.vue`
 does it as a Bulma `.buttons.has-addons` group of `o-button`s with
 `:variant="activeTab==='x' ? 'warning' : ''"` and `@click`, which reproduces Buefy's
-selected-button highlight. `aggregate-od`'s Origins/Destinations pair uses the same shape with
-Bulma's `is-link`/`is-active` classes.
+selected-button highlight.
+
+`aggregate-od`'s Origins/Destinations pair is the same shape, but **don't reach for a Bulma
+variant for the "active" fill**. It used `is-link`, whose `#485fc7` is a vivid indigo that
+reads as a hyperlink and was by far the brightest thing on the panel. It now carries a plain
+`.dir-button` + `:class="{selected: …}"` and fills from a theme variable:
+
+```scss
+--bgSelected: #{$matsimBlue};   // one value works in both colour schemes
+--textSelected: #ffffff;
+```
+
+`$matsimBlue` (`#4b7cc4`) is dark enough against the white panel and light enough against dark
+mode's `#2a3c4f` one, so it needs no `.dark-mode` counterpart. `.selected` is unused by both
+Bulma and theme-bulma (verified, 0 hits), so there is no collision. Note Bulma 1.x buttons are
+built on HSL channel variables (`--bulma-button-h/s/l`), so a direct
+`background-color`/`border-color`/`color` rule is the simple override — scoped CSS adds
+`[data-v-…]`, which outranks `.button` and even `.button:hover`.
+
+If you restyle this, `tests/e2e/aggregate-od.spec.ts` asserts `toHaveClass(/\bselected\b/)` on
+the pair — that is the exact half of that test, since its canvas diff can't isolate which
+handler ran.
 
 ⚠️ **`vue-js-toggle-button` is not installed and not in `package.json`.** A restored file
 importing it will fail to build. `XyHexagons.vue` imported *and registered* `ToggleButton`
@@ -647,9 +709,100 @@ without ever using it in the template, so the fix was simply deleting both lines
 whether a leftover import is actually used before reaching for `o-switch`.
 
 **Oruga registration** (already done in `main.ts`): the default plugin registers **no**
-components unless you pass them —
-`createOruga({ ...bulmaConfig, iconPack:'mdi' }, OrugaComponentPlugins)` then `app.use(oruga)`.
-Oruga CSS is imported in `App.vue` (`@oruga-ui/theme-bulma/dist/theme.css`).
+components unless you pass them — `createOruga(config, OrugaComponentPlugins)` then
+`app.use(oruga)`. All the global stylesheets are imported in **`main.ts`**, not `App.vue` —
+resets/libs first, then `bulma/css/bulma.min.css`, `@oruga-ui/theme-bulma/style.css`,
+`@oruga-ui/theme-oruga/style.css`, and finally `@/styles.scss` so the app's own rules win.
+
+### Two themes at once: sliders are on theme-oruga, everything else on theme-bulma
+
+**Oruga resolves class names from the runtime config, not from whichever stylesheet is
+loaded.** This is the single most important thing to know about theming here, and it is
+counter-intuitive: adding a theme's stylesheet does **nothing** on its own. Proven — importing
+`@oruga-ui/theme-oruga` while `bulmaConfig` was fully active left three routes screenshotting
+**byte-identical**, because its rules target `o-*` names and `bulmaConfig` was assigning
+Bulma's (`checkbox control`, `check`, `button`, `slider`).
+
+**`@oruga-ui/theme-oruga` ships no config at all** — its `dist/theme.js` is an 83-byte banner
+comment. It styles Oruga's *built-in default* class names (`o-slider`, `o-slider__track`,
+`o-slider__fill`, `o-slider__thumb`, `o-slider__tick`, `--small`/`--medium`/`--large` and the
+variant modifiers — verified against the string literals in `oruga-next/dist/index.js`). So
+adopting it means **removing** config, not adding any.
+
+Because the config is **per-component**, that is scopable. `main.ts` destructures the `slider`
+key out so it is genuinely absent, and sliders alone fall back to Oruga's defaults:
+
+```ts
+const { slider: _bulmaSlider, ...bulmaConfigNoSlider } = bulmaConfig
+createOruga({ ...bulmaConfigNoSlider, iconPack: 'mdi' }, OrugaComponentPlugins)
+```
+
+Why: theme-bulma *does* ship slider CSS (Bulma itself has none — 0 hits — so the theme
+supplies it), but at `size="small"` it renders a ~5 px hairline with no visible fill. The
+Oruga theme gives a real track, thumb and coloured fill.
+
+Two overrides in `src/styles.scss`, both needed because theme-oruga declares its variables
+**on `.o-slider` itself**, which beats anything you put on `:root`:
+
+- `--oruga-primary: #{$appTag}` — the stock value is `#445e00`, a dark olive. This one
+  variable drives the slider's **fill and its tick marks**. (It lives in `:root`, which works
+  because *that* one is only declared in theme-oruga's own `:root, :host` block.)
+- `.o-slider--small { --oruga-slider-thumb-size: 1rem }` — 0.75 rem gave a 10.5 px thumb,
+  a fiddly grab target. theme-oruga derives **`track-height = thumb-size / 2`**, so this
+  single variable scales both proportionally (now 14 px thumb / 7 px track). Scoped to the
+  `--small` step, which is what every slider in the app uses, so `size="medium"`/`"large"`
+  keep their own proportions.
+
+Consequences worth knowing:
+
+- ⚠️ **A local `.slider` class on an `o-slider` gets double-styled**, because theme-bulma's
+  `.slider` rules are still loaded for every other component. `carrier-viewer/CarrierViewer.vue`
+  and `components/PlaybackControls.vue` both did this; renamed to `.carrier-slider` /
+  `.playback-slider`. `.time-slider`, `.ui-slider` and `.pie-slider` never collided.
+- ⚠️ **A `padding` shorthand on an `o-slider` collapses it.** theme-oruga puts `padding: 1em 0`
+  on the root; `ScaleSlider.vue` and `LineFilterSlider.vue` had `padding: 0 1rem`, which zeroed
+  the vertical padding — `aggregate-od`'s `.lower-left` overlay shrank 110 px → 54 px and the
+  sliders collided with their own labels. Both now use `padding-left`/`padding-right`.
+- **theme-oruga has no `link` variant** (only `primary secondary info success warning danger`);
+  `CarrierViewer.vue`'s `variant="link"` became `primary`.
+- ⚠️ **Don't use Oruga's `indicator` to show a slider's value.** It renders the value *inside*
+  the thumb — 14 px text in a 10.5 px thumb, spilling onto the track. (theme-oruga tries to
+  size it via `--oruga-tooltip-content-font-size`, which our still-Bulma-classed tooltip
+  ignores, since only the `slider` key was dropped.) The Buefy original had the same problem in
+  reverse: a thumb big enough to hold the number.
+
+  **The pattern to copy is `xy-hexagons`'**: caption and value on one line above the track,
+  value right-aligned, `:tooltip="false"` and no `indicator`. `ScaleSlider.vue` and
+  `LineFilterSlider.vue` now take an optional `label` prop and render
+  `.slider-label > .slider-name + .slider-value` themselves. Two things that matter:
+  - **`font-variant-numeric: tabular-nums`** on the value. These run `1 → 5000` and `0 → Alle`;
+    without fixed digit widths the number jitters while you drag.
+  - **The child must own the value.** `AggregateOd`'s `currentScale`/`lineFilter` only update
+    through `bounceScaleSlider`/`bounceLineFilter`, debounced 50 ms and **250 ms**, so a
+    parent-rendered value visibly trails the thumb. The child's `sliderValue` is synchronous.
+- Specs must use the new names: `.o-slider`, `.o-slider__track`. For the thumb prefer
+  **`[role="slider"]`** — it is where `aria-valuenow` lives and it survives the next theme
+  change. And read a slider's value from the visible `.slider-value`, **not**
+  `.tooltip-content`: with `:tooltip="false"` Oruga still emits that element but it measures
+  **0×0**, so the old assertion proved the `formatter` ran without proving anything was
+  legible. Both mutation checks (formatter returning the raw index) still fail through the
+  visible label.
+
+Path traps: the package has **no `oruga.scss`**. The CSS entry is `./style.css` — the seemingly
+obvious `@oruga-ui/theme-oruga/dist/theme.css` is **not in the exports map** and fails to
+resolve. The Sass entry is `./style.scss`; a deep `dist/scss/...` specifier must **omit** the
+extension (`.../dist/scss/theme`), because the pattern is
+`"./dist/scss/*": "./dist/scss/*.scss"` — a trailing `.scss` becomes `theme.scss.scss` and
+Rolldown fails with `failed to resolve import`. `theme-build.scss` is the same styles plus a
+`@forward` of `utils/variables`, needed only to `@use ... with (...)` them from a `.scss` file.
+Note `useVar()` emits `var(--oruga-x)` with **no fallback**, so any component you cherry-pick
+also needs `utils/root`.
+
+**Switching the whole app to theme-oruga is a much bigger job**: drop `bulmaConfig` entirely,
+then deal with ~178 `is-*` Bulma classes in `src/`, the hand-built Bulma markup that has no
+Oruga equivalent (navbar, `.buttons.has-addons` radio groups, `progress.progress`), and every
+theme-bulma class selector the specs rely on (`input.check`, `select.form-select`,
+`.checkbox.control`). `bulma.min.css` would still be needed for layout (columns, tiles, menu).
 
 **Oruga events** (verified): `o-input`/`o-checkbox` emit **both** `input` and
 `update:modelValue` (so `@input` handlers still fire); `o-select` emits **only**
@@ -717,6 +870,10 @@ Removed because they had zero usage in the stripped core; plugins may need them 
   - `charts/dashboard-9-slideshow.yaml` — images via a relative `../logistics/*.png` path
   - `tiles/dashboard-10-tiles.yaml` + `tiles/tile-metrics.csv` — backs
     `tests/e2e/tiles.spec.ts`; both dataset forms (CSV and inline list)
+  - `agg-od/dashboard-1.yaml` + `agg-od/one-row.csv` — the "One Row" tab, backing the three
+    time-bin tests in `tests/e2e/aggregate-od.spec.ts`. One OD pair with a distinct value
+    per time bin; see the indexing bug under "Gotchas already fixed" for why a
+    single-row fixture is what caught it.
 
   Note `svn status` reports `shared/simwrapper-testdata/charts` as `?` — that whole tree is
   **unversioned** in the working copy (root is `/Users/billy/public-svn`), so these can't
@@ -849,10 +1006,64 @@ Removed because they had zero usage in the stripped core; plugins may need them 
   `must be accessed via $data` warning fires **only during render** — and neither key was
   ever touched from a template. Verified against
   `@vue+runtime-core@3.5.40/dist/runtime-core.cjs.js`, not from docs.
-- `AggregateOd.updateSpiderLinks()` now also calls `updateTestData()`. `createSpiderLinks()`
-  replaces the whole `spiderLinkFeatureCollection`, so the `window.__testdata__` hook kept
-  pointing at the **pre-filter** array — silently stale after any slider change, and a trap
-  for the next spec author.
+- `AggregateOd.updateSpiderLinks()` and `handleCentroidsForTimeOfDayChange()` now also call
+  `updateTestData()`. Both replace their whole FeatureCollection, so the
+  `window.__testdata__` hook kept pointing at the **pre-change** array — silently stale
+  after any slider move, and a trap for the next spec author.
+- ⚠️ **`aggregate-od` showed the wrong centroid totals for every time bin — fixed.** Three
+  separate bugs, all from one wrong assumption (`headers` starts with a totals column — it
+  does not; the worker slices off only the origin/destination columns, so `headers` lines up
+  1:1 and 0-based with each row's `values`). **All three predate the migration** — identical
+  in `master` — and all three are in `calculateCentroidValuesForZone` /
+  `getDailyDataSummary`:
+
+  1. `const hour = this.headers.indexOf(timePeriod) - 1` — every single-bin selection read
+     the **previous** bin's marginal, and the *first* bin read index `-1` →
+     `Math.round(undefined)` → `NaN`. Because the centroid filter is
+     `dailyFrom + dailyTo > 0` and `NaN > 0` is false, the centroids **silently vanished**
+     rather than showing `NaN`.
+  2. Same `- 1` on both bounds of the range ("Duration") branch, so a span always came up
+     one bin short at each end.
+  3. `getDailyDataSummary` sized and filled its marginals `Array(headers.length - 1)`, so
+     the **final** bin was never accumulated at all — not merely misread, absent.
+
+  A fourth, adjacent bug surfaced only because the test drove the slider *back*:
+  `handleCentroidsForTimeOfDayChange` overwrites `feature.properties.dailyFrom/dailyTo`
+  with the selected bin's values (`convertRegionColors` needs that to shade zones by the
+  current selection), but the `TOTAL_MSG` branch **read those same properties** — so
+  returning to "All >>" showed the last-selected bin's value forever. It now reads
+  `marginals.rowTotal`/`colTotal`, the same source `buildCentroids()` uses.
+
+  **Why it went unnoticed for so long, and the lesson for the next fixture:** on the
+  23-zone `dashboard-0.yaml` every zone has substantial traffic in every bin, so a label
+  showing the neighbouring bin looks entirely plausible — there is nothing to compare it
+  against. `agg-od/dashboard-1.yaml` + `one-row.csv` (a **single** OD pair, `030405` →
+  `110101`, with a distinct value per bin: `10 80 140 120 110 130 20`) makes the origin's
+  "from" marginal exactly that bin's value, so the off-by-one is unmissable. When a
+  plugin aggregates, add a fixture with **one** of whatever it aggregates.
+
+  `tests/e2e/aggregate-od.spec.ts` guards all four, and each fix was mutation-checked
+  individually. The third test is fixture-independent: on the 23-zone dashboard the seven
+  per-bin totals must **sum** to the "All >>" total, which cannot hold while bug 3 is
+  present. That invariant is also the cheapest way to re-verify this by hand.
+- **`gridmap` pre-existing issues, all confirmed identical on `master` and left alone:**
+  - `components/TimeSliderV2.vue` **mutates its props** in `mounted()` —
+    `this.allTimes.unshift(0)` and `this.range[0] = 0`. Two `vue/no-mutating-props` errors,
+    present before the prop-type fix too (checked by stashing it). Would compound across
+    remounts, but on the current fixtures the component only mounts transiently and is not
+    in the final DOM, so nothing observable. Fixing it properly means restructuring, not a
+    one-liner.
+  - `deck: Attribute instanceFillColors is normalized` — deck.gl warns when a normalized
+    attribute is handed an array whose type differs from its default and `normalized` isn't
+    stated. `colorData` is a `Uint8Array`, `instanceFillColors` is `unorm8`
+    (→ `Uint8ClampedArray`). **Fixed** with an explicit `normalized: true` on the
+    `getFillColor` descriptor, which is what deck already assumed — nothing changes visually.
+  - `BackgroundLayers` is constructed and `initialLoad()` **awaited as the last statement of
+    `mounted()`**, after the heavy avro parse — the same shape as the ShapeFile ordering
+    problem that cost 13 s there. Not changed here (it isn't a Vue 3 issue and these fixtures
+    have no `backgroundLayers:` block), but it is the same fix if it ever matters.
+  - There is **no `viz-grid*.y?(a)ml` fixture** anywhere in the testdata, so the plugin's own
+    route is registered but unexercised; both fixtures go through the dashboard-panel path.
 - Fixtures used to verify this round (all already present, none added):
   `e2e-tests/aequilibrae` (`dashboard-combined-demo.yaml`, 7 `aequilibrae` panels),
   `e2e-tests/agg-od` (`dashboard-0.yaml`, the `aggregate` panel) plus
