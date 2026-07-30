@@ -818,22 +818,28 @@ const Component = defineComponent({
       let from = 0
       let to = 0
 
-      // daily
+      // daily -- read the marginals, the same source buildCentroids() uses. NOT
+      // feature.properties, which handleCentroidsForTimeOfDayChange() overwrites with
+      // the selected bin's values (convertRegionColors needs it to track the
+      // selection), so going back to "All >>" used to show the last bin instead.
       if (timePeriod === TOTAL_MSG) {
-        to = feature.properties.dailyTo
-        from = feature.properties.dailyFrom
+        from = Math.round(this.marginals.rowTotal[feature.id]) || 0
+        to = Math.round(this.marginals.colTotal[feature.id]) || 0
         return { from, to }
       }
 
       const fromMarginal = this.marginals.from[feature.id]
       const toMarginal = this.marginals.to[feature.id]
 
+      // `headers` is exactly the CSV's value columns, so it lines up 1:1 with the
+      // marginals -- there is no leading totals column to skip. The time slider's own
+      // "All >>" stop is prepended by TimeSlider.allStops and handled above.
       // time range
       if (Array.isArray(timePeriod)) {
-        let hourFrom = this.headers.indexOf(timePeriod[0]) - 1
-        if (hourFrom < 0) hourFrom = 0
-
-        const hourTo = this.headers.indexOf(timePeriod[1]) - 1
+        // the low thumb can sit on "All >>", which isn't in headers
+        // There was an off-by-one here!
+        const hourFrom = Math.max(0, this.headers.indexOf(timePeriod[0]))
+        const hourTo = this.headers.indexOf(timePeriod[1])
 
         for (let i = hourFrom; i <= hourTo; i++) {
           from += fromMarginal ? Math.round(fromMarginal[i]) : 0
@@ -843,7 +849,7 @@ const Component = defineComponent({
       }
 
       // one time period
-      const hour = this.headers.indexOf(timePeriod) - 1
+      const hour = this.headers.indexOf(timePeriod)
 
       from = fromMarginal ? Math.round(fromMarginal[hour]) : 0
       to = toMarginal ? Math.round(toMarginal[hour]) : 0
@@ -1084,9 +1090,14 @@ const Component = defineComponent({
       const fromCentroid: any = {}
       const toCentroid: any = {}
 
+      // one slot per time period. `headers` holds only the value columns -- the worker
+      // already sliced the origin/destination columns off -- so there is no totals
+      // column to subtract, and doing so used to drop the final time period entirely.
+      const numTimePeriods = this.headers.length
+
       for (const row of Object.keys(this.zoneData)) {
-        // store number of time periods (no totals here)
-        fromCentroid[row] = Array(this.headers.length - 1).fill(0)
+        // there was an off-by-one here!
+        fromCentroid[row] = Array(numTimePeriods).fill(0)
 
         for (const col of Object.keys(this.zoneData[row])) {
           // daily totals
@@ -1098,11 +1109,10 @@ const Component = defineComponent({
             colTotal[col] += this.dailyData[row][col]
           }
 
-          if (!toCentroid[col]) toCentroid[col] = Array(this.headers.length - 1).fill(0)
+          if (!toCentroid[col]) toCentroid[col] = Array(numTimePeriods).fill(0)
 
           // time-of-day details
-          for (let i = 0; i < this.headers.length - 1; i++) {
-            // number of time periods
+          for (let i = 0; i < numTimePeriods; i++) {
             if (this.zoneData[row][col][i]) {
               fromCentroid[row][i] += this.zoneData[row][col][i]
               toCentroid[col][i] += this.zoneData[row][col][i]
@@ -1137,9 +1147,7 @@ const Component = defineComponent({
         // make sure worker is responsive before we ask it to work
         if (message.ready) {
           // fileSystem comes from store state; de-proxy it or structuredClone throws
-          csvWorker.postMessage(
-            unreactive({ fileSystem: this.fileSystem, filePath: csvFilename })
-          )
+          csvWorker.postMessage(unreactive({ fileSystem: this.fileSystem, filePath: csvFilename }))
         } else if (message.status) {
           this.loadingText = message.status
         } else if (message.error) {

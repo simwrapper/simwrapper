@@ -3,6 +3,7 @@ import { test, expect, Page } from '@playwright/test'
 /**
  * aggregate-od, both ways in:
  *   e2e-tests/agg-od                     -> dashboard-0.yaml, the `aggregate` panel
+ *                                           (+ dashboard-1.yaml on its "One Row" tab)
  *   e2e-tests/emissions/viz-od-drt.yaml  -> the plugin's own route (**\/viz-od*.y?(a)ml)
  *
  * `window.__testdata__` is a hook the plugin publishes for these tests
@@ -11,6 +12,7 @@ import { test, expect, Page } from '@playwright/test'
 
 const PANEL = 'e2e-tests/agg-od'
 const PLUGIN = 'e2e-tests/emissions/viz-od-drt.yaml'
+const ONE_ROW_TAB = 'One Row' // agg-od/dashboard-1.yaml, backed by one-row.csv
 
 async function waitForData(page: Page) {
   await page.waitForFunction(() => {
@@ -30,6 +32,62 @@ const testdata = (page: Page) =>
       geojson: t.geojson.length,
     }
   })
+
+/**
+ * one-row.csv is a single OD pair, 030405 -> 110101, one value per time bin, summing to
+ * 610. With exactly one row, the origin zone's "from" marginal and the destination
+ * zone's "to" marginal are each precisely that bin's value -- no other row can mask an
+ * indexing mistake, which is what makes this fixture worth having.
+ */
+const ORIGIN = '030405'
+const DEST = '110101'
+const DAILY_TOTAL = 610
+const BINS: [string, number][] = [
+  ['0.0-6.0', 10],
+  ['6.0-9.0', 80],
+  ['9.0-12.0', 140],
+  ['12.0-15.0', 120],
+  ['15.0-18.0', 110],
+  ['18.0-21.0', 130],
+  ['21.0-24.0', 20],
+]
+
+async function openOneRowPanel(page: Page) {
+  await page.goto(PANEL)
+  // the folder opens on dashboard-0, whose panel also writes __testdata__, so wait for
+  // the one-row shape specifically rather than for "any data"
+  await page.getByText(ONE_ROW_TAB, { exact: true }).first().click()
+  await page.waitForFunction(() => {
+    const t = (window as any).__testdata__
+    return !!(t && t.centroids?.length === 2 && t.spiderLinks?.length === 1)
+  })
+  await expect(page.locator('.lower-left .slider')).toHaveCount(2)
+}
+
+/**
+ * What the centroid label layer renders: its text-field is '{dailyFrom}' / '{dailyTo}'
+ * read off this same `centroids` source, and dashboard-1 uses scaleFactor 1, so these
+ * numbers are the label text.
+ */
+const centroidLabels = (page: Page) =>
+  page.evaluate(() =>
+    Object.fromEntries(
+      (window as any).__testdata__.centroids.map((c: any) => [
+        c.properties.id,
+        { from: c.properties.dailyFrom, to: c.properties.dailyTo },
+      ])
+    )
+  )
+
+/** Move the time slider to an exact stop (0 = "All >>", 1..7 = BINS) via the keyboard. */
+async function setTimeBin(page: Page, index: number) {
+  const thumb = page.locator('.xtime-slider .slider-thumb').first()
+  await thumb.focus()
+  const current = Number(await thumb.getAttribute('aria-valuenow'))
+  const key = index > current ? 'ArrowRight' : 'ArrowLeft'
+  for (let i = 0; i < Math.abs(index - current); i++) await page.keyboard.press(key)
+  await expect(thumb).toHaveAttribute('aria-valuenow', String(index))
+}
 
 /** Oruga renders the formatter's output into .tooltip-content even with :tooltip="false". */
 const sliderLabel = (page: Page, nth: number) =>
@@ -258,4 +316,115 @@ test('aggregate-od cleans up after itself on unmount', async ({ page }) => {
   await link.click()
   await waitForData(page)
   expect(await testdata(page)).toEqual({ centroids: 23, spiderLinks: 390, geojson: 23 })
+})
+
+/**
+ * Centroid labels must show the total for the *selected* time bin.
+ *
+ * This is what dashboard-1.yaml / one-row.csv exist to pin down: with 390 OD pairs the
+ * labels are plausible whatever the indexing does, but with a single row every bin has a
+ * distinct value, so an off-by-one is unmistakable.
+ */
+test('aggregate-od centroid labels show the selected time bin, not its neighbour', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  await openOneRowPanel(page)
+  const stop = page.locator('.xtime-slider p b')
+
+  // "All >>" is the whole day
+  await expect(stop).toHaveText('All >>')
+  expect(await centroidLabels(page)).toEqual({
+    [ORIGIN]: { from: DAILY_TOTAL, to: 0 },
+    [DEST]: { from: 0, to: DAILY_TOTAL },
+  })
+
+  // note the poll: the slider's own label updates synchronously but changedTimeSlider is
+  // debounced 100ms, so a bare read here races the redraw and sees the previous bin
+  for (const [index, [binLabel, value]] of BINS.entries()) {
+    await setTimeBin(page, index + 1) // stop 0 is "All >>"
+    await expect(stop).toHaveText(binLabel)
+    await expect
+      .poll(() => centroidLabels(page), { message: `time bin ${binLabel} should show ${value}` })
+      .toEqual({
+        [ORIGIN]: { from: value, to: 0 },
+        [DEST]: { from: 0, to: value },
+      })
+  }
+
+  // and back to the whole day
+  await setTimeBin(page, 0)
+  await expect(stop).toHaveText('All >>')
+  await expect.poll(() => centroidLabels(page)).toEqual({
+    [ORIGIN]: { from: DAILY_TOTAL, to: 0 },
+    [DEST]: { from: 0, to: DAILY_TOTAL },
+  })
+})
+
+/**
+ * The same arithmetic as a fixture-independent invariant, on the 23-zone dashboard: the
+ * seven per-bin totals must add up to the "All >>" total. This could not hold while
+ * getDailyDataSummary() sized its marginals `headers.length - 1`, because the final bin
+ * was never accumulated at all -- and unlike the one-row case it doesn't depend on
+ * knowing any particular value.
+ */
+test('aggregate-od per-bin centroid totals sum to the daily total', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.goto(PANEL)
+  await waitForData(page)
+
+  const zone = (labels: any) => labels[DEST] // 110101 appears as both origin and destination
+
+  await expect(page.locator('.xtime-slider p b')).toHaveText('All >>')
+  const daily = zone(await centroidLabels(page))
+  expect(daily.from, 'fixture should have daily traffic to sum against').toBeGreaterThan(0)
+
+  let summed = { from: 0, to: 0 }
+  for (const [index, [binLabel]] of BINS.entries()) {
+    await setTimeBin(page, index + 1)
+    await expect(page.locator('.xtime-slider p b')).toHaveText(binLabel)
+    // settle the 100ms debounce, then read
+    await page.waitForTimeout(400)
+    const bin = zone(await centroidLabels(page))
+    summed = { from: summed.from + bin.from, to: summed.to + bin.to }
+  }
+
+  expect(summed).toEqual(daily)
+})
+
+/**
+ * The same indexing, through the range branch (the "Duration" checkbox). Toggling it
+ * selects the full span, so the total must come back to the daily total -- it used to
+ * come up short by the final bin, which the old `indexOf(...) - 1` bounds never reached.
+ */
+test('aggregate-od time-range totals cover every bin in the span', async ({ page }) => {
+  test.setTimeout(120_000)
+  await openOneRowPanel(page)
+  const stop = page.locator('.xtime-slider p b')
+
+  await page.locator('input.check').nth(0).click({ force: true }) // "Duration"
+  await expect(page.locator('.xtime-slider .slider-thumb')).toHaveCount(2)
+  await expect(stop).toHaveText(`${BINS[0][0]} : ${BINS[BINS.length - 1][0]}`)
+
+  // the full span is the whole day
+  await expect.poll(() => centroidLabels(page)).toEqual({
+    [ORIGIN]: { from: DAILY_TOTAL, to: 0 },
+    [DEST]: { from: 0, to: DAILY_TOTAL },
+  })
+
+  // walk the low thumb up, dropping one bin from the front each time
+  const low = page.locator('.xtime-slider .slider-thumb').first()
+  await low.focus()
+  let remaining = DAILY_TOTAL
+  for (let i = 0; i < 3; i++) {
+    remaining -= BINS[i][1]
+    await page.keyboard.press('ArrowRight')
+    await expect(stop).toHaveText(`${BINS[i + 1][0]} : ${BINS[BINS.length - 1][0]}`)
+    await expect
+      .poll(() => centroidLabels(page), { message: `span from ${BINS[i + 1][0]}` })
+      .toEqual({
+        [ORIGIN]: { from: remaining, to: 0 },
+        [DEST]: { from: 0, to: remaining },
+      })
+  }
 })
