@@ -42,12 +42,138 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 | | enabled | verified in a browser |
 |---|---|---|
-| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `line` `links` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `transit` `vega` `video` `xml` | all except `pie` and `links` (no fixture) |
-| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `links` `plotly` `sankey` `summary-table` `transit` `vega-lite` `video-player` `xml` | all except `gridmap` (no fixture — see below) |
+| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `layers` `line` `links` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `transit` `vega` `video` `xml` | all except `pie` and `links` (no fixture) |
+| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `layers` `layer-map` `links` `plotly` `sankey` `summary-table` `transit` `vega-lite` `video-player` `xml` | all except `gridmap` (no fixture — see below) |
 
 Still removed: the `vehicles` panel, and the remaining
-full-screen map plugins (`layers` `matrix` `xytime`
+full-screen map plugins (`matrix` `xytime`
 `events` `logistics` `plans` …).
+
+`layers` (`dash-panels/layermap.vue` + `plugins/layer-map/`, 13 `.vue` files) is the
+biggest one yet, because it is the only plugin whose **renderer was React**. It also
+arrived half-converted: the commit that restored it had run a find/replace producing
+`beforeUnmounted()` — not a Vue 3 hook name at all, so all six were as dead as the
+`beforeDestroy` they replaced. `grep -rn "beforeUnmounted" src/` should stay empty
+alongside the `beforeDestroy` grep.
+
+- ⚠️ **`AllLayers.tsx` is gone; the map is now `layer-map/MapComponent.vue`.**
+  It used `@deck.gl/react` + `react-map-gl`'s `StaticMap`, **neither of which is
+  installed**, and it was already commented out of the template on `master` — so this
+  plugin rendered no map at all before this round. The replacement is the same
+  maplibre + `MapboxOverlay` component every other migrated map plugin uses
+  (`shape-file/DeckMapComponent.vue` is the closest model). `REACT_VIEW_HANDLES` is no
+  longer registered for this plugin; the map watches `globalState.viewState` itself.
+- ⚠️ **`markRaw` the maplibre `Map` too, not just the deck overlay.** New instance of
+  trap #7: maplibre freezes the `rgb` array on the `Color` objects it parses out of a
+  style, so a reactive map throws `'get' on proxy: property 'rgb' is a read-only and
+  non-configurable data property` — but only on the **second** style parse, i.e. when the
+  user switches the basemap theme. First paint is clean. `grid-map/MapComponent.vue` and
+  `shape-file/DeckMapComponent.vue` keep `mymap` in `data()` unraw'd and have the same
+  latent bug; nothing there switches styles today.
+- ⚠️ **`Object.assign({}, reactiveObj)` re-wraps every value in a Proxy.** This is what
+  made trap #1 survive an obvious `toRaw()` fix. `datasets` is copied with
+  `Object.assign`/spread on every change, and reading a value *through* the proxy returns
+  `reactive(value)` — so the raw `DataTable` that was stored got replaced by a proxied one
+  on the next copy, and Comlink's `structuredClone` threw `DataCloneError` as soon as a
+  layer was coloured by data. The fix is at the source: `markRaw(dataTable)` at all five
+  places that store one. Marking the *container* raw is not enough.
+- ⚠️ **A Vue 3 watcher does not fire when a parent `push()`es to an array prop.**
+  `initializeLayers()` pushed each YAML-defined layer into `mapLayers`; Vue 2's watcher
+  fired, Vue 3's only sees an identity change. The visible symptom was maximally
+  confusing: the console logged `INIT polygons`, the map drew nothing, and the layer list
+  was empty — because `LayerConfigurator` never saw the layer, and it is the **config
+  panel's `mounted()`** that calls `updateConfig()` → `assembleData()`. One
+  `this.mapLayers = [...this.mapLayers]` fixes all three.
+- ⚠️ **`is` on a plain element is now "customized built-in".** The configurator rendered
+  each layer's panel with `.layer(v-for=… :is="layer.configPanel()")`. In Vue 3 that
+  resolves to a custom element, not a component; it must be `component.layer(:is=…)`.
+- ⚠️ **`v-model` on a custom component that reads `$attrs.value`.** `ColumnSelector`,
+  `DatasetSelector` and `TextSelector` had no `value` prop — Vue 2's `v-model` passed one
+  through `$attrs`. Vue 3 sends `modelValue`, so every one of them silently initialised to
+  `''`. They now declare a real `value` prop and callers bind `:value` (they emit through
+  `@update`, so nothing else changed).
+- **`vuedraggable` was not installed at all.** `vuedraggable@4` (published as
+  `vuedraggable@next`) is the Vue 3 fork — fourth time this pattern has come up after
+  `vue-good-table-next`, `vueperslides` and `vue3-virtual-scroll-list`. The API *does*
+  change: rows go through a `#item` slot and `item-key` is required.
+- **The React `ColorMapSelector` is replaced by
+  `components/ColorMapSelector/ColorMapSelector.vue`** — same props (`value`, `invert`)
+  and events (`onValueChange`, `onInversionChange`), so only the import path changed in
+  the two layer configs. It renders a grouped `o-select` plus a gradient swatch built
+  from `interpolators.ts`. It deliberately does **not** import `utils.ts`'s
+  `getLinearGradient`, which would drag in `three` and `ndarray` for eleven colour stops.
+  The `.tsx` files stay where they are (matrix/h5web orphans, still needing `@visx/scale`).
+- ⚠️ **A `data()` field bound as an event handler must start as a function.** The layer
+  configs declared `debOpacity: {} as any` and filled it in `mounted()`, but the template
+  binds it during the *first render* — so the first slider event hit
+  `[Vue warn] Invalid value type passed to callWithAsyncErrorHandling(): object`.
+- **`v-html` with text children is now a compile error** (`v-html will override element
+  children`), not a silent override. `SaveMapModal` had `p(v-html="…") {{ statusText }}`.
+- ⚠️ **`.deck-map` was defined by both the panel wrapper and the new map component.**
+  The panel wrapper's class lands on the *plugin's root element*, and its
+  `display: flex; flex-direction: column` overrode the plugin's own
+  `.layer-map { display: grid }` — which stacks the config panel and the map instead of
+  overlapping them, giving the map **zero height**: a fully working map, invisible, with
+  a clean console. Renamed to `.layer-map-panel` / `.layer-map-canvas`.
+- **The map needs a `ResizeObserver`.** In a dashboard the card is still growing at mount
+  time, so maplibre initialises against a zero-height container and never repaints.
+- ⚠️ **The layer list had a scrollbar that was pure padding, and a panel that spilled.**
+  Two independent bugs in `.scrollable`, both inherited from `master`:
+  `padding-bottom: 20rem` made the content 280 px taller than whatever it held, so any
+  window shorter than ~700 px showed a scrollbar over a mostly-empty track with a single
+  layer in the list; and `.layers-section` had `max-height: 100%` but no `min-height: 0`,
+  so as a flex item it refused to shrink and a long list overflowed the panel instead of
+  scrolling — the tail was unreachable, with no scrollbar anywhere.
+  `max-height: 100%` is the wrong tool in a flex column: the item that must give needs
+  `min-height: 0`, and the scroller below it needs `flex: 1; min-height: 0`.
+  ⚠️ **Window height decides whether you see this.** At a 700 px viewport the old CSS
+  happened to fit exactly (`client == scroll == 562`) and looked perfect; at 640 px it was
+  208 px over. A spec for this must pin a short viewport, and the assertion has to be
+  `scrollHeight <= clientHeight` — headless Chrome uses overlay scrollbars, so
+  `offsetWidth - clientWidth` is 0 either way and proves nothing.
+  The **Data** and **Theme** sections have the same shape and no scroll container at all;
+  nothing exercises them with enough content to overflow yet, so they were left alone.
+- Also the usual checklist: `slot="top"` → `template(#top)` in `AddDataModal`,
+  `b-button`/`b-select`/`b-switch`/`b-slider` → the `o-` equivalents (`@input` →
+  `@update:modelValue`), `@import '@/styles.scss'` → `@use '@/variables' as *` ×8 (dropped
+  entirely in the four files that use no Sass variables), `this.` in two template
+  expressions, and a trailing-`;` `thumbnailUrl` that was dead code (trap #8).
+
+`layers`'s specs and fixtures:
+
+- `tests/e2e/layer-map.spec.ts`, 6 tests, green on chromium + firefox + webkit.
+  Mutation-checked one at a time:
+
+  | mutation | result |
+  |---|---|
+  | M1 drop `markRaw` on the stored `DataTable`s | ✗ "coloring polygons by a data column" |
+  | M2 drop `markRaw` on the maplibre `Map` | ✗ "switching the basemap theme" |
+  | M3 drop the `mapLayers` reassignment in `initializeLayers` | ✗ **all five** |
+  | M4 put `display:flex` back on the panel wrapper | ✗ "layers panel renders in a dashboard" |
+  | M5 `beforeUnmount` → `beforeDestroy` in `MapComponent` | ✗ "…tears down on unmount" |
+  | M6 restore `padding-bottom: 20rem` on `.scrollable` | ✗ "the layer list scrolls only when it overflows" |
+  | M7 drop `min-height: 0` from `.layers-section` | ✗ same test, on the *panel overflows* assertion |
+
+  M5 is the interesting one: it **passed** against the first version of that test. Vue
+  removes the DOM either way, so `.layer-map` disappearing and `window.__testdata__`
+  going away prove nothing about the *map*. What has teeth is the window-listener tally
+  (the `addInitScript` trick from `aggregate-od.spec.ts`) — and it has to be compared
+  **cycle to cycle**, not against a cold baseline, because clicking back to the sibling
+  Flowmap card registers listeners of its own. Leaks 3 listeners per cycle when the hook
+  is dead.
+- **New fixtures (outside git)**, since nothing in the testdata used this plugin, in
+  their own top-level folder: `layers/viz-layers-taz.yaml` (the plugin route) and
+  `layers/dashboard-1-layers.yaml` (the panel route, "Layers" tab). Both draw the SFCTA
+  zones as a polygons layer via a **relative** dataset path,
+  `../flowmap/sfcta/taz1454.geojson` — worth knowing that works, since the loader just
+  concatenates `${subfolder}/${filename}` and leaves the `..` for the server to resolve.
+- **Still uncovered:** the `points`, `arcs` and `lines` layer types beyond "adding one
+  doesn't break anything" (the fixture has no point/line data), the Add Data drag-drop
+  modal, Save-as-YAML, and drag-to-reorder.
+- Two **pre-existing** oddities, unchanged from `master` and left alone: a saved
+  `metric: '#4e79a7'` shows as a blank FILL dropdown (the panel maps `'@2'` → a hex on
+  save but never back on load), and `opacity:` from the YAML is overwritten by the config
+  panel's own default of 100.
 
 `flowmap` needed no new dependencies — the guide's old warning about `@luma.gl/core`,
 `@luma.gl/shadertools` and `@visx/scale` being uninstalled does **not** apply to it:
@@ -423,6 +549,10 @@ Specs added for the re-migrated panels/plugins, all green on chromium + firefox 
   firefox says `WEBGL_debug_renderer_info is deprecated` (from luma.gl). A `/WebGL/` filter
   matches the first and misses the second, so the spec passed on chromium and failed on
   firefox — use `/…/i`.
+- `tests/e2e/layer-map.spec.ts` — the `layers` plugin **and** the `layers` panel
+  (5 tests), both driven from hand-made fixtures in `flowmap/sfcta`. Four of the five
+  assert on an *update* (colour by column, theme switch, add a layer, unmount), because
+  that is where every Vue 3 failure in this plugin lived. See the mutation table above.
 - `tests/e2e/aggregate-od.spec.ts` — the `aggregate` panel **and** the plugin route
   (11 tests). Restored from `aggregate-od.BROKEN.ts`, whose three data-count assertions
   (23 centroids / 390 spider links / 23 zone polygons) were correct all along — it was
@@ -518,6 +648,13 @@ Note the payload doesn't have to be a `config` prop — `XmlViewer.vue` posted a
 `FileSystemConfig` pulled straight from `$store.state.svnProjects`, which is just as
 proxied. Anything reachable from props *or* store state counts.
 
+⚠️ **`Object.assign({}, reactiveObj)` / `{...reactiveObj}` re-proxies every value.**
+Reading a value through a reactive proxy returns `reactive(value)`, so a copy made this
+way contains Proxies even when the original held raw objects — and the copy is what the
+next `postMessage` sees. Storing raw is not enough if the container gets copied; use
+`markRaw()` on the values themselves. Cost half an hour in `layer-map`, where `datasets`
+is re-spread on every change.
+
 For a library call, `toRaw()` at the call site is enough (see `VegaLite.vue`). Note
 `toRaw()` only unwraps the top level — that's fine when the raw target holds raw values,
 but if code has assigned a proxied value *into* the object (e.g.
@@ -529,6 +666,10 @@ recursive `unreactive()` approach instead.
 The compat warning fires for `destroyed`, but a `beforeDestroy` hook is simply an unknown
 option: no error, no warning, silently dead. The whole "migrated" core still had 14 of
 them. All are now `beforeUnmount`; `grep -rn "beforeDestroy" src/` should stay empty.
+
+⚠️ **A near-miss rename is just as dead.** The layer-map restore commit contained six
+`beforeUnmounted()` hooks — a find/replace that overshot. Nothing warns about that either.
+`grep -rn "beforeUnmounted" src/` should also stay empty.
 
 Measured leaks before the fix (SPA nav, counting `window` listeners):
 
@@ -645,6 +786,12 @@ Three things make this expensive to find:
 - **The layer id in the message names the symptom, not the cause.** `SolidPolygonLayer(…-fill)`
   pointed at background layers; `LineOffsetLayer({id: 'linksLayer'})` pointed at a computed
   building fresh plain arrays. Both were the same root cause — a reactive overlay.
+
+⚠️ **maplibre's `Map` is a candidate too, and it isn't deck.gl at all.** maplibre freezes
+the `rgb` array on each `Color` it parses out of a style, so a `Map` living unraw'd in
+`data()` throws the same invariant error — on `setStyle()`, i.e. when the user switches
+the basemap theme, never on first paint. Fixed in `layer-map/MapComponent.vue`;
+`grid-map/MapComponent.vue` and `shape-file/DeckMapComponent.vue` are still latent.
 
 Anything else that freezes or seals its input is a candidate. Prefer `markRaw` for objects
 handed to a rendering library; use `unreactive()` only for clone-across-a-boundary cases. And

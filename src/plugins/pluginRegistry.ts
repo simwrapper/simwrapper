@@ -3,21 +3,21 @@ import { Component, defineAsyncComponent } from 'vue'
 // EVERY plugin must be registered here:
 
 const plugins: any[] = [
-  // {
-  //   kebabName: 'layers',
-  //   filePatterns: ['**/viz-layers*.y?(a)ml'],
-  //   component: defineAsyncComponent(() => import('./layer-map/LayerMap.vue')),
-  // },
+  {
+    kebabName: 'layers',
+    filePatterns: ['**/viz-layers*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./layer-map/LayerMap.vue')),
+  },
   // {
   //   kebabName: 'xytime',
   //   filePatterns: ['**/viz-xyt-*.y?(a)ml', '**/*xyt.csv?(.gz)?(.zst)'],
   //   component: defineAsyncComponent(() => import('./xy-time/XyTime.vue')),
   // },
-  // {
-  //   kebabName: 'layer-map',
-  //   filePatterns: [],
-  //   component: defineAsyncComponent(() => import('./layer-map/LayerMap.vue')),
-  // },
+  {
+    kebabName: 'layer-map',
+    filePatterns: [],
+    component: defineAsyncComponent(() => import('./layer-map/LayerMap.vue')),
+  },
   {
     kebabName: 'area-map',
     filePatterns: [

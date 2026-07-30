@@ -349,6 +349,9 @@ importers:
       vue3-virtual-scroll-list:
         specifier: ^0.2.1
         version: 0.2.1(vue@3.5.40(typescript@4.9.5))
+      vuedraggable:
+        specifier: ^4.1.0
+        version: 4.1.0(vue@3.5.40(typescript@4.9.5))
       vueperslides:
         specifier: ^3.6.0
         version: 3.6.0(vue@3.5.40(typescript@4.9.5))
@@ -6986,6 +6989,9 @@ packages:
   snappyjs@0.6.1:
     resolution: {integrity: sha512-YIK6I2lsH072UE0aOFxxY1dPDCS43I5ktqHpeAsuLNYWkE5pGxRGWfDM4/vSUfNzXjC1Ivzt3qx31PCLmc9yqg==}
 
+  sortablejs@1.14.0:
+    resolution: {integrity: sha512-pBXvQCs5/33fdN1/39pPL0NZF20LeRbLQ5jtnheIPN9JQAaufGjKdWduZn4U7wCtVuzKhmRkI0DFYHYRbB2H1w==}
+
   sortablejs@1.15.7:
     resolution: {integrity: sha512-Kk8wLQPlS+yi1ZEf48a4+fzHa4yxjC30M/Sr2AnQu+f/MPwvvX9XjZ6OWejiz8crBsLwSq8GHqaxaET7u6ux0A==}
 
@@ -7844,6 +7850,11 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  vuedraggable@4.1.0:
+    resolution: {integrity: sha512-FU5HCWBmsf20GpP3eudURW3WdWTKIbEIQxh9/8GE806hydR9qZqRRxRE3RjqX7PkuLuMQG/A7n3cfj9rCEchww==}
+    peerDependencies:
+      vue: ^3.0.1
 
   vueperslides@3.6.0:
     resolution: {integrity: sha512-ip2/Mvzhs9A21NnPQWsnx2JVoa0v5ecRNa3Kobyp6VTdxTH+xJRdT9bjVV3EVoK/YUyhYMpPJLExhB9udd91JA==}
@@ -16365,6 +16376,8 @@ snapshots:
 
   snappyjs@0.6.1: {}
 
+  sortablejs@1.14.0: {}
+
   sortablejs@1.15.7: {}
 
   source-map-js@1.2.1: {}
@@ -17358,6 +17371,11 @@ snapshots:
       '@vue/shared': 3.5.40
     optionalDependencies:
       typescript: 4.9.5
+
+  vuedraggable@4.1.0(vue@3.5.40(typescript@4.9.5)):
+    dependencies:
+      sortablejs: 1.14.0
+      vue: 3.5.40(typescript@4.9.5)
 
   vueperslides@3.6.0(vue@3.5.40(typescript@4.9.5)):
     dependencies:
