@@ -57,6 +57,7 @@
     "@octokit/rest": "^20.1.1",
     "@oruga-ui/oruga-next": "^0.13",
     "@oruga-ui/theme-bulma": "^0.9",
+    "@oruga-ui/theme-oruga": "^0.9.1",
     "@simwrapper/d3-sankey-diagram": "^0.9.1",
     "@simwrapper/gmns": "^0.1.4",
     "@simwrapper/papaparse": "^5.3.2-2",

@@ -10,18 +10,20 @@
       p {{ loadingText }}
 
     .lower-left(v-if="!thumbnail && !loadingText")
-      .subheading {{ $t('lineWidths')}}
+      //- each slider renders its own caption + live value; passing the value back down
+      //- from here would lag, since both @change handlers are debounced
       scale-slider.scale-slider(
         :stops='scaleValues'
         :initialValue='currentScale'
         :tooltip="false"
+        :label="$t('lineWidths')"
         @change='bounceScaleSlider'
       )
 
-      .subheading {{ $t('hide')}}
       line-filter-slider.scale-slider(
         :initialValue="lineFilter"
         :tooltip="false"
+        :label="$t('hide')"
         @change='bounceLineFilter'
       )
 
@@ -32,7 +34,7 @@
   .widgets(v-if="!thumbnail" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '2px 4px'}")
 
     //- TIME SLIDER ----
-    .widget-column(v-if="headers.length > 2" style="min-width: 8rem")
+    .widget-column(v-if="headers.length > 2" style="min-width: 10rem")
       h4.heading {{ $t('time')}}
       o-checkbox.checkbox(v-model="showTimeRange") {{ $t('duration') }}
       time-slider.xtime-slider(
@@ -52,8 +54,8 @@
     //- ORIG/DEST BUTTONS
     .widget-column(style="margin: 0 0 0 auto")
       h4.heading {{$t('total')}}
-      o-button(size="small" @click='clickedOrigins' :class='{"is-link": isOrigin ,"is-active": isOrigin}') {{$t('origins')}}
-      o-button(size="small" @click='clickedDestinations' :class='{"is-link": !isOrigin,"is-active": !isOrigin}') {{$t('dest')}}
+      o-button.dir-button(size="small" :class="{selected: isOrigin}" @click='clickedOrigins') {{$t('origins')}}
+      o-button.dir-button(size="small" :class="{selected: !isOrigin}" @click='clickedDestinations') {{$t('dest')}}
 
 </template>
 
@@ -110,7 +112,7 @@ import ScaleBox from './ScaleBoxOD.vue'
 import TimeSlider from './TimeSlider.vue'
 import ScaleSlider from '@/components/ScaleSlider.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { findMatchingGlobInFiles, unreactive } from '@/js/util'
+import { sleep, findMatchingGlobInFiles, unreactive } from '@/js/util'
 
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -1169,7 +1171,7 @@ const Component = defineComponent({
     async finishedLoadingData(message: any) {
       this.loadingText = 'Building diagram...'
       this.isFinishedLoading = true
-      await this.$nextTick()
+      await sleep(0)
       this.rowName = message.rowName
       this.colName = message.colName
       this.headers = message.headers
@@ -1469,27 +1471,24 @@ h3 {
   margin: 0px 0px;
 }
 
-h4 {
-  margin-left: 3px;
-}
-
 .mycomponent {
-  // position: absolute;
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: 1fr auto;
-  // position: relative;
 }
 
 .status-blob {
   position: absolute;
-  bottom: 0.5rem;
-  left: 0.5rem;
-  background-color: white;
-  padding: 0.75rem 1.5rem;
+  inset: 2rem 0rem;
+  margin: auto 1rem;
+  text-align: center;
+  height: min-content;
+  background-color: var(--bgPanel);
+  color: var(--textBold);
+  padding: 2rem 1.5rem;
   z-index: 5;
-  filter: $filterShadow;
   font-size: 1.2rem;
+  border-radius: 5px;
 }
 
 .map-container {
@@ -1536,13 +1535,9 @@ h4 {
   flex-direction: column;
 }
 
-.status-blob p {
-  color: #555;
-}
-
 .lower-right {
   position: absolute;
-  bottom: 3rem;
+  bottom: 2rem;
   right: 0.5rem;
   display: flex;
   z-index: 1;
@@ -1552,7 +1547,7 @@ h4 {
   width: 12rem;
   position: absolute;
   left: 0.5rem;
-  bottom: 0.5rem;
+  bottom: 2rem;
   display: flex;
   flex-direction: column;
   z-index: 1;
@@ -1561,7 +1556,7 @@ h4 {
   // filter: $filterShadow;
   border: solid 1px rgba(161, 160, 160, 0.781);
   border-radius: 2px;
-  padding: 3px 4px;
+  padding: 0.5rem 0 0 0;
 }
 
 .complication {
@@ -1573,17 +1568,19 @@ h4 {
   margin: 1px 0px;
 }
 
+// The Origins/Destinations pair is a segmented toggle, rebuilt from Bulma buttons because
+// Oruga has no b-radio-button. It used `is-link`, whose vivid indigo (#485fc7) reads as a
+// hyperlink and is far brighter than anything else on the panel.
+.dir-button.selected {
+  background-color: var(--bgSelected);
+  border-color: var(--bgSelected);
+  color: var(--textSelected);
+}
+
 .heading {
   font-weight: bold;
   text-align: left;
   margin-top: 0.5rem;
-}
-
-.subheading {
-  text-align: left;
-  font-size: 0.9rem;
-  line-height: 1rem;
-  margin: 0.25rem 0 0rem 0.5rem;
 }
 
 .description {
@@ -1642,7 +1639,8 @@ h4 {
 }
 
 .xtime-slider {
-  margin-top: -0.25rem;
+  margin-top: -4px;
+  margin-left: 8px;
 }
 
 @media only screen and (max-width: 640px) {

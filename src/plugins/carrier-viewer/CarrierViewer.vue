@@ -101,7 +101,7 @@
       .switchbox
         .switches
           p {{$t('scaleSize')}}
-          o-slider.slider(:tooltip="false" variant="link" size="small" v-model="vizSettings.scaleFactor")
+          o-slider.carrier-slider(:tooltip="false" variant="primary" size="small" v-model="vizSettings.scaleFactor")
         .switches
           o-switch(v-model="vizSettings.shipmentDotsOnTourMap")
             span(v-html="$t('shipmentDots')")
@@ -1574,7 +1574,9 @@ input {
   }
 }
 
-.slider {
+// renamed from .slider: theme-bulma's own .slider rules are still loaded for the other
+// components, and would double-style this now-Oruga-themed slider
+.carrier-slider {
   flex: 4;
   margin-right: 0 1rem;
 }

@@ -1,6 +1,6 @@
 <template lang="pug">
 .slider-thingy
-  o-slider.slider(
+  o-slider.playback-slider(
     v-model="sliderValue"
     v-bind="sliderOptions"
     size="large"
@@ -118,7 +118,9 @@ export default defineComponent({
   z-index: 1;
 }
 
-.slider {
+// renamed from .slider: theme-bulma's .slider rules are still loaded for the other
+// components, and would double-style this now-Oruga-themed slider
+.playback-slider {
   margin: auto 0;
   flex: 1;
   font-weight: bold;
@@ -156,7 +158,7 @@ export default defineComponent({
     flex-direction: row;
   }
 
-  .slider {
+  .playback-slider {
     flex: 1;
     margin: auto 0rem;
   }

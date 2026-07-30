@@ -20,7 +20,7 @@ async function waitForData(page: Page) {
     return !!(t && t.centroids?.length && t.spiderLinks?.length && t.geojson?.length)
   })
   // the widget bar only renders once loadingText is cleared
-  await expect(page.locator('.lower-left .slider')).toHaveCount(2)
+  await expect(page.locator('.lower-left .o-slider')).toHaveCount(2)
 }
 
 const testdata = (page: Page) =>
@@ -61,7 +61,7 @@ async function openOneRowPanel(page: Page) {
     const t = (window as any).__testdata__
     return !!(t && t.centroids?.length === 2 && t.spiderLinks?.length === 1)
   })
-  await expect(page.locator('.lower-left .slider')).toHaveCount(2)
+  await expect(page.locator('.lower-left .o-slider')).toHaveCount(2)
 }
 
 /**
@@ -81,7 +81,7 @@ const centroidLabels = (page: Page) =>
 
 /** Move the time slider to an exact stop (0 = "All >>", 1..7 = BINS) via the keyboard. */
 async function setTimeBin(page: Page, index: number) {
-  const thumb = page.locator('.xtime-slider .slider-thumb').first()
+  const thumb = page.locator('.xtime-slider [role="slider"]').first()
   await thumb.focus()
   const current = Number(await thumb.getAttribute('aria-valuenow'))
   const key = index > current ? 'ArrowRight' : 'ArrowLeft'
@@ -89,15 +89,22 @@ async function setTimeBin(page: Page, index: number) {
   await expect(thumb).toHaveAttribute('aria-valuenow', String(index))
 }
 
-/** Oruga renders the formatter's output into .tooltip-content even with :tooltip="false". */
+/**
+ * The value each slider shows the user, from the caption line rendered by
+ * ScaleSlider.vue / LineFilterSlider.vue.
+ *
+ * Deliberately NOT `.tooltip-content`: with `:tooltip="false"` Oruga still emits that
+ * element, but it measures 0x0 and is invisible, so asserting on it proved the `formatter`
+ * ran without proving anything was legible. `.slider-value` is the visible text.
+ */
 const sliderLabel = (page: Page, nth: number) =>
-  page.locator('.lower-left .slider').nth(nth).locator('.tooltip-content').textContent()
+  page.locator('.lower-left .slider-value').nth(nth).textContent()
 
 /** Drag a slider's thumb to a fraction of its track. */
 async function dragSlider(page: Page, nth: number, fraction: number) {
-  const slider = page.locator('.lower-left .slider').nth(nth)
-  const track = await slider.locator('.slider-track').boundingBox()
-  const thumb = await slider.locator('.slider-thumb').first().boundingBox()
+  const slider = page.locator('.lower-left .o-slider').nth(nth)
+  const track = await slider.locator('.o-slider__track').boundingBox()
+  const thumb = await slider.locator('[role="slider"]').first().boundingBox()
   if (!track || !thumb) throw new Error(`slider ${nth} has no track/thumb`)
   await page.mouse.move(thumb.x + thumb.width / 2, thumb.y + thumb.height / 2)
   await page.mouse.down()
@@ -190,7 +197,7 @@ test('aggregate-od Duration checkbox switches the time slider to a range', async
   await page.goto(PANEL)
   await waitForData(page)
   const label = page.locator('.xtime-slider p b')
-  const thumbs = page.locator('.xtime-slider .slider-thumb')
+  const thumbs = page.locator('.xtime-slider [role="slider"]')
   await expect(label).toHaveText('All >>')
   await expect(thumbs).toHaveCount(1)
 
@@ -214,7 +221,7 @@ test('aggregate-od Duration checkbox switches the time slider to a range', async
  * The Origins/Destinations half is looser by nature -- the click both swaps the
  * centroid label field and recolours the zones, so the pixel diff proves the handler
  * reached the map but cannot isolate updateCentroidLabels() from convertRegionColors()
- * (verified: dropping the updateCentroidLabels call still passes). The is-link/is-active
+ * (verified: dropping the updateCentroidLabels call still passes). The `selected` class
  * assertions are the exact part, and they pin the :class binding to isOrigin.
  */
 test('aggregate-od centroid checkboxes and Origins/Destinations redraw the map', async ({
@@ -252,14 +259,13 @@ test('aggregate-od centroid checkboxes and Origins/Destinations redraw the map',
 
   const origins = page.getByRole('button', { name: 'Origins' })
   const destinations = page.getByRole('button', { name: 'Destinations' })
-  await expect(origins).toHaveClass(/is-link/)
-  await expect(origins).toHaveClass(/is-active/)
-  await expect(destinations).not.toHaveClass(/is-link/)
+  await expect(origins).toHaveClass(/\bselected\b/)
+  await expect(destinations).not.toHaveClass(/\bselected\b/)
 
   const asOrigin = await canvas.screenshot()
   await destinations.click()
-  await expect(destinations).toHaveClass(/is-link/)
-  await expect(origins).not.toHaveClass(/is-link/)
+  await expect(destinations).toHaveClass(/\bselected\b/)
+  await expect(origins).not.toHaveClass(/\bselected\b/)
   await page.waitForTimeout(2000)
 
   const asDestination = await canvas.screenshot()
@@ -403,7 +409,7 @@ test('aggregate-od time-range totals cover every bin in the span', async ({ page
   const stop = page.locator('.xtime-slider p b')
 
   await page.locator('input.check').nth(0).click({ force: true }) // "Duration"
-  await expect(page.locator('.xtime-slider .slider-thumb')).toHaveCount(2)
+  await expect(page.locator('.xtime-slider [role="slider"]')).toHaveCount(2)
   await expect(stop).toHaveText(`${BINS[0][0]} : ${BINS[BINS.length - 1][0]}`)
 
   // the full span is the whole day
@@ -413,7 +419,7 @@ test('aggregate-od time-range totals cover every bin in the span', async ({ page
   })
 
   // walk the low thumb up, dropping one bin from the front each time
-  const low = page.locator('.xtime-slider .slider-thumb').first()
+  const low = page.locator('.xtime-slider [role="slider"]').first()
   await low.focus()
   let remaining = DAILY_TOTAL
   for (let i = 0; i < 3; i++) {

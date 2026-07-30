@@ -94,6 +94,9 @@ importers:
       '@oruga-ui/theme-bulma':
         specifier: ^0.9
         version: 0.9.1(@oruga-ui/oruga-next@0.13.6(vue@3.5.40(typescript@4.9.5)))
+      '@oruga-ui/theme-oruga':
+        specifier: ^0.9.1
+        version: 0.9.1(@oruga-ui/oruga-next@0.13.6(vue@3.5.40(typescript@4.9.5)))
       '@simwrapper/d3-sankey-diagram':
         specifier: ^0.9.1
         version: 0.9.1
@@ -1781,6 +1784,11 @@ packages:
 
   '@oruga-ui/theme-bulma@0.9.1':
     resolution: {integrity: sha512-90GMw93mi/KJ9llacyILQpZ/qWXerITt0VW3cK9GemwuCjdn9ZkupwNlaFvcDJT64dtalI+bhNEg5YxmD2ObSQ==}
+    peerDependencies:
+      '@oruga-ui/oruga-next': ^0.13.0
+
+  '@oruga-ui/theme-oruga@0.9.1':
+    resolution: {integrity: sha512-ODS8Fcz591hZQ16U9XjSPcnjOf8qbGxcAN1mtR8wWFb7vl7AVE4PR93Vmtxci0ifWpeNVTPNPIaa/SkMm7FRkQ==}
     peerDependencies:
       '@oruga-ui/oruga-next': ^0.13.0
 
@@ -9882,6 +9890,10 @@ snapshots:
     dependencies:
       '@oruga-ui/oruga-next': 0.13.6(vue@3.5.40(typescript@4.9.5))
       bulma: 1.0.4
+
+  '@oruga-ui/theme-oruga@0.9.1(@oruga-ui/oruga-next@0.13.6(vue@3.5.40(typescript@4.9.5)))':
+    dependencies:
+      '@oruga-ui/oruga-next': 0.13.6(vue@3.5.40(typescript@4.9.5))
 
   '@oxc-project/types@0.139.0': {}
 
