@@ -73,11 +73,11 @@ const plugins: any[] = [
       '**/viz-link*.y?(a)ml',
     ],
   },
-  // {
-  //   kebabName: 'transit',
-  //   filePatterns: ['viz-pt*.y?(a)ml', '*transitschedule.xml?(.gz)?(.zst)'],
-  //   component: defineAsyncComponent(() => import('./transit-demand/TransitDemand.vue')),
-  // },
+  {
+    kebabName: 'transit',
+    filePatterns: ['viz-pt*.y?(a)ml', '*transitschedule.xml?(.gz)?(.zst)'],
+    component: defineAsyncComponent(() => import('./transit-demand/TransitDemand.vue')),
+  },
   {
     kebabName: 'aggregate',
     filePatterns: ['**/viz-od*.y?(a)ml'],

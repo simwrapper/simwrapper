@@ -346,6 +346,9 @@ importers:
       vue-router:
         specifier: ^4
         version: 4.6.4(vue@3.5.40(typescript@4.9.5))
+      vue3-virtual-scroll-list:
+        specifier: ^0.2.1
+        version: 0.2.1(vue@3.5.40(typescript@4.9.5))
       vueperslides:
         specifier: ^3.6.0
         version: 3.6.0(vue@3.5.40(typescript@4.9.5))
@@ -7828,6 +7831,11 @@ packages:
     resolution: {integrity: sha512-Hz9q5sa33Yhduglwz6g9skT8OBPii+4bFn88w6J+J4MfEo4KRRpmiNG/hHHkdbRFlLBOqxN8y8gf2Fb0MTUgVg==}
     peerDependencies:
       vue: ^3.5.0
+
+  vue3-virtual-scroll-list@0.2.1:
+    resolution: {integrity: sha512-G4KxITUOy9D4ro15zOp40D6ogmMefzjIyMsBKqN3xGbV1P6dlKYMx+BBXCKm3Nr/6iipcUKM272Sh2AJRyWMyQ==}
+    peerDependencies:
+      vue: '>=3.0.0'
 
   vue@3.5.40:
     resolution: {integrity: sha512-+8PJ4SJXdn/cHGImF4CKdxlWHIN5Dkt7DoufRREM6h6uVCx2m7QxgcEQmmzyOK8A9mcafg7sFbJFYsdFVubTig==}
@@ -17335,6 +17343,10 @@ snapshots:
   vue-router@4.6.4(vue@3.5.40(typescript@4.9.5)):
     dependencies:
       '@vue/devtools-api': 6.6.4
+      vue: 3.5.40(typescript@4.9.5)
+
+  vue3-virtual-scroll-list@0.2.1(vue@3.5.40(typescript@4.9.5)):
+    dependencies:
       vue: 3.5.40(typescript@4.9.5)
 
   vue@3.5.40(typescript@4.9.5):

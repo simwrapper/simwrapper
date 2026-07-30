@@ -141,6 +141,7 @@
     "vue-good-table-next": "^0.2",
     "vue-i18n": "^9",
     "vue-router": "^4",
+    "vue3-virtual-scroll-list": "^0.2.1",
     "vueperslides": "^3.6.0",
     "vuex": "^4",
     "yaml": "^2.8.0",

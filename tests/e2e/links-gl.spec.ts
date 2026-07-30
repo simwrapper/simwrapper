@@ -137,9 +137,7 @@ test('links-gl Show Differences switch and time slider redraw the map', async ({
 })
 
 /**
- * `beforeDestroy` is silently dead in Vue 3 and here it crashes rather than merely leaking:
- * the maplibre map is never removed and keeps running against a detached container, throwing
- * `Cannot read properties of null (reading 'id')` on every navigation. Must navigate by
+ * Check `Cannot read properties of null (reading 'id')` on every navigation. Must navigate by
  * CLICKING -- a page.goto() discards the JS context and passes either way.
  */
 test('links-gl tears down its map on unmount', async ({ page }) => {

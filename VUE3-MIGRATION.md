@@ -42,10 +42,10 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 | | enabled | verified in a browser |
 |---|---|---|
-| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `line` `links` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` and `links` (no fixture) |
-| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `links` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all except `gridmap` (no fixture — see below) |
+| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `line` `links` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `transit` `vega` `video` `xml` | all except `pie` and `links` (no fixture) |
+| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `links` `plotly` `sankey` `summary-table` `transit` `vega-lite` `video-player` `xml` | all except `gridmap` (no fixture — see below) |
 
-Still removed: `transit` `vehicles` panels, and the remaining
+Still removed: the `vehicles` panel, and the remaining
 full-screen map plugins (`layers` `matrix` `xytime`
 `events` `logistics` `plans` …).
 
@@ -79,6 +79,118 @@ each fix):
   counting: clustering **off** → 0 warnings, clustering **on** → 2. Instrumenting our own
   accessor then showed it never emitted a bad value, which pointed at the `|| null`
   conversion rather than at the data.
+
+`transit` (`dash-panels/transit.vue` + `plugins/transit-demand/`, six files) is the first
+plugin to hit a **missing package** rather than a rename, and the first place trap #7's
+`markRaw` rule applies to a *component definition*:
+
+- ⚠️ **`vue-virtual-scroll-list` is Vue 2 only and was uninstalled.** `LazyList.vue` is its
+  only consumer. **`vue3-virtual-scroll-list@^0.2.1`** is a drop-in fork — same
+  `data-sources` / `data-key` / `data-component` / `extra-props` / `keeps` / `estimate-size`
+  props, and it passes the same `source` + `index` props into the item component (verified
+  against `dist/index.js`, not the README). Only the import specifier and the
+  `declare module` in `shims-vue.d.ts` change. Check the fork before assuming the feature
+  has to be rebuilt — this is the third time (`vue-good-table-next`, `vueperslides`).
+- ⚠️ **A component held in `data()` must be `markRaw`'d.** `LazyList` keeps
+  `listComponent: RouteDropDown` so it can hand the class to the virtual list, and Vue 3
+  logs *"Vue received a Component that was made a reactive object"* — **once per rendered
+  row**, and (trap #8 again) each one drags an `[intlify] Not supported …` pair with it, so
+  the fixture produced 5 × 3 warnings that all vanished together with one `markRaw`.
+- **`b-progress` → native Bulma `progress.progress.is-success`** and `b-icon` →
+  `font-awesome-icon`. There is no `o-icon` anywhere else in the app, and `index.html`
+  loads the mdi stylesheet with **no `rel="stylesheet"` and a filename that doesn't exist**
+  (`materialdesignicons.css.html` vs the real `materialdesignicons.min.css.html`), so an
+  `o-icon` with `iconPack: 'mdi'` would render an empty box. `main.ts` does
+  `library.add(fas)`, so every solid FA icon is available; `menu-down`/`menu-up` became
+  `chevron-down`/`chevron-up`.
+- ⚠️ **An `o-input` does not fill its container.** theme-bulma gives it no `rootClass` (the
+  root is a bare `.control`) and Bulma 1.x no longer puts `width: 100%` on `.input`, so the
+  box renders at the browser's default ~20ch — 121 px inside a 275 px panel — and nothing
+  warns. Both the `.control` and the `input` need an explicit `width: 100%`, through
+  `:deep()` since neither carries the scope id.
+- ⚠️ **`variant="success"` on an `o-slider` is not our green.** Sliders are the one control
+  on theme-oruga, where the variant maps to `--oruga-success` (its own palette). Our
+  `$appTag` lives in `--oruga-primary`, which is the **default** fill — so the right move is
+  to *drop* the variant, not to restyle it. Same for the tick marks.
+- **Sizing a `font-awesome-icon` is sizing its `font-size`**: the inline SVG is 1 em, so
+  `font-size: 20px` + `padding: 7px` made the reveal chevron 36×36 — as tall as the whole
+  list row. 12 px + 4/5 px padding gives a 24×22 control.
+- ⚠️ **Two `:deep()` selectors, for the reason the `links` note describes.** `.route-checkbox`
+  and `.faded` are put on an `o-checkbox`, so they land on the inner `<input class="check">`
+  — which never carries the scope id. Scoped `.faded { filter: grayscale(…) }` therefore
+  matched nothing and the "some routes selected" state was silently indistinguishable from
+  "all selected". `:deep(.faded)` fixes it. Any class on an Oruga control inside a `scoped`
+  block is suspect.
+- ⚠️ **`@click.prevent` on an ancestor silently un-ticks a checkbox.** `RouteDropDown`'s line
+  row is one big click target (`.leftside` with `@click.prevent="toggleCheck"`) and the
+  checkbox inside it only *displays* state. A click landing on the input gets toggled on by
+  the browser's **pre-click activation**, then rolled back by the **canceled activation
+  steps** when the bubbled handler calls `preventDefault()` — so the row selected its routes
+  and the map redrew, but the box stayed empty. Clicking the *label* beside it worked,
+  because that path never runs activation at all, which is what makes the bug look
+  inexplicable. Fix: `pointer-events: none` on the control (theme-bulma's `.checkbox` root,
+  via `:deep()`), so every click reaches `.leftside` and the one-way binding is the only
+  thing driving the tick. Guarded by "clicking the line checkbox itself ticks it".
+  **A spec for this must click by coordinates** — with the fix in place `.leftside`
+  legitimately intercepts, so `locator.click()` on the input throws rather than testing
+  anything, and without the fix it passes the click straight through.
+- **`v-model` on a computed with no setter** — `RouteDropDown`'s line checkbox is
+  display-only, so it is now `:modelValue` one-way. The per-route checkbox went the same way plus an explicit
+  `@update:modelValue="value => toggleRoute(route.id, value)"`: the old `@input` handler
+  re-read `checkStates[id]`, which only works if v-model's generated handler happens to run
+  first. Passing the value through removes the ordering assumption entirely.
+- **`...this.$props` was spread into every link feature's `properties`** — on a 200k-link
+  network that is 200k copies of `config` + the `DashboardDataManager`, and nothing ever
+  read them back (checked every `properties.*` access in the plugin: `id`, `color`,
+  `currentColor`, `sort`, `width`, `departures`, `pax`, `cap`, `loadfac`). Removed.
+- `markRaw` on the deck overlay, on `avroNetwork`, and on the feature array itself.
+  ⚠️ **Making the features raw means mutation no longer redraws** — the plugin already
+  triggers with `this.transitLinks = { ...this.transitLinks }` after every colour change,
+  except in `handleSearchText`'s empty-search branch, which needed one adding.
+  As with `gridmap`, **the overlay `markRaw` is precautionary — trap #7 does not reproduce
+  here**: removing it and driving the layer through selection/search/slider updates still
+  passes clean (mutation M4 below). Kept as the whole-class fix; the feature-array one is
+  about not proxying 100k objects per render, which is a real cost either way.
+- `unreactive()` on the two worker `postMessage`s that carry `this.fileSystem`. The third
+  one (`_transitHelper`, the whole road network) is deliberately left alone and commented:
+  both halves of that payload are awaited straight off a worker, so no Proxy is in the path,
+  and deep-copying a 200k-link network to find that out would be absurd.
+
+`transit`'s specs and fixture:
+
+- `tests/e2e/transit.spec.ts` grew from 1 test to 5 — plugin route, panel route, line/route
+  selection, `/regex/` search, and unmount-by-clicking. Mutation-checked, one mutation at a
+  time, each failing exactly the test it should:
+
+  | mutation | result |
+  |---|---|
+  | M1 drop `@update:modelValue` on the route checkbox | ✗ "clicking a transit line" |
+  | M2 `beforeUnmount` → `beforeDestroy` | ✗ "tears down its test hook and map" |
+  | M3 search box `v-model` → one-way `:modelValue` | ✗ "search box filters the line list" |
+  | M4 drop `markRaw` on the deck overlay | **still passes** — see the trap #7 note above |
+  | M5 drop `pointer-events: none` on the line checkbox | ✗ "clicking the line checkbox itself" |
+
+  ⚠️ **Restore mutations from a copy, not with `git checkout <file>`.** These files have
+  uncommitted work; `git checkout` reverts to HEAD and silently throws the whole migration
+  away. (Asked and answered the hard way during this round.)
+- `tests/e2e/atlantis.spec.ts` read `document.querySelector('#transit-viz').__vue__.$data` —
+  a Vue 2 back-door that returns `undefined` in Vue 3, so the test compared `0` against `6`
+  and had been failing since the migration started. The plugin now publishes the usual
+  `window.__testdata__` (`transitLinks` / `transitLines` / `selectedRouteIds`) and the spec
+  reads that.
+- **New fixture (outside git):** `transit/cottbus/dashboard-1.yaml`, a one-card `type:
+  transit` dashboard. Nothing in the testdata used that panel type, so `dash-panels/transit.vue`
+  was in the same unexercised state `links.vue` is still in.
+- **Still uncovered: the entire demand path.** No folder has an
+  `analysis/pt/pt_pax_volumes.*`, so `crossFilters` stays empty and the pie slider, the
+  `SolidPolygonLayer` pie charts, the stop-level boardings/alightings and the Passengers /
+  Load Factor metric buttons are never rendered. If that data ever lands, re-check the
+  `loadDemandData` chunking loop first.
+
+Pre-existing, confirmed on `master`, left alone: `/e2e-tests/atlantis/minibus/input/*` throws
+two page errors (`Cannot convert undefined or null to object` from `finalAssembly()` in
+`workers/WasmXmlNetworkParser.worker.ts`, plus an empty-message throw). Both reproduce on the
+plain `network.xml` route with the `links` plugin and nothing transit-related loaded.
 
 `links` (`dash-panels/links.vue` + `plugins/links-gl/`, five files) hit the usual checklist
 plus two things the earlier rounds only warned about:
@@ -872,7 +984,9 @@ Removed because they had zero usage in the stripped core; plugins may need them 
 
 - ~~`vueperslides`~~ → **re-added as `^3.6.0`** for `slideshow.vue`. v3 is the Vue 3 line
   (`peerDependencies: { vue: ^3.2.0 }`); the existing imports needed no changes.
-- `vue-virtual-scroll-list` → `vue3-virtual-scroll-list` or `vue-virtual-scroller`
+- ~~`vue-virtual-scroll-list`~~ → **re-added as `vue3-virtual-scroll-list@^0.2.1`** for
+  `transit-demand/LazyList.vue`. Drop-in: same props, same `source`/`index` contract for the
+  item component; only the import specifier and the `shims-vue.d.ts` `declare module` changed.
 - `vuedraggable` → `^4` (uses sortablejs)
 - `vue-slide-bar` → no Vue 3 version; replace (e.g. `o-slider` or a maintained lib)
 

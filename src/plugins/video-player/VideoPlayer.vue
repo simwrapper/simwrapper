@@ -53,10 +53,6 @@ const MyComponent = defineComponent({
     }
   },
 
-  // Was beforeDestroy, which never fires in Vue 3 -- so setFullScreen(true) from
-  // mounted() was never undone. Harmless today because nothing reads
-  // store.state.isFullScreen (App.vue's toggleFullScreen watcher is commented out),
-  // but it would leak the flag the moment that watcher is restored.
   beforeUnmount() {
     if (!this.thumbnail) globalStore.commit('setFullScreen', false)
   },

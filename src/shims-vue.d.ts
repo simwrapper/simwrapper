@@ -48,7 +48,7 @@ declare module 'vueperslides'
 declare module 'react-toggle'
 declare module 'react-dom/client'
 declare module 'vue-good-table'
-declare module 'vue-virtual-scroll-list'
+declare module 'vue3-virtual-scroll-list'
 declare module 'zip-loader'
 declare module 'zstd-wasm-decoder'
 
