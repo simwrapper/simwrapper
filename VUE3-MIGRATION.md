@@ -42,12 +42,43 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 | | enabled | verified in a browser |
 |---|---|---|
-| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `heatmap` `hexagons` `line` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` |
-| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `hexagons` `image-view` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all twelve |
+| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `heatmap` `hexagons` `line` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` |
+| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `hexagons` `image-view` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all thirteen |
 
 Still removed: `gridmap` `transit` `vehicles` panels, and the remaining
-full-screen map plugins (`layers` `flowmap` `links` `matrix` `xytime`
+full-screen map plugins (`layers` `links` `matrix` `xytime`
 `events` `logistics` `plans` …).
+
+`flowmap` needed no new dependencies — the guide's old warning about `@luma.gl/core`,
+`@luma.gl/shadertools` and `@visx/scale` being uninstalled does **not** apply to it:
+`src/layers/flowmap/*` imports `@luma.gl/engine` (installed) and pulls `ShaderModule` from
+`@luma.gl/shadertools` as a **type-only** import, which is erased before the bundler sees it.
+`@visx/scale` belongs to the `ColorMapSelector`/matrix orphans, not flowmap. Only
+`@flowmap.gl/data` matters and it is in `package.json`. Verified against
+`e2e-tests/flowmap/sfcta` and `e2e-tests/flowmap/pt-flows` (both dashboards — no
+`viz-flowmap*.yaml` fixture exists, so the standalone plugin route is unexercised).
+
+Two long-standing warnings on those routes were fixed at the same time, both guarded by
+`tests/e2e/flow-map.spec.ts` ("loads without console warnings", mutation-checked against
+each fix):
+
+- `deck: FlowmapLayer.componentName not specified` — deck.gl reads `componentName` off an
+  **own** static `layerName` (`hasOwnProperty`, so inheriting doesn't count).
+  `FlowmapLayer` and `AnimatedFlowLinesLayer` had none; the two sibling layers did.
+- `Invalid color: undefined` ×2 — the magnitude accessor was `flow.v || null`, which also
+  discarded a legitimate magnitude of **0**. Only reproducible with clustering on, because
+  flowmap.gl seeds a cluster's total with the first member's value
+  (`count: flowCountsMapReduce.map(flow)`), so a nulled-out zero could poison the cluster's
+  colour scale. `pt_headway_per_stop_area_pair_and_hour.csv` has ~1300 blank-headway rows
+  (a stop pair visited once has no headway) that parse to 0, which is why that fixture hit
+  it and `sfcta` did not.
+
+  Worth recording the *method*, because four plausible hypotheses were wrong first
+  (NaN in the CSV, negative values, unmatched flow/centroid ids, bad stop coordinates —
+  all disproved by checking the actual data). What localized it was toggling features and
+  counting: clustering **off** → 0 warnings, clustering **on** → 2. Instrumenting our own
+  accessor then showed it never emitted a bad value, which pointed at the `|| null`
+  conversion rather than at the data.
 
 `area-map` is `shape-file/ShapeFile.vue` — the largest plugin in the repo (3.3k lines) and the
 **only** consumer of the whole `components/viz-configurator/` directory plus
@@ -535,6 +566,17 @@ dropdown, and **`tests/unit/oruga-dropdown.test.ts` locks the behavior in** — 
 mutation check asserting that *without* `selectable` nothing gets selected, so the day Oruga
 changes its default, that test fails and tells you the prop is no longer load-bearing.
 Verified against `node_modules/@oruga-ui/oruga-next/dist/index.js`, not from docs.
+
+⚠️ **A class you put on an Oruga control may land on the inner element, not the root** —
+and which one differs per component, so check the DOM before writing a selector against it.
+`o-select.form-select` and `o-checkbox.tight` both forward the class to the inner
+`<select>` / `<input>`, so `select.form-select` and `input.tight` are the correct
+selectors and `.form-select select` matches nothing. The **root** meanwhile gets the theme's
+class: `@oruga-ui/theme-bulma` gives `o-checkbox` a `rootClass` of `"checkbox control"` and
+`o-select` `"select control"`. That matters for CSS ported from Buefy — `flowmap/Flowmap.vue`
+had a `.b-checkbox.checkbox:not(.button):hover` rule that is now
+`.checkbox.control:not(.button):hover`. Read the truth out of
+`node_modules/@oruga-ui/theme-bulma/dist/theme.js` rather than guessing the class names.
 
 ⚠️ **Oruga has no progress bar.** `b-progress` became a native Bulma
 `progress.progress.load-progress.is-success(:value="loadProgress" max="100")`. Buefy's

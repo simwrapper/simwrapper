@@ -107,6 +107,10 @@ export class FlowmapLayer<
   L extends Record<string, any>,
   F extends Record<string, any>
 > extends CompositeLayer {
+  // deck.gl reads componentName off an *own* static layerName; without it every
+  // instantiation logs "FlowmapLayer.componentName not specified"
+  static layerName = 'FlowmapLayer'
+
   static defaultProps = {
     darkMode: true,
     fadeAmount: 50,

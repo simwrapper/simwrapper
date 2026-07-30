@@ -72,6 +72,8 @@ export const uniUniforms = {
 } as const satisfies ShaderModule<UniProps>
 
 export default class AnimatedFlowLinesLayer<F> extends Layer {
+  static layerName = 'AnimatedFlowLinesLayer'
+
   static defaultProps = {
     currentTime: 0,
     animationTailLength: 0.7,
