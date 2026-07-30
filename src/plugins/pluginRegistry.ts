@@ -62,17 +62,17 @@ const plugins: any[] = [
     filePatterns: ['**/viz-xy-*.y?(a)ml', '*output_trips.csv?(.gz)?(.zst)'],
     component: defineAsyncComponent(() => import('./xy-hexagons/XyHexagons.vue')),
   },
-  // {
-  //   kebabName: 'links',
-  //   component: defineAsyncComponent(() => import('./links-gl/NetworkLinks.vue')),
-  //   filePatterns: [
-  //     // deprecated! Use shapefile/map viewer instead
-  //     // '**/*network.xml?(.gz)',
-  //     // '**/*network.geo?(.)json?(.gz)',
-  //     '**/viz-gl-link*.y?(a)ml',
-  //     '**/viz-link*.y?(a)ml',
-  //   ],
-  // },
+  {
+    kebabName: 'links',
+    component: defineAsyncComponent(() => import('./links-gl/NetworkLinks.vue')),
+    filePatterns: [
+      // deprecated! Use shapefile/map viewer instead
+      // '**/*network.xml?(.gz)',
+      // '**/*network.geo?(.)json?(.gz)',
+      '**/viz-gl-link*.y?(a)ml',
+      '**/viz-link*.y?(a)ml',
+    ],
+  },
   // {
   //   kebabName: 'transit',
   //   filePatterns: ['viz-pt*.y?(a)ml', '*transitschedule.xml?(.gz)?(.zst)'],

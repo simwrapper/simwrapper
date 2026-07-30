@@ -42,11 +42,11 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 | | enabled | verified in a browser |
 |---|---|---|
-| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `line` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` |
-| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all except `gridmap` (no fixture — see below) |
+| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `line` `links` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` and `links` (no fixture) |
+| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `links` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all except `gridmap` (no fixture — see below) |
 
 Still removed: `transit` `vehicles` panels, and the remaining
-full-screen map plugins (`layers` `links` `matrix` `xytime`
+full-screen map plugins (`layers` `matrix` `xytime`
 `events` `logistics` `plans` …).
 
 `flowmap` needed no new dependencies — the guide's old warning about `@luma.gl/core`,
@@ -79,6 +79,26 @@ each fix):
   counting: clustering **off** → 0 warnings, clustering **on** → 2. Instrumenting our own
   accessor then showed it never emitted a bad value, which pointed at the `|| null`
   conversion rather than at the data.
+
+`links` (`dash-panels/links.vue` + `plugins/links-gl/`, five files) hit the usual checklist
+plus two things the earlier rounds only warned about:
+
+- **`vue-js-toggle-button` is actually *used* here**, unlike `XyHexagons`/`GridMap` where the
+  import was dead. `toggle-button` → **`o-switch`**; `:width` / `:sync` / `:labels` / `:color`
+  are vue-js-toggle-button props with no Oruga equivalent and would fall through as DOM
+  attributes, so they go. ⚠️ The class you put on it lands on the **inner input** —
+  theme-bulma gives `o-switch` a rootClass of `switch control`, so `.toggle` becomes
+  `input.toggle` and the obvious `.toggle input` selector matches **nothing**.
+- **This is the live [trap #8](#8-a-trailing--in-a-style-value-now-warns--and-drags-i18n-noise-in-with-it) case.**
+  The root binds `:style='{"background": urlThumbnail}'` and `thumbnailUrl` ended in a `;`.
+  That was the original sighting; here it fires on every render, with the two
+  `[intlify] Not supported …` lines in tow.
+
+Also: `beforeDestroy` in both `NetworkLinks.vue` and `DeckMapComponent.vue` (same crash as
+gridmap — see below), `markRaw` on the deck overlay, `@import '@/styles.scss'` ×3 (only
+`NetworkLinks` needs `@use '@/variables' as *`; the other two use no Sass variables), and
+`b-slider`→`o-slider` in its own `TimeSlider.vue`. `dataLoaderWorkers` is declared and
+terminated but **never populated** — dead state, left alone.
 
 `gridmap` (`dash-panels/gridmap.vue` + `plugins/grid-map/GridMap.vue` + its `MapComponent.vue`)
 needed the usual checklist — `import Vue from 'vue'` + three `Vue.set` calls, two
@@ -267,6 +287,19 @@ Specs added for the re-migrated panels/plugins, all green on chromium + firefox 
 - `tests/e2e/tiles.spec.ts` — the `tile` panel (5 tests): both dataset forms, icon
   resolution (local asset vs font-awesome), and link/non-clickable states. Drives
   `e2e-tests/tiles`.
+- `tests/e2e/links-gl.spec.ts` — extended from 2 tests to 5. ⚠️ **A canvas pixel diff is not
+  proof here, and this cost real time.** "Show Differences" flips colours inside a WebGL
+  buffer, so nothing changes in the DOM — but a shoot/click/shoot diff passes *either way*,
+  because Oruga keeps its own internal checked state (a mis-wired switch still unchecks
+  itself) and the basemap keeps streaming tiles. Mutation-checked: with
+  `@update:modelValue` deleted the pixel version still passed, **and so did a version that
+  waited for two consecutive identical screenshots first**. The fix was to give the plugin
+  the same `window.__testdata__` hook `aggregate-od` and `grid-map` already publish and
+  assert on a checksum of the link colours; that version fails correctly. Use pixels only
+  when the thing you're testing has no other observable.
+  These fixtures are the **slowest in the repo** (~200k links, reloaded per navigation): the
+  three new tests need `test.setTimeout(240_000)`. At 120s they passed in isolation and timed
+  out under 3-worker parallel load, which reads as flakiness rather than as "too slow".
 - `tests/e2e/gridmap-lifecycle.spec.ts` — the `gridmap` panel (3 tests): console-clean on
   both fixtures plus teardown. The two pre-existing scenario specs (`gridmap-noise`,
   `gridmap-xmas-2025`) pass **unmodified** after the migration, but they only assert on
@@ -1046,6 +1079,21 @@ Removed because they had zero usage in the stripped core; plugins may need them 
   individually. The third test is fixture-independent: on the 23-zone dashboard the seven
   per-bin totals must **sum** to the "All >>" total, which cannot hold while bug 3 is
   present. That invariant is also the cheapest way to re-verify this by hand.
+- **`links-gl` pre-existing issues:**
+  - Three fixtures referenced `berlin-network.geojson` when only `berlin-network.geojson.gz`
+    exists, so they failed with `No files matched`: `viz-links-vol-diffs.yaml` (fixed by
+    Billy during this round), plus `viz-gl-links-volumes.yaml` and `viz-links-simple.yaml`,
+    still rotted. `viz-gl-links-1.yaml` spells the `.gz` correctly. This matters because
+    **`viz-links-vol-diffs.yaml` is the only fixture with an active `csvBase`**, so it is the
+    only one that renders the "Show Differences" switch or the time slider at all.
+  - The `viz-gl-links-2.yaml` test in `links-gl.spec.ts` is commented out and should stay
+    that way: the fixture is network-only (no `csvFile`), so `.panel-items` is `v-show`n off
+    and its `12:00:00` assertion cannot pass.
+  - `deck: Attribute instanceColors is normalized` — same cause and same one-line fix as the
+    gridmap one (`newColors` is a `Uint8Array`, `instanceColors` is `unorm8`).
+  - No dashboard anywhere uses `type: links`, so the **panel** (`dash-panels/links.vue`) is
+    enabled and compiles but is never rendered — the mirror image of gridmap, whose *plugin*
+    route is the unexercised half.
 - **`gridmap` pre-existing issues, all confirmed identical on `master` and left alone:**
   - `components/TimeSliderV2.vue` **mutates its props** in `mounted()` —
     `this.allTimes.unshift(0)` and `this.range[0] = 0`. Two `vue/no-mutating-props` errors,

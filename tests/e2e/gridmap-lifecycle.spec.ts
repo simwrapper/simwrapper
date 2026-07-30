@@ -88,11 +88,6 @@ test('gridmap noise dashboard loads without console errors', async ({ page }) =>
 })
 
 /**
- * `beforeDestroy` is silently dead in Vue 3, and here it is not a slow leak but an
- * immediate crash: without teardown the maplibre map keeps running against a detached
- * container and throws `Cannot read properties of null (reading 'id')` on every
- * navigation, while `window.__testdata__` and the lil-gui panel survive.
- *
  * This has to navigate by CLICKING -- a page.goto() throws away the whole JS context and
  * would pass either way.
  */
@@ -107,11 +102,13 @@ test('gridmap tears down its map, GUI and test hook on unmount', async ({ page }
   // two full cycles: a leak compounds, so a second pass catches what one might not
   for (let i = 0; i < 2; i++) {
     await page.getByText('Files', { exact: true }).first().click()
-    await expect.poll(() => counts(page)).toEqual({
-      guiPanels: 0,
-      canvases: 0,
-      testdata: 'undefined',
-    })
+    await expect
+      .poll(() => counts(page))
+      .toEqual({
+        guiPanels: 0,
+        canvases: 0,
+        testdata: 'undefined',
+      })
 
     await page.getByText(TAB, { exact: true }).first().click()
     await waitForGrid(page)
