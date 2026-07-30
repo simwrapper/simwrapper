@@ -82,7 +82,7 @@ const i18n = {
     },
   },
 }
-import { defineComponent, markRaw } from 'vue'
+import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import YAML from 'yaml'
@@ -726,15 +726,14 @@ const MyComponent = defineComponent({
 
     // background layers
     try {
-      // markRaw: deck.gl freezes its props, so handing it reactive layer data
-      // violates a Proxy invariant on update ("'get' on proxy: property 'data'...")
-      this.backgroundLayers = markRaw(
-        new BackgroundLayers({
-          vizDetails: this.vizDetails,
-          fileApi: this.fileApi,
-          subfolder: this.subfolder,
-        })
-      )
+      // NB: deliberately NOT markRaw'd -- async initialLoad() signals completion by
+      // reassigning its internal map, which consumers must react to. deck.gl's raw-ness
+      // requirement is handled on the features inside BackgroundLayers.ts. See trap #7.
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
       await this.backgroundLayers.initialLoad()
     } catch (e) {
       this.$emit('error', 'Error loading background layers')

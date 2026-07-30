@@ -58,7 +58,7 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import { gUnzip } from '@/js/util'
+import { gUnzip, unreactive } from '@/js/util'
 import { VizLayerConfiguration, FileSystemConfig, DataTable } from '@/Globals'
 import FileSelector from './FileSelector.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -100,7 +100,6 @@ export default defineComponent({
 
   watch: {
     fileChoice() {
-      console.warn('*** File Chosen!')
       this.fileChoiceChanged(this.fileChoice)
     },
   },
@@ -200,12 +199,15 @@ export default defineComponent({
           thread.onmessage = e => {
             // wait for thread ready signal
             if (e.data.ready) {
-              thread.postMessage({
-                fileSystemConfig: this.fileSystem,
-                subfolder: this.subfolder,
-                files: this.filesInFolder,
-                config: { dataset },
-              })
+              // props/data are reactive proxies; structuredClone rejects those
+              thread.postMessage(
+                unreactive({
+                  fileSystemConfig: this.fileSystem,
+                  subfolder: this.subfolder,
+                  files: this.filesInFolder,
+                  config: { dataset },
+                })
+              )
               return
             }
             thread.terminate()

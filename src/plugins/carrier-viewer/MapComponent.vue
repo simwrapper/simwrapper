@@ -14,7 +14,7 @@
 // - delivery legs (path layer, each leg is its own path)
 // - shipment link (dashed line on stopActivity link itself)
 
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, markRaw, PropType } from 'vue'
 import maplibregl from 'maplibre-gl'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { ArcLayer, ScatterplotLayer, IconLayer, TextLayer } from '@deck.gl/layers'
@@ -455,11 +455,15 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = new MapboxOverlay({
-        layers: this.layers,
-        interleaved: true,
-        onClick: this.handleClick,
-      })
+      // markRaw: a reactive overlay makes deck's layer-matching read frozen props
+      // through Vue's proxy, which throws. See trap #7 in VUE3-MIGRATION.md.
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          layers: this.layers,
+          interleaved: true,
+          onClick: this.handleClick,
+        })
+      )
       this.mymap?.addControl(this.deckOverlay)
     })
     this.mymap.on('move', this.handleMove)

@@ -42,16 +42,22 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 | | enabled | verified in a browser |
 |---|---|---|
-| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `heatmap` `hexagons` `line` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` |
-| plugins | `aeq-reader` `aggregate` `carriers` `hexagons` `image-view` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all eleven |
+| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `heatmap` `hexagons` `line` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `vega` `video` `xml` | all except `pie` |
+| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `hexagons` `image-view` `plotly` `sankey` `summary-table` `vega-lite` `video-player` `xml` | all twelve |
 
 Still removed: `gridmap` `transit` `vehicles` panels, and the remaining
-full-screen map plugins (`layers` `area-map` `flowmap` `links` `matrix` `xytime`
-`events` `logistics` `plans` `shape-file` …).
+full-screen map plugins (`layers` `flowmap` `links` `matrix` `xytime`
+`events` `logistics` `plans` …).
 
-`shape-file/DeckMapComponent.vue` **is** migrated and live — `aequilibrae-map` renders through
-it — but `shape-file/ShapeFile.vue` (the plugin proper) is still unregistered and still has a
-`beforeDestroy`. Migrating that file is the remaining shape-file work.
+`area-map` is `shape-file/ShapeFile.vue` — the largest plugin in the repo (3.3k lines) and the
+**only** consumer of the whole `components/viz-configurator/` directory plus
+`ModalIdColumnPicker.vue`. Those 14 files were already Oruga-converted by an earlier pass but
+had never been compiled or rendered, because nothing imported them while the plugin was
+disabled; enabling `area-map` is what finally exercised them. All render clean. Verified
+against `maps/hamburg`, `maps/geopackage`, `maps/networks` (both the `viz-map-*.yaml` plugin
+route and the `dashboard-1.yaml` panel route) and `networks/viz-map-berlin-v6.4.yaml`,
+including opening every configurator section, adding a dataset through the Add Data panel
+(which round-trips the `DataFetcher` worker) and answering the join-column modal.
 
 The `video` **panel** and the `video-player` **plugin** are different components serving the
 same fixture folder two ways: `/e2e-tests/video-player` renders `dashboard-movie.yaml` through
@@ -338,28 +344,51 @@ but the proxy did not return its actual value
 deck: initialization of SolidPolygonLayer(…): deck.gl: assertion failed.
 ```
 
-Hit for real in `carrier-viewer`: `this.backgroundLayers = new BackgroundLayers({…})` put the
-instance in `data()`, so Vue proxied it, and `BackgroundLayers.layers()` handed
-`data: layerDetails.features` (now proxied) to deck.gl.
+The precise mechanism matters, because it dictates where the fix goes. Vue's proxy `get`
+returns `reactive(value)` for object values. If the raw value is already raw, `reactive()`
+hands back *the same object* and the invariant is satisfied; if not, it returns a wrapper and
+the engine throws. So the throw needs **both** a proxy in the path **and** a non-raw value
+behind the frozen property.
 
-**Fix: `markRaw()` the instance** — `this.backgroundLayers = markRaw(new BackgroundLayers(…))`.
-Applied in `carrier-viewer/CarrierViewer.vue`, `aequilibrae-map/AequilibraEMapComponent.vue`,
-and `xy-hexagons/XyHexagons.vue`. `grep -rn "new BackgroundLayers" src/` should show
-`markRaw` at every site; **`shape-file/ShapeFile.vue` has two sites still unfixed** (it
-doesn't build yet anyway).
+**Where the fix goes — two rules, and the obvious one is wrong.**
 
-Two things make this expensive to find:
+1. **`markRaw` the deck overlay.** `deckOverlay: null` sitting in `data()` means
+   `new MapboxOverlay(...)` becomes reactive, and deck's layer-matching then reads
+   `layer.props.data` straight through Vue's proxy. Fixed in
+   `shape-file/DeckMapComponent.vue` and `carrier-viewer/MapComponent.vue`. This is the
+   robust, whole-class fix: it takes every layer out of the proxy path at once, instead of
+   chasing each individual `data:` value.
+2. **`markRaw` the big arrays you hand deck.gl** — the `features` inside
+   `js/BackgroundLayers.ts`, and `this.boundaries` in `ShapeFile.vue`. This also removes a
+   proxy hop per coordinate read on 100k-feature networks, which is the real reason to do it.
 
-- **It only fires on layer *update*, not first paint.** The word "matching" in the message is
-  deck's layer-diffing phase. A route smoke-check that loads and screenshots exits **clean**;
-  the throw needs a second render pass, so you only see it after interacting (clicking a tab,
-  dragging a slider) or re-rendering.
-- **It needs a fixture that actually has background layers.** `e2e-tests/carriers` has a
-  `backgroundLayers:` block, which is why it surfaced there and not on the `aequilibrae` or
-  `xy-hexagons` fixtures, whose configs have none. Those two were latent, not safe.
+⚠️ **Do *not* `markRaw` the `BackgroundLayers` instance itself.** That was tried first and it
+silently breaks background layers: `initialLoad()` is async and signals completion by
+reassigning its internal `bgLayers` map (`this.bgLayers = { ...this.bgLayers }` — that line
+exists purely as a reactivity trigger). Marking the instance raw severs the dependency, so
+the consumer's `layers` computed never re-runs and **the layers load but never appear**. The
+console stays clean and the map looks plausible — you only catch it by noticing the polygons
+are missing. `grep -rn "new BackgroundLayers" src/` should show **no** `markRaw`.
+
+Three things make this expensive to find:
+
+- **It usually fires on layer *update*, not first paint.** The word "matching" in the message
+  is deck's layer-diffing phase. A route smoke-check that loads and screenshots exits
+  **clean**; the throw needs a second render pass, so you only see it after interacting
+  (clicking a tab, dragging a slider) or re-rendering. It *can* hit on load when a layer is
+  rebuilt during startup — `shape-file`'s `linksLayer` did.
+- **It needs a fixture that actually has the relevant data.** `e2e-tests/carriers` and
+  `maps/networks/viz-map-bglayers.yaml` have `backgroundLayers:` blocks, which is why it
+  surfaced there and not on the `aequilibrae` / `xy-hexagons` / other `viz-map-*` fixtures,
+  whose configs have none. Those were latent, not safe.
+- **The layer id in the message names the symptom, not the cause.** `SolidPolygonLayer(…-fill)`
+  pointed at background layers; `LineOffsetLayer({id: 'linksLayer'})` pointed at a computed
+  building fresh plain arrays. Both were the same root cause — a reactive overlay.
 
 Anything else that freezes or seals its input is a candidate. Prefer `markRaw` for objects
-handed to a rendering library; use `unreactive()` only for clone-across-a-boundary cases.
+handed to a rendering library; use `unreactive()` only for clone-across-a-boundary cases. And
+prefer marking the *leaf data* raw over marking a *stateful container* raw — containers often
+carry the reactivity some consumer depends on.
 
 ### 8. A trailing `;` in a style *value* now warns — and drags i18n noise in with it
 
@@ -492,6 +521,25 @@ Most core components needed almost none of this (the codebase was already `defin
 | `b-slider` `type="is-link"` | `variant="link"` | |
 | `b-switch` | `o-switch` | drop-in |
 | `b-radio-button` (button-group radio) | **no equivalent** | Oruga's `o-radio` is a plain radio input — see below |
+| `b-dropdown` / `b-dropdown-item` | `o-dropdown` / `o-dropdown-item` + **`selectable`** + **`keepOpen`** | both implicit in Buefy, both default `false` in Oruga — see below |
+| `b-dropdown` `max-height="250"` | `:maxHeight="250"` | camelCase; also `:mobile-modal` → `:mobileModal` |
+| `b-dropdown` `aria-role="list"` | *(drop it)* | Buefy invention, not a real ARIA attribute |
+| `b-progress` | **no equivalent** | use native Bulma `progress.progress.is-*` with `:value` + `max` |
+
+⚠️ **`o-dropdown` needs `selectable` and `keepOpen` spelled out.** This is the nastiest of the
+renames because it is *entirely* silent: the dropdown renders, opens, lists its items, and
+clicking one does nothing at all — `selectable` defaults to `false` in Oruga 0.13, while
+Buefy selected implicitly. `keepOpen` likewise defaults `false`, so a `multiple` dropdown
+would close after each pick. Both are now explicit in `shape-file/ShapeFile.vue`'s filter
+dropdown, and **`tests/unit/oruga-dropdown.test.ts` locks the behavior in** — including a
+mutation check asserting that *without* `selectable` nothing gets selected, so the day Oruga
+changes its default, that test fails and tells you the prop is no longer load-bearing.
+Verified against `node_modules/@oruga-ui/oruga-next/dist/index.js`, not from docs.
+
+⚠️ **Oruga has no progress bar.** `b-progress` became a native Bulma
+`progress.progress.load-progress.is-success(:value="loadProgress" max="100")`. Buefy's
+`:rounded="false"` has no equivalent either — Bulma rounds progress bars by default, so
+`.load-progress` carries an explicit `border-radius: 0`.
 
 ⚠️ **`custom-formatter` → `formatter` is silent.** Under the Buefy name the prop just falls
 through as a DOM attribute, so the slider label shows the raw index instead of the mapped
@@ -593,6 +641,15 @@ Removed because they had zero usage in the stripped core; plugins may need them 
   **not** drop a `dashboard*.yaml` into `cottbus/`, `logistics/`, or `emissions/` — they're
   file-browser folders backing other specs, and a dashboard file flips their view mode and
   breaks those specs.
+- ⚠️ **`pnpm build` produces a bundle that throws `ReferenceError: avro is not defined` at
+  startup.** `index.html` loads the global via `<script src="/src/js/avro-browserify.js">`, but
+  that tag is **absent from `dist/index.html`** and the file is not emitted into `dist/` —
+  Vite doesn't process a `/src/...` script tag as an asset. Anything importing
+  `DashboardDataManager` (most panels) dies on `vite preview`. Found while trying to compare
+  dev vs. production timings; `pnpm dev` is unaffected, which is why it has gone unnoticed.
+  Same root cause as the `tile.test.ts` vitest failure below — `src/js/avro.js` is a 33-byte
+  shim over a global that only `index.html` supplies. Making `avro.js` a real module fixes
+  the build, the preview and the unit test together.
 - One `@import '@/styles.scss'` survives, in
   `src/components/ColorMapSelector/Btn.module.css`. It's a plain CSS module for the
   React/h5web bridge, not Sass — the `@use` rule doesn't apply. Left alone deliberately.
@@ -627,6 +684,71 @@ Removed because they had zero usage in the stripped core; plugins may need them 
   to the other orphans before migrating them — `sqlite-map/SqliteMapComponent.vue` is
   deliberately *not* in this category: it's a headless provider awaiting a consumer, and
   `aequilibrae-map` is now that consumer.
+- **Pre-existing `shape-file` bugs found while verifying it — none are Vue 3 issues, all were
+  confirmed against the restored pre-migration file and left alone deliberately:**
+  - `ShapeFile.vue`'s `bgLayers` map is **never populated** — it is only ever assigned `{}` or
+    spread onto itself. So `.bglayer-section` (`v-if="Object.keys(bgLayers).length"`) never
+    renders, and with it the per-layer visibility checkboxes *and* the "3D buildings"
+    checkbox. 3D buildings is still reachable from the ZoomButtons toggle, and background
+    layers still draw (they go through the separate `backgroundLayers` instance), so the only
+    loss is the toggles. Fix = mirror `vizDetails.backgroundLayers` into `bgLayers` on load.
+  - A dataset added at runtime via **Add Data** never registers in `datasetKeyToFilename`
+    (only the YAML `loadDatasets()` path writes it), so creating a filter on it throws
+    `Can't add listener, no dataset named: <subfolder>/undefined`.
+  - `Filters.vue` emits its column as `dataset@column`, but
+    `handleUserCreatedNewFilter()` does `selection.split(':')`. The two halves disagree on the
+    separator.
+  - Net effect: the **filter dropdown in the config bar has no fixture coverage** — every
+    `viz-map-*.yaml` in the testdata has `datasets: {}`, and the runtime path to create a
+    filter is blocked by the two bugs above. That is why its Oruga conversion is covered by
+    `tests/unit/oruga-dropdown.test.ts` instead of by a rendered route.
+- `viz-configurator/Colors.vue` (`ColorsConfig`) and `Widths.vue` (`WidthConfig`) are
+  imported and registered in `VizConfigurator.vue` but **no section name ever maps to them**:
+  `getSections()` builds the component name from `ShapeFile.configuratorSections`, which only
+  ever returns `fill-color/fill-height/line-color/line-width/circle-radius/layers/filters`.
+  They are superseded by `FillColors.vue` / `LineWidths.vue` (and still take the older
+  `vizConfiguration`+`datasets` props, without `vizDetails`/`subfolder`). Same three-part dead
+  code test as `DetailsPanel.vue` below — deletion candidates.
+- ⚠️ **"Background layers never appear" had a second, unrelated cause — and it was the real
+  one.** `LayoutManager.buildLayoutFromURL()` reused the current panel verbatim whenever
+  exactly one panel was on screen (`this.panels = [[this.panels[0][0]]]`), which is precisely
+  the state you are in while looking at a folder. Clicking a viz file pushed the new route but
+  left the previous view mounted. On `maps/networks` — whose folder view is `dashboard-1.yaml`,
+  an avro network with **no** background layers — that looked exactly like "the map opened but
+  its background layers are missing": the network links on screen were the *dashboard's*.
+  A direct page load always worked, because `panels` starts empty and took the other branch,
+  which is why this survived every `page.goto()`-style check. The panel is now replaced unless
+  it is already that exact viz (same component/root/subfolder/yamlConfig). This code predates
+  the Vue 3 migration (identical in `28452333`) — it is a long-standing bug that only became
+  reachable for `area-map` when the plugin was re-enabled. Guarded by
+  `tests/e2e/folder-navigation.spec.ts`, whose tests navigate **by clicking**; four of the five
+  fail if the old branch is restored. Related: `onNavigate()` interpolated a
+  trailing-slashed subfolder straight into the route, yielding `/maps/networks//viz-map.yaml`
+  — harmless (direct loads of it work) but confusing; it now joins path segments properly.
+- **Separately, background layers took ~13s to appear — that one was load ordering, not
+  Vue 3.** `ShapeFile.vue` created its `BackgroundLayers` and awaited `initialLoad()` as the
+  *last* statement of `mounted()`, after `loadBoundaries()` and `loadDatasets()`. On
+  `maps/networks/viz-map-bglayers.yaml` (a 202,939-segment avro network) that starved them:
+  `getFileBlob` of a **1.6 MB local** file measured 2.9 s and `arrayBuffer()` 3.5 s, which is
+  only possible if the main thread is blocked. The layers did eventually paint, at 13.4 s and
+  17.0 s. Now the instance is constructed and `initialLoad()` *started* before
+  `loadBoundaries()`, with the promise awaited at the end (an error is captured and rethrown
+  there, so it still reaches the same `catch`). Result: **2.8 s and 3.7 s**, and the
+  background layers render while the network is still loading. The geopackage parse itself is
+  only ~400 ms once it isn't competing.
+
+  Worth recording how this was diagnosed, because the obvious suspects were all wrong: a CDP
+  CPU profile over the load attributed **78.5 % to `(program)`** — native WASM (the
+  geopackage's SQLite) plus WebGL for 200k line segments — while **every Vue reactivity frame
+  combined came to ~1.2 %**. The `layers` / `lineLayers` computeds rebuild all 202,939
+  segments in ~200 ms, so they were not the problem either. Don't assume a Vue 3 proxy cliff
+  because something got slow; profile first. `scripts/` had a throwaway
+  `Profiler.start`/`Profiler.stop` harness for this — worth rebuilding if it recurs.
+- `maps/networks/viz-map-bglayers.yaml` logs three
+  `Expected value to be of type number, but found null instead.` warnings. They come from
+  **maplibre's own blob tile-worker** (confirmed via `console` message location) parsing
+  basemap vector tiles, not from our layers — deck.gl `interleaved` layers never pass through
+  that worker. Benign, viewport-dependent, ignore.
 - `aggregate-od` keeps 5 pre-existing lint errors: three `prefer-const` in
   `AggregateDatasetStreamer.worker.ts` and two `vue/no-reserved-keys` for the `_mapExtentXYXY`
   / `_maximum` data keys. Not introduced by the migration; the `no-reserved-keys` pair needs a
@@ -634,15 +756,19 @@ Removed because they had zero usage in the stripped core; plugins may need them 
 - Fixtures used to verify this round (all already present, none added):
   `e2e-tests/aequilibrae` (`dashboard-combined-demo.yaml`, 7 `aequilibrae` panels),
   `e2e-tests/agg-od` (`dashboard-0.yaml`, the `aggregate` panel), and
-  `e2e-tests/carriers/viz-carriers.yaml` (the `carriers` plugin — the only fixture with a
-  `backgroundLayers:` block, which is what exposed trap #7).
+  `e2e-tests/carriers/viz-carriers.yaml` (the `carriers` plugin), and for `area-map`:
+  `maps/hamburg` (shapefile + a `.dbf` to add as a dataset), `maps/geopackage` (gpkg, and the
+  only fixture exposing all seven configurator sections), `maps/networks` (avro + the
+  `viz-map-bglayers.yaml` background-layer case) and `networks/viz-map-berlin-v6.4.yaml`
+  (xml.gz network). `maps/hamburg` and `maps/networks` each also carry a `dashboard-1.yaml`
+  that exercises the same plugin through the dashboard-panel path.
 
 ## Next up
 
 `pnpm build` is green and every enabled panel/plugin has been rendered except `pie` (no
-fixture uses it). The one restored file **not** yet migrated is
-`shape-file/ShapeFile.vue` (still has `beforeDestroy`, an `@import '@/styles.scss'`, and two
-un-`markRaw`'d `new BackgroundLayers` sites) — its `DeckMapComponent.vue` sibling *is* done.
+fixture uses it). No restored file is left unmigrated: the only `beforeDestroy` left in `src/`
+is the word inside an explanatory comment in `VideoPlayer.vue`, and no Buefy `b-*` tag or
+`@import '@/styles.scss'` survives in any enabled plugin.
 
 To bring back a panel/plugin: restore its file(s), work the checklist, uncomment its
 registry entry, and render it against a `:8000` fixture.

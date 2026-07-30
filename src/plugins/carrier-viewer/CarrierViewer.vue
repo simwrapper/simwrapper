@@ -146,7 +146,7 @@ const i18n = {
   },
 }
 
-import { defineComponent, markRaw } from 'vue'
+import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import readBlob from 'read-blob'
@@ -1259,15 +1259,15 @@ const CarrierPlugin = defineComponent({
 
     // background layers
     try {
-      // markRaw: deck.gl freezes its props, so handing it reactive layer data
-      // violates a Proxy invariant on update ("'get' on proxy: property 'data'...")
-      this.backgroundLayers = markRaw(
-        new BackgroundLayers({
-          vizDetails: this.vizDetails,
-          fileApi: this.fileApi,
-          subfolder: this.subfolder,
-        })
-      )
+      // NB: deliberately NOT markRaw'd -- initialLoad() is async and signals completion
+      // by reassigning its internal bgLayers map, which consumers need to react to.
+      // The raw-ness that deck.gl requires is applied to the features inside
+      // BackgroundLayers.ts instead. See trap #7.
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
       await this.backgroundLayers.initialLoad()
     } catch (e) {
       this.$emit('error', 'Error loading background layers')

@@ -43,7 +43,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, markRaw } from 'vue'
+import { defineComponent } from 'vue'
 import globalStore from '@/store'
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -115,15 +115,14 @@ export default defineComponent({
       await this.loadConfig()
       if (this.isDestroyed) return
 
-      // markRaw: deck.gl freezes its props, so handing it reactive layer data
-      // violates a Proxy invariant on update ("'get' on proxy: property 'data'...")
-      this.bgLayers = markRaw(
-        new BackgroundLayers({
-          vizDetails: this.vizConfig,
-          fileApi: this.fileApi,
-          subfolder: this.subfolder,
-        })
-      )
+      // NB: deliberately NOT markRaw'd -- async initialLoad() signals completion by
+      // reassigning its internal map, which consumers must react to. deck.gl's raw-ness
+      // requirement is handled on the features inside BackgroundLayers.ts. See trap #7.
+      this.bgLayers = new BackgroundLayers({
+        vizDetails: this.vizConfig,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
       await this.bgLayers.initialLoad()
       if (this.isDestroyed) return
     } catch (err) {
