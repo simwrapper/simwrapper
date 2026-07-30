@@ -14,9 +14,9 @@ let _filePath: string
 let _config: any
 let _fields: any[] = []
 let _origCol: string, _destCol: string
-let _zoneData = {} as any
-let _dailyZoneData = {} as any
-let _dailyLinkData = {} as any
+const _zoneData = {} as any
+const _dailyZoneData = {} as any
+const _dailyLinkData = {} as any
 
 onmessage = async ({ data: { config, filePath, fileSystem } }: MessageEvent) => {
   _fileAPI = new HTTPFileSystem(fileSystem)

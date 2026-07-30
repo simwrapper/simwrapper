@@ -231,16 +231,21 @@ This costs an hour if you don't know it. Use the `:8000` server instead.
 
 ### e2e tests
 
-Two specs were added for the re-migrated panels, both green on chromium + firefox + webkit:
+Specs added for the re-migrated panels/plugins, all green on chromium + firefox + webkit:
 
 - `tests/e2e/dash-panels.spec.ts` — `bar`/`area`/`line`/`scatter`/`bubble` (7 tests). Drives
   the **"Panels" tab** of `e2e-tests/charts`.
 - `tests/e2e/tiles.spec.ts` — the `tile` panel (5 tests): both dataset forms, icon
   resolution (local asset vs font-awesome), and link/non-clickable states. Drives
   `e2e-tests/tiles`.
+- `tests/e2e/aggregate-od.spec.ts` — the `aggregate` panel **and** the plugin route
+  (8 tests). Restored from `aggregate-od.BROKEN.ts`, whose three data-count assertions
+  (23 centroids / 390 spider links / 23 zone polygons) were correct all along — it was
+  only broken while the plugin was removed. `video-player.BROKEN.ts` is now the last
+  `.BROKEN.ts`, and that one is unfixable here (see Loose ends).
 
-**Both depend on fixtures that live outside git** (see Loose ends), so they fail on a
-machine without that testdata.
+The first two **depend on fixtures that live outside git** (see Loose ends), so they fail on
+a machine without that testdata.
 
 Useful selectors: `.dash-card-headers` (card titles), `.dash-card-frame` (scope per card),
 `.plotly-plot` (one per chart), `.error-text` (card errors — assert `toHaveCount(0)`),
@@ -249,6 +254,44 @@ Useful selectors: `.dash-card-headers` (card titles), `.dash-card-frame` (scope 
 
 When adding specs, mutation-check them: break the fixture on purpose and confirm the test
 actually fails. Counting `.plotly-plot` elements passes just as happily on an empty chart.
+
+#### Testing an Oruga control, and three things that fooled a spec
+
+Worked out while writing `aggregate-od.spec.ts`; every one of these produced a **passing**
+test that guarded nothing, and each is now recorded as a comment in the spec next to the
+assertion it explains.
+
+- ⚠️ **`page.goto()` cannot test `beforeUnmount`.** A goto throws away the whole JS
+  context, so `expect(window.__testdata__).toBeUndefined()` passes identically whether the
+  teardown hook ran or was renamed to the silently-dead `beforeDestroy` (trap #2) —
+  verified by mutation. **Unmount tests must navigate by clicking**, same conclusion
+  `folder-navigation.spec.ts` reached for a different reason. The header back arrow is
+  `.btn-header-back` (`LayoutManager.onBack`), which swaps the panel component in place.
+- **Leaked `window` listeners are directly assertable.** An `addInitScript` that wraps
+  `window.addEventListener`/`removeEventListener` and tallies `keyup`/`keydown` catches a
+  missing `removeKeyListeners()`. Compare against a **baseline taken on the folder view**,
+  not against zero — other components add their own.
+- **A pixel diff proves less than it looks like.** "Destinations redraws the map" still
+  passes with the `updateCentroidLabels()` call deleted, because the sibling
+  `convertRegionColors()` also repaints. Where a control maps 1:1 to one maplibre layer
+  (`showCentroids` → circle layer, `showCentroidLabels` → symbol layer) the diff is exact;
+  where it doesn't, say so and lean on a DOM assertion (here the `is-link`/`is-active`
+  classes) for the precise part.
+- Oruga's slider renders its **`formatter` output into `.tooltip-content` even with
+  `:tooltip="false"`**, which is what makes the `custom-formatter` → `formatter` rename
+  testable at all: assert the *mapped* label (`'Alle'`, `'5000'`), never the raw index, or
+  the test passes under the dead Buefy prop name. Theme-bulma class names for the rest:
+  root `.slider`, `.slider-track`, `.slider-thumb` (one per thumb, so `toHaveCount(2)` is
+  how you prove `:range` survived), `.slider-tick`, and `input.check` for `o-checkbox`.
+  Note `.lower-left .slider:nth-of-type(1)` matches **nothing** — `nth-of-type` counts all
+  sibling `div`s, and `.subheading` labels are interleaved. Use Playwright's `.nth()`.
+- Firefox floods the console from maplibre's own tile upload (`WebGL warning: texImage:
+  Alpha-premult and y-flip are deprecated`), and once 32 pile up adds `After reporting 32,
+  no further warnings will be reported for this WebGL context`. The cap is only reached
+  under parallel load, so a filter that misses it produces a spec that passes alone and
+  fails in a full run. `/GPU stall|WebGL|externalized for browser/` covers all of it, and
+  a mutation check (dropping `unreactive()` from the CSV worker's `postMessage`) confirms
+  the test still has teeth with that filter in place.
 
 ---
 
@@ -791,13 +834,32 @@ Removed because they had zero usage in the stripped core; plugins may need them 
   **maplibre's own blob tile-worker** (confirmed via `console` message location) parsing
   basemap vector tiles, not from our layers — deck.gl `interleaved` layers never pass through
   that worker. Benign, viewport-dependent, ignore.
-- `aggregate-od` keeps 5 pre-existing lint errors: three `prefer-const` in
-  `AggregateDatasetStreamer.worker.ts` and two `vue/no-reserved-keys` for the `_mapExtentXYXY`
-  / `_maximum` data keys. Not introduced by the migration; the `no-reserved-keys` pair needs a
-  rename across the file.
+- ~~`aggregate-od` keeps 5 pre-existing lint errors~~ — **cleared.** Three `prefer-const` in
+  `AggregateDatasetStreamer.worker.ts` (the three accumulator objects are mutated, never
+  reassigned), plus the two `vue/no-reserved-keys`: `_mapExtentXYXY` → `mapExtentXYXY` with
+  its `[180, 90, -180, -90]` seed moved into `data()`, and `_maximum` **deleted** — it was
+  written once in `created()` and never read, so renaming it would have preserved nothing.
+  That emptied `created()` entirely, so it's gone too (`data()` runs once per instance, same
+  as `created()`, so the seed timing is unchanged).
+
+  Worth knowing *why* this was only a lint error and not a live bug, since the `_` prefix
+  looks like trap #2 material: Vue 3's `PublicInstanceProxyHandlers.get` resolves **any**
+  own `data` key, prefix or not, so `this._maximum` worked fine inside methods. Only
+  `initData`'s `exposeDataOnRenderContext` skips reserved prefixes, and the
+  `must be accessed via $data` warning fires **only during render** — and neither key was
+  ever touched from a template. Verified against
+  `@vue+runtime-core@3.5.40/dist/runtime-core.cjs.js`, not from docs.
+- `AggregateOd.updateSpiderLinks()` now also calls `updateTestData()`. `createSpiderLinks()`
+  replaces the whole `spiderLinkFeatureCollection`, so the `window.__testdata__` hook kept
+  pointing at the **pre-filter** array — silently stale after any slider change, and a trap
+  for the next spec author.
 - Fixtures used to verify this round (all already present, none added):
   `e2e-tests/aequilibrae` (`dashboard-combined-demo.yaml`, 7 `aequilibrae` panels),
-  `e2e-tests/agg-od` (`dashboard-0.yaml`, the `aggregate` panel), and
+  `e2e-tests/agg-od` (`dashboard-0.yaml`, the `aggregate` panel) plus
+  `e2e-tests/emissions/viz-od-drt.yaml` (the same plugin's own route — note it sets
+  `scaleFactor: 0.001`, which multiplies line width at `AggregateOd.vue:610`/`1282`, so its
+  spider links render as near-invisible hairlines and its legend reads `~ 1 trips`. That is
+  the fixture, identical on `master`, **not** a regression), and
   `e2e-tests/carriers/viz-carriers.yaml` (the `carriers` plugin), and for `area-map`:
   `maps/hamburg` (shapefile + a `.dbf` to add as a dataset), `maps/geopackage` (gpkg, and the
   only fixture exposing all seven configurator sections), `maps/networks` (avro + the

@@ -249,8 +249,8 @@ const Component = defineComponent({
       projection: '',
       hoverId: null as any,
 
-      _mapExtentXYXY: null as any,
-      _maximum: null as any,
+      // [minX, minY, maxX, maxY], grown as each shape is read
+      mapExtentXYXY: [180, 90, -180, -90] as number[],
 
       bounceTimeSlider: {} as any,
       bounceScaleSlider: {} as any,
@@ -579,6 +579,9 @@ const Component = defineComponent({
 
     updateSpiderLinks() {
       this.createSpiderLinks()
+      // createSpiderLinks() replaces the whole FeatureCollection, so the e2e hook
+      // would keep pointing at the pre-filter array without this
+      this.updateTestData()
 
       // avoiding mapbox typescript bug:
       if (this.selectedCentroid) {
@@ -808,6 +811,7 @@ const Component = defineComponent({
       const tsMap = this.mymap as any
       tsMap.getSource('centroids').setData(this.centroidSource)
       this.updateCentroidLabels()
+      this.updateTestData()
     },
 
     calculateCentroidValuesForZone(timePeriod: any, feature: any) {
@@ -940,7 +944,7 @@ const Component = defineComponent({
     },
 
     setMapExtent() {
-      localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
+      localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this.mapExtentXYXY))
 
       const options = this.thumbnail
         ? { animate: false }
@@ -948,7 +952,7 @@ const Component = defineComponent({
             padding: { top: 25, bottom: 25, right: 100, left: 100 },
             animate: false,
           }
-      this.mymap.fitBounds(this._mapExtentXYXY, options)
+      this.mymap.fitBounds(this.mapExtentXYXY, options)
     },
 
     setupKeyListeners() {
@@ -1177,10 +1181,10 @@ const Component = defineComponent({
     },
 
     updateMapExtent(coordinates: any) {
-      this._mapExtentXYXY[0] = Math.min(this._mapExtentXYXY[0], coordinates[0])
-      this._mapExtentXYXY[1] = Math.min(this._mapExtentXYXY[1], coordinates[1])
-      this._mapExtentXYXY[2] = Math.max(this._mapExtentXYXY[2], coordinates[0])
-      this._mapExtentXYXY[3] = Math.max(this._mapExtentXYXY[3], coordinates[1])
+      this.mapExtentXYXY[0] = Math.min(this.mapExtentXYXY[0], coordinates[0])
+      this.mapExtentXYXY[1] = Math.min(this.mapExtentXYXY[1], coordinates[1])
+      this.mapExtentXYXY[2] = Math.max(this.mapExtentXYXY[2], coordinates[0])
+      this.mapExtentXYXY[3] = Math.max(this.mapExtentXYXY[3], coordinates[1])
     },
 
     addGeojsonToMap(geojson: any) {
@@ -1410,11 +1414,6 @@ const Component = defineComponent({
     showCentroidLabels() {
       this.updateCentroidLabels()
     },
-  },
-
-  async created() {
-    this._mapExtentXYXY = [180, 90, -180, -90]
-    this._maximum = 0
   },
 
   async mounted() {
