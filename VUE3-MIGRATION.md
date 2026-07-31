@@ -42,11 +42,12 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 | | enabled | verified in a browser |
 |---|---|---|
-| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `layers` `line` `links` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `transit` `vega` `vehicles` `video` `xml` `xytime` | all except `pie` and `links` (no fixture) |
-| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `events` `flowmap` `gridmap` `hexagons` `image-view` `imoger` `layers` `layer-map` `links` `logistics` `plans` `plotly` `sankey` `summary-table` `transit` `vega-lite` `vehicles` `video-player` `xmas-kelheim` `xml` `xytime` | all except `gridmap` (no fixture — see below) |
+| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `layers` `line` `links` `map` `matrix` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `transit` `vega` `vehicles` `video` `xml` `xytime` | all except `pie` and `links` (no fixture) |
+| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `events` `flowmap` `gridmap` `hexagons` `image-view` `imoger` `layers` `layer-map` `links` `logistics` `matrix` `plans` `plotly` `sankey` `summary-table` `transit` `vega-lite` `vehicles` `video-player` `xmas-kelheim` `xml` `xytime` | all except `gridmap` (no fixture — see below) |
 
-Still removed: `matrix` (plus the never-registered `pie-layer`). Its spec
-(`matrix-viewer.spec.ts`) is the only remaining plugin failure in a full chromium run.
+**Every plugin and panel is now migrated.** Only the never-registered `pie-layer` is left
+out. `matrix` was the last one — see [The matrix plugin](#the-matrix-plugin-react-h5web-interop)
+for what its React interop needed.
 
 `events` (`plugins/event-viewer/`, two `.vue` files plus two workers and a parser) is the
 only plugin whose data arrives by **streaming a compressed MATSim event file through a
@@ -340,6 +341,152 @@ What was **not** shared with `carrier-viewer`:
   to all of Europe with the data a dot in the middle. Pre-existing, left alone; `logistics`
   uses 9 in the same function.
 
+### The matrix plugin (React / h5web interop)
+
+The last plugin, and the only one that mounts a **React** tree inside Vue. Ten `.vue`/`.tsx`
+files plus a vendored fork of h5web's provider layer in `plugins/matrix/local/`. Verified
+against `e2e-tests/matrix/OPTERM.h5` (a 2475×2475 SFCTA matrix) on the plugin route and on a
+new dashboard fixture; `matrix-viewer.spec.ts` is green on chromium + firefox + webkit.
+
+**The Vue↔React bridge (`H5TableReactWrapper.vue`) had three separate faults**, and only the
+first is on the standard checklist:
+
+1. `beforeDestroy` → `beforeUnmount`. Silently dead, so `root.unmount()` never ran: the whole
+   React tree **and the h5wasm worker `H5WasmLocalFileProvider` spins up** leaked on every
+   unmount. This is trap #2 with a much bigger blast radius than a stray listener.
+2. **The React tree never re-rendered when the Vue props changed.** `mounted()` called
+   `root.render(...)` once and nothing ever called it again — React does not observe Vue
+   props, so the bridge has to push a new element in. A `watch` on `blob`/`filename` now does.
+   This *looked* fine before, by accident: `MatrixViewer`'s `v-if` includes
+   `!isGettingMatrices`, which flips around every table change and so destroyed and recreated
+   the whole wrapper. Change that `v-if` and the table silently stops updating.
+3. **The React root was living in `data()`**, i.e. wrapped in a reactive Proxy. It holds
+   fibers React compares by identity and mutates in place — trap #7 material. `markRaw`.
+
+⚠️ **Don't write JSX inside the `.vue` file.** The original used `<script lang="tsx">`, which
+makes the JSX transform depend on how `@vitejs/plugin-vue` hands the block to esbuild and on
+tsconfig's `jsx` setting. It is now `lang="ts"` + `React.createElement`; the JSX stays in
+`H5TableViewer.tsx`, where the `.tsx` loader unambiguously applies. Nothing is lost — the
+bridge is one element deep.
+
+**`unreactive()` on the Comlink payload is the fix the plugin cannot start without.**
+`MatrixViewer` opens its HDF5 files through a Comlink-wrapped worker, and Comlink
+`structuredClone`s the argument. `fileSystem` there is a *computed* off
+`$store.state.svnProjects` — a reactive Proxy — so all three `open()` call sites threw
+`DataCloneError`. Mutation-checked: **both e2e tests fail** with the `unreactive()` removed.
+This is trap #1's tenth site; note it arrived through a **computed**, not a prop or a direct
+store read, which is a shape the earlier sites didn't have. `unreactive()` and not a spread,
+because `FileSystemConfig.handle` is a real `FileSystemAPIHandle`.
+
+⚠️ **Buefy dropdowns hid three separate things behind one tag rename.** `b-dropdown` →
+`o-dropdown` needed `selectable` spelled out as usual, plus:
+- **`b-dropdown-item custom`** (a non-selectable item — used for the table-search input and a
+  divider) has no Oruga equivalent; it is `:clickable="false"`.
+- **`icon-right="menu-up"/"menu-down"`** is an **mdi** icon name, and mdi is not actually
+  loaded: `index.html` links `/css/materialdesignicons.css.html` while the file on disk is
+  `materialdesignicons.min.css.html`, and the `<link>` has no `rel="stylesheet"`. So
+  `iconPack: 'mdi'` in `main.ts` resolves to nothing. Every dropdown caret is now an explicit
+  FontAwesome `i.fa.fa-caret-up/down`, matching the rest of the plugin. **Worth fixing
+  properly if any component ever wants a real Oruga icon.**
+- `trap-focus` and `aria-role` are Buefy inventions; they fall through as DOM attributes.
+
+**Dynamic string `ref`s inside `v-for` still work — this is a "not a bug", and it cost an
+hour of chasing a false positive.** `BColorSelector` paints 43 colour-ramp swatches, and the
+original used `:ref="`s-${i}`"` with `this.$refs[`s-${i}`]` plus an
+`if (Array.isArray(x)) x = x[0]` dance. That *looks* exactly like trap #2/#6 material. It
+isn't. Measured in the running app:
+
+```
+$refs at mount: 44 keys, 43 of them "s-N"; $refs["s-1"] is an Array of one HTMLCanvasElement
+canvas.swatch elements in the DOM before the menu is ever opened: 44
+```
+
+So both assumptions hold: the SFC compiler emits `ref_for` on refs inside a `v-for`, so Vue 3
+**does** collect them into arrays, and Oruga's dropdown renders its menu content up front
+(hidden) rather than lazily — the `mounted()` paint loop finds every canvas. The code was
+converted to **function refs** anyway, because that is the Vue 3 idiom and it survives a
+future Oruga that renders the menu lazily, but it is a **modernization, not a fix**:
+mutation-checked back to the original and all 43 swatches still paint.
+
+⚠️ **Two ways this nearly became a wrong entry in this document**, both worth copying:
+
+- **A mutation check is only evidence if you verify the mutation applied.** The first attempt
+  used a multi-line `perl -0pi` whose second substitution silently didn't match, so the
+  mutant had the string refs *and no paint loop at all* — "43 blank", a clean-looking
+  confirmation of a bug that does not exist. Assert on the substitution
+  (`assert old in text`) and print the marker counts before trusting the run.
+- ⚠️ **Don't test `$refs` semantics with a runtime-compiled template.** A `mount({template})`
+  in `@vue/test-utils` gave a *single element* rather than an array for the same markup,
+  because the runtime compiler didn't emit `ref_for` the way the SFC compiler does. That
+  disagreement is what sent this down the wrong path. Measure in the real component.
+
+Same reasoning clears **`LayoutManager.vue`'s `:ref="`dragContainer${x}-${y}`"`**, read as
+`this.$refs[...][0]` in the drag-to-reposition path — it was flagged by
+`grep -rn ':ref="`' src/` and is **fine**, for the same measured reason.
+
+⚠️ **`markRaw` on deck.gl/maplibre here is precautionary — trap #7 does not reproduce.**
+Reported honestly because the doc's rule 1 says to do it anyway: dropping `markRaw` from the
+overlay *and* the maplibre `Map` *and* the `features`/`shapes` arrays, then clicking zones,
+toggling row/col, changing the colormap and switching the basemap theme, throws **nothing**.
+Instrumenting the `layers` computed shows why it isn't a no-op even so:
+
+| | `isProxy(this.features)` |
+|---|---|
+| with `markRaw` (shipped) | `false` |
+| without | `true` |
+
+So deck.gl really does receive a Proxy without it — the invariant just happens to hold,
+because Vue returns *the same proxy* for an already-reactive object and the frozen-property
+read therefore gets the target's actual value. The doc's failing cases were the other shape:
+a **raw** value behind the frozen property, read through a proxy container, which returns a
+wrapper. Keep the `markRaw` (it removes a proxy hop per coordinate read across 2475
+features), but don't expect a spec to defend it.
+
+Also on the checklist, done without incident: `beforeDestroy` ×3, `@import '@/styles.scss'`
+×7 (dropped entirely in the five files using no Sass variables), `@import '~/buefy/dist/buefy.css'`
+in `ComparisonSelector.vue` (**buefy is not installed** — this one would have failed the
+build), a `this.` in a `:style` expression, `emits:` declarations on all seven components,
+and two `debounce` fields declared as `{} as any` while the template binds them as event
+handlers during the first render.
+
+⚠️ **`ModalMarkdownDialog` was carrying trap #9 and `matrix` is its first consumer.** It
+`$emit('click', i)` without declaring `emits`, so the parent's `@click` also fell through
+`$attrs` onto the root element: every button click called `handleClickedAskCompare` twice,
+once with the index and once with a `PointerEvent`. The switch there has a `case 2` (Compare)
+that a stray PointerEvent falls straight through to. Fixed in the child, per trap #9.
+
+⚠️ **`.deck-map` collided again**, the same shape as `layer-map`. `dash-panels/matrix.vue`
+put `.deck-map` on the plugin's root while `DeckMapComponent.vue` declares `.deck-map` in a
+**global** (unscoped) style block. Renamed to `.matrix-panel`.
+
+**`ComparisonSelector.vue` is imported and registered by `ConfigPanel.vue` but never placed
+in its template** — so the bundler compiles it and no route renders it. Its Oruga conversion
+was necessarily done blind, so `tests/unit/matrix-comparison-selector.test.ts` mounts it and
+asserts its items, `change` and `addBase`. Same reasoning as `sqlite-map.test.ts`.
+
+**Fixture** (outside git, like `layers`'): `matrix/dashboard-1-matrix.yaml` in the testdata
+checkout, exercising the `dash-panels/matrix.vue` path that no existing fixture covered.
+
+⚠️ **`matrix-viewer.spec.ts` was waiting on the wrong signal and failed only in parallel.**
+It waited for `.legend-header`, which appears in `setInitialColorsForArray()` — *before*
+`extractH5Slice()` formats 2475 values and Vue renders the rows. Serially the gap is ~1 s and
+the default 5 s `expect` window covers it; with two workers each fetching and h5wasm-parsing
+the same file it is ~4 s and the assertion lands early, reading as a plugin bug. It now waits
+for `.scrolly .matrix-data-value`. The h5web selectors in that spec were CSS-module hashes
+(`._btn_990c96f`, `._cell_2658e21`) that a package bump would silently invalidate; they are
+now button text and a `[class*="cell"]` substring.
+
+Two things left alone, both pre-existing and neither caused by the migration:
+
+- **`public/map-styles/dark.json` references a `circle-11` sprite** the OpenFreeMap sprite
+  sheet doesn't have, so switching to the dark basemap logs
+  `Image "circle-11" could not be loaded`. `positron.json` doesn't reference it. Any plugin
+  that switches theme over a maplibre map hits this.
+- **`@h5web/app` depends on its own `three`** (via `@react-three/fiber`) at a different
+  version from the repo's `three@0.127`, so any route loading the matrix plugin logs
+  `WARNING: Multiple instances of Three.js being imported`. It is also most of why the
+  `MatrixViewer` chunk is 5.3 MB. Benign — the two WebGL contexts are separate.
+
 ### Two fixtures that had to be invented
 
 Neither `imoger` nor `plans` had any fixture in the testdata (`plans/` existed as an **empty
@@ -510,7 +657,9 @@ alongside the `beforeDestroy` grep.
   the two layer configs. It renders a grouped `o-select` plus a gradient swatch built
   from `interpolators.ts`. It deliberately does **not** import `utils.ts`'s
   `getLinearGradient`, which would drag in `three` and `ndarray` for eleven colour stops.
-  The `.tsx` files stay where they are (matrix/h5web orphans, still needing `@visx/scale`).
+  The `.tsx` files stay where they are. **Update:** now that `matrix` is back and takes its
+  `ScaleType` from `models-vis.ts`, nothing imports any of them — they are deletable, and
+  with them the last `@visx/scale` references.
 - ⚠️ **A `data()` field bound as an event handler must start as a function.** The layer
   configs declared `debOpacity: {} as any` and filled it in `mounted()`, but the template
   binds it during the *first render* — so the first slider event hit
@@ -861,22 +1010,36 @@ The helper is now vendored verbatim in `src/layers/deckgl-forward-props.ts` (MIT
 does *not* work — the `@/*` path mapping resolves it to a real file first, so the source
 still gets loaded. Vendoring is the only clean fix.
 
-**Blocked on plugin restoration.** Three packages are imported but **not installed and not in
-`package.json`**: `@luma.gl/core`, `@luma.gl/shadertools`, `@visx/scale`. The files importing
-them (`src/layers/flowmap/*`, `src/layers/moving-icons/*`, `src/layers/PathTraceLayer.ts`,
-`src/components/ColorMapSelector/*`) are orphans of the removed flowmap / vehicle-animation /
-matrix plugins — they can't build today, and `pnpm build` only passes because nothing
-reachable imports them. Adding `declare module` shims would silence tsc while leaving them
-unbuildable. Re-add the real dependencies with their plugins instead.
+**Still blocked, but no longer on plugin restoration** (all plugins are back now).
+`@luma.gl/core` and `@luma.gl/shadertools` are imported but not installed and not in
+`package.json`, from `src/layers/moving-icons/*` and `src/layers/PathTraceLayer.ts`. Adding
+`declare module` shims would silence tsc while leaving them unbuildable; re-add the real
+dependencies. `@visx/scale` is only reached from `ColorMapSelector/scaleGamma.ts` and
+`vismodels.ts`, which **nothing imports** — the matrix plugin takes its `ScaleType` from
+`ColorMapSelector/models-vis.ts` (plain TS) and its colour ramps from
+`plugins/matrix/interpolators.ts`. Those two files are deletable, not installable.
+
+**The count is 123 with `matrix` restored, up from 85.** Roughly 40 of those are the matrix
+plugin's own, and they are all one problem: `plugins/matrix/local/` is a **vendored fork of
+h5web's provider layer** that predates the installed `@h5web/app@14`, so it now carries a
+second, drifted copy of `Plugin`, `DType`, `Dataset` and `DataProviderApi`. It works
+perfectly at runtime (verified end to end); it just doesn't typecheck against the package it
+extends. The fork exists because `@h5web/h5wasm` exports only the *Provider* components, not
+the `H5WasmLocalFileApi` class that `H5ProviderWorker.worker.ts` needs directly. Reconciling
+it means either upstreaming that export or re-vendoring against v14 — a self-contained piece
+of work, and the largest single item left in the backlog.
 
 **Do not bump `@types/react` on its own.** `react` is `^18.3.1` while `@types/react` is
 `^16.9.49` (pnpm warns about this). Upgrading types to 18 made things *worse* — 84 → 98 —
 because the React-16-era `.tsx` bridge files then fail on `ReactNode`/`children` variance,
 and there are three `@types/react` copies in the tree (16, 18, 19) which is what produces
-`TS2786 'Icon' cannot be used as a JSX component`. Of those `.tsx` files only `Selector.tsx`
-is actually imported by any component; `Btn`, `ColorMapSelector`, `ScaleOption` and
-`MdGraphicEqRotated` are unreferenced. Fix this together with the matrix/h5web plugin, with a
-`pnpm.overrides` pin for `@types/react`.
+`TS2786 'Icon' cannot be used as a JSX component`. It needs a `pnpm.overrides` pin for
+`@types/react`, done together with the `local/` re-vendoring above. Note the matrix plugin
+itself no longer depends on any of the `.tsx` orphans: `MatrixViewer.vue` used to pull
+`ScaleType` from `ScaleSelector/ScaleOption.tsx`, dragging React, react-icons and a CSS
+module in for one enum; it now takes it from `ColorMapSelector/models-vis.ts`. `Btn`,
+`ColorMapSelector`, `ScaleOption`, `ScaleSelector` and `MdGraphicEqRotated` are all
+unreferenced and are strong deletion candidates.
 
 **Then the genuinely fixable core:** `src/js/DeckMap.ts` alone has 30 (27 × TS2339 — mostly
 undeclared class fields like `_map` and props such as `screenshotFilename` missing from
@@ -1442,9 +1605,11 @@ Most core components needed almost none of this (the codebase was already `defin
   in Vue 2; drop the `this.` (hit in `table.vue` and `tile.vue`).
 - **Async `mounted()` + the dashboard resizer** — guard redraw entry points with a
   "loaded" flag. See [trap #3](#3-the-dashboard-calls-your-resizer-before-your-data-has-loaded).
-- **React interop** (h5web / matrix viewer): the `createRoot` mount path was removed with
-  the plugins. The `.tsx` bridge components (`Selector`, `ColorMapSelector`, `ScaleSelector`)
-  compile but aren't exercised. Re-verify the Vue↔React mount timing when that plugin returns.
+- **React interop** (h5web / matrix viewer): done, in `matrix/H5TableReactWrapper.vue` — the
+  only React mount in the app. Copy that pattern: `markRaw` the `createRoot` result, unmount
+  it in **`beforeUnmount`**, re-`render()` from a `watch` on every prop React needs to see,
+  and keep the JSX in a `.tsx` file rather than a `<script lang="tsx">` block. See
+  [The matrix plugin](#the-matrix-plugin-react-h5web-interop).
 
 ### Buefy → Oruga reference (what was done in core)
 
@@ -1939,16 +2104,22 @@ Removed because they had zero usage in the stripped core; plugins may need them 
 
 `pnpm build` is green and every enabled panel/plugin has been rendered except `pie` (no
 fixture uses it). No restored file is left unmigrated: the only `beforeDestroy` left in `src/`
-is the word inside an explanatory comment in `VideoPlayer.vue`, and no Buefy `b-*` tag or
-`@import '@/styles.scss'` survives in any enabled plugin.
+is the word inside explanatory comments in `VideoPlayer.vue` and
+`matrix/H5TableReactWrapper.vue`, and no Buefy `b-*` tag or `@import '@/styles.scss'`
+survives in any enabled plugin.
 
-**`matrix` is the only plugin still removed** (plus the never-registered `pie-layer`). It is
-the React-interop one — see the `React interop` bullet in the checklist; the `createRoot`
-mount path went away with the plugin and the `.tsx` bridge components compile but are not
-exercised by anything today.
+**The plugin migration is done.** `matrix` was the last one; only the never-registered
+`pie-layer` remains out. What is left is not migration work:
 
-To bring back a panel/plugin: restore its file(s), work the checklist, uncomment its
-registry entry, and render it against a `:8000` fixture.
+1. **The tsc backlog, now 123** — dominated by `plugins/matrix/local/`, a vendored fork of
+   h5web's provider layer that has drifted from the installed `@h5web/app@14`. Runtime-clean,
+   type-dirty. See [The tsc backlog](#the-tsc-backlog--wait-for-the-plugins).
+2. `@luma.gl/core` / `@luma.gl/shadertools` are imported but not installed.
+3. The `.tsx` orphans under `components/ColorMapSelector/` and `components/ScaleSelector/`
+   are now unreferenced by anything and can probably just be deleted.
+4. `index.html`'s mdi stylesheet link is broken (wrong filename, no `rel`), so
+   `iconPack: 'mdi'` resolves to nothing.
+5. `tests/unit/table.test.js` and `tile.test.ts` are still the two stale unit failures.
 
 **Rendering it once is not enough — interact with it.** Trap #7 exits clean on load and only
 throws on the second render pass, so after the screenshot looks right, click the plugin's
