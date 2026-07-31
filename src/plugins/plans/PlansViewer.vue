@@ -1,0 +1,1792 @@
+<template lang="pug">
+.carrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
+                :style='{"background": urlThumbnail}'
+                spellcheck="false"
+                oncontextmenu="return false")
+
+  .container-1(@mousemove="dividerDragging" @mouseup="dividerDragEnd")
+
+    .main-panel
+
+      DeckMapComponent.anim(
+        activeTab="tours"
+        :bgLayers="backgroundLayers"
+        :shipments="shownShipments"
+        :depots="shownDepots"
+        :legs="shownLegs"
+        :nonRoutedLegs="nonRoutedLegs"
+        :stopActivities="stopActivities"
+        :dark="globalState.isDarkMode"
+        :center="vizDetails.center"
+        :viewId="linkLayerId"
+        :settings="vizSettings"
+        :numSelectedTours="selectedTours.length"
+        :onClick="handleClick"
+        :projection="vizDetails.projection"
+        :services="vizDetails.services || false"
+        :show3dBuildings="show3dBuildings"
+      )
+
+      ZoomButtons(v-if="!thumbnail" corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
+
+      PlanTable(v-if="selectedPlans.length" :plans="plans[selectedPlans[0]]" :searchTerm="searchTerm")
+
+      .x-status-message(v-if="myState.statusMessage"): h3 {{ myState.statusMessage }}
+
+    .dragger(@mousedown="dividerDragStart" @mouseup="dividerDragEnd" @mousemove.stop="dividerDragging")
+
+    .right-panel(:darkMode="true" :style="{width: `${legendSectionWidth}px`}")
+      h3 {{ $t('plansExplorer') }}
+
+      .search-panel
+        p.speed-label(:style="{margin: '1rem 0 0 0'}") {{ $t('search') }}
+        form(autocomplete="off")
+        .field
+          p.control.has-icons-left
+            input.input.is-small(type="text" :placeholder="`${$t('searchHint')}...`" v-model="searchTerm")
+            span.icon.is-small.is-left
+              i.fas.fa-search
+
+      .filter-plans
+          o-switch(v-model="vizSettings.selectedPlansOnly")
+            span(v-html="$t('selectedPlansOnly')")
+
+      .carrier-list.mb1(data-testid="plan-list")
+        .carrier(v-for="plan,i in plans" :key="plan.plan_num"
+                 :class="{selected: selectedPlans.indexOf(i) > -1 }"
+                 @click="handleSelectPlan(i)")
+          .carrier-title {{ `${plan[0].person_id}&nbsp;/&nbsp;${plan[0].plan_num}&nbsp;&nbsp;${plan[0].plan_selected=='yes' ? '(*)':''}` }}
+
+        //- Oruga's loading takes `fullPage` (camelCase) and `active` via v-model
+        o-loading.loader-theme(v-model:active="isQueryRunning" :fullPage="false")
+
+      .detail-area
+        .speed-label(style="margin-bottom: 0.5rem") Legend
+
+        .mode-color(v-for="c in legModeColors" :key="c[0]")
+          .flex-row
+            span(:style="{color: `rgb(${c[1][0]},${c[1][1]},${c[1][2]})`}") ───&nbsp;{{ c[0]}}
+
+      //- ⚠️ DEAD UI, inherited from carrier-viewer: `selectedCarrier` starts '' and is only
+      //- ever cleared, never assigned -- the code that would set it is commented out. Ported
+      //- rather than deleted so it compiles and would work if it is ever wired back up.
+      //- Oruga has no radio-button (button-group) control; a plain button group with the
+      //- active one highlighted gives the same behavior as Buefy's.
+      .detail-buttons.buttons.has-addons(v-if="selectedCarrier")
+
+        o-button(size="small" :variant="activeTab=='shipments' ? 'warning' : ''" @click="activeTab='shipments'")
+          span {{ $t('jobs') }}
+        o-button(size="small" :variant="activeTab=='tours' ? 'warning' : ''" @click="activeTab='tours'")
+          span {{ $t('tours') }}
+        o-button(size="small" :variant="activeTab=='vehicles' ? 'warning' : ''" @click="activeTab='vehicles'")
+          span {{ $t('vehicles') }}
+        o-button(v-if="services.length" size="small" :variant="activeTab=='services' ? 'warning' : ''" @click="activeTab='services'")
+          span {{ $t('services') }}
+
+        .shipments(v-if="activeTab=='shipments' && !vizDetails.services")
+            span {{ $t('jobs')}}: {{ shipments.length}}
+            .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
+                @click="handleSelectShipment(shipment)"
+                :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"
+            ) {{ `${shipment.$id}: ${shipment.$from}-${shipment.$to}` }}
+        .shipments(v-if="activeTab=='shipments' && vizDetails.services")
+            span {{ $t('jobs')}}: {{ shipments.length}}
+            .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
+                @click="handleSelectShipment(shipment)"
+                :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"
+            ) {{ `${shipment.$id}` }}
+
+
+      .switchbox
+        .switches
+          o-switch(v-model="vizSettings.shipmentDotsOnTourMap")
+            span(v-html="$t('showActivities')")
+          o-switch(v-model="vizSettings.simplifyTours")
+            span(v-html="$t('flatten')")
+
+</template>
+
+<script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      plans: 'Plans',
+      plansExplorer: 'Plans Explorer',
+      vehicles: 'VEHICLES',
+      services: 'SERVICES',
+      shipments: 'JOBS',
+      jobs: 'JOBS',
+      tours: 'TOURS',
+      pickup: 'Pickup',
+      delivery: 'Delivery',
+      flatten: 'Simple&nbsp;tours',
+      shipmentDots: 'Show shipments',
+      scaleSize: 'Widths',
+      scaleFactor: 'Width',
+      selectedPlansOnly: 'Selected plans (*) only',
+      showActivities: 'Show activities',
+      search: 'Search',
+      searchHint: 'Person_id or pattern*',
+      service: 'Service',
+    },
+    de: {
+      carriers: 'Unternehmen',
+      vehicles: 'FAHRZEUGE',
+      services: 'BETRIEBE',
+      shipments: 'AUFTRÄGE',
+      jobs: 'JOBS',
+      tours: 'TOUREN',
+      pickup: 'Abholung',
+      delivery: 'Lieferung',
+      flatten: 'Simple&nbsp;tours',
+      shipmentDots: 'Show shipments',
+      scaleSize: 'Widths',
+      scaleFactor: 'Width',
+      service: 'Betrieb',
+    },
+  },
+}
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
+
+import DuckDB from '@/js/duckdb'
+import type {
+  AsyncDuckDB,
+  AsyncDuckDBConnection,
+} from '~/@duckdb/duckdb-wasm/dist/types/src/targets/duckdb.js'
+import colorMap from 'colormap'
+import naturalSort from 'javascript-natural-sort'
+import readBlob from 'read-blob'
+import YAML from 'yaml'
+
+import globalStore from '@/store'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
+import LegendColors from '@/components/LegendColors.vue'
+import ZoomButtons from '@/components/ZoomButtons.vue'
+import {
+  gUnzip,
+  parseXML,
+  findMatchingGlobInFiles,
+  arrayBufferToBase64,
+  sleep,
+  debounce,
+  unreactive,
+} from '@/js/util'
+import DashboardDataManager from '@/js/DashboardDataManager'
+import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
+import DeckMapComponent from './MapComponent.vue'
+import PlanTable from './PlanTable.vue'
+import BackgroundLayers from '@/js/BackgroundLayers'
+
+import {
+  FileSystem,
+  LegendItem,
+  LegendItemType,
+  FileSystemConfig,
+  VisualizationPlugin,
+  LIGHT_MODE,
+  DARK_MODE,
+  REACT_VIEW_HANDLES,
+  MAP_STYLES_OFFLINE,
+  ColorScheme,
+} from '@/Globals'
+
+interface NetworkLinks {
+  source: Float32Array
+  dest: Float32Array
+  linkId: any[]
+  projection: String
+}
+
+export const LegModeColor = {
+  bike: [0, 225, 50, 255],
+  car: [0, 128, 240, 255],
+  drt: [180, 0, 228, 255],
+  freight: [255, 128, 255, 255],
+  pt: [255, 0, 40, 255],
+  ride: [0, 255, 255, 255],
+  walk: [255, 220, 0, 255],
+} as { [mode: string]: number[] }
+
+naturalSort.insensitive = true
+
+// An ActivityLocation is a link on which activities occur.
+// A location can have multiple visits on a tour!
+// Visits can have multiple pickups/dropoffs.
+interface ActivityLocation {
+  link: string
+  midpoint: number[]
+  visits: any[]
+  label: string
+  tour: any
+  details?: any
+  ptFrom: number[]
+  ptTo: number[]
+}
+
+export interface Plan {
+  person_id: string
+  plan_num: number
+  plan_selected: string
+  element: string
+  leg_mode: string
+  route_start_link: string
+  route_end_link: string
+  route_text: string
+  route_type: string
+  activity_link: string
+  activity_lon: number
+  activity_lat: number
+  activity_type: string
+}
+
+const PlansViewerPlugin = defineComponent({
+  name: 'PlansViewer',
+  i18n,
+  components: {
+    DeckMapComponent,
+    LegendColors,
+    PlanTable,
+    ZoomButtons,
+  },
+
+  props: {
+    root: { type: String, required: true },
+    subfolder: { type: String, required: true },
+    yamlConfig: String,
+    config: Object as any,
+    thumbnail: Boolean,
+    datamanager: { type: Object as PropType<DashboardDataManager> },
+  },
+
+  data() {
+    return {
+      duck: {} as AsyncDuckDB,
+      debounceUpdateSearch: {} as Function,
+      nonRoutedLegs: [] as { start: number[]; end: number[]; mode: string }[],
+      plans: [] as Plan[][],
+      selectedPlans: [] as number[],
+      isQueryRunning: false,
+      linkLayerId: Math.floor(1e12 * Math.random()),
+      legModeColors: Object.entries(LegModeColor),
+      dbUrl: '',
+
+      // ------
+      vizSettings: {
+        simplifyTours: false,
+        scaleShipmentSizes: true,
+        shipmentDotsOnTourMap: true,
+        scaleFactor: 0, // 0 means don't scale at all
+        selectedPlansOnly: false,
+      },
+
+      vizDetails: {
+        network: '',
+        carriers: '',
+        projection: '',
+        title: '',
+        description: '',
+        thumbnail: '',
+        services: false,
+        center: null as any,
+      },
+
+      show3dBuildings: false,
+
+      myState: {
+        statusMessage: '',
+        isRunning: false,
+        subfolder: '',
+        yamlConfig: '',
+        thumbnail: true,
+        data: [] as any[],
+      },
+
+      isDraggingDivider: 0,
+      dragStartWidth: 250,
+      legendSectionWidth: 275,
+
+      // DataManager might be passed in from the dashboard; or we might be
+      // in single-view mode, in which case we need to create one for ourselves
+      myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
+
+      searchTerm: '',
+      searchEnabled: false,
+
+      backgroundLayers: null as BackgroundLayers | null,
+
+      globalState: globalStore.state,
+      isLoaded: true,
+      showHelp: false,
+      activeTab: 'tours',
+
+      speedStops: [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10],
+      speed: 1,
+
+      legendBits: [] as any[],
+
+      links: null as any,
+
+      toggleTours: true,
+      toggleVehicles: true,
+      toggleShipments: true,
+      toggleServices: true,
+
+      detailContent: '',
+
+      data: null as any,
+
+      carriers: [] as any[],
+      vehicles: [] as any[],
+      shipments: [] as any[],
+      shipmentLookup: {} as any, // keyed on $id
+      services: [] as any[],
+      stopActivities: [] as any[],
+      tours: [] as any[],
+
+      shownShipments: [] as any[],
+      shipmentIdsInTour: [] as any[],
+
+      depots: [] as any,
+      shownDepots: [] as any,
+
+      shownLegs: [] as {
+        count: number
+        shipmentsOnBoard: string[]
+        totalSize: number
+        points: number[][]
+        tour: any
+        color: number[]
+        type: string
+        mode: string
+      }[],
+
+      selectedCarrier: '',
+      selectedTours: [] as any[],
+      selectedPlan: null as any,
+      selectedPlanIndex: null as any,
+      selectedShipment: null as any,
+
+      // NB no trailing ';' -- this string is bound via :style, and Vue 3 warns
+      // "Unexpected semicolon at the end of 'background' style value" on every render,
+      // dragging two [intlify] deprecation warnings with it. See trap #8.
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
+
+      vehicleLookup: [] as string[],
+      vehicleLookupString: {} as { [id: string]: number },
+
+      // always pick the same "random" colors
+      rgb: colorMap({
+        colormap: 'phase',
+        nshades: 9,
+        format: 'rba',
+      })
+        .map((a: any) => a.slice(0, 3))
+        .reverse(),
+
+      dropdownIsActive: false,
+    }
+  },
+  computed: {
+    fileApi(): HTTPFileSystem {
+      return new HTTPFileSystem(this.fileSystem, globalStore)
+    },
+
+    fileSystem(): FileSystemConfig {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === this.root
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
+      }
+      return svnProject[0]
+    },
+
+    urlThumbnail(): string {
+      return this.thumbnailUrl
+    },
+
+    textColor(): any {
+      const lightmode = {
+        text: '#3498db',
+        bg: '#eeeef480',
+      }
+
+      const darkmode = {
+        text: 'white',
+        bg: '#181518aa',
+      }
+
+      return this.globalState.isDarkMode ? darkmode : lightmode
+    },
+  },
+
+  watch: {
+    'vizSettings.selectedPlansOnly'() {
+      this.selectedPlans = []
+      this.updateSearch()
+    },
+
+    '$store.state.viewState'() {
+      if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
+      REACT_VIEW_HANDLES[this.linkLayerId]()
+    },
+
+    'globalState.isDarkMode'() {
+      this.updateLegendColors()
+    },
+
+    searchTerm() {
+      this.debounceUpdateSearch()
+    },
+  },
+
+  methods: {
+    handleSelectPlan(i: number) {
+      console.log('i', i)
+      if (this.selectedPlans.length && i == this.selectedPlans[0]) {
+        this.selectedPlans = []
+      } else {
+        this.selectedPlans = [i]
+      }
+
+      let plans = [] as Plan[]
+
+      const showPlans = this.selectedPlans.length
+        ? this.selectedPlans
+        : [...Array(this.plans.length).keys()]
+
+      for (let n of showPlans) {
+        plans.push(...this.plans[n])
+      }
+
+      // "selected=yes" ?
+      if (this.vizSettings.selectedPlansOnly) {
+        plans = plans.filter(r => r.plan_selected == 'yes')
+      }
+
+      this.drawThePlans(plans)
+    },
+
+    drawThePlans(rows: Plan[]) {
+      console.log(this.searchTerm)
+      this.shownLegs = []
+      this.nonRoutedLegs = []
+      this.stopActivities = []
+
+      const activities = rows.filter(r => r.activity_link)
+      const legs = rows.filter(r => r.element == 'leg')
+      const linkRoutes = [] as Plan[],
+        nonLinkRoutes = [] as Plan[]
+      for (const r of legs) (r.route_type == 'links' ? linkRoutes : nonLinkRoutes).push(r)
+
+      console.log({ linkRoutes, nonLinkRoutes, activities })
+
+      // -------
+      // add the routes like a crazy person
+      linkRoutes.forEach((route, i) => {
+        const linksOnThisRoute = route.route_text.split(' ')
+        const tour = { tourNumber: i, legs: linksOnThisRoute, mode: route.leg_mode }
+        this.addRouteToMap(tour, { links: tour.legs, shipmentsOnBoard: [], totalSize: 100 }, i)
+      })
+
+      // Non-routed routes can be shown as arcs, by mode
+      nonLinkRoutes.forEach((leg, i) => {
+        let ptFrom = [this.links[leg.route_start_link][0], this.links[leg.route_start_link][1]]
+        let ptTo = [this.links[leg.route_start_link][2], this.links[leg.route_start_link][3]]
+        const startMidpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+        ptFrom = [this.links[leg.route_end_link][0], this.links[leg.route_end_link][1]]
+        ptTo = [this.links[leg.route_end_link][2], this.links[leg.route_end_link][3]]
+        const endMidpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+
+        this.nonRoutedLegs.push({ start: startMidpoint, end: endMidpoint, mode: leg.leg_mode })
+      })
+
+      // YOLO! Add the activities too!
+      // TODO: split out activities per PLAN, not one big list
+      const stopActivities = [] as any[]
+      activities.forEach((activity, i) => {
+        const link = activity.activity_link
+        const ptFrom = [this.links[link][0], this.links[link][1]]
+        const ptTo = [this.links[link][2], this.links[link][3]]
+        // const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+
+        const lnglat = [activity.activity_lon, activity.activity_lat]
+        const actType = activity.activity_type // this.$t(activity.$type)
+
+        // get details: remove coords, IDs, that we don't need to show the user in UI.
+        const { from, fromX, fromY, to, toX, toY, id, ...details } = activity as any
+
+        const act = {
+          id: '', //  shipment.$id,
+          type: actType,
+          count: i + 1,
+          link,
+          midpoint: lnglat,
+          label: '',
+          tour: activity,
+          details,
+          ptFrom,
+          ptTo,
+        }
+        stopActivities.push(act)
+      })
+      this.stopActivities = stopActivities
+    },
+
+    async setupDbUrl() {
+      // Local files: DuckDB can handle FileHandles from the filesystem but they must be registered.
+      // Flask filesystem: URL
+      // S3: URL
+      // Remote: URL
+      let url = `${this.fileSystem.baseURL}/${this.subfolder}/${this.yamlConfig}`
+
+      if (!this.fileSystem.handle) {
+        // await this.duck.registerFileURL('plans.parquet', url, DuckDB.DuckDBDataProtocol.HTTP, true)
+        // return 'plans.parquet'
+        return url
+      }
+
+      url = 'plans.parquet' // this.yamlConfig || 'datafile.parquet'
+
+      // retrieve file handle
+      const dir = await this.fileApi.getDirectory(this.subfolder)
+      const handle = dir.handles[this.yamlConfig || url]
+      const file = await handle.getFile()
+      // console.log({ dir, handle })
+
+      // register file handle with DuckDB using filename
+      await this.duck.registerFileHandle(
+        url,
+        file, // the file from the FileSystemFileHandle
+        // handle, // the FileSystemFileHandle itself
+        DuckDB.DuckDBDataProtocol.BROWSER_FILEREADER,
+        false
+      )
+      return url
+    },
+
+    async performQuery(conn: AsyncDuckDBConnection, term: string) {
+      // chrome fs doesn't handle IN very well, use glob
+      if (this.fileSystem.handle) {
+        const fcn = /.\?|.\*/.test(term) ? 'GLOB' : '='
+        const stmt = await conn.prepare(`SELECT * FROM '${this.dbUrl}' WHERE person_id ${fcn} ?;`)
+        const table = await stmt.query(term)
+        return table
+      }
+
+      // wildcards need glob
+      if (/.\?|.\*/.test(term)) {
+        const stmt = await conn.prepare(
+          `SELECT DISTINCT person_id FROM '${this.dbUrl}' WHERE person_id GLOB ?;`
+        )
+        let table = await stmt.query(term)
+        const personIDs: string[] = table.getChild('person_id')?.toArray() || []
+
+        if (personIDs.length) {
+          const inList = personIDs.map(v => `'${v.replace(/'/g, "''")}'`).join(', ')
+          const q = `SELECT * FROM '${this.dbUrl}' WHERE person_id IN (${inList});`
+          table = await conn.query(q)
+        }
+        return table
+      }
+
+      // no wildcards: direct search is faster and less network
+      const stmt = await conn.prepare(`SELECT * FROM '${this.dbUrl}' WHERE person_id = ?;`)
+      const table = await stmt.query(term)
+      return table
+    },
+
+    async updateSearch() {
+      if (!this.duck.ping) return
+
+      this.isQueryRunning = true
+
+      // let's search for persons
+      let rows = [] as any[]
+
+      const dbconn = await this.duck.connect()
+      const table = await this.performQuery(dbconn, this.searchTerm)
+      dbconn.close()
+
+      rows = table.toArray().map(r => r.toJSON())
+
+      // selected="yes" ?
+      if (this.vizSettings.selectedPlansOnly) rows = rows.filter(r => r.plan_selected == 'yes')
+
+      const plans: any[] = Object.values(
+        Object.groupBy(rows, row => `${row.person_id}/${row.plan_num}`)
+      )
+      plans.sort((a, b) => naturalSort(a[0].person_id, b[0].person_id))
+      this.plans = plans
+
+      this.selectedPlans = []
+
+      this.drawThePlans(rows)
+      this.isQueryRunning = false
+    },
+
+    dividerDragStart(e: MouseEvent) {
+      this.isDraggingDivider = e.clientX
+      this.dragStartWidth = this.legendSectionWidth
+    },
+
+    dividerDragEnd(e: MouseEvent) {
+      this.isDraggingDivider = 0
+    },
+
+    dividerDragging(e: MouseEvent) {
+      if (!this.isDraggingDivider) return
+      const deltaX = this.isDraggingDivider - e.clientX
+      this.legendSectionWidth = Math.max(0, this.dragStartWidth + deltaX)
+    },
+
+    handleSelectShipment(shipment: any) {
+      // console.log({ shipment })
+
+      if (this.selectedShipment === shipment) {
+        this.selectedShipment = null
+        this.shownShipments = []
+
+        // if everything is deselected, reset view
+        if (!this.selectedTours.length || this.selectedShipment == null) {
+          const carrier = this.carriers.filter(c => c.$id == this.selectedCarrier)
+          this.selectedCarrier = ''
+          // this.handleSelectCarrier(carrier[0])
+        }
+
+        return
+      }
+
+      this.shownShipments = this.shipments.filter(s => s.$id === shipment.$id)
+      this.selectedShipment = shipment
+    },
+
+    processActivitiesInTour(activity: any): {
+      shipmentIdsInTour: any[]
+      stopActivities: ActivityLocation[]
+    } {
+      let stopCount = 0
+
+      // link ID is the lookup key for activity locations.
+      // BUT, since link-IDs are often numbers, we must always
+      // prepend an "L" to the link-id so that the key order
+      // is stable and based on insertion order.
+      const locations: { [link: string]: ActivityLocation } = {}
+
+      // for (const activity of tour.plan) {
+      //   if (!activity.$shipmentId && !activity.$serviceId) continue
+
+      //   var shipment
+      //   if (activity.$serviceId) {
+      //     shipmentIdsInTour.push(activity.$serviceId)
+      //     shipment = this.shipmentLookup[activity.$serviceId]
+      //   } else {
+      //     shipmentIdsInTour.push(activity.$shipmentId)
+      //     shipment = this.shipmentLookup[activity.$shipmentId]
+      //   }
+
+      //   if (!shipment) continue
+
+      const link = activity.activity_link
+      const ptFrom = [this.links[link][0], this.links[link][1]]
+      const ptTo = [this.links[link][2], this.links[link][3]]
+      const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+
+      const lnglat = [activity.activity_lon, activity.activity_lat]
+      const actType = activity.activity_type // this.$t(activity.$type)
+
+      // get details: remove coords, IDs, that we don't need to show the user in UI.
+      const { from, fromX, fromY, to, toX, toY, id, ...details } = activity
+
+      const act = {
+        id: '', //  shipment.$id,
+        type: actType,
+        count: stopCount++,
+        link,
+        midpoint: lnglat,
+        label: '',
+        tour: activity,
+        details,
+        ptFrom,
+        ptTo,
+      }
+
+      // // where to store it? same or new location?
+      // if (link == prevLocation) {
+      //   // same loc as last activity
+      //   locations[`L${link}`].visits[locations[`L${link}`].visits.length - 1][
+      //     activity.$type
+      //   ].push(act)
+      // } else if (`L${link}` in locations) {
+      //   // previously-visited location. Start a new visit!
+      //   const visit = { pickup: [], delivery: [], service: [] } as any
+      //   visit[activity.$type].push(act) // so gets saved in either pickup[] or delivery[]
+      //   locations[`L${link}`].visits.push(visit)
+      // } else {
+      // never been here before
+      // const visit = { pickup: [], delivery: [], service: [] } as any
+      // visit[activity.activity_type].push(act)
+      locations[`L${link}`] = {
+        link,
+        midpoint: lnglat,
+        label: '',
+        tour: activity,
+        details,
+        ptFrom,
+        ptTo,
+        visits: [], // visit],
+      }
+      // }
+      // prevLocation = link
+      // }
+
+      // convert to an array, insertion order is stable value order
+      const stopActivities = Object.values(locations)
+
+      // set stop labels: use count for all but the first one
+      for (let sCount = 0; sCount < stopActivities.length; sCount++) {
+        stopActivities[sCount].label = `${sCount}`
+      }
+      stopActivities[0].label = 'Depot'
+
+      console.log({ stopActivities })
+      // console.log({ shipmentIdsInTour, stopActivities })
+      return { shipmentIdsInTour: [], stopActivities }
+    },
+
+    setupDepots() {
+      const depots: { [link: string]: any } = {}
+
+      this.vehicles.forEach((v: any) => {
+        const linkId = v.$depotLinkId
+        let depotLink = this.links[linkId]
+
+        if (!depotLink) return
+
+        if (!depots[linkId]) {
+          depots[linkId] = {
+            type: 'depot',
+            link: v.$depotLinkId,
+            midpoint: [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])],
+            coords: this.links[v.$depotLinkId],
+            vehicles: {} as any,
+          }
+        }
+        depots[linkId].vehicles[v.$id] = v
+      })
+
+      this.depots = Object.values(depots)
+      this.shownDepots = this.depots.slice(0)
+    },
+
+    // -----------------------------------------------------------------------
+    selectAllTours() {
+      this.selectedTours = []
+      this.shownLegs = []
+      this.stopActivities = []
+      this.shownDepots = []
+      this.shownShipments = this.shipments.slice(0)
+
+      for (const tour of this.tours) {
+        //  all legs
+        tour.legs.forEach((leg: any, count_route: number) =>
+          this.addRouteToMap(tour, leg, count_route++)
+        )
+
+        // all activities
+        const z = this.processActivitiesInTour(tour)
+        this.stopActivities = this.stopActivities.concat(z.stopActivities)
+
+        // all depots
+        this.setupDepots()
+      }
+    },
+
+    async handleSelectTour(tour: any) {
+      // add the legs from the shipmentLookup if the tour has no route data
+      if (!tour.legs.length) {
+        console.log('No Route.')
+        for (let i = 0; i < tour.plan.length; i++) {
+          if (tour.plan[i].$shipmentId) {
+            const shipmentId = tour.plan[i].$shipmentId
+            const linksArray = [
+              this.shipmentLookup[shipmentId].$from,
+              this.shipmentLookup[shipmentId].$to,
+            ]
+            tour.legs.push({ links: linksArray })
+          }
+        }
+        this.vizSettings.simplifyTours = true
+      }
+
+      //this unselects tour if user clicks an already-selected tour again
+      if (this.selectedTours.includes(tour)) {
+        this.selectedTours = this.selectedTours.filter((element: any) => element !== tour)
+        this.shownLegs = this.shownLegs.filter(leg => leg.tour !== tour)
+        this.stopActivities = this.stopActivities.filter(stop => stop.tour !== tour)
+
+        // if everything is deselected, EVERYTHING is selected! :-O
+        if (!this.selectedTours.length) this.selectAllTours()
+        return
+      }
+
+      // if this is the first selected tour, remove everything else first
+      if (!this.selectedTours.length) {
+        this.selectedTours = []
+        this.shownLegs = []
+        this.stopActivities = []
+        this.shownDepots = []
+      }
+
+      this.selectedTours.push(tour)
+
+      const { shipmentIdsInTour, stopActivities } = this.processActivitiesInTour(tour)
+      this.shipmentIdsInTour = shipmentIdsInTour
+
+      // Add all legs from all routes of this tour to the map
+      let count_route = 0
+      for (const leg of tour.legs) {
+        this.addRouteToMap(tour, leg, count_route++)
+      }
+
+      // add stop activity locations at the very end
+      this.stopActivities = this.stopActivities.concat(stopActivities)
+    },
+
+    addRouteToMap(
+      tour: any,
+      leg: { links: any[]; shipmentsOnBoard: string[]; totalSize: number },
+      count_route: number
+    ) {
+      // starting point from xy:[0,1]
+      const points = [[this.links[leg.links[0]][0], this.links[leg.links[0]][1]]]
+
+      for (const link of leg.links) {
+        const lastPoint = points[points.length - 1]
+        const fromXY = [this.links[link][0], this.links[link][1]]
+
+        // add from-point if it isn't a duplicate
+        if (fromXY[0] !== lastPoint[0] || fromXY[1] !== lastPoint[1]) {
+          points.push(fromXY)
+        }
+
+        // always add to-point: xy:[2,3]
+        points.push([this.links[link][2], this.links[link][3]])
+      }
+
+      this.shownLegs.push({
+        tour,
+        shipmentsOnBoard: leg.shipmentsOnBoard,
+        totalSize: leg.totalSize,
+        count: count_route,
+        points,
+        color: this.rgb[(3 + tour.tourNumber) % this.rgb.length],
+        mode: tour.mode,
+        type: 'leg',
+      })
+      // this.shownLegs = [...this.shownLegs]
+    },
+
+    // handleSelectCarrier(carrier: any) {
+    //   this.dropdownIsActive = false
+
+    //   if (!this.links) return
+
+    //   const id = carrier.$id
+
+    //   this.vehicles = []
+    //   this.shipments = []
+    //   this.services = []
+    //   this.tours = []
+    //   this.plans = []
+    //   this.shownShipments = []
+    //   this.shownDepots = []
+    //   this.selectedShipment = null
+    //   this.shipmentIdsInTour = []
+    //   this.stopActivities = []
+    //   this.shownLegs = []
+
+    //   // unselect carrier
+    //   if (this.selectedCarrier === id) {
+    //     this.selectedCarrier = ''
+    //     return
+    //   }
+
+    //   this.selectedCarrier = id
+
+    //   // vehicles
+    //   let vehicles = carrier.capabilities.vehicles.vehicle || []
+    //   this.vehicles = vehicles.sort((a: any, b: any) => naturalSort(a, b))
+
+    //   // depots
+    //   this.setupDepots()
+
+    //   if (carrier.services?.service?.length)
+    //     this.services = carrier.services.service.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
+
+    //   // select all everything
+    //   this.shownShipments = this.shipments
+    //   this.selectAllTours()
+    // },
+
+    getAllPlans(carrier: any) {
+      // Add plan to plans[] if there is no plans-tag and only one plan
+      if (carrier.plan != undefined) {
+        this.plans.push(carrier.plan)
+        this.selectedPlan = carrier.plan
+        return
+      }
+
+      if (carrier.plans != undefined) {
+        // Add plan to plans[] if a plans-tag has only one child
+        if (carrier.plans.plan.length == undefined) {
+          this.plans.push(carrier.plans.plan)
+          this.selectedPlan = carrier.plans.plan
+          return
+        }
+
+        // Add plans to plans[] if a plans-tag exists and the plans-tag has multiple childs
+        this.plans = carrier.plans.plan
+
+        for (let i = 0; i < carrier.plans.plan.length; i++) {
+          if (carrier.plans.plan[i].selected == 'true') {
+            this.selectedPlan = carrier.plans.plan[i]
+            break
+          }
+          this.selectedPlan = carrier.plans.plan[i]
+        }
+      }
+    },
+
+    // this happens if viz is the full page, not a thumbnail on a project page
+    buildRouteFromUrl() {
+      const params = this.$route.params
+      if (!params.project || !params.pathMatch) {
+        console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
+        return
+      }
+
+      // subfolder and config file
+      const sep = 1 + params.pathMatch.lastIndexOf('/')
+      const subfolder = params.pathMatch.substring(0, sep)
+      const config = params.pathMatch.substring(sep)
+
+      this.myState.subfolder = subfolder
+      this.myState.yamlConfig = config
+    },
+
+    async getVizDetails() {
+      // are we in a dashboard?
+      if (this.config) {
+        this.vizDetails = Object.assign({}, this.config)
+        this.sync3dBuildingsSetting()
+        return
+      }
+
+      // if a YAML file was passed in, just use it
+      if (this.yamlConfig?.endsWith('yaml') || this.yamlConfig?.endsWith('yml')) {
+        try {
+          const filename =
+            this.yamlConfig.indexOf('/') > -1
+              ? this.yamlConfig
+              : this.subfolder + '/' + this.yamlConfig
+
+          const text = await this.fileApi.getFileText(filename)
+          this.vizDetails = YAML.parse(text)
+          this.sync3dBuildingsSetting()
+          if (this.vizDetails.title) {
+            this.$emit('title', this.vizDetails.title)
+          }
+
+          return
+        } catch (e) {
+          console.log('failed' + e)
+          // maybe it failed because password?
+          const err = e as any
+          if (this.fileSystem.needPassword && err.status === 401) {
+            globalStore.commit('requestLogin', this.fileSystem.slug)
+          } else {
+            this.$emit('error', '' + e)
+          }
+          return
+        }
+      }
+
+      // Fine, build the config based on folder contents -------------------------
+
+      // TODO for now, we'll try two network files
+      const { files } = await this.fileApi.getDirectory(this.subfolder)
+
+      let networkFile = ''
+      if (files.indexOf('network.avro') > -1) networkFile = 'network.avro'
+      else networkFile = this.yamlConfig?.replace('events.xml', 'network.xml.gz') || 'network.xml'
+
+      // does that network file actually exist? If not grab any network file :-)
+      if (files.indexOf(networkFile) == -1) {
+        networkFile = files.find(f => f.indexOf('network.xml') > -1) || ''
+        if (networkFile) console.log('Guessing that network is in:', networkFile)
+      }
+
+      const t = '' + this.$t('plansExplorer')
+      this.vizDetails = {
+        network: networkFile,
+        carriers: this.yamlConfig as any,
+        title: t,
+        description: '',
+        center: this.vizDetails.center,
+        projection: '',
+        thumbnail: '',
+        services: false,
+      }
+      this.sync3dBuildingsSetting()
+
+      this.$emit('title', t)
+    },
+
+    sync3dBuildingsSetting() {
+      this.show3dBuildings = !!(
+        (this.vizDetails as any).buildings3d ?? (this.vizDetails as any).show3dBuildings
+      )
+    },
+
+    toggle3dBuildings() {
+      this.show3dBuildings = !this.show3dBuildings
+    },
+
+    async setMapCenter() {
+      let samples = 0
+      let longitude = 0
+      let latitude = 0
+
+      if (this.vizDetails.center) {
+        if (typeof this.vizDetails.center == 'string') {
+          this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
+        }
+        longitude = this.vizDetails.center[0]
+        latitude = this.vizDetails.center[1]
+      } else if (!this.vizDetails.center) {
+        this.data = Object.entries(this.links)
+
+        if (!this.data.length) return
+
+        const numLinks = this.data.length / 2
+
+        const gap = 4096
+        for (let i = 0; i < numLinks; i += gap) {
+          longitude += this.data[i * 2][1][0]
+          latitude += this.data[i * 2 + 1][1][1]
+          samples++
+        }
+
+        longitude = longitude / samples
+        latitude = latitude / samples
+      }
+      if (longitude && latitude) {
+        this.$store.commit('setMapCamera', {
+          longitude,
+          latitude,
+          zoom: 4,
+          bearing: 0,
+          pitch: 0,
+          jump: false,
+        })
+      }
+    },
+
+    async buildThumbnail() {
+      if (this.thumbnail && this.vizDetails.thumbnail) {
+        try {
+          const blob = await this.fileApi.getFileBlob(
+            this.myState.subfolder + '/' + this.vizDetails.thumbnail
+          )
+          const buffer = await readBlob.arraybuffer(blob)
+          const base64 = arrayBufferToBase64(buffer)
+          if (base64)
+            this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
+        } catch (e) {
+          console.error(e)
+        }
+      }
+    },
+
+    handleClick(object: any) {
+      console.log('CLICK!', object)
+      return
+      if (!object) this.clickedEmptyMap()
+      if (object?.type == 'depot') this.clickedDepot(object)
+      if (object?.type == 'leg') this.clickedLeg(object)
+    },
+
+    clickedDepot(object: any) {
+      const vehiclesAtThisDepot = Object.values(object.vehicles).map((v: any) => v.$id)
+      // console.log({ vehiclesAtThisDepot })
+      this.selectedTours = []
+      this.shownShipments = []
+
+      for (const tour of this.tours) {
+        if (vehiclesAtThisDepot.includes(tour.vehicleId)) {
+          this.handleSelectTour(tour)
+          // ^^ has side-effect: shipmentsInTour now has the list of shipmentIds
+          // We can use this to filter the shipments
+          this.shipmentIdsInTour.forEach(id => {
+            this.shownShipments.push(this.shipmentLookup[id])
+          })
+        }
+      }
+    },
+
+    clickedLeg(object: any) {
+      if (object?.tour) this.handleSelectTour(object?.tour)
+    },
+
+    clickedEmptyMap() {
+      // this.selectAllTours()
+    },
+
+    updateLegendColors() {},
+
+    async loadCarriers() {
+      // this.myState.statusMessage = '' + this.$i18n.t('message.tours')
+
+      const carriersXML = await this.loadFileOrGzippedFile(this.vizDetails.carriers)
+      if (!carriersXML) return []
+
+      const root: any = await parseXML(carriersXML, {
+        // these elements should always be arrays, even if there's just one element:
+        alwaysArray: [
+          'carriers.carrier',
+          'carriers.carrier.capabilities.vehicles.vehicle',
+          'carriers.carrier.plan.tour',
+          'carriers.carrier.shipments.shipment',
+          'carriers.carrier.services.service',
+        ],
+      })
+
+      // sort by '$id' attribute
+      const carrierList = root.carriers.carrier.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
+      // console.log(carrierList)
+
+      return carrierList
+    },
+
+    async loadNetwork() {
+      this.myState.statusMessage = 'Loading network...'
+
+      let networkFile = this.vizDetails.network
+
+      try {
+        // try loading this network file
+        const network = await this.myDataManager.getRoadNetwork(
+          networkFile,
+          this.myState.subfolder,
+          Object.assign({}, this.vizDetails),
+          null, // no status callback?!
+          false // extra: get freespeed, length attributes
+        )
+        // console.log({ network })
+        this.vizDetails.projection = '' + (network.projection || '')
+        // build direct lookup of x/y from link-id
+        this.myState.statusMessage = 'Building network link table'
+        const links: { [id: string]: number[] } = {}
+
+        network.linkId.forEach((linkId: string, i: number) => {
+          links[linkId] = [
+            network.source[i * 2],
+            network.source[i * 2 + 1],
+            network.dest[i * 2],
+            network.dest[i * 2 + 1],
+          ]
+        })
+        // return { network }
+        // console.log( links )
+        return links
+      } catch (e) {
+        this.$emit('error', 'Could not load network file', networkFile)
+      }
+    },
+
+    async fetchNetwork(path: string, vizDetails: any) {
+      return new Promise<NetworkLinks>((resolve, reject) => {
+        const thread = new RoadNetworkLoader()
+        try {
+          // unreactive(): fileSystem comes out of $store.state.svnProjects and vizDetails
+          // out of data(), so both are reactive Proxies -- which structuredClone cannot
+          // clone. See unreactive() in @/js/util, and trap #1 in VUE3-MIGRATION.md.
+          // (NB this method is currently unreachable -- see the note on loadNetwork.)
+          thread.postMessage(
+            unreactive({
+              filePath: path,
+              fileSystem: this.fileSystem,
+              vizDetails,
+            })
+          )
+
+          thread.onmessage = e => {
+            // perhaps network has no CRS and we need to ask user
+            if (e.data.promptUserForCRS) {
+              let crs =
+                prompt('Enter the coordinate reference system, e.g. EPSG:25832') || 'EPSG:31468'
+
+              if (Number.isFinite(parseInt(crs))) crs = `EPSG:${crs}`
+
+              thread.postMessage({ crs })
+              return
+            }
+
+            if (e.data.status) {
+              this.myState.statusMessage = '' + e.data.status
+              return
+            }
+
+            // normal exit
+            thread.terminate()
+
+            if (e.data.error) {
+              console.error(e.data.error)
+              globalStore.commit('error', e.data.error)
+              this.myState.statusMessage = e.data.error
+              reject(e.data.error)
+            }
+            resolve(e.data.links)
+          }
+        } catch (err) {
+          thread.terminate()
+          console.error(err)
+          reject(err)
+        }
+      })
+    },
+
+    toggleLoaded(loaded: boolean) {
+      this.isLoaded = loaded
+    },
+
+    rotateColors() {
+      localStorage.setItem(
+        'plugin/agent-animation/colorscheme',
+        this.globalState.isDarkMode ? ColorScheme.DarkMode : ColorScheme.LightMode
+      )
+    },
+
+    async loadFileOrGzippedFile(name: string) {
+      let filepath = `${this.subfolder}/${name}`
+
+      try {
+        // figure out which file to load with *? wildcards
+        if (filepath.indexOf('*') > -1 || filepath.indexOf('?') > -1) {
+          const zDataset = filepath.substring(1 + filepath.lastIndexOf('/'))
+          const zSubfolder = filepath.substring(0, filepath.lastIndexOf('/'))
+
+          // fetch list of files in this folder
+          const { files } = await this.fileApi.getDirectory(zSubfolder)
+          const matchingFiles = findMatchingGlobInFiles(files, zDataset)
+          if (matchingFiles.length == 0) throw Error(`No files matched "${zDataset}"`)
+          if (matchingFiles.length > 1)
+            throw Error(`More than one file matched "${zDataset}": ${matchingFiles}`)
+          filepath = `${zSubfolder}/${matchingFiles[0]}`
+        }
+
+        let content = ''
+
+        if (filepath.endsWith('xml') || filepath.endsWith('gz') || filepath.endsWith('zst')) {
+          const blob = await this.fileApi.getFileBlob(filepath)
+          const buffer = await blob.arrayBuffer()
+          // recursively gunzip until it can gunzip no more:
+          const unzipped = await gUnzip(buffer)
+          const text = new TextDecoder('utf-8').decode(unzipped)
+          return text
+        }
+      } catch (e) {
+        // oh no
+      }
+
+      const error = `Error loading ${filepath}`
+      globalStore.commit('error', error)
+      this.myState.statusMessage = error
+      return ''
+    },
+
+    selectDropdown() {
+      this.dropdownIsActive = !this.dropdownIsActive
+    },
+
+    // selectPlan(plan: any) {
+    //   // Set all plans to unselected
+    //   for (let i = 0; i < this.plans.length; i++) {
+    //     this.plans[i].$selected = 'false'
+    //   }
+
+    //   // Select new plan
+    //   plan.$selected = 'true'
+
+    //   this.selectedPlanIndex = this.plans.indexOf(plan)
+
+    //   // Unselect all tours
+    //   this.selectedTours = []
+
+    //   this.selectDropdown()
+    //   this.selectedPlan = plan
+    // },
+  },
+
+  async mounted() {
+    const db = DuckDB.getDuckDB()
+
+    this.debounceUpdateSearch = debounce(this.updateSearch, 500)
+
+    this.myState.thumbnail = this.thumbnail
+    this.myState.subfolder = this.subfolder
+
+    if (!this.yamlConfig) this.buildRouteFromUrl()
+    await this.getVizDetails()
+
+    if (this.thumbnail) return
+
+    this.showHelp = false
+    this.updateLegendColors()
+
+    this.myState.statusMessage = 'Loading network...'
+    await sleep(0) // update UI
+    this.links = await this.loadNetwork()
+    this.setMapCenter()
+
+    // this.myState.statusMessage = 'Loading plans...'
+    // this.plans = await this.loadPlans()
+
+    this.myState.statusMessage = ''
+    await sleep(0) // update UI
+
+    // // Select the first carrier if the carriers are loaded
+    // if (this.carriers.length) this.handleSelectCarrier(this.carriers[0])
+
+    // // Select the first tour if the tours are loaded
+    // if (this.tours.length) this.handleSelectTour(this.tours[0])
+
+    // background layers
+    try {
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
+      await this.backgroundLayers.initialLoad()
+    } catch (e) {
+      this.$emit('error', 'Error loading background layers')
+    }
+    // finally, make sure duckdb is ready
+    this.duck = await db
+    this.dbUrl = await this.setupDbUrl()
+  },
+
+  beforeUnmount() {
+    this.myState.isRunning = false
+
+    if (this.fileSystem.handle && this.dbUrl) this.duck.dropFile?.(this.dbUrl)
+    this.duck.terminate?.()
+  },
+})
+
+export default PlansViewerPlugin
+</script>
+
+<style scoped lang="scss">
+@use '@/variables' as *;
+
+/* SCROLLBARS
+   The emerging W3C standard is currently Firefox-only */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bgBold) var(--bgPanel2);
+}
+
+/* And this works on Chrome/Edge/Safari */
+*::-webkit-scrollbar {
+  width: 10px;
+}
+
+.carrier-viewer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  min-height: $thumbnailHeight;
+}
+
+.container-1 {
+  display: grid;
+  height: 100%;
+  grid-template-columns: 1fr auto auto;
+  grid-template-rows: 1fr;
+  pointer-events: auto;
+}
+
+.carrier-viewer.hide-thumbnail {
+  background: none;
+}
+
+.main-panel {
+  position: relative;
+  flex: 1;
+}
+
+h4 {
+  // border-top: 1px solid #bbb;
+  margin: 1rem 0.25rem 0.5rem 0.25rem;
+  padding-top: 0.25rem;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.right-panel {
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  pointer-events: auto;
+  background-color: var(--bgCream2);
+  padding: 0.25rem 0.5rem;
+  overflow-y: auto;
+  z-index: 20000;
+
+  h3 {
+    text-transform: uppercase;
+    font-size: 1rem;
+  }
+}
+
+.input {
+  border: none;
+  background-color: var(--bgCardFrame2);
+  color: var(--text);
+}
+
+.input::placeholder {
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.nav {
+  grid-area: title;
+  display: flex;
+  flex-direction: row;
+  margin: 0 0;
+  padding: 0 0.5rem 0 1rem;
+
+  a {
+    font-weight: bold;
+    color: white;
+    text-decoration: none;
+
+    &.router-link-exact-active {
+      color: white;
+    }
+  }
+
+  p {
+    margin: auto 0.5rem auto 0;
+    padding: 0 0;
+    color: white;
+  }
+}
+
+.speed-block {
+  margin-top: 1rem;
+}
+
+.legend-block {
+  margin-top: 2rem;
+}
+
+.big {
+  padding: 0rem 0;
+  // margin-top: 1rem;
+  font-size: 2rem;
+  line-height: 3.75rem;
+  font-weight: bold;
+}
+
+.anim {
+  // background-color: #181919;
+  pointer-events: auto;
+}
+
+.speed-label {
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.clock {
+  grid-area: clock;
+  width: 273px;
+  background-color: #000000cc;
+  border: 3px solid white;
+  margin-bottom: 1.2rem;
+  color: white;
+}
+
+.clock p {
+  text-align: center;
+  padding: 1rem 1rem;
+}
+
+.tooltip {
+  padding: 5rem 5rem;
+  background-color: #ccc;
+  z-index: -1;
+}
+
+.panel-items {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0;
+  max-height: 100%;
+  height: 100%;
+  width: 100%;
+}
+
+h3 {
+  font-size: 1.2rem;
+  padding: 0;
+}
+
+input {
+  border: none;
+  background-color: #235;
+  color: #ccc;
+}
+
+.carrier {
+  padding: 0.25rem 0.5rem;
+  margin: 0 0rem;
+  color: var(--text);
+}
+
+.carrier:nth-of-type(odd) {
+  background: var(--bgPanel2);
+}
+
+.carrier-details {
+  font-weight: normal;
+  margin-left: 0.5rem;
+  animation: slide-up 0.25s ease;
+  color: white;
+}
+
+.carrier-details .carrier:hover {
+  cursor: pointer;
+  background-color: $themeColorPale; // var(--bgBold);
+}
+
+.carrier:hover {
+  color: var(--link);
+}
+
+.carrier-title {
+  margin-top: 0.1rem;
+  display: flex;
+  flex-direction: row;
+
+  i {
+    opacity: 0.3;
+    margin-top: 0.2rem;
+    margin-left: -0.2rem;
+    margin-right: 0.4rem;
+  }
+}
+
+.carrier-title:hover {
+  i {
+    opacity: 0.7;
+  }
+}
+
+.filter-plans {
+  margin: 1rem 0 1rem 0;
+}
+
+.carrier-list {
+  position: relative;
+  user-select: none;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  cursor: pointer;
+  background-color: var(--bgCream2);
+  border: var(--borderFaint);
+}
+
+.carrier.selected {
+  font-weight: bold;
+  background-color: var(--link);
+  color: white;
+}
+
+.detail-area {
+  user-select: none;
+  // flex: 1;
+  overflow-x: hidden;
+  cursor: pointer;
+  margin: 0 0.25rem 2rem 0.25rem;
+}
+
+.carrier-section {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+@keyframes slide-up {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+.playback-stuff {
+  grid-area: playback;
+  padding: 0rem 2rem 2rem 2rem;
+  pointer-events: auto;
+}
+
+.leaf {
+  padding-left: 1rem;
+}
+
+.leaf:hover {
+  color: yellowgreen;
+}
+
+.tour.selected {
+  background-color: var(--textFancy);
+  font-weight: bold;
+  color: var(--bgPanel3);
+}
+
+.shipment-in-tour {
+  background-color: #497c7e;
+}
+
+.detail-list {
+  width: 250px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.detail-list pre {
+  font-family: 'Arial';
+  padding: 0 0;
+  line-height: 0.8rem;
+  background-color: var(--bgPanel);
+  color: var(--text);
+}
+
+.switches {
+  gap: 0.5rem;
+  display: flex;
+  // margin: 0.25rem 0.25rem;
+
+  p {
+    flex: 1;
+    margin: auto 0;
+  }
+}
+
+.slider {
+  flex: 4;
+  margin-right: 0 1rem;
+}
+
+.detail-buttons {
+  margin: 0 0.25rem 0.5rem 0.25rem;
+}
+
+.switchbox {
+  margin: 0 0.25rem 0.5rem 0.25rem;
+}
+
+.x-status-message {
+  position: absolute;
+  inset: 0 0 0 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 20000;
+  pointer-events: none;
+
+  h3 {
+    user-select: none;
+    border-radius: 5px;
+    opacity: 0.9;
+    border: 1px solid var(--bgCream2);
+    color: var(--link);
+    text-align: center;
+    padding: 2rem 2rem;
+    background-color: var(--bgBold);
+    margin: auto 2rem;
+  }
+}
+
+.dropdown {
+  margin-bottom: 0.5rem;
+}
+
+.dragger {
+  grid-row: 1 / 2;
+  grid-column: 2 / 3;
+  width: 0.4rem;
+  background-color: var(--bgBold);
+  user-select: none;
+}
+
+.dragger:hover,
+.dragger:active {
+  background-color: var(--sliderThumb);
+  transition: background-color 0.3s ease;
+  transition-delay: 0.1s;
+  cursor: ew-resize;
+}
+
+.speed-label {
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.mode-color {
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+@media only screen and (max-width: 640px) {
+  .nav {
+    padding: 0.5rem 0.5rem;
+  }
+
+  .clock {
+    text-align: center;
+  }
+
+  .right-side {
+    font-size: 0.7rem;
+    margin-right: 0.25rem;
+  }
+
+  .big {
+    padding: 0 0rem;
+    margin-top: 0.5rem;
+    font-size: 1.3rem;
+    line-height: 2rem;
+  }
+
+  .side-section {
+    margin-left: 0;
+  }
+
+  .extra-buttons {
+    margin-right: 1rem;
+  }
+}
+</style>

@@ -148,17 +148,17 @@ const plugins: any[] = [
     filePatterns: ['**/aeqviz-*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./aequilibrae-map/AequilibraEMapComponent.vue')),
   },
-  // {
-  //   kebabName: 'imoger',
-  //   filePatterns: ['**/viz-imoger*.y?(a)ml'],
-  //   component: defineAsyncComponent(() => import('./imoger/VehicleAnimation.vue')),
-  // },
-  // {
-  //   kebabName: 'plans',
-  //   // filePatterns: ['**/*plans.parquet', '**/viz-plans*.y?(a)ml*'],
-  //   filePatterns: ['**/*plans.parquet'],
-  //   component: defineAsyncComponent(() => import('./plans/PlansViewer.vue')),
-  // },
+  {
+    kebabName: 'imoger',
+    filePatterns: ['**/viz-imoger*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./imoger/VehicleAnimation.vue')),
+  },
+  {
+    kebabName: 'plans',
+    // filePatterns: ['**/*plans.parquet', '**/viz-plans*.y?(a)ml*'],
+    filePatterns: ['**/*plans.parquet'],
+    component: defineAsyncComponent(() => import('./plans/PlansViewer.vue')),
+  },
 ]
 
 export const pluginComponents: { [key: string]: Component } = {}

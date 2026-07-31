@@ -43,11 +43,11 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 | | enabled | verified in a browser |
 |---|---|---|
 | dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `layers` `line` `links` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `transit` `vega` `vehicles` `video` `xml` `xytime` | all except `pie` and `links` (no fixture) |
-| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `layers` `layer-map` `links` `logistics` `plotly` `sankey` `summary-table` `transit` `vega-lite` `vehicles` `video-player` `xmas-kelheim` `xml` `xytime` | all except `gridmap` (no fixture — see below) |
+| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `imoger` `layers` `layer-map` `links` `logistics` `plans` `plotly` `sankey` `summary-table` `transit` `vega-lite` `vehicles` `video-player` `xmas-kelheim` `xml` `xytime` | all except `gridmap` (no fixture — see below) |
 
-Still removed: `matrix` `events` `plans` (plus the never-registered
-`pie-layer` `imoger`). Their specs (`matrix-viewer.spec.ts`, `event-viewer.spec.ts`) are
-the only failures in a full chromium run — 93 pass, 3 fail, all three theirs.
+Still removed: `matrix` `events` (plus the never-registered `pie-layer`). Their specs
+(`matrix-viewer.spec.ts`, `event-viewer.spec.ts`) are the only failures in a full chromium
+run — 3 fail, all three theirs.
 
 `xytime` and `vehicles` were the last two of the "big three" and both came back in one
 round. Neither needed much structural work — both already used maplibre +
@@ -113,6 +113,63 @@ interesting failures were:
   trick to keep them non-reactive, and it still works in Vue 3. That is also why the
   vehicle/trace/request layers avoid trap #7 while the *background* layers do not.
 
+`imoger` and `plans` were the last two. Neither had a fixture anywhere in the testdata, so
+**both needed one authored** — see "Two fixtures that had to be invented" below.
+
+`imoger` (`plugins/imoger/`, five files) is the *third* fork of `vehicle-animation`, next
+to `xmas-kelheim`, and it needed nothing that family hasn't already taught: `beforeDestroy`
+×2, `markRaw` on the maplibre `Map` and the deck overlay, a dead `vue-js-toggle-button`
+import+registration in `VehicleAnimation.vue`, a live one in `SettingsPanel.vue` →
+`o-switch` + **`emits: ['click']`** (trap #9), `b-slider`/`b-slider-tick` →
+`o-slider`/`o-slider-tick` (dropping `duration`/`dotSize`/`tooltip-placement`, renaming
+`tooltip-formatter` → `formatter`), `@use '@/variables'`, and the `:deep(.switch)` margin
+fix. Two things specific to it:
+
+- **`LegendColors.vue` here is a divergent copy**, not `xmas-kelheim`'s — it has an extra
+  `icon` mode that tints a sprite via a CSS `filter`. So the two known bugs had to be fixed
+  in place rather than copied over: the NaN `:key` and the swatch bound as a style *string*
+  (`` :style="`backgroundColor: rgb(…)`" ``), which is not valid CSS and had never shown any
+  colour. The swatch fix is mutation-guarded; **the key fix is precautionary here** — both
+  rendered legends key off `Object.keys()`, so `value` is a string and `'0'+'0'[0]` is the
+  harmless `'00'`. The only legend that passes a number is commented out of the template.
+- ⚠️ **`capacities:` is required, despite looking optional.** `loadFiles()` wraps it in
+  `if (this.vizDetails.capacities) { try { … } catch {} }`, but `parseRouteTraces()` then
+  does `this.capLookup.kep[vehicle.id].reduceRight(…)` **unguarded** — so a config without a
+  KEP row for every vehicle throws before anything renders. That is what the generated
+  `drt-capacities.csv` in the fixture is for.
+- `padding: 0 0.5rem` on the `.speed-slider` is now `padding-left`/`padding-right`
+  (theme-oruga's `padding: 1em 0` on the root, per the slider notes below).
+  ⚠️ `vehicle-animation/VehicleAnimation.vue` still has the shorthand and the same latent
+  collapse.
+
+`plans` (`plugins/plans/`, five files) is the only plugin that queries its data with
+**DuckDB-WASM out of a parquet file**, and the only one that loads nothing at all until the
+user types a search term. The migration itself was the standard checklist —
+`beforeDestroy` ×2 (plus an empty one in `PlanTable.vue`, deleted), `@use '@/variables'` ×4,
+`markRaw` ×2, `b-switch` ×3 → `o-switch`, `b-radio-button` → the `.buttons.has-addons`
+group, `unreactive()` on the (unreachable) worker payload — plus:
+
+- **`b-loading` → `o-loading`**, the first time that control has come up. The props are
+  `active` (via **`v-model:active`**, not plain `v-model`) and **`fullPage`** camelCase, not
+  Buefy's `:is-full-page`. Verified against
+  `oruga-next/dist/types/components/loading/props.d.ts`.
+- **This is the second live trap #8.** `thumbnailUrl` ended in a `;` *and* is bound through
+  `:style` on the root, so every render logged the semicolon warning plus the two
+  `[intlify] Not supported …` lines. Mutation-guarded.
+- ⚠️ **A search typed before DuckDB has initialised is silently dropped.** `updateSearch()`
+  opens with `if (!this.duck.ping) return`, and `mounted()` assigns `this.duck` as its very
+  last statement — no spinner, no message, an empty list forever, and no retry. DuckDB comes
+  up fast on chromium and slowly on firefox/webkit, which is precisely how this was found:
+  the spec passed on chromium and failed on the other two. The spec now re-fires the watcher
+  until the query lands; **the plugin should await readiness instead.**
+- ⚠️ **`plans/DetailsPanel.vue` is dead and was NOT migrated** — it still imports the
+  uninstalled `vue-js-toggle-button` and `@import '@/styles.scss'`. It passes the same
+  three-part test that condemned `carrier-viewer/DetailsPanel.vue`: nothing imports it; it
+  declares no props and has no loader, so it can never receive data; it renders
+  *carriers/tours/shipments* off the xml2js `carrier.$.id` shape in a plugin that is about
+  person plans. Left in place rather than deleted because these files are untracked —
+  **delete it, or it will break the build the day something imports it.**
+
 `logistics` (`plugins/logistics/`, three files, no dashboard-panel form) is a fork of
 `carrier-viewer` with LSPs, hub chains and shipment chains layered on top, and it migrated
 almost entirely off that plugin's checklist — `beforeDestroy` ×2, a dead
@@ -152,6 +209,80 @@ What was **not** shared with `carrier-viewer`:
   its chrome from `vizDetails.projection`, i.e. as soon as the YAML parses, so the UI is up
   and clickable while the avro network parses. `carrier-viewer` has the identical code shape
   and no guards; add them there too if it ever grows a slow fixture.
+
+`imoger`'s and `plans`'s specs, and their mutation tables:
+
+- `tests/e2e/imoger.spec.ts` — 6 tests, green on chromium + firefox + webkit.
+
+  | mutation | result |
+  |---|---|
+  | drop `emits: ['click']` from `SettingsPanel` | ✗ "does not invent a new toggle" — 4 rows instead of 3 |
+  | drop `markRaw` on the deck overlay | ✗ "does not invent a new toggle" **and** "tears down on unmount" |
+  | `beforeUnmount` → `beforeDestroy` in `DeckMapComponent` | ✗ "tears down on unmount" |
+  | drop `markRaw` on the maplibre `Map` | ✗ "survives a theme switch and a 3d toggle" |
+  | revert the swatch to a style *string* | ✗ "imoger animation loads" |
+  | restore the NaN legend key | **still passes** — precautionary, see above |
+
+- `tests/e2e/plans.spec.ts` — 5 tests, green on chromium + firefox + webkit.
+
+  | mutation | result |
+  |---|---|
+  | restore the trailing `;` on `thumbnailUrl` | ✗ "loads and searches its parquet" (trap #8) |
+  | `beforeUnmount` → `beforeDestroy` in `MapComponent` | ✗ "tears down on unmount" |
+  | selected-plans `v-model` → one-way `:modelValue` | ✗ "the selected-plans-only switch filters the list" |
+  | drop `markRaw` on the deck overlay | **still passes** — precautionary |
+  | drop `markRaw` on the maplibre `Map` | **still passes** — precautionary |
+
+  Both `markRaw`s are precautionary here for the reason trap #7 gives: this fixture has no
+  `backgroundLayers:` block. Contrast `imoger`, whose fixture *does* — there both are
+  load-bearing. **That single yaml key is what decides whether trap #7 is reproducible**,
+  and it is now the clearest side-by-side evidence for it in this document.
+
+- ⚠️ **Two firefox-only console lines had to be filtered in `plans.spec.ts`**, both
+  pre-existing: the DuckDB-WASM bundle's `WebAssembly exception handling 'try' is
+  deprecated`, and `unreachable code after return statement` — `handleClick()` opens with a
+  bare `return` in front of three statements, a debug short-circuit in the restored file.
+  Deleting that `return` would enable click handling for the first time (and
+  `clickedDepot`/`clickedLeg` are stale carrier-viewer code), so it was left as found.
+- ⚠️ **The `&nbsp;` trap in an assertion.** `plans`'s plan titles are built with `&nbsp;`
+  entities, so `allTextContents()` returns U+00A0, not spaces — the expected and received
+  arrays print *identically* in the diff and the test just fails. Normalise
+  `/[ \s]+/` before comparing.
+- `plans`'s camera is hardcoded `zoom: 4` in `setMapCenter()`, so the map opens zoomed out
+  to all of Europe with the data a dot in the middle. Pre-existing, left alone; `logistics`
+  uses 9 in the same function.
+
+### Two fixtures that had to be invented
+
+Neither `imoger` nor `plans` had any fixture in the testdata (`plans/` existed as an **empty
+folder**). Both are outside git, like the others.
+
+- `e2e-tests/imoger/` — `viz-imoger.yaml` borrowing `../vehicles-animation/drt-vehicles.json.gz`
+  and `../maps/geopackage/berlin-bezirke.gpkg`, plus a **generated `drt-capacities.csv`**:
+  two KEP rows per vehicle for all 3,795 of them (`capacity` 12 until t=40000, then 0), so
+  both `COLOR_KEP` entries actually get exercised as the clock advances. Required, per the
+  `capacities:` note above.
+- `e2e-tests/plans/` — a synthetic `plans.parquet` (3 people, 4 plans, 16 rows) written with
+  the `duckdb` CLI, beside a **copy of `logistics/network.avro`**.
+  - ⚠️ **The network file must be named exactly `network.avro`.** On the `.parquet` route
+    `getVizDetails()` derives the network from
+    `yamlConfig.replace('events.xml', 'network.xml.gz')` — which for `plans.parquet` is just
+    `plans.parquet`. Since that file *does* exist, the "grab any network file" fallback on
+    the next line never fires and the plugin hands the parquet to the MATSim XML parser
+    (`Cannot read properties of undefined (reading 'nodes')`). `network.avro` is tested
+    first and is the only escape. A hand-written `network.xml` in that folder **cannot
+    work**, which cost a full detour. The plugin's only registered pattern is
+    `**/*plans.parquet`, so this affects every real user of it — fix the fallback, or
+    uncomment the `viz-plans*.yaml` pattern that is sitting next to it in the registry.
+  - ⚠️ **Force the parquet column types.** `plan_selected` holds `'yes'`/`'no'` and duckdb's
+    CSV sniffer turns that into a **BOOLEAN**, but the plugin compares `r.plan_selected ==
+    'yes'` — so the "selected plans only" filter silently matched nothing. Pass an explicit
+    `columns={...}` to `read_csv`.
+  - The routes are real connected link chains walked out of the avro's own adjacency (via
+    the browser's `avro-browserify.js`, since no node/python avro reader is installed here),
+    so the drawn paths follow actual streets. **The plan semantics are invented** — this
+    fixture proves the plugin renders, queries and tears down, not that it reads MATSim
+    plans correctly.
 
 `logistics`'s specs and fixtures:
 
