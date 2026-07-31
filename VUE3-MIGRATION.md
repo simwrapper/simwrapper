@@ -43,13 +43,101 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 | | enabled | verified in a browser |
 |---|---|---|
 | dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `layers` `line` `links` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `transit` `vega` `vehicles` `video` `xml` `xytime` | all except `pie` and `links` (no fixture) |
-| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `imoger` `layers` `layer-map` `links` `logistics` `plans` `plotly` `sankey` `summary-table` `transit` `vega-lite` `vehicles` `video-player` `xmas-kelheim` `xml` `xytime` | all except `gridmap` (no fixture — see below) |
+| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `events` `flowmap` `gridmap` `hexagons` `image-view` `imoger` `layers` `layer-map` `links` `logistics` `plans` `plotly` `sankey` `summary-table` `transit` `vega-lite` `vehicles` `video-player` `xmas-kelheim` `xml` `xytime` | all except `gridmap` (no fixture — see below) |
 
-Still removed: `matrix` `events` (plus the never-registered `pie-layer`). Their specs
-(`matrix-viewer.spec.ts`, `event-viewer.spec.ts`) are the only failures in a full chromium
-run — 3 fail, all three theirs.
+Still removed: `matrix` (plus the never-registered `pie-layer`). Its spec
+(`matrix-viewer.spec.ts`) is the only remaining plugin failure in a full chromium run.
 
-`xytime` and `vehicles` were the last two of the "big three" and both came back in one
+`events` (`plugins/event-viewer/`, two `.vue` files plus two workers and a parser) is the
+only plugin whose data arrives by **streaming a compressed MATSim event file through a
+Rust/WASM worker**, and the only one that starts animating with no user interaction at
+all. That last property is what makes it the cleanest reproduction of trap #7 in the repo:
+the deck layers rebuild every frame from `mounted()` onward, so the load test and the
+"leave it running for six seconds" test disagree, exactly as the trap predicts.
+
+The checklist items were the usual ones — `beforeDestroy` ×2, `@import '@/styles.scss'` →
+`@use '@/variables' as *`, a trailing-`;` `thumbnailUrl`, `markRaw` ×2, `this.` in four
+template expressions — plus:
+
+- ⚠️ **`* > .number { background-color: yellow }` in the scoped block**, the identical
+  build-breaking debug leftover that was in `XyTime.vue`: Vue's scoped transform emits
+  `> .number[data-v-…]` and lightningcss rejects it with `Invalid empty selector`. It was
+  invisible for as long as the plugin was unreferenced — the unreferenced-`.vue` trap
+  again, and it fails the **build**, not the runtime. Two down; `grep -rn '^\* > ' src/`
+  should stay empty.
+- ⚠️ **`Object.assign({}, this.fileSystem)` as a de-proxying attempt.** The worker payload
+  already *looked* handled — someone had spread `fileSystem` into a fresh object before
+  posting it. That is precisely the copy trap #1 warns about: reading a value through a
+  reactive proxy returns `reactive(value)`, so the copy is *more* proxied, not less. And
+  `network` (a data() field full of typed arrays) went across untouched next to it. This
+  is trap #1's ninth site and by far its most load-bearing — **all four e2e tests fail**
+  without `unreactive()`, because Comlink's `structuredClone` throws before a single byte
+  of the stream is read.
+- **`isUnmounted` guards in the async `mounted()`** (trap #10). This plugin renders its
+  chrome and its status message while the network parses, so the race is reachable in
+  principle; with the small cottbus network the window is too narrow to hit reliably, so
+  the guards are **precautionary as tested**. The side effect they stop is a real one:
+  `mounted()` ends in `toggleAnimation()`, which starts a `requestAnimationFrame` loop.
+- `receiveDataFromEventStreamer` now `markRaw`s each incoming tranch. **Precautionary,
+  mutation-checked** — the overlay's `markRaw` already takes the whole path out of the
+  proxy, and the payload is typed arrays, which `reactive()` returns untouched.
+- The plugin publishes `window.__testdata__` (chunks / totalTrips / accumulated
+  timeRange), same convention as `xy-time` and `links-gl`. ⚠️ **Accumulate the range;
+  don't report the last chunk's.** The final tranch off the stream is frequently empty,
+  and `processEvents` then returns `timeRange: [undefined, 0]` (`dataArray.t0[0]` on an
+  empty Float32Array). That is a **webkit-only failure in practice** — chromium and
+  firefox happened to end on a non-empty tranch.
+
+Pre-existing things confirmed against the unmigrated file and **left alone**:
+
+- ⚠️ **The basemap is hardcoded to Stadia satellite whenever a projection is set.**
+  `mounted()` builds the light/dark style, then unconditionally overwrites it with
+  `tiles.stadiamaps.com/…/alidade_satellite.json` — while the `dark()` watcher switches
+  back to positron/dark. So the theme toggle doesn't round-trip: satellite on load,
+  ordinary basemap forever after. `mapuuid` in `store.ts` exists only to feed that URL.
+- `:linkIdLookup` and `:radius` are passed to `event-map`, which declares neither, so both
+  fall through as DOM attributes (`radius` is `guiConfig.radius`, which does not exist).
+  Vue 2 did the same.
+- `LibXml2WasmEventStreamer.worker.ts` is an abandoned spike — it parses a hardcoded
+  `<note><to>Tove</to></note>` — and is only referenced from a commented-out import.
+- `setFirstZoom()`, `setLegend()`, `setConfig()`, the `CollapsiblePanel`/`DrawingTool`
+  registrations and the `REACT_VIEW_HANDLES` watcher are all unreachable; nothing
+  registers a handle for this `viewId`, since `EventDeckMap` watches
+  `globalState.viewState` itself.
+
+`tests/e2e/event-viewer.spec.ts` — grew from 1 test to 5, green on chromium + firefox +
+webkit. The original test only waited for `STREAM FINISHED` in the console.
+
+| mutation | result |
+|---|---|
+| drop `unreactive()` from the worker payload | ✗ **all four other tests** — nothing loads |
+| drop `markRaw` on the deck overlay | ✗ "keeps the console clean" **and** "tears down" (trap #7, verbatim) |
+| `beforeUnmount` → `beforeDestroy` in `EventDeckMap` | ✗ "tears down on unmount" (listener tally 26 → 31) |
+| `beforeUnmount` → `beforeDestroy` in `EventViewer` | ✗ "tears down on unmount" (`__testdata__` + lil-gui survive) |
+| drop `markRaw` on the maplibre `Map` | **still passes** — precautionary, see below |
+| drop `markRaw` on the incoming tranch | **still passes** — precautionary |
+
+⚠️ **The maplibre-`Map` mutation does not reproduce here even though the spec switches the
+basemap theme** — i.e. the one interaction that reproduces it in `layer-map`. The
+difference is the satellite override above: the theme switch is a satellite→positron
+transition, not the dark→light re-parse `layer-map` performs. Kept as the whole-class fix,
+and the spec says so rather than implying it guards it.
+
+⚠️ **`page.goto()` cannot test teardown, and the listener tally is the assertion with
+teeth.** A `goto` throws the JS context away, so `__testdata__` is gone and the canvas
+count is 0 no matter how dead the hook is — the first version of that test passed against
+`beforeDestroy`. Driving it with `.btn-header-back` (the `logistics` pattern) plus a
+`window.addEventListener` tally across two mount/unmount cycles is what actually failed.
+
+⚠️ **The time slider must be grabbed by `.active-region`, not the track.** `dragStart` only
+fires on the inner window, which at t=0 is a ~4%-wide sliver pinned to the left edge — a
+drag started mid-track lands on `.time-slider-dragger` and does nothing. The test looked
+correct and failed with `expected not "0:01", received "0:01"`, which reads like a broken
+slider rather than a missed hit target. Note also that at the default `speed: 0.01` the
+clock only advances ~10 sim-seconds per real second, so "the label changed" needs a
+generous drag to be distinguishable from the animation simply running.
+
+`xytime` and `vehicles` were two of the "big three" and both came back in one
 round. Neither needed much structural work — both already used maplibre +
 `MapboxOverlay` — but between them they turned up a **new Vue 3 trap** (listener
 fallthrough, [#9](#9-an-click-on-a-component-now-also-fires-for-native-clicks)) plus
@@ -1024,6 +1112,12 @@ next `postMessage` sees. Storing raw is not enough if the container gets copied;
 `markRaw()` on the values themselves. Cost half an hour in `layer-map`, where `datasets`
 is re-spread on every change.
 
+⚠️ **An existing `Object.assign({}, …)` next to a `postMessage` is a *symptom*, not a fix.**
+`event-viewer` posted `Object.assign({}, this.fileSystem)` — someone had clearly already
+noticed that payload needed de-proxying and reached for the wrong tool, which makes the
+site look handled on a read-through. Treat a spread or `Object.assign` on the way into a
+worker as a flag to check, not as evidence the problem is solved.
+
 For a library call, `toRaw()` at the call site is enough (see `VegaLite.vue`). Note
 `toRaw()` only unwraps the top level — that's fine when the raw target holds raw values,
 but if code has assigned a proxied value *into* the object (e.g.
@@ -1847,6 +1941,11 @@ Removed because they had zero usage in the stripped core; plugins may need them 
 fixture uses it). No restored file is left unmigrated: the only `beforeDestroy` left in `src/`
 is the word inside an explanatory comment in `VideoPlayer.vue`, and no Buefy `b-*` tag or
 `@import '@/styles.scss'` survives in any enabled plugin.
+
+**`matrix` is the only plugin still removed** (plus the never-registered `pie-layer`). It is
+the React-interop one — see the `React interop` bullet in the checklist; the `createRoot`
+mount path went away with the plugin and the `.tsx` bridge components compile but are not
+exercised by anything today.
 
 To bring back a panel/plugin: restore its file(s), work the checklist, uncomment its
 registry entry, and render it against a `:8000` fixture.
