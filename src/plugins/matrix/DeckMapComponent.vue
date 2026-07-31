@@ -4,7 +4,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, markRaw, PropType } from 'vue'
 import { GeoJsonLayer } from '@deck.gl/layers'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import maplibregl from 'maplibre-gl'
@@ -152,12 +152,17 @@ export default defineComponent({
     const style = `${BASE_URL}map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
     const container = `map-${this.viewId}`
     const view = this.globalState.viewState
+    // markRaw: maplibre freezes the `rgb` array of every Color it parses out of a style,
+    // and deck.gl freezes its layer props. Behind a reactive proxy either one throws a
+    // Proxy-invariant TypeError -- for the Map, on setStyle() when the theme is toggled.
     // @ts-ignore
-    this.mymap = new maplibregl.Map({
-      container,
-      style,
-      ...view,
-    })
+    this.mymap = markRaw(
+      new maplibregl.Map({
+        container,
+        style,
+        ...view,
+      })
+    )
 
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
@@ -165,22 +170,26 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = new MapboxOverlay({
-        interleaved: true,
-        layers: [this.layers[0]],
-        onClick: this.handleClick,
-        onHover: this.getTooltip,
-      })
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          interleaved: true,
+          layers: [this.layers[0]],
+          onClick: this.handleClick,
+          onHover: this.getTooltip,
+        })
+      )
       this.mymap?.addControl(this.deckOverlay)
-      this.highlightOverlay = new MapboxOverlay({
-        interleaved: false,
-        layers: [this.layers[1]],
-      })
+      this.highlightOverlay = markRaw(
+        new MapboxOverlay({
+          interleaved: false,
+          layers: [this.layers[1]],
+        })
+      )
       this.mymap?.addControl(this.highlightOverlay)
     })
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     if (this.highlightOverlay) this.mymap?.removeControl(this.highlightOverlay)
     this.mymap?.remove()

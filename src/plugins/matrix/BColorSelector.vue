@@ -1,43 +1,45 @@
 <template lang="pug">
 .b-color-selector.flex-row
   //- COLOR RAMP SELECTOR ----------------
-  b-dropdown(aria-role="list" @change="$emit('change', $event)"
-    :scrollable="true" max-height="400"
+  o-dropdown(selectable @change="$emit('change', $event)"
+    :scrollable="true" :maxHeight="400"
   )
       template(#trigger="{active}")
-        b-button.btn-selected-color.is-small(
-          :icon-right="active ? 'menu-up' : 'menu-down'"
-        ): .flex-row
-              span {{ colormap }}
-              canvas.swatch(ref="swatch" width="32" height="16")
+        o-button.btn-selected-color(size="small")
+          .flex-row
+            span {{ colormap }}
+            canvas.swatch(ref="swatch" width="32" height="16")
+            i.fa(:class="active ? 'fa-caret-up' : 'fa-caret-down'" style="margin-left: 0.4rem")
 
-      b-dropdown-item.my-b-item.is-link(v-for="color,i in colorOptions" :key="i"
-        aria-role="listitem" :value="color.color ? color.color : color.title"
+      o-dropdown-item.my-b-item.is-link(v-for="color,i in colorOptions" :key="i"
+        :value="color.color ? color.color : color.title"
+        :clickable="!!color.color"
         :class="{'is-color-group': !!color.title}"
-      ): .flex-row
-            span.flex1 {{ color.color ? color.color  : color.title }}
-            canvas.swatch(v-if="color.color" :ref="`s-${i}`" width="32" height="16")
+      )
+        .flex-row
+          span.flex1 {{ color.color ? color.color  : color.title }}
+          //- Vue 3 does not build $refs arrays from a v-for, so collect these by hand
+          canvas.swatch(v-if="color.color" :ref="el => setSwatchRef(i, el)" width="32" height="16")
 
   //- INVERTER ----------------------------
-  b-button.is-small(
-    :class="{'is-info': inverted }"
+  o-button(size="small"
+    :variant="inverted ? 'info' : ''"
     @click="$emit('change')"
   )
     i.fa.fa-retweet
     span &nbsp;&nbsp;Invert
 
   //- SCALE SELECTOR --------------------
-  b-dropdown(aria-role="list" @change="$emit('changeScale', $event)"
-    position="is-bottom-left"
+  o-dropdown(selectable @change="$emit('changeScale', $event)"
+    position="bottom-left"
   )
-      template(#trigger="{activeScale}")
-        b-button.is-small(
-          :icon-right="active ? 'menu-up' : 'menu-down'"
-        )
+      template(#trigger="{active}")
+        o-button(size="small")
           i.fa.fa-signal
           span &nbsp;&nbsp;{{ scaleOptions[selectedScale].text }}
+          i.fa(:class="active ? 'fa-caret-up' : 'fa-caret-down'" style="margin-left: 0.4rem")
 
-      b-dropdown-item(v-for="sc in scaleKeys" :key="sc"
+      o-dropdown-item(v-for="sc in scaleKeys" :key="sc"
         :value="sc"
       ) {{ scaleOptions[sc].text + scaleOptions[sc].hint }}
 
@@ -68,6 +70,7 @@ const scales = {
 const MyComponent = defineComponent({
   name: 'BColorSelector',
   components: {},
+  emits: ['change', 'changeScale'],
   props: {
     value: String,
     invert: Boolean,
@@ -75,8 +78,6 @@ const MyComponent = defineComponent({
   },
   data() {
     return {
-      active: false,
-      activeScale: false,
       colorGroups: Object.keys(COLORMAP_GROUPS),
       colorOptions,
       colormap: 'Viridis',
@@ -96,17 +97,15 @@ const MyComponent = defineComponent({
     this.colormap = this.value || 'Turbo'
     this.inverted = this.invert
     this.selectedScale = this.scale || 'linear'
-    // color swatches are pretty
-    this.drawSwatch('swatch', this.colormap)
-    this.colorOptions.forEach((color, i) => {
-      if (color.color) this.drawSwatch(`s-${i}`, color.color)
-    })
+    // the big swatch on the trigger button is always in the DOM; the per-option ones
+    // are drawn from setSwatchRef() as the dropdown menu mounts them.
+    this.drawSwatch(this.$refs.swatch, this.colormap)
   },
 
   watch: {
     value() {
       this.colormap = this.value || 'Turbo'
-      this.drawSwatch('swatch', this.colormap)
+      this.drawSwatch(this.$refs.swatch, this.colormap)
     },
     invert() {
       this.inverted = this.invert
@@ -116,11 +115,20 @@ const MyComponent = defineComponent({
     },
   },
   methods: {
-    drawSwatch(swatch: string, color: string) {
+    // Vue 3 dropped the "refs inside v-for become an array" behavior, and a dynamic
+    // string ref name never worked there anyway. A function ref fires on mount and on
+    // unmount (with null), which also covers Oruga rendering the menu lazily.
+    setSwatchRef(i: number, el: any) {
+      if (!el) return
+      const color = this.colorOptions[i]?.color
+      if (color) this.drawSwatch(el, color)
+    },
+
+    drawSwatch(canvas: any, color: string) {
+      if (!canvas?.getContext) return
       //@ts-ignore
       const interpolator = INTERPOLATORS[color]
-      let canvas = this.$refs[swatch] as any
-      if (Array.isArray(canvas)) canvas = canvas[0]
+      if (!interpolator) return
       const ctx = canvas.getContext('2d') as any
       for (let x = 0; x < canvas.width; x++) {
         ctx.fillStyle = interpolator(x / canvas.width)
@@ -133,8 +141,6 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
-
 $bgBeige: #636a67;
 $bgLightGreen: #d2e4c9;
 $bgLightCyan: #effaf6;

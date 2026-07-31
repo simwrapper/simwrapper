@@ -23,6 +23,11 @@ import { defineComponent } from 'vue'
 
 export default defineComponent({
   name: 'ModalMarkdownDialog',
+  // Without this, a parent's `@click` also falls through $attrs onto the root element, so
+  // every click calls the handler twice: once with the button index, once with a
+  // PointerEvent. MatrixViewer switches on that index, and `case 2` (Compare) is what a
+  // stray PointerEvent would fall through to.
+  emits: ['click'],
   props: {
     title: String,
     md: String,

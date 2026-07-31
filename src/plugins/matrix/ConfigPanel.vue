@@ -2,13 +2,13 @@
 .matrix-selector-panel
   //- Data/Map
   .flex-row
-    b-field.which-data
-      b-button.button.is-small(:type="!isMap ? 'is-info' : 'is-outlined is-info'"
+    .field.has-addons.which-data
+      o-button.button(size="small" variant="info" :outlined="isMap"
                       @click="$emit('setMap',false)")
         i.fa.fa-border-none
         span &nbsp;Data
-      b-button.button.is-small(v-if="hasShapes"
-        :type="isMap ? 'is-info' : 'is-info is-outlined'"
+      o-button.button(size="small" v-if="hasShapes"
+        variant="info" :outlined="!isMap"
         @click="$emit('setMap',true)"
       )
         i.fa.fa-map
@@ -16,21 +16,22 @@
 
 
   //- TABLE Name
-  b-dropdown.dropdown-table-selector(
+  o-dropdown.dropdown-table-selector(
     @change="$emit('changeMatrix', $event)"
-    scrollable max-height="400" trap-focus
+    scrollable selectable :maxHeight="400" :mobileModal="false"
   )
       template(#trigger="{active}")
-        b-button.is-small(type="is-primary" :icon-right="active ? 'menu-up' : 'menu-down'")
+        o-button(size="small" variant="primary")
           b(v-html="activeTable || 'Loading...'")
+          i.fa(:class="active ? 'fa-caret-up' : 'fa-caret-down'" style="margin-left: 0.4rem")
 
-      b-dropdown-item(custom aria-role="listitem")
-        b-input(v-model="searchTableTerm" placeholder="search" expanded)
+      o-dropdown-item(:clickable="false")
+        o-input(v-model="searchTableTerm" placeholder="search" expanded)
 
-      b-dropdown-item(v-for="matrix in filteredTableNames" :key="matrix"
+      o-dropdown-item(v-for="matrix in filteredTableNames" :key="matrix"
         :value="matrix"
-        v-html="matrix"
       )
+        span(v-html="matrix")
 
   p.hint-boundaries.flex1(v-show="!hasShapes")
     i.fa.fa-exclamation-triangle &nbsp;
@@ -38,7 +39,8 @@
 
   //- COMPARE selector
   .flex-column(v-if="hasShapes" style="margin-left: 1rem")
-    b-button.is-small.is-white(@click="toggleCompareSelector()" v-html="compareLabel")
+    o-button.is-white(size="small" @click="toggleCompareSelector()")
+      span(v-html="compareLabel")
 
   //- Map configuration
   .flex-row.map-config(v-if="isMap")
@@ -58,11 +60,19 @@ import type { PropType } from 'vue'
 
 import BColorSelector from './BColorSelector.vue'
 import ComparisonSelector from './ComparisonSelector.vue'
-import { ComparisonMatrix, MapConfig } from './MatrixViewer.vue'
+import type { ComparisonMatrix, MapConfig } from './MatrixViewer.vue'
 
 const MyComponent = defineComponent({
   name: 'MatrixConfigPanel',
   components: { ComparisonSelector, BColorSelector },
+  emits: [
+    'setMap',
+    'changeMatrix',
+    'changeColor',
+    'changeScale',
+    'toggleComparePicker',
+    'shapes',
+  ],
   props: {
     isMap: Boolean,
     comparators: { type: Array as PropType<ComparisonMatrix[]> },
@@ -105,8 +115,6 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
-
 $bgBeige: #636a67;
 $bgLightGreen: #d2e4c9;
 $bgLightCyan: #effaf6;

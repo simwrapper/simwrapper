@@ -81,7 +81,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw } from 'vue'
 
 import YAML from 'yaml'
 import * as Comlink from 'comlink'
@@ -90,7 +90,7 @@ import { debounce } from 'debounce'
 import globalStore from '@/store'
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { gUnzip } from '@/js/util'
+import { gUnzip, unreactive } from '@/js/util'
 import Geotools from '@/js/geo-utils'
 
 import ConfigPanel from './ConfigPanel.vue'
@@ -99,7 +99,9 @@ import H5MapViewer from './H5MapViewer.vue'
 import CompareFilePicker from './CompareFilePicker.vue'
 
 import { ColorMap } from '@/components/ColorMapSelector/models'
-import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
+// ScaleType also lives in ScaleSelector/ScaleOption.tsx, but importing it from there drags
+// React + react-icons + a CSS module into this chunk for one enum. models-vis is plain TS.
+import { ScaleType } from '@/components/ColorMapSelector/models-vis'
 import { COLORMAP_GROUPS } from '@/components/ColorMapSelector/groups'
 import H5ProviderWorker from './H5ProviderWorker.worker?worker'
 import ModalMarkdownDialog from '@/components/ModalMarkdownDialog.vue'
@@ -147,6 +149,7 @@ const BASE_URL = import.meta.env.BASE_URL
 const MyComponent = defineComponent({
   name: 'MatrixViewer',
   components: { H5MapViewer, H5TableViewer, ConfigPanel, CompareFilePicker, ModalMarkdownDialog },
+  emits: ['isLoaded', 'error', 'title'],
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
@@ -202,7 +205,10 @@ const MyComponent = defineComponent({
       statusText: 'Loading...',
       layerId: Math.floor(1e12 * Math.random()),
       activeTable: '',
-      debounceDragEnd: {} as any,
+      isUnmounted: false,
+      // must start as a *function*: the template binds it to @dragleave during the first
+      // render, before mounted() installs the debounced version
+      debounceDragEnd: (() => {}) as any,
       mapConfig: {
         scale: ScaleType.Log,
         colormap: 'Viridis',
@@ -215,7 +221,9 @@ const MyComponent = defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
+    this.isUnmounted = true
+
     this.h5Main = null
     this.h5MainWorker?.terminate()
     this.h5Compare = null
@@ -235,9 +243,15 @@ const MyComponent = defineComponent({
     this.debounceDragEnd = debounce(this.dragEnd, 500)
     this.useConfig = this.config || this.yamlConfig || '' // use whichever one was sent to us
 
+    // This plugin puts its chrome (and emits isLoaded) up long before the matrix is
+    // parsed, so every await below can outlive the component. Past beforeUnmount the
+    // instance's $t/$emit are gone and the workers have been terminated, so bail out.
     await this.getVizDetails()
+    if (this.isUnmounted) return
 
     await this.setupAvailableZoneSystems()
+    if (this.isUnmounted) return
+
     this.fetchLastSettings()
     this.honorQueryParameters()
 
@@ -246,29 +260,37 @@ const MyComponent = defineComponent({
 
     this.comparators = this.setupComparisons()
 
-    this.shapes = await this.loadShapes()
+    // markRaw: these features end up in a deck.gl GeoJsonLayer (trap #7)
+    this.shapes = markRaw(await this.loadShapes())
+    if (this.isUnmounted) return
     if (this.shapes.length) this.hasShapes = true
 
     try {
       await this.initH5Files()
+      if (this.isUnmounted) return
       if (!this.h5Main) return
 
       this.h5zoneLookup = await this.buildTAZLookup()
+      if (this.isUnmounted) return
+
       let initialTable = this.$route.query.table || localStorage.getItem('matrix-initial-table')
       if (!initialTable) initialTable = await this.h5Main.catalog[0]
 
       // if saved table is not in THIS matrix, revert to first table
       const catalog = await this.h5Main.getCatalog()
+      if (this.isUnmounted) return
       if (initialTable && !catalog?.includes(initialTable)) {
         initialTable = catalog[0]
       }
 
       if (initialTable) await this.changeMatrix(initialTable)
     } catch (e) {
+      if (this.isUnmounted) return
       this.$emit('error', `Error loading file: ${this.subfolder}/${this.filename}`)
       console.error('' + e)
     }
 
+    if (this.isUnmounted) return
     if (this.h5baseBlob) this.compareLabel = `Compare ${this.filename} to ${this.filenameBase}`
   },
 
@@ -350,12 +372,15 @@ const MyComponent = defineComponent({
       }
 
       // we are going to fabricate an HDF5 file with the current matrix content!
-      const buffer = await this.h5Main.buildH5Buffer({
-        size,
-        main: zmatrix.main,
-        base: zmatrix.base || null,
-        diff: zmatrix.diff || null,
-      })
+      // unreactive(): Comlink structuredClones this, and a Proxy anywhere in it throws
+      const buffer = await this.h5Main.buildH5Buffer(
+        unreactive({
+          size,
+          main: zmatrix.main,
+          base: zmatrix.base || null,
+          diff: zmatrix.diff || null,
+        })
+      )
 
       const uint8 = new Uint8Array(buffer)
       const tableLabel = this.activeTable.replaceAll('&nbsp;', ' ')
@@ -412,7 +437,11 @@ const MyComponent = defineComponent({
             }
           }
         }
-        this.matrices = matrices
+        // markRaw: these are worker payloads of typed arrays that get sliced per zone and
+        // handed straight back across the Comlink boundary by buildH5Blob(). Nothing reads
+        // *into* them reactively -- consumers watch the `matrices` reference itself, which
+        // still changes here.
+        this.matrices = markRaw(matrices)
       } catch (e) {
         this.$emit('error', `Error extracting ${which}`)
         console.error('' + e)
@@ -436,15 +465,19 @@ const MyComponent = defineComponent({
       this.filename = '' + this.yamlConfig
       if (this.config) this.filename = this.config.dataset
 
-      this.h5MainWorker = new H5ProviderWorker()
-      this.h5Main = Comlink.wrap(this.h5MainWorker) as unknown
+      this.h5MainWorker = markRaw(new H5ProviderWorker())
+      this.h5Main = markRaw(Comlink.wrap(this.h5MainWorker) as any)
 
       const zkey = `auth-token-${this.fileSystem.slug}`
       const token = localStorage.getItem(zkey) || ''
 
       try {
+        // Comlink structuredClones the payload, and `fileSystem` is a computed off
+        // $store.state.svnProjects -- i.e. a reactive Proxy, which throws DataCloneError.
+        // unreactive() (not a spread) because FileSystemConfig.handle is a real
+        // FileSystemAPIHandle that a naive deep copy would destroy.
         await this.h5Main.open({
-          fileSystem: this.fileSystem,
+          fileSystem: unreactive(this.fileSystem),
           subfolder: this.subfolder,
           filename: this.filename,
           token,
@@ -621,15 +654,16 @@ const MyComponent = defineComponent({
       if (!this.fileSystem) return
 
       this.h5CompareWorker?.terminate()
-      this.h5CompareWorker = new H5ProviderWorker()
-      this.h5Compare = Comlink.wrap(this.h5CompareWorker) as unknown
+      this.h5CompareWorker = markRaw(new H5ProviderWorker())
+      this.h5Compare = markRaw(Comlink.wrap(this.h5CompareWorker) as any)
 
       const zkey = `auth-token-${this.fileSystem.slug}`
       const token = localStorage.getItem(zkey) || ''
 
       try {
+        // de-proxy before Comlink structuredClones it -- see initH5Files()
         await this.h5Compare.open({
-          fileSystem: this.fileSystem,
+          fileSystem: unreactive(this.fileSystem),
           subfolder: comparisonMatrix.subfolder,
           filename: comparisonMatrix.filename,
           token,
@@ -747,8 +781,8 @@ const MyComponent = defineComponent({
       if (!this.fileSystem) return
 
       this.h5CompareWorker?.terminate()
-      this.h5CompareWorker = new H5ProviderWorker()
-      this.h5Compare = Comlink.wrap(this.h5CompareWorker) as unknown
+      this.h5CompareWorker = markRaw(new H5ProviderWorker())
+      this.h5Compare = markRaw(Comlink.wrap(this.h5CompareWorker) as any)
 
       const zkey = `auth-token-${this.fileSystem.slug}`
       const token = localStorage.getItem(zkey) || ''
@@ -794,8 +828,8 @@ const MyComponent = defineComponent({
       await this.$nextTick()
 
       this.h5MainWorker?.terminate()
-      this.h5MainWorker = new H5ProviderWorker()
-      this.h5Main = Comlink.wrap(this.h5MainWorker) as unknown
+      this.h5MainWorker = markRaw(new H5ProviderWorker())
+      this.h5Main = markRaw(Comlink.wrap(this.h5MainWorker) as any)
       // this opens file, sets up the dimensions and matrix catalog
       try {
         await this.h5Main.open({
@@ -877,7 +911,7 @@ const MyComponent = defineComponent({
         })
 
         this.filenameShapes = file.name || 'File'
-        this.shapes = features
+        this.shapes = markRaw(features)
         this.zoneID = tazlookup
         this.hasDroppedBoundaries = true
 
@@ -994,7 +1028,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .matrix-viewer {
   position: absolute;
