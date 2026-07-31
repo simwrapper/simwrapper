@@ -128,11 +128,11 @@ const plugins: any[] = [
     filePatterns: ['**/*config*.xml*'],
     component: defineAsyncComponent(() => import('./xml-viewer/XmlViewer.vue')),
   },
-  // {
-  //   kebabName: 'xmas-kelheim',
-  //   filePatterns: ['**/xmas-kelheim*.y?(a)ml'],
-  //   component: defineAsyncComponent(() => import('./xmas-kelheim/VehicleAnimation.vue')),
-  // },
+  {
+    kebabName: 'xmas-kelheim',
+    filePatterns: ['**/xmas-kelheim*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./xmas-kelheim/VehicleAnimation.vue')),
+  },
   // {
   //   kebabName: 'logistics',
   //   filePatterns: [

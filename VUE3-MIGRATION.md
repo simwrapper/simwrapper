@@ -43,10 +43,10 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 | | enabled | verified in a browser |
 |---|---|---|
 | dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `layers` `line` `links` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `transit` `vega` `vehicles` `video` `xml` `xytime` | all except `pie` and `links` (no fixture) |
-| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `layers` `layer-map` `links` `plotly` `sankey` `summary-table` `transit` `vega-lite` `vehicles` `video-player` `xml` `xytime` | all except `gridmap` (no fixture — see below) |
+| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `layers` `layer-map` `links` `plotly` `sankey` `summary-table` `transit` `vega-lite` `vehicles` `video-player` `xmas-kelheim` `xml` `xytime` | all except `gridmap` (no fixture — see below) |
 
 Still removed: `matrix` `events` `logistics` `plans` (plus the never-registered
-`pie-layer` `xmas-kelheim` `imoger`).
+`pie-layer` `imoger`).
 
 `xytime` and `vehicles` were the last two of the "big three" and both came back in one
 round. Neither needed much structural work — both already used maplibre +
@@ -111,6 +111,32 @@ interesting failures were:
 - ⚠️ **The big data arrays live on `this.$options`**, not in `data()` — a deliberate Vue 2
   trick to keep them non-reactive, and it still works in Vue 3. That is also why the
   vehicle/trace/request layers avoid trap #7 while the *background* layers do not.
+
+`xmas-kelheim` is a fork of `vehicle-animation` — same four files plus `eventParser.ts`,
+diverging mainly in a fourth "All Traffic" layer fed by a MATSim event stream. Everything
+in the `vehicles` list above applied verbatim (`o-switch`, `o-slider`, the NaN legend key
+and the colourless swatches, `beforeUnmount`, the trailing-`;` `thumbnailUrl`,
+`@use '@/variables'`). What was *not* shared:
+
+- **Two more worker payloads for `unreactive()`** (trap #1, places seven and eight):
+  `GzipFetcher` in `loadBackgroundChunk()`, and `MATSimEventStreamer` in
+  `eventParser.ts`. Both post a `fileSystem` pulled out of `$store.state.svnProjects`.
+  Note `eventParser` is a **plain class**, not a component — it took the proxy in through
+  its constructor, so nothing about the file looks Vue-ish.
+- ⚠️ **A genuinely new trap: an `async mounted()` that outlives the component**
+  ([#10](#10-an-async-mounted-outlives-the-component-and-t-goes-with-it)). This plugin
+  sets `isLoaded` as soon as the YAML parses rather than after the trips load, so its UI
+  is up and clickable for the ~30s the fixture takes to load, and navigating away in that
+  window resumed `mounted()` on a dead instance. `vehicle-animation` has the identical
+  code shape and cannot reach it.
+- `markRaw` on the traffic-layer chunks (typed arrays destined for deck.gl) —
+  precautionary, since the only consumer (`trip-viz`) is still commented out.
+
+⚠️ **The "All Traffic" toggle currently does nothing, and that is pre-existing.**
+`VehicleAnimation.vue` passes `:trafficLayers` to `deck-map`, which does not declare that
+prop — the renderer that used it is the commented-out `trip-viz` block. Left as found;
+the toggle row and the prop are both still there, and the prop simply falls through as a
+DOM attribute (Vue 2 did the same).
 
 `layers` (`dash-panels/layermap.vue` + `plugins/layer-map/`, 13 `.vue` files) is the
 biggest one yet, because it is the only plugin whose **renderer was React**. It also
@@ -641,6 +667,20 @@ Specs added for the re-migrated panels/plugins, all green on chromium + firefox 
   `wood-pattern`) — **firefox and webkit only**, so a spec without it passes on chromium
   and fails in a full run. The layer-map spec's name-specific `wood-pattern` filter was
   generalised for the same reason.
+- `tests/e2e/xmas-kelheim.spec.ts` — the `xmas-kelheim` plugin (5 tests): load, the
+  listener-fallthrough pair, a theme switch + 3D toggle, and teardown. It needs its own
+  fixture folder (`e2e-tests/xmas-kelheim/`, one yaml borrowing
+  `../vehicles-animation/drt-vehicles.json.gz`) — the plugin has no dashboard-panel form,
+  so navigating away has to go through a folder listing, and sharing the
+  `vehicles-animation` folder would have put that folder's dashboard in the middle of
+  every unmount cycle. Mutation table:
+
+  | mutation | result |
+  |---|---|
+  | drop `emits: ['click']` from `SettingsPanel` | ✗ "does not invent a new toggle" — 5 rows instead of 4 |
+  | drop the `isUnmounted` guards in `mounted()` | ✗ "tears down on unmount" — `this.$t is not a function` (trap #10) |
+  | drop `markRaw` on the maplibre `Map` | ✗ "survives a theme switch and a 3d toggle" |
+  | drop `markRaw` on the deck overlay | **still passes** — precautionary; this plugin has no `backgroundLayers`, and its layer data arrives through (shallow-reactive) props, so nothing non-raw sits behind a frozen prop |
 - `tests/e2e/aggregate-od.spec.ts` — the `aggregate` panel **and** the plugin route
   (11 tests). Restored from `aggregate-od.BROKEN.ts`, whose three data-count assertions
   (23 centroids / 390 spider links / 23 zone polygons) were correct all along — it was
@@ -650,7 +690,17 @@ Specs added for the re-migrated panels/plugins, all green on chromium + firefox 
   `agg-od/dashboard-1.yaml` + `one-row.csv`.
 
 The first two **depend on fixtures that live outside git** (see Loose ends), so they fail on
-a machine without that testdata.
+a machine without that testdata. So does `xmas-kelheim.spec.ts`, whose fixture folder was
+created for it and is a single hand-written yaml:
+
+```yaml
+# e2e-tests/xmas-kelheim/xmas-kelheim.yaml
+title: "Xmas Kelheim DRT"
+description: "xmas-kelheim plugin, running on the Berlin robotaxi fixture"
+drtTrips: ../vehicles-animation/drt-vehicles.json.gz
+center: [13.45, 52.5]
+zoom: 10
+```
 
 Useful selectors: `.dash-card-headers` (card titles), `.dash-card-frame` (scope per card),
 `.plotly-plot` (one per chart), `.error-text` (card errors — assert `toHaveCount(0)`),
@@ -948,6 +998,41 @@ something that counts: the number of rendered rows, or that the icon actually fl
 `grep -rn "\$emit('click'" src/` finds the candidates. Still unfixed because nothing
 imports them: `components/SettingsPanel.vue`, `ModalMarkdownDialog.vue`, `VuePlotly.vue`
 (no consumer listens for its `click`).
+
+### 10. An `async mounted()` outlives the component, and `$t` goes with it
+
+Trap #3's sibling on the other side of the await. A long `async mounted()` keeps running
+after the user navigates away, and everything past the await then executes on an unmounted
+instance. In Vue 2 that was untidy; in Vue 3 the first symptom is a hard throw, because
+vue-i18n's Legacy-mode `$t` is installed per component instance and is **gone** once that
+instance is torn down:
+
+```
+[Vue warn]: Unhandled error during execution of mounted hook
+  at <XmasVehicleAnimation …>
+PAGEERROR this.$t is not a function
+```
+
+(and, per trap #8, two `[intlify] Not supported …` lines ride along with the warning —
+ignore those and read the line above them.)
+
+The throw is the *loud* part. What it was hiding in `xmas-kelheim/VehicleAnimation.vue`:
+
+- `document.addEventListener('visibilitychange', …)` ran **after** `beforeUnmount` had
+  removed it — a listener leaked on every aborted load.
+- `this.animate()` started a `requestAnimationFrame` loop on a dead component, and the
+  `myState.isRunning = false` that stops it had already been set.
+
+**Fix:** an `isUnmounted` flag set in `beforeUnmount`, checked after each await in
+`mounted()`. Checking `this.$t` or `this._isMounted` is not equivalent — the flag is the
+only thing that also stops the side effects.
+
+⚠️ **Whether you can even reach this depends on when the plugin sets `isLoaded`.**
+`vehicle-animation` sets it after everything is parsed, so its chrome — and any e2e wait
+on it — only appears once loading is done, and the race is unreachable. `xmas-kelheim`
+sets it as soon as the YAML is parsed, so ~30 seconds of trip-loading happen with the UI
+already up and clickable. Same code shape, one reachable and one not. Any plugin that
+renders its chrome before its data is a candidate.
 
 ### Not bugs — don't chase these
 
