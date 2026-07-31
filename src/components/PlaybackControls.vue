@@ -22,6 +22,12 @@ import * as timeConvert from 'convert-seconds'
 
 export default defineComponent({
   name: 'PlaybackControls',
+  // MUST be declared. In Vue 2 an `@click` on a component was a custom event only
+  // (native needed `.native`); in Vue 3 the parent's listener also falls through onto
+  // this component's root element, so every click anywhere in the control -- including
+  // dragging the time slider -- ALSO fired the parent's play/pause handler, with a
+  // PointerEvent as its argument. Declaring `click` in `emits` takes it out of $attrs.
+  emits: ['click', 'time'],
   props: {
     isRunning: { type: Boolean, required: true },
     timeStart: { type: Number, required: true },

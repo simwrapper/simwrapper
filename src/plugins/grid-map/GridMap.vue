@@ -311,7 +311,7 @@ const GridMap = defineComponent({
       radiusStep: 5 as number,
       isLoaded: false as boolean,
       show3dBuildings: false,
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;" as string,
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat" as string,
       timeRange: [Infinity, -Infinity] as Number[],
       allTimes: [] as number[],
       // DataManager might be passed in from the dashboard; or we might be

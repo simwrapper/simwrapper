@@ -42,12 +42,75 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 
 | | enabled | verified in a browser |
 |---|---|---|
-| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `layers` `line` `links` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `transit` `vega` `video` `xml` | all except `pie` and `links` (no fixture) |
-| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `layers` `layer-map` `links` `plotly` `sankey` `summary-table` `transit` `vega-lite` `video-player` `xml` | all except `gridmap` (no fixture — see below) |
+| dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `layers` `line` `links` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `transit` `vega` `vehicles` `video` `xml` `xytime` | all except `pie` and `links` (no fixture) |
+| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `layers` `layer-map` `links` `plotly` `sankey` `summary-table` `transit` `vega-lite` `vehicles` `video-player` `xml` `xytime` | all except `gridmap` (no fixture — see below) |
 
-Still removed: the `vehicles` panel, and the remaining
-full-screen map plugins (`matrix` `xytime`
-`events` `logistics` `plans` …).
+Still removed: `matrix` `events` `logistics` `plans` (plus the never-registered
+`pie-layer` `xmas-kelheim` `imoger`).
+
+`xytime` and `vehicles` were the last two of the "big three" and both came back in one
+round. Neither needed much structural work — both already used maplibre +
+`MapboxOverlay` — but between them they turned up a **new Vue 3 trap** (listener
+fallthrough, [#9](#9-an-click-on-a-component-now-also-fires-for-native-clicks)) plus
+three things that only a compile or a click could surface:
+
+- ⚠️ **A find/replace produced `beforeUnmounted()`** — not a Vue 3 hook name at all, so
+  those four hooks were as dead as the `beforeDestroy` they replaced. Same near-miss as
+  the layer-map restore. `grep -rn "beforeUnmounted" src/` must stay empty.
+- ⚠️ **`* > .number { … }` in a scoped block fails the *build*.** Vue's scoped transform
+  turns it into `> .number[data-v-…]` and lightningcss rejects it: `Invalid empty
+  selector`. It sat in `XyTime.vue` (`background-color: yellow`, clearly debug leftover)
+  and was invisible for as long as the plugin was unreferenced — the
+  unreferenced-`.vue` trap, this time failing the build rather than hiding a bug.
+- ⚠️ **A watcher declared inside `computed`.** `XyMapComponent.vue` had
+  `'globalState.viewState'()` in its **computed** block — a computed nobody reads, so the
+  xy-time map never followed the shared camera. It reads identically to the watcher in
+  every sibling plugin, which is exactly why it survived review. Moved to `watch`.
+
+`xytime` (`dash-panels/xytime.vue` + `plugins/xy-time/`) otherwise needed only:
+
+- **`unreactive()` on the worker payload.** `XytDataParser.worker` gets
+  `{ filepath, fileSystem, projection }`, and `fileSystem` is a computed pulled out of
+  `$store.state.svnProjects` — a reactive Proxy, so `structuredClone` throws
+  `DataCloneError` and **nothing loads at all** (trap #1, the sixth place it has bitten).
+- `markRaw` on the maplibre `Map` and the deck overlay. ⚠️ **Precautionary here —
+  mutation-checked, does not reproduce**, for the same reason as gridmap: this layer's
+  `data.attributes` payload is entirely typed arrays, which `reactive()` returns
+  untouched, so the frozen-prop invariant is never violated. Kept as the whole-class fix.
+- The usual `@import '@/styles.scss'` → `@use '@/variables' as *`, and a trailing-`;`
+  `thumbnailUrl` (trap #8; the same string was still in `GridMap.vue` and is now gone
+  from all three).
+
+`vehicles` (`dash-panels/vehicles.vue` + `plugins/vehicle-animation/`) is where the
+interesting failures were:
+
+- ⚠️ **`markRaw` on the deck overlay is load-bearing here, not precautionary.** Dropping
+  it reproduces trap #7 immediately —
+  `deck: matching of SolidPolygonLayer({id: 'background-layer-berlin-bezirke-polygons-fill'})`
+  and `PathTraceLayer({id: 'Routen'})` both throw. The difference from xy-time is the
+  data: background-layer features and the crossfilter output are **plain arrays**, which
+  `reactive()` does wrap. This fixture has a `backgroundLayers:` block, which is what
+  makes it reproduce (the doc's earlier note about carriers applies verbatim).
+- **`vue-js-toggle-button` again**, this time genuinely used (in `SettingsPanel.vue`):
+  `toggle-button` → `o-switch`, one-way `:modelValue` since the parent owns the state,
+  and `:width` / `:labels` / `:color` dropped. In `VehicleAnimation.vue` the same import
+  was dead — imported and registered, never used in the template — so both lines just go.
+  ⚠️ The class you put on an `o-switch` lands on the **inner input**, so the margins moved
+  to `:deep(.switch)`.
+- `b-slider` + `b-slider-tick` → `o-slider` + `o-slider-tick`; `duration`, `dotSize`,
+  `tooltip-placement` and `tooltip-formatter` are Buefy-only. Oruga's equivalent of the
+  last one is **`formatter`**; the rest have no equivalent and would fall through as DOM
+  attributes.
+- **`LegendColors.vue` keyed its rows `item.value + item.value[0]`** — NaN whenever
+  `value` is a number (the requests legend passes `0`), so Vue 3 logged
+  `VNode created with invalid key (NaN)`, and that dragged the two `[intlify] Not
+  supported …` lines with it (trap #8 again). Its swatches were also bound with
+  `:style="`backgroundColor: rgb(…)`"` — a style *string* with a camelCase property,
+  which is not valid CSS, so the legend has never actually shown any colour. Both fixed;
+  the swatches now render.
+- ⚠️ **The big data arrays live on `this.$options`**, not in `data()` — a deliberate Vue 2
+  trick to keep them non-reactive, and it still works in Vue 3. That is also why the
+  vehicle/trace/request layers avoid trap #7 while the *background* layers do not.
 
 `layers` (`dash-panels/layermap.vue` + `plugins/layer-map/`, 13 `.vue` files) is the
 biggest one yet, because it is the only plugin whose **renderer was React**. It also
@@ -550,9 +613,34 @@ Specs added for the re-migrated panels/plugins, all green on chromium + firefox 
   matches the first and misses the second, so the spec passed on chromium and failed on
   firefox — use `/…/i`.
 - `tests/e2e/layer-map.spec.ts` — the `layers` plugin **and** the `layers` panel
-  (5 tests), both driven from hand-made fixtures in `flowmap/sfcta`. Four of the five
+  (6 tests), both driven from hand-made fixtures in `e2e-tests/layers`. Most of them
   assert on an *update* (colour by column, theme switch, add a layer, unmount), because
   that is where every Vue 3 failure in this plugin lived. See the mutation table above.
+- `tests/e2e/xy-time.spec.ts` — grew from 1 test to 3: the plugin route (with a
+  `window.__testdata__` assertion, since the worker failure mode is "nothing loads"),
+  a lil-gui-driven layer rebuild plus a basemap theme switch, and the panel route with
+  teardown. ⚠️ **Do not assert float equality across browsers.** The breakpoints come
+  out of a `pow()` calculation whose last bits differ per engine
+  (`0.000022167554811754108` on chromium, `…5411` on firefox); compare at 6 significant
+  digits.
+- `tests/e2e/vehicle-animation.spec.ts` — grew from 1 test to 4: load, the two halves of
+  the listener-fallthrough bug (trap #9) as separate tests, and the panel route with
+  teardown. Mutation table:
+
+  | mutation | result |
+  |---|---|
+  | drop `unreactive()` from the xytime worker payload | ✗ "xy time loads small emission data" (times out — nothing loads) |
+  | drop `emits: ['click']` from `SettingsPanel` | ✗ "does not invent a new toggle" — 4 rows instead of 3 |
+  | drop `emits` from `PlaybackControls` | ✗ "the play/pause button actually toggles" |
+  | restore the NaN key in `LegendColors` | ✗ "berlin drt vehicle animation loads" (console) |
+  | drop `markRaw` in `vehicle-animation/DeckMapComponent` | ✗ "does not invent a new toggle" (trap #7 on the background layer) |
+  | drop `markRaw` in `xy-time/XyMapComponent` | **still passes** — precautionary, see above |
+
+  ⚠️ **Both new specs need `could not be loaded` in the console filter.** maplibre warns
+  about sprite images that `dark.json` references but does not ship (`circle-11`,
+  `wood-pattern`) — **firefox and webkit only**, so a spec without it passes on chromium
+  and fails in a full run. The layer-map spec's name-specific `wood-pattern` filter was
+  generalised for the same reason.
 - `tests/e2e/aggregate-od.spec.ts` — the `aggregate` panel **and** the plugin route
   (11 tests). Restored from `aggregate-od.BROKEN.ts`, whose three data-count assertions
   (23 centroids / 390 spider links / 23 zone polygons) were correct all along — it was
@@ -823,6 +911,43 @@ firing next to it first.** `XyHexagons.vue` carried the same trailing-semicolon 
 bound to a style, so it stayed silent); both are now cleaned up. Only *JS strings* bound via
 `:style` are affected — `grep -rn "no-repeat;\"" src/` should stay empty, while a
 `background: … no-repeat;` inside a `<style>` block is ordinary CSS and perfectly fine.
+
+### 9. An `@click` on a component now also fires for native clicks
+
+In Vue 2, `@click` on a *component* listened for a custom `$emit('click')` only; catching
+the DOM event needed `.native`. Vue 3 removed `.native` and puts the listener into
+`$attrs`, where it **falls through onto the child's root element**. So a component that
+emits its own `click` event now delivers *two* calls per click — one with the emitted
+payload, one with a `PointerEvent`.
+
+The fix is one line in the **child**: declare the event in `emits`. That removes the
+listener from `$attrs`, so it is no longer bound to the root element.
+
+```ts
+export default defineComponent({
+  emits: ['click'],   // <- without this, native clicks call the parent's handler too
+  ...
+```
+
+Both symptoms are ugly and neither points at the cause:
+
+- `vehicle-animation/SettingsPanel.vue` emits `click` with a **label**. The second call
+  arrived with a PointerEvent, so `SETTINGS[PointerEvent] = true` added a junk key — and
+  because the panel `v-for`s over `Object.keys(SETTINGS)`, **a phantom fourth toggle row
+  appeared in the UI**. The PointerEvent also went through `$t()`, producing
+  `[intlify] Not found '[object PointerEvent]' key in 'en' locale messages`. Chasing the
+  intlify line is a dead end — as in trap #8, look for what fired next to it.
+- `components/PlaybackControls.vue` emits `click` with **no argument**, and its own play
+  button is inside the component. So the two calls cancelled out and **the play/pause
+  button silently did nothing**. Dragging the time slider hit the same handler.
+
+Note the toggles still ended up in the *right state* in the first case, and the console
+stayed clean in the second — so "click it and look" isn't enough on its own. Assert on
+something that counts: the number of rendered rows, or that the icon actually flipped.
+
+`grep -rn "\$emit('click'" src/` finds the candidates. Still unfixed because nothing
+imports them: `components/SettingsPanel.vue`, `ModalMarkdownDialog.vue`, `VuePlotly.vue`
+(no consumer listens for its `click`).
 
 ### Not bugs — don't chase these
 

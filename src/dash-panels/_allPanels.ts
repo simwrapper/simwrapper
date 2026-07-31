@@ -36,8 +36,8 @@ export const panelLookup: { [key: string]: Component } = {
   map: defineAsyncComponent(() => import('./area-map.vue')),
   // matrix: defineAsyncComponent(() => import('./matrix.vue')),
   transit: defineAsyncComponent(() => import('./transit.vue')),
-  // vehicles: defineAsyncComponent(() => import('./vehicles.vue')),
-  // xytime: defineAsyncComponent(() => import('./xytime.vue')),
+  vehicles: defineAsyncComponent(() => import('./vehicles.vue')),
+  xytime: defineAsyncComponent(() => import('./xytime.vue')),
 }
 
 // ----- HELPER FUNCTIONS -----------------------------------------------------

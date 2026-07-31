@@ -8,11 +8,11 @@ const plugins: any[] = [
     filePatterns: ['**/viz-layers*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./layer-map/LayerMap.vue')),
   },
-  // {
-  //   kebabName: 'xytime',
-  //   filePatterns: ['**/viz-xyt-*.y?(a)ml', '**/*xyt.csv?(.gz)?(.zst)'],
-  //   component: defineAsyncComponent(() => import('./xy-time/XyTime.vue')),
-  // },
+  {
+    kebabName: 'xytime',
+    filePatterns: ['**/viz-xyt-*.y?(a)ml', '**/*xyt.csv?(.gz)?(.zst)'],
+    component: defineAsyncComponent(() => import('./xy-time/XyTime.vue')),
+  },
   {
     kebabName: 'layer-map',
     filePatterns: [],
@@ -47,11 +47,11 @@ const plugins: any[] = [
     filePatterns: ['**/viz-grid*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./grid-map/GridMap.vue')),
   },
-  // {
-  //   kebabName: 'vehicles',
-  //   filePatterns: ['**/viz-vehicles*.y?(a)ml'],
-  //   component: defineAsyncComponent(() => import('./vehicle-animation/VehicleAnimation.vue')),
-  // },
+  {
+    kebabName: 'vehicles',
+    filePatterns: ['**/viz-vehicles*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./vehicle-animation/VehicleAnimation.vue')),
+  },
   {
     kebabName: 'summary-table',
     filePatterns: ['(topsheet|table)*.y?(a)ml'],

@@ -18,9 +18,15 @@ import { test, expect, Page } from '@playwright/test'
 const PLUGIN_ROUTE = 'e2e-tests/layers/viz-layers-taz.yaml'
 const DASHBOARD_ROUTE = 'e2e-tests/layers'
 
-/** headless GPU chatter, and Vite shimming node builtins for the shapefile/geo libs */
+/**
+ * Headless GPU chatter, Vite shimming node builtins for the shapefile/geo libs, and
+ * maplibre complaining about sprite images its own style asset references but does not
+ * ship ("wood-pattern" and "circle-11" in dark.json). The sprite warnings are
+ * firefox/webkit-only, so a name-specific filter passes on chromium and fails in a
+ * full run.
+ */
 const isNoise = (t: string) =>
-  /GPU stall|webgl|externalized for browser|wood-pattern/i.test(t)
+  /GPU stall|webgl|externalized for browser|could not be loaded/i.test(t)
 
 function watchConsole(page: Page) {
   const noise: string[] = []
