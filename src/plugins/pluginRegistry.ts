@@ -133,16 +133,16 @@ const plugins: any[] = [
     filePatterns: ['**/xmas-kelheim*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./xmas-kelheim/VehicleAnimation.vue')),
   },
-  // {
-  //   kebabName: 'logistics',
-  //   filePatterns: [
-  //     '**/*lsps.xml*',
-  //     '**/viz-logistic*.y?(a)ml*',
-  //     '**/viz-lsps*.y?(a)ml*',
-  //     '**/viz-logistik*.y?(a)ml*',
-  //   ],
-  //   component: defineAsyncComponent(() => import('./logistics/LogisticsViewer.vue')),
-  // },
+  {
+    kebabName: 'logistics',
+    filePatterns: [
+      '**/*lsps.xml*',
+      '**/viz-logistic*.y?(a)ml*',
+      '**/viz-lsps*.y?(a)ml*',
+      '**/viz-logistik*.y?(a)ml*',
+    ],
+    component: defineAsyncComponent(() => import('./logistics/LogisticsViewer.vue')),
+  },
   {
     kebabName: 'aeq-reader',
     filePatterns: ['**/aeqviz-*.y?(a)ml'],

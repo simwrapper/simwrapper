@@ -43,10 +43,11 @@ Vitest 4, sass 1.102 (modern compiler), pnpm.
 | | enabled | verified in a browser |
 |---|---|---|
 | dash-panels | `aequilibrae` `aggregate` `area` `bar` `bubble` `carriers` `csv` `flowmap` `gridmap` `heatmap` `hexagons` `layers` `line` `links` `map` `pie` `plotly` `sankey` `scatter` `slideshow` `text` `tile` `transit` `vega` `vehicles` `video` `xml` `xytime` | all except `pie` and `links` (no fixture) |
-| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `layers` `layer-map` `links` `plotly` `sankey` `summary-table` `transit` `vega-lite` `vehicles` `video-player` `xmas-kelheim` `xml` `xytime` | all except `gridmap` (no fixture — see below) |
+| plugins | `aeq-reader` `aggregate` `area-map` `carriers` `flowmap` `gridmap` `hexagons` `image-view` `layers` `layer-map` `links` `logistics` `plotly` `sankey` `summary-table` `transit` `vega-lite` `vehicles` `video-player` `xmas-kelheim` `xml` `xytime` | all except `gridmap` (no fixture — see below) |
 
-Still removed: `matrix` `events` `logistics` `plans` (plus the never-registered
-`pie-layer` `imoger`).
+Still removed: `matrix` `events` `plans` (plus the never-registered
+`pie-layer` `imoger`). Their specs (`matrix-viewer.spec.ts`, `event-viewer.spec.ts`) are
+the only failures in a full chromium run — 93 pass, 3 fail, all three theirs.
 
 `xytime` and `vehicles` were the last two of the "big three" and both came back in one
 round. Neither needed much structural work — both already used maplibre +
@@ -111,6 +112,105 @@ interesting failures were:
 - ⚠️ **The big data arrays live on `this.$options`**, not in `data()` — a deliberate Vue 2
   trick to keep them non-reactive, and it still works in Vue 3. That is also why the
   vehicle/trace/request layers avoid trap #7 while the *background* layers do not.
+
+`logistics` (`plugins/logistics/`, three files, no dashboard-panel form) is a fork of
+`carrier-viewer` with LSPs, hub chains and shipment chains layered on top, and it migrated
+almost entirely off that plugin's checklist — `beforeDestroy` ×2, a dead
+`vue-js-toggle-button` import *and* registration (imported, registered, never used in the
+template — the `XyHexagons`/`GridMap` case again), `@import '@/styles.scss'` →
+`@use '@/variables' as *`, `markRaw` on the deck overlay and the maplibre `Map`, and the
+`.slider` → `.carrier-slider` rename (theme-bulma's own `.slider` rules are loaded
+app-wide, so a local `.slider` on an `o-slider` gets double-styled). Buefy → Oruga:
+`b-radio-button` → the `.buttons.has-addons` + `o-button` group `carrier-viewer` already
+uses, `b-switch` ×3 → `o-switch`, `b-slider.slider type="is-link" size="is-small"` ×2 →
+`o-slider.carrier-slider variant="primary" size="small"`. The `b-field` wrapper around the
+radio group goes with it — the Bulma button group is the container now.
+
+What was **not** shared with `carrier-viewer`:
+
+- ⚠️ **`@click.native` on the tab buttons, next to a `v-model`.** Buefy's `b-radio-button`
+  did two things per click: `v-model` set `activeTab`, and `.native` ran the handler. With
+  `.native` removed in Vue 3 and no `b-radio-button` to bind, both halves have to be
+  spelled out on the `o-button` (`@click="activeTab='lspTours'; handleSelectLspButton(…)"`).
+  Dropping the assignment leaves a tab bar that highlights nothing and never switches —
+  and it screenshots identically on first paint, which is why the spec asserts on
+  `is-warning` moving between the buttons.
+- ⚠️ **`totalShipmentsPerHub` was pushed into *and* read from inside the `layers`
+  computed.** `getLspShipmentChainLayers()` appended one entry per unique hub on every
+  evaluation and never cleared, so the array grew without bound; `find()` returns the first
+  match, so the hub tooltip's totals stayed correct the whole time and nothing looked
+  broken. The tally is now built in a local array and published once at the end, which also
+  takes the computed's own write out of its dependency set. **Mutation-checked: restoring
+  the old shape still passes** — the leak has no observable in a browser, so this one is
+  code-reading, not a reproduced bug.
+- **`unreactive()` on the `RoadNetworkLoader` payload** (trap #1) — but note `fetchNetwork()`
+  is **dead code**: `loadNetwork()` reaches `DashboardDataManager.getRoadNetwork` (already
+  de-proxied, and it only lifts `vizDetails.projection`, a string, across) or the local avro
+  reader. Mutation-checked — removing the `unreactive()` changes nothing, because nothing
+  calls the method. Added anyway per the whole-class rule.
+- **`isUnmounted` guards after each await in `mounted()`** (trap #10). This plugin renders
+  its chrome from `vizDetails.projection`, i.e. as soon as the YAML parses, so the UI is up
+  and clickable while the avro network parses. `carrier-viewer` has the identical code shape
+  and no guards; add them there too if it ever grows a slow fixture.
+
+`logistics`'s specs and fixtures:
+
+- `tests/e2e/logistics.spec.ts` grew from 1 test to 7, green on chromium + firefox + webkit.
+  The original test waited on `.b-radio` — a Buefy class that no longer exists, so it would
+  have hung at its 120 s timeout; the same one-line wait is copy-pasted into
+  `zstd-support.spec.ts` and was fixed there too. Both now wait on `.detail-buttons`, which
+  only renders once `mounted()` has picked the first LSP — i.e. after the network parses.
+
+  | mutation | result |
+  |---|---|
+  | M1 drop `markRaw` on the maplibre `Map` | **still passes** — precautionary here, see below |
+  | M2 drop `markRaw` on the deck overlay | ✗ "switching between shipment chains and LSP tours" **and** "the width slider drives the shipment arcs" |
+  | M3 `beforeUnmount` → `beforeDestroy` in `DeckMapComponent` | ✗ "the map tears down on unmount" |
+  | M4 drop `unreactive()` from the worker payload | **still passes** — the method is never called |
+  | M5 restore the self-referencing `totalShipmentsPerHub` | **still passes** — no observable |
+
+  M2 is the textbook trap #7 case and behaves exactly as advertised: the **load** test stays
+  green and only the two update-driven tests fail, with
+  `diffDataProps → _transferState → LayerManager._updateLayers`. `viz-lsps.yaml` has a
+  `backgroundLayers:` block, which is what makes it reproduce (same as `carriers`).
+  ⚠️ **M1, by contrast, does not reproduce** even though this plugin *does* switch styles —
+  unlike `layer-map`, where the theme switch is exactly where it throws. Kept as the
+  whole-class fix; the spec says so rather than implying it guards it.
+- ⚠️ **Both "Shipment Chains" buttons render the same label.** `checkIfDirectChain()` and
+  `checkIfHubChain()` are mutually exclusive and their buttons are both `$t('Shipment
+  Chains')`, so `hasText:` cannot tell them apart — on this fixture only the *direct* one
+  ever renders on load.
+- ⚠️ **`thumb.focus()`, not `.click()`, to drive an `o-slider` by keyboard.** Oruga wraps
+  the thumb in a tooltip trigger, so a click lands on the wrapper and the arrow keys go
+  nowhere — `aria-valuenow` sat at `0` through twelve `ArrowRight`s and the test would have
+  passed on any broken slider. (`aggregate-od.spec.ts` already uses `focus()`; this is why.)
+- **The hub-chain layer path is only reachable by hand.** No LSP in the fixture starts on
+  it: `lspShipmentHubChains` is empty until you click a "Hub Chain N:" group *and then* one
+  of its carriers. That path (`getLspShipmentChainLayers`) is the only consumer of the hub
+  tooltip, so it gets its own test.
+- Fixture: `e2e-tests/logistics/`, already present, nothing added — `viz-lsps.yaml` (the
+  only one with `backgroundLayers:` and per-carrier `colors:`) plus the bare
+  `output_lsps.xml.gz` / `.xml.zst`, which the plugin's `**/*lsps.xml*` glob picks up and
+  configures from the folder contents. **Still don't drop a `dashboard*.yaml` in there** —
+  it would flip the folder's view mode and break the specs that navigate through it.
+
+**Pre-existing `logistics` bugs, confirmed against the unmigrated file and left alone:**
+
+- ⚠️ **Three deck layers all hard-code `id: 'pickupsHubChain'`**, one of them *inside* the
+  per-chain `forEach` whose every sibling suffixes `'_' + lspShipmentChain.shipmentId`.
+  deck logs `Multiple new layers with same id pickupsHubChain` and discards the duplicates,
+  so an unknown number of hub-chain pickup markers simply never draw. The fix is a
+  one-liner, but it *changes what renders*, so it is a decision rather than a migration
+  step. Filtered by name in the hub-chain test.
+- `ScatterplotLayer`'s `getColor` is deprecated upstream in favour of `getFillColor`
+  (two sites; the sibling layers next to them already use `getFillColor`).
+- `fetchNetwork()` is unreachable (see above), as is `oldgetTooltip()` in
+  `DeckMapComponent`. `thumbnailUrl` is in `data()` but, unlike `carrier-viewer`'s, is never
+  bound to anything — so trap #8 cannot fire here.
+- `checkIfDirectChain()` is called from the **template** and assigns
+  `this.globalHubChainBoolean = false` as a side effect — a render-time write to state the
+  template also reads (`.lsptours(v-if="… || globalHubChainBoolean")`). It converges
+  because the write is unconditional, but it means that flag can never survive a render.
 
 `xmas-kelheim` is a fork of `vehicle-animation` — same four files plus `eventParser.ts`,
 diverging mainly in a fourth "All Traffic" layer fed by a MATSim event stream. Everything
@@ -1625,6 +1725,12 @@ throws on the second render pass, so after the screenshot looks right, click the
 tabs/toggles and drag its sliders with the console still attached. That is also the only way
 to check a migrated Oruga control actually works: a `b-slider` → `o-slider` rename screenshots
 identically whether or not `range` / `formatter` survived the port.
+
+⚠️ **A spec that waits on a Buefy class hangs rather than fails.** `logistics.spec.ts` and
+`zstd-support.spec.ts` both did `waitForSelector('.b-radio')`, which after the Oruga port
+can never appear — so they sit at the 120 s timeout and read as "slow/flaky", not as "the
+selector is gone". `grep -rn "\.b-" tests/e2e/` before trusting a spec that a plugin's
+migration should have exercised.
 
 ⚠️ **Don't uncomment a registry entry before its file exists.** A missing target makes
 `_allPanels.ts` return a 500, which cascades into

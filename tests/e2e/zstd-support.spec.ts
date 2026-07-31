@@ -23,8 +23,8 @@ test('zstd logistics example loads', async ({ page }) => {
 
   await page.goto('e2e-tests/logistics/output_lsps.xml.zst')
 
-  // await page is loaded: control panel with datasets is visible
-  await page.waitForSelector('.b-radio', { timeout: 120_000 })
+  // await page is loaded: the LSP tab bar only renders once the network has parsed
+  await page.waitForSelector('.detail-buttons', { timeout: 120_000 })
 
   await expect(page.locator('.carrier-title')).toHaveCount(4)
   const rows = page.locator('.carrier-title')
