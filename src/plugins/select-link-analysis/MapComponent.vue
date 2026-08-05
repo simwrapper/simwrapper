@@ -158,8 +158,8 @@ export default defineComponent({
           opacity: 1,
           widthMinPixels: 1,
           transitions: {
-            getColor: 200,
-            getWidth: 200,
+            getColor: 300,
+            getWidth: 300,
           },
         } as any)
       )

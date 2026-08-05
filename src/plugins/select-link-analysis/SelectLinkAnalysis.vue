@@ -583,10 +583,12 @@ const SelectLinkAnalysis = defineComponent({
 
             // console.log('Filtering agents based on economic status:', this.selectedEconomicGroup)
             // console.log('Queried agents before filtering:', this.queriedAgents)
+
+            this.filteredAgents = []
             this.queriedAgents = Object.fromEntries(
-                Object.entries(this.originalAgents)
+                (Object.entries(this.originalAgents) as [string, any][]) 
                     .filter(([agentId, agent]) => {
-                        const matches = agent.economic_status === this.selectedEconomicGroup
+                        const matches = (agent as any).economic_status === this.selectedEconomicGroup
                         if (matches) {
                             this.filteredAgents.push(agentId) // keep track of filtered agents so we can show them in the UI if needed
                         }
@@ -1211,22 +1213,15 @@ const SelectLinkAnalysis = defineComponent({
 
     beforeDestroy() {
 
-        this.selectedLinkTraversals.clear();
-        this.queriedAgents.clear();
+        this.selectedLinkTraversals = {}
+        this.queriedAgents = {}
 
-        // Close DuckDB connections and databases
-        if (this.conn) {
-            this.conn.close().catch(console.error);
-        }
-        if (this.db) {
-            this.db.terminate().catch(console.error);
-        }
-        if (this.dbCsv) {
-            this.dbCsv.close().catch(console.error);
-        }
-        if (this.worker) {
-            this.worker.terminate();
-        }
+        try { this.conn?.close() } catch (e) { console.error(e) }
+        try { this.db?.terminate() } catch (e) { console.error(e) }
+        try { this.connCsv?.close() } catch (e) { console.error(e) }
+        try { this.dbCsv?.terminate() } catch (e) { console.error(e) }
+        try { this.worker?.terminate() } catch (e) { console.error(e) }
+        try { this.workerCsv?.terminate() } catch (e) { console.error(e) }
 
         // Clean up other resources
         // delete window.__testdata__;
@@ -1235,11 +1230,6 @@ const SelectLinkAnalysis = defineComponent({
         this.$store.commit('setFullScreen', false);
         //@ts-ignore
         delete window.__testdata__
-
-        this.data = []
-        this.guiController?.destroy()
-
-        this.$store.commit('setFullScreen', false)
     },
 })
 
