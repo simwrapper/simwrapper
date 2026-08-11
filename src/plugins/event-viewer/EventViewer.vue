@@ -18,7 +18,12 @@
     :show3dBuildings="show3dBuildings"
   )
 
-  zoom-buttons(v-if="!thumbnail" corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
+  zoom-buttons.extra-padding(
+      corner="top-left"
+      :show3dToggle="true"
+      :is3dBuildings="show3dBuildings"
+      :onToggle3dBuildings="toggle3dBuildings"
+  )
 
   .top-right
     .gui-config(:id="configId")
@@ -163,7 +168,7 @@ const MyComponent = defineComponent({
       linkIdLookup: {} as any,
       guiConfig: {
         speed: 0.01,
-        size: 24,
+        size: 16,
       },
       viewId: Math.floor(1e12 * Math.random()),
       configId: ('gui-config-' + Math.floor(1e12 * Math.random())) as any,
@@ -741,14 +746,10 @@ export default MyComponent
 
 .viz-plugin {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  inset: 0 0 0 0;
   display: flex;
   flex-direction: column;
   min-height: $thumbnailHeight;
-  background-color: var(--bg);
 }
 
 .message {
@@ -848,6 +849,10 @@ export default MyComponent
   border-left: 1px solid #66669940;
   border-bottom: 1px solid #66669940;
   box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
+}
+
+.extra-padding {
+  margin-left: 3px;
 }
 
 @media only screen and (max-width: 640px) {

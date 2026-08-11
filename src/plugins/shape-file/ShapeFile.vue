@@ -114,7 +114,7 @@
         :style="{backgroundColor: globalState.isDarkMode ? '#00000099': '#ffffffaa'}"
       )
           img.icon-blue-ramp(:src="icons.blueramp")
-          o-slider.pie-slider(variant="success" :tooltip="true" size="small" :min="0" :max="100" v-model="sliderOpacity")
+          o-slider.pie-slider(variant="primary" :tooltip="true" size="small" :min="0" :max="100" v-model="sliderOpacity")
 
       zoom-buttons(
         v-if="isLoaded && !vizDetails.mapIsIndependent"

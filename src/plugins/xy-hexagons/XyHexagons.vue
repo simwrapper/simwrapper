@@ -40,8 +40,8 @@
           )
 
         .panel-item
-          o-switch(v-model="show3dBuildings" size="small")
-            | {{ $t('buildings3d') }}
+          //- o-switch(v-model="show3dBuildings" size="small")
+          //-   | {{ $t('buildings3d') }}
 
           p.ui-label Hex Radius: {{ vizDetails.radius }}
           o-slider.ui-slider(v-model="vizDetails.radius"

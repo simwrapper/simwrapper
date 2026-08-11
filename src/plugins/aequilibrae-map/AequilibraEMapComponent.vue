@@ -174,7 +174,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '../sqlite-map/reader.scss';
+@use '../sqlite-map/reader.scss';
 
 .c-aequilibrae-viewer {
   position: absolute;

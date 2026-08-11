@@ -3,7 +3,6 @@
 
   img.thumb(v-if="thumbnail" src="./assets/table.png" :width="128")
 
-
   .topsheet(v-if="!thumbnail && isLoaded")
       p.header {{ subfolder }}
 
@@ -23,10 +22,6 @@
         :cardId="'table1'"
         :allConfigFiles="allConfigFiles"
       )
-
-      //- @isLoaded="handleCardIsLoaded(card)"
-      //- @dimension-resizer="setDimensionResizer"
-      //- @titles="setCardTitles(card, $event)"
 
 </template>
 

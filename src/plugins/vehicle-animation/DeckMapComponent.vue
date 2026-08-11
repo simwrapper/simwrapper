@@ -348,8 +348,8 @@ export default defineComponent({
 .deck-map {
   position: absolute;
   inset: 0 0 0 0;
-  width: 100%;
-  height: 100%;
+  // width: 100%;
+  // height: 100%;
 }
 
 .map-container {

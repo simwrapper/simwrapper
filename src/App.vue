@@ -781,9 +781,10 @@ maplibregl-ctrl-attrib-button {
   float: right;
 }
 
-.b-input-tight input {
-  padding: 0 0.25rem;
+.b-input-tight {
+  text-align: right;
   font-size: 0.9rem;
+  font-weight: bold;
 }
 
 .vgt-table {

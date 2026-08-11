@@ -2,13 +2,11 @@
 .settings-panel-content
   h4 {{ $t('showhide')}}
 
-  .row(:key="label" v-for="label in Object.keys(items)")
-    //- one-way :modelValue, not v-model: the parent owns `items` and flips it in
-    //- response to the click event. width/labels/color were vue-js-toggle-button
-    //- props with no Oruga equivalent -- left in, they fall through as DOM attributes.
+  .flex-row(:key="label" v-for="label in Object.keys(items)" style="gap:0.5rem; margin-bottom: 2px;")
     o-switch.toggle(
       :modelValue="items[label]"
-      @update:modelValue="$emit('click',label)")
+      @update:modelValue="$emit('click',label)"
+    )
     label(v-html="$t(label)")
 
 </template>
@@ -44,10 +42,6 @@ import { defineComponent } from 'vue'
 export default defineComponent({
   name: 'VehicleSettingsPanel',
   i18n,
-  // MUST be declared: without it Vue 3 also binds the parent's `@click` to this
-  // component's root element, so each toggle fired handleSettingChange twice -- once
-  // with the label, once with a PointerEvent (which then went to $t() and produced
-  // "[intlify] Not found '[object PointerEvent]' key"). See PlaybackControls.
   emits: ['click'],
   props: {
     items: { type: Object, required: true },
@@ -60,19 +54,17 @@ export default defineComponent({
   margin: 2rem 0.25rem 0 0.25rem;
 }
 
+.toggle {
+  margin-right: 1rem !important;
+}
+
 h4 {
   font-weight: bold;
   font-size: 0.8rem;
   margin-bottom: 0.5rem;
 }
 
-.row {
-  display: 'grid';
-  grid-template-columns: 'auto 1fr';
-}
-
 label {
-  margin: auto 0 auto 0rem;
   text-align: 'left';
 }
 

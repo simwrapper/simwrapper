@@ -53,17 +53,11 @@ app.use(router)
 app.use(store)
 app.use(i18n)
 
-// Sliders opt out of the Bulma theme. Oruga takes its class names from this config, not
-// from whichever stylesheet is loaded, and `@oruga-ui/theme-oruga` ships NO config at all
-// (its theme.js is an 83-byte banner) -- it styles Oruga's *built-in* `o-slider__*` class
-// names. So the way to adopt it is to REMOVE config, not to add any: with the `slider` key
-// absent, Oruga falls back to those defaults and theme-oruga's rules match. The key is
-// destructured out rather than set to `undefined` so it is genuinely gone.
-// Every other component keeps its Bulma classes; the config is per-component.
-const { slider: _bulmaSlider, ...bulmaConfigNoSlider } = bulmaConfig
+// const { slider: _bulmaSlider, ...bulmaConfigNoSlider } = bulmaConfig
 
 // register Oruga plus ALL its components (0.13 requires passing the component plugins)
-const oruga = createOruga({ ...bulmaConfigNoSlider, iconPack: 'mdi' }, OrugaComponentPlugins)
+// const oruga = createOruga({ ...bulmaConfigNoSlider, iconPack: 'mdi' }, OrugaComponentPlugins)
+const oruga = createOruga({ iconPack: 'mdi' }, OrugaComponentPlugins)
 app.use(oruga)
 
 app.mount('#app')

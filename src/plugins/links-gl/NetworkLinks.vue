@@ -1213,6 +1213,7 @@ input {
   display: flex;
   flex-direction: row;
   margin-top: 0.7rem;
+  gap: 4px;
 
   p {
     margin: auto 0;

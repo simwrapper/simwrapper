@@ -2,7 +2,7 @@
 .grid-map-view(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
       MapComponent(
-        v-if="!thumbnail && isLoaded"
+        v-if="isLoaded"
         v-bind="mapProps"
         :negativeValues="valuesIncludeNeg"
       )
@@ -30,7 +30,7 @@
         @timeExtent="handleTimeSliderValues"
       )
 
-      .message(v-if="!thumbnail && myState.statusMessage")
+      .message(v-if="myState.statusMessage")
         p.status-message {{ myState.statusMessage }}
 
       .tooltip(v-if="tooltip" v-html="tooltip.html" :style="tooltip.style")
@@ -47,7 +47,7 @@ import colormap from 'colormap'
 
 import avro from '@/js/avro'
 import globalStore from '@/store'
-import util from '@/js/util'
+import util, { sleep } from '@/js/util'
 import { hexToRgb, getColorRampHexCodes, Ramp } from '@/js/ColorsAndWidths'
 
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
@@ -391,7 +391,7 @@ const GridMap = defineComponent({
 
     toggle3dBuildings() {
       this.show3dBuildings = !this.show3dBuildings
-      this.guiConfig.show3dBuildings = this.show3dBuildings
+      // this.guiConfig.show3dBuildings = this.show3dBuildings
     },
 
     /**
@@ -1079,10 +1079,10 @@ const GridMap = defineComponent({
       config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
       config.add(this.guiConfig, 'opacity', 0, 1, 0.1)
       config.add(this.guiConfig, 'height', 0, 250, 5)
-      config
-        .add(this.guiConfig, 'show3dBuildings')
-        .name('3D buildings')
-        .onChange((value: boolean) => (this.show3dBuildings = value))
+      // config
+      //   .add(this.guiConfig, 'show3dBuildings')
+      //   .name('3D buildings')
+      //   .onChange((value: boolean) => (this.show3dBuildings = value))
 
       // Diff checkbox
       config
@@ -1404,6 +1404,7 @@ const GridMap = defineComponent({
     if (this.thumbnail) return
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
+    await sleep(0)
 
     this.data = await this.loadAndPrepareData()
     // this.$emit('error', 'Error loading ' + this.vizDetails.file)
@@ -1474,7 +1475,6 @@ export default GridMap
   display: flex;
   flex-direction: column;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') center / cover no-repeat;
   z-index: -1;
 }
 
@@ -1486,14 +1486,15 @@ export default GridMap
 .message {
   z-index: 5;
   position: absolute;
+  top: 0;
   bottom: 0;
   left: 0;
   width: 100%;
   box-shadow: 0px 2px 10px #22222222;
   display: flex;
   flex-direction: row;
+  pointer-events: none;
   margin: auto auto 0 0;
-  background-color: var(--bgPanel);
   padding: 0.5rem 1.5rem;
 
   a {
@@ -1504,13 +1505,6 @@ export default GridMap
       color: white;
     }
   }
-
-  p {
-    font-size: 1.2rem;
-    line-height: 1.5rem;
-    font-weight: normal;
-    color: var(--textFancy);
-  }
 }
 
 .ui-slider {
@@ -1520,15 +1514,22 @@ export default GridMap
 }
 
 .status-message {
+  background-color: var(--bgPanel);
+  width: 100%;
+  margin: auto 1rem;
+  text-align: center;
+  padding: 2rem;
+  border-radius: 8px;
   font-size: 1.5rem;
-  line-height: 1.75rem;
+  line-height: 1.5rem;
   font-weight: bold;
+  color: var(--link);
 }
 
 .big {
   padding: 0.5rem 0;
-  font-size: 1.5rem;
-  line-height: 1.7rem;
+  font-size: 1.2rem;
+  line-height: 1.5rem;
   font-weight: bold;
 }
 

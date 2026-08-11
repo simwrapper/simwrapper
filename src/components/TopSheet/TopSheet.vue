@@ -2,6 +2,7 @@
 .topsheet.curate-content
   h3.curate-heading(v-if="title")  {{ title }}
 
+  //- User input entries
   .output-table(v-if="entries.length" data-testid="entry-table")
     .row(v-for="row,i in entries" :key="'entry'+i")
       .cell.top-label(:style="row.style") {{ row.title }}
@@ -11,6 +12,7 @@
         @input="boxChanged"
       )
 
+  //- Output table rows
   .output-table(v-if="table.length" style="margin-top: 1rem" data-testid="output-table")
     .row(v-for="row,i in table" :key="'row'+i")
       .cell.top-label(:style="row.style") {{ row.title }}
@@ -183,19 +185,21 @@ h3.curate-heading {
 }
 
 .row {
-  display: table-row;
+  display: flex;
+  margin: 0 0.5rem 0 0.25rem;
 }
 
 .cell {
-  padding-right: 1rem;
+  // padding-right: 1rem;
   display: table-cell;
   font-size: 1.1rem;
   line-height: 1.2rem;
   padding-bottom: 0.4rem;
 }
 
-// .top-label {
-// }
+.top-label {
+  flex: 1;
+}
 
 .top-value {
   text-align: right;

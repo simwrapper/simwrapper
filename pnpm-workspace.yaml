@@ -1,3 +1,8 @@
+allowBuilds:
+  '@parcel/watcher': true
+  '@vaadin/vaadin-usage-statistics': false
+  better-sqlite3: false
+  es5-ext: false
 patchedDependencies:
   crossfilter2@1.5.4: patches/crossfilter2@1.5.4.patch
   dbf@0.1.4: patches/dbf@0.1.4.patch

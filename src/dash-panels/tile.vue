@@ -406,9 +406,10 @@ export default defineComponent({
 
 .tile {
   display: grid;
+  flex: 1;
   grid-auto-columns: 1fr;
   grid-auto-flow: column;
-  background-color: #845ec2;
+  background-color: #aaa;
   margin: 10px;
   padding: 20px;
   min-width: 250px;

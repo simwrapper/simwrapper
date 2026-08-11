@@ -1,5 +1,5 @@
 <template lang="pug">
-.map-complications(:style="cornerSettings")
+.zmap-complications(:style="cornerSettings")
 
   map-scale.map-scale(:corner="corner")
 
@@ -37,7 +37,6 @@
           src="@/assets/images/sw_north_arrow.png"
           :style="{transform: `rotate(${arrowRotation}deg)`, height: '21px'}"
       )
-
 
 </template>
 
@@ -111,7 +110,7 @@ export default defineComponent({
     cornerSettings(): any {
       let style = {
         display: 'flex',
-        right: '7px',
+        right: '0px',
       }
 
       if (this.location == Corner.TOP) {
@@ -201,19 +200,19 @@ export default defineComponent({
 <style scoped lang="scss">
 @use '@/variables' as *;
 
-.map-complications {
-  display: flex;
+.zmap-complications {
   position: absolute;
-  pointer-events: none;
-  user-select: none;
+  display: flex;
   cursor: pointer;
   zoom: -5;
+  z-index: 2;
+  pointer-events: none;
+  user-select: none;
 }
 
 .zoom-buttons {
-  padding-left: 7px;
+  padding: 0px 8px 0px 8px;
   pointer-events: auto;
-  z-index: 2;
   margin-bottom: 8px;
 }
 
@@ -274,9 +273,8 @@ export default defineComponent({
   margin-top: 1px;
 }
 
-.map-scale.scale-left {
-  margin-left: 7px;
-}
+// .map-scale.scale-left {
+// }
 
 @media only screen and (max-width: 640px) {
 }

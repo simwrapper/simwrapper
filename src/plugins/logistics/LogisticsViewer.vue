@@ -50,9 +50,6 @@
 
         h4 {{ selectedLsp || 'Details' }}
 
-        //- Oruga has no radio-button (button-group) control; a plain button group
-        //- with the active one highlighted gives the same behavior as Buefy's.
-        //- watch array and if the length changes, change value of boolean for v-if
         .detail-buttons.buttons.has-addons(v-if="selectedLsp")
           o-button(v-if="checkIfDirectChain()" size="small" :variant="activeTab=='shipments' ? 'warning' : ''"
             @click="activeTab='shipments'; handleSelectCarrier(lspCarrier, false, '')")
@@ -66,7 +63,10 @@
 
         br
         br
-        h6(v-if="activeTab == 'lspTours' || activeTab == 'tours'") <b>*All Carriers shown. Please select individual Carrier to view its specific tours.</b>
+
+        h6(v-if="activeTab == 'lspTours' || activeTab == 'tours'")
+          b *All Carriers shown. Please select individual Carrier to view its specific tours.*
+
         br
 
         h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'Carriers' }}
@@ -134,10 +134,16 @@
         .switchbox
           .switches(v-if="activeTab == 'shipments' || activeTab=='lspShipmentChains'")
             p {{$t('scaleSize')}}
-            o-slider.carrier-slider(v-if=" activeTab=='lspShipmentChains'" :tooltip="false" variant="primary" size="small" v-model="vizSettings.scaleFactor")
-            o-slider.carrier-slider(v-if="activeTab == 'shipments'" :tooltip="false" variant="primary" size="small" v-model="vizSettings.scaleFactorShipments")
+            o-slider.carrier-slider(v-if="activeTab=='lspShipmentChains'"
+              :tooltip="false" variant="primary" size="small" v-model="vizSettings.scaleFactor"
+            )
+            o-slider.carrier-slider(v-if="activeTab=='shipments'"
+              :tooltip="false" variant="primary" size="small" v-model="vizSettings.scaleFactorShipments"
+            )
+
           .addedSpace(v-if="activeTab == 'tours' || activeTab=='lspTours'")
             br
+
           .switches(v-if="activeTab == 'tours' || activeTab=='lspTours'")
             o-switch(v-model="vizSettings.shipmentDotsOnTourMap")
               span(v-html="$t('shipmentDots')")
@@ -2668,11 +2674,10 @@ input {
   }
 }
 
-// NB: not `.slider` -- theme-bulma's own .slider rules are loaded app-wide and would
-// double-style the o-slider (which is on theme-oruga). See VUE3-MIGRATION.md.
 .carrier-slider {
   flex: 4;
   margin-right: 0 1rem;
+  user-select: none;
 }
 
 .detail-buttons {
@@ -2682,6 +2687,7 @@ input {
 
 .switchbox {
   margin: 0 0.25rem 0.5rem 0.25rem;
+  user-select: none;
 }
 
 .xmessage {

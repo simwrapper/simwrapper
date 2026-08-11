@@ -3,13 +3,8 @@
   h4 {{ title }}
   p {{ description }}
   ul.list-items
-    //- `item.value + item.value[0]` is NaN when value is a number (the requests legend
-    //- passes 0), and Vue 3 warns "VNode created with invalid key (NaN)" -- which then
-    //- drags two [intlify] deprecation warnings along with it. See trap #8.
     li.legend-row(v-for="item in items" :key="`${item.value}`")
       .item-label(v-if="item.label") {{ item.label }}
-      //- an object binding, not a string: "backgroundColor: rgb(...)" as a style *string*
-      //- is not valid CSS, so the swatches have never had any colour
       .item-swatch(:style="{backgroundColor: `rgb(${item.color})`}")
 
 </template>
@@ -49,10 +44,10 @@ export default defineComponent({
 }
 
 h4 {
-  text-align: 'left';
-  font-weight: 'bold';
+  text-align: left;
+  font-weight: bold;
   margin: 1rem 0 0.25rem 0;
-  font-size: '0.8rem';
+  font-size: 0.8rem;
 }
 
 .legend-row {

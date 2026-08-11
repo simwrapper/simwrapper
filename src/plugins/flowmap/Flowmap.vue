@@ -22,19 +22,18 @@
             :isDarkMode="isDarkMode"
             @hourSelected="filterByHour"
           )
+
     .right-side-panel
       .metric-label Metrics
       .metric-buttons
         button.button.is-small.metric-button(
           v-for="metric,i in vizDetails.metrics" :key="i"
           @click="handleClickedMetric(metric)"
-          ) {{metric.label}}
+        ) {{metric.label}}
+
       br
+
       .metric-label Color scheme
-      //- Was `@input="vizDetails = {...vizDetails}"`, a Vue 2-era trick to force a new
-      //- object identity. Dropped: Oruga's o-select never emits `input` (only
-      //- `update:modelValue`), and Vue 3 doesn't need it -- the child tracks the nested
-      //- `colorScheme` read directly, so mutating it redraws the map on its own.
       o-select.form-select(
         size="small"
         expanded
@@ -890,9 +889,10 @@ export default MyComponent
 }
 
 .right-side-panel {
+  min-width: 12rem;
   background-color: var(--bgCream5);
   flex: 1;
-  padding-left: 15px;
+  padding: 0 0.5rem;
   z-index: 20;
 
   p:hover {
@@ -927,10 +927,6 @@ export default MyComponent
 
 .time-slider-component {
   width: -webkit-fill-available;
-}
-
-.control {
-  padding-right: 1rem;
 }
 
 .panel-items {
@@ -968,6 +964,9 @@ export default MyComponent
   margin-left: 0;
   margin-right: 0;
   padding: 0;
+}
+
+.form-select {
 }
 
 @media only screen and (max-width: 640px) {
