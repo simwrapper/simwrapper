@@ -20,8 +20,8 @@
         :class="{'is-selected': selection == f}"
       ) {{ f }}
   .c-button-bar.flex-row
-    b-button.is-small(@click="$emit('choose')") CANCEL
-    b-button.is-small(type="is-success"
+    o-button(size="small" @click="$emit('choose')") CANCEL
+    o-button(size="small" variant="success"
       @click="choose"
       :disabled="!isFileSelected"
     ) SELECT FILE
@@ -32,13 +32,14 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import { ComparisonMatrix, MapConfig } from './MatrixViewer.vue'
+import type { ComparisonMatrix, MapConfig } from './MatrixViewer.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { DirectoryEntry } from '@/Globals'
 
 export default defineComponent({
-  name: 'MatrixViewer',
+  name: 'CompareFilePicker',
   components: {},
+  emits: ['choose', 'shapes'],
   props: {
     isMap: Boolean,
     fileApi: { required: true, type: Object as PropType<HTTPFileSystem> },
@@ -123,7 +124,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 $bgBeige: #636a67;
 $bgLightGreen: #d2e4c9;

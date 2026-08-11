@@ -8,7 +8,7 @@
                 :dark = "globalState.isDarkMode"
                 :leftside = "vizDetails.leftside || false"
                 :mapIsIndependent="false"
-                :paths = "$options.paths"
+                :paths = "$options.paths || []"
                 :settingsShowLayers = "SETTINGS"
                 :searchEnabled = "searchEnabled"
                 :simulationTime = "simulationTime"
@@ -59,19 +59,19 @@
             br
             | {{ speed }}x
 
-          b-slider.speed-slider(v-model="speed"
+          //- duration / dotSize / tooltip-placement / tooltip-formatter were Buefy props;
+          //- Oruga's equivalent of the last one is `formatter`, and the rest have none,
+          //- so they would just fall through as DOM attributes.
+          o-slider.speed-slider(v-model="speed"
             :min="speedStops[0]"
             :max="speedStops[speedStops.length-1]"
-            :duration="0"
-            :dotSize="20"
-            :tooltip="true"
-            tooltip-placement="bottom"
-            :tooltip-formatter="val => val + 'x'"
+            :tooltip="false"
+            :formatter="val => val + 'x'"
           )
-            template(v-for="val in speedStops")
-              b-slider-tick(:value="val" :key="val")
+            o-slider-tick(v-for="val in speedStops" :value="val" :key="val")
 
   playback-controls.bottom-area(v-if="!thumbnail && isLoaded"
+      data-testid="playback-controls"
       @click='toggleSimulation'
       @time='setTime'
       :timeStart = "timeStart"
@@ -105,8 +105,7 @@ const i18n = {
   },
 }
 
-import { defineComponent } from 'vue'
-import { ToggleButton } from 'vue-js-toggle-button'
+import { defineComponent, markRaw } from 'vue'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
 import crossfilter from 'crossfilter2'
@@ -122,7 +121,7 @@ import DashboardDataManager, { NetworkLinks } from '@/js/DashboardDataManager'
 import GzipFetcher from '@/workers/GzipFetcher.worker?worker'
 import DeckMap from './DeckMapComponent.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { arrayBufferToBase64, gUnzip } from '@/js/util'
+import { arrayBufferToBase64, gUnzip, unreactive } from '@/js/util'
 
 import {
   ColorScheme,
@@ -145,7 +144,6 @@ const MyComponent = defineComponent({
     LegendColors,
     DeckMap,
     PlaybackControls,
-    ToggleButton,
     ZoomButtons,
   },
   props: {
@@ -274,10 +272,11 @@ const MyComponent = defineComponent({
       trafficLayers: [] as any[],
       legendBits: [] as any[],
       isEmbedded: false,
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
       vehicleLookup: [] as string[],
       vehicleLookupString: {} as { [id: string]: number },
       isPausedDueToHiding: false,
+      isUnmounted: false,
     }
   },
   watch: {
@@ -324,7 +323,7 @@ const MyComponent = defineComponent({
 
     await this.getVizDetails()
 
-    if (this.thumbnail) return
+    if (this.thumbnail || this.isUnmounted) return
 
     this.showHelp = false
     this.updateLegendColors()
@@ -334,6 +333,7 @@ const MyComponent = defineComponent({
     this.myState.statusMessage = '/ Dateien laden...'
     console.log('loading files')
     const { trips, drtRequests } = await this.loadFiles()
+    if (this.isUnmounted) return
 
     console.log('parsing vehicle motion')
     this.myState.statusMessage = `${this.$t('vehicles')}...`
@@ -352,6 +352,7 @@ const MyComponent = defineComponent({
     console.log('Requests...')
     this.myState.statusMessage = `${this.$t('requests')}...`
     this.requests = await this.parseDrtRequests(drtRequests)
+    if (this.isUnmounted) return
     this.requestStart = this.requests.dimension(d => d[0]) // time0
     this.requestEnd = this.requests.dimension(d => d[6]) // arrival
     this.requestVehicle = this.requests.dimension(d => d[5])
@@ -368,7 +369,13 @@ const MyComponent = defineComponent({
     this.timeElapsedSinceLastFrame = Date.now()
     this.animate()
   },
-  beforeDestroy() {
+  beforeUnmount() {
+    // `isLoaded` flips as soon as the YAML is read, so the user can navigate away while
+    // mounted() is still 30 seconds deep in loading trips. Everything after the awaits
+    // below then runs on a dead instance: `this.$t` is already gone (an uncaught
+    // "$t is not a function"), the visibilitychange listener is added *after* this hook
+    // removed it, and animate() starts a requestAnimationFrame loop that never stops.
+    this.isUnmounted = true
     document.removeEventListener('visibilityChange', this.handleVisibilityChange)
     globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
@@ -457,7 +464,9 @@ const MyComponent = defineComponent({
       if (this.vizDetails.eventBlobs) {
         for (const blobFilename of this.vizDetails.eventBlobs) {
           const layer = await this.loadBackgroundChunk(blobFilename)
-          this.trafficLayers.push(layer)
+          // markRaw: these hold big Float32Arrays destined for deck.gl, which freezes
+          // its layer props -- a reactive proxy over them throws. See trap #7.
+          this.trafficLayers.push(markRaw(layer))
         }
       } else if (this.vizDetails.events) {
         const parser = new EventParser({
@@ -471,7 +480,7 @@ const MyComponent = defineComponent({
           // ],
         })
         const layers = await parser.loadFiles()
-        this.trafficLayers = layers
+        this.trafficLayers = layers.map(markRaw)
         this.exportJSON(layers)
       }
     },
@@ -496,10 +505,14 @@ const MyComponent = defineComponent({
           }
           resolve(layer)
         }
-        gzipFetcher.postMessage({
-          filePath: this.myState.subfolder + '/' + blobFilename,
-          fileSystem: this.fileSystem,
-        })
+        // unreactive: `fileSystem` comes out of the store, so it is a reactive Proxy,
+        // and structuredClone throws DataCloneError on a Proxy. See trap #1.
+        gzipFetcher.postMessage(
+          unreactive({
+            filePath: this.myState.subfolder + '/' + blobFilename,
+            fileSystem: this.fileSystem,
+          })
+        )
       })
     },
 
@@ -856,7 +869,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .gl-app {
   position: absolute;

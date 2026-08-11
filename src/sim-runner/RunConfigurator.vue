@@ -9,12 +9,12 @@
 
     .details-panel(v-if="activeSection > -1")
       .buttons
-        b-button() Cancel
-        b-button(type="is-success" @click="update") Save
+        o-button() Cancel
+        o-button(variant="success" @click="update") Save
 
       .entry(v-for="item of sections[activeSection].entries")
         p {{ item.title }}
-        b-input(type="text" v-model="item.value")
+        o-input(type="text" v-model="item.value")
 
 </template>
 
@@ -141,7 +141,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .content {
   display: flex;

@@ -1,7 +1,7 @@
 /// <reference types="vitest" />
 
 import { defineConfig, loadEnv } from 'vite'
-import vue from '@vitejs/plugin-vue2'
+import vue from '@vitejs/plugin-vue'
 import markdownPlugin from 'unplugin-vue-markdown/vite'
 import history from 'connect-history-api-fallback'
 
@@ -44,6 +44,7 @@ export default defineConfig(({ command, mode }) => {
         'shapefile/dbf/read',
         'shapefile/dbf/string',
       ],
+      exclude: ['matsim-event-streamer'],
     },
     plugins: [
       // vue
@@ -57,6 +58,9 @@ export default defineConfig(({ command, mode }) => {
     test: {
       globals: true,
       environment: 'jsdom',
+      // unit tests only; tests/e2e/** are Playwright specs (run via `pnpm test`)
+      include: ['tests/unit/**/*.{test,spec}.{ts,js}', 'src/**/*.{test,spec}.{ts,js}'],
+      exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
     },
     resolve: {
       alias: {

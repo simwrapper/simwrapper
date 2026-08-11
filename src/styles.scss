@@ -1,28 +1,6 @@
-$mainFont: Figtree, Roboto, Helvetica, Arial, sans-serif;
-$fancyFont: Figtree, Roboto, Helvetica, Arial, sans-serif;
-$appTag: #53b589;
-$matsimBlue: #4b7cc4;
-$tuRed: #b40d1e;
-$steelGray: #2a3c4f;
-$themeColor: $matsimBlue;
-$themeColorPale: #363645; // #364673;
-$themeColorPaler: #b9c9df;
-$colorBoldBackground: $steelGray;
-$colorPurple: #6a1b9a;
-$colorYellow: #ffdf80;
-$colorSimWrapperYellow: #ffe07f;
-$paleBackground: #dbd9d7;
-$panelTitle: #5555ccdd;
-$darkBackground: #181a1b;
-$navHeight: 3.25rem;
-$bannerHighlight: #1d3355;
-$sizeMobile: 30em;
-$sizeVessel: 70rem;
-$dashboardWidth: 70rem;
-$thumbnailHeight: 10rem;
-$filterShadow: drop-shadow(0px 3px 5px #22222244);
-$yellowHighlight: #deef6f;
-$cardSpacing: 1.25rem;
+// Shared Sass variables now live in _variables.scss (no CSS output there).
+// This file emits the global theme CSS custom properties.
+@use './variables' as *;
 
 :root {
   --bg: #edebe4;
@@ -43,7 +21,7 @@ $cardSpacing: 1.25rem;
   --bgHideButton: #ece9f5;
   --bgHover: #eaeaea;
   --bgHover2: #9191bd; // #9cbafb;
-  --bgLayerPanel: linear-gradient(150deg, #d5dcf1, #dbf2ea);
+  --bgLayerPanel: linear-gradient(150deg, #d5dcf1, #d1ebf3);
   --bgPanel: #fff;
   --bgPanel2: #ededed;
   --bgPanel3: #e4e4e4;
@@ -87,6 +65,19 @@ $cardSpacing: 1.25rem;
 
   --opacityLogo: opacity(70%);
   --opacityAttribution: opacity(70%);
+
+  // Sliders are the one control on @oruga-ui/theme-oruga (see main.ts). Its stock
+  // --oruga-primary is #445e00, a dark olive that clashes badly here; point it at our own
+  // brand green instead. This drives the slider's fill and its tick marks. Loaded after
+  // theme-oruga's own :root block, so this wins on source order.
+  --oruga-primary: #{$appTag};
+
+  // "This toggle is the active one" fill, for segmented button pairs. Deliberately not
+  // Bulma's is-link (#485fc7, a vivid indigo that reads as a hyperlink) and not $appTag,
+  // which now means "slider fill". One value serves both colour schemes: it is dark
+  // enough against the white panel and light enough against dark mode's #2a3c4f one.
+  --bgSelected: #{$matsimBlue};
+  --textSelected: #ffffff;
 }
 
 .dark-mode {
@@ -108,7 +99,7 @@ $cardSpacing: 1.25rem;
   --bgHover: #433b53;
   --bgHover2: #34618b;
   // --bgIconBar: #344f6c;
-  --bgLayerPanel: linear-gradient(150deg, #3d3753, #183d36);
+  --bgLayerPanel: linear-gradient(150deg, #3d3753, #1c3f4b);
   --bgMap: #303032;
   --bgMapPanel: #181818;
   --bgMapWater: #1e3048;
@@ -150,6 +141,14 @@ $cardSpacing: 1.25rem;
   --opacityAttribution: opacity(60%);
   --yellowHighlight: #edf6ae;
   --iconShowHide: #183d36;
+}
+
+// Every o-slider in the app is size="small", and theme-oruga's stock small gives a 10.5px
+// thumb -- a fiddly grab target. theme-oruga derives the track height from the thumb
+// (track = thumb / 2), so this one variable scales both proportionally. Scoped to the
+// --small step so size="medium"/"large" keep their own proportions.
+.o-slider--small {
+  --oruga-slider-thumb-size: 1rem;
 }
 
 :root,

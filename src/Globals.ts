@@ -355,7 +355,7 @@ export interface LegendItem {
  * which would cause huge performance problems.
  *
  * NOTE --> Your Vue app needs to manage these handles and REMOVE them
- * in beforeDestroy() or else you will have some major memory leaks!
+ * in beforeUnmount() or else you will have some major memory leaks!
  * You have been warned.
  */
 export const REACT_VIEW_HANDLES: { [id: number]: any } = {}

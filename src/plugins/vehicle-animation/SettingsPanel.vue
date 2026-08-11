@@ -3,12 +3,12 @@
   h4 {{ $t('showhide')}}
 
   .row(:key="label" v-for="label in Object.keys(items)")
-    toggle-button.toggle(
-      :width="40"
-      :value="items[label]"
-      :labels="false"
-      :color="{checked: '#4b7cc4', unchecked: '#222'}"
-      @change="$emit('click',label)")
+    //- one-way :modelValue, not v-model: the parent owns `items` and flips it in
+    //- response to the click event. width/labels/color were vue-js-toggle-button
+    //- props with no Oruga equivalent -- left in, they fall through as DOM attributes.
+    o-switch.toggle(
+      :modelValue="items[label]"
+      @update:modelValue="$emit('click',label)")
     label(v-html="$t(label)")
 
 </template>
@@ -40,12 +40,15 @@ const i18n = {
 }
 
 import { defineComponent } from 'vue'
-import { ToggleButton } from 'vue-js-toggle-button'
 
 export default defineComponent({
-  name: 'XmasSettingsPanel',
+  name: 'VehicleSettingsPanel',
   i18n,
-  components: { ToggleButton },
+  // MUST be declared: without it Vue 3 also binds the parent's `@click` to this
+  // component's root element, so each toggle fired handleSettingChange twice -- once
+  // with the label, once with a PointerEvent (which then went to $t() and produced
+  // "[intlify] Not found '[object PointerEvent]' key"). See PlaybackControls.
+  emits: ['click'],
   props: {
     items: { type: Object, required: true },
   },
@@ -73,7 +76,9 @@ label {
   text-align: 'left';
 }
 
-.toggle {
+// :deep, because theme-bulma gives o-switch a rootClass of "switch control" -- a class
+// you put on the tag lands on the *inner input*, where these margins do nothing.
+:deep(.switch) {
   margin-bottom: 0.25rem;
   margin-right: 0.5rem;
 }

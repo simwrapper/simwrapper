@@ -10,8 +10,8 @@
       .content(v-html="md")
 
     footer.modal-card-foot
-      b-button.xbutton(v-if="buttons.length == 1" class="button is-link" @click="clicked(buttons[0])") {{ buttons[0] }}
-      b-button.xbutton(v-for="label,i in buttons" :key="label" ref="xbutton"
+      o-button.xbutton(v-if="buttons.length == 1" class="button is-link" @click="clicked(buttons[0])") {{ buttons[0] }}
+      o-button.xbutton(v-for="label,i in buttons" :key="label" ref="xbutton"
         :class="{'is-danger': i == 0, 'is-outlined': i==0}"
         :style="{'margin-right': i == 0 ? 'auto' : '0.5rem'}"
         @click="clicked(i)"
@@ -23,6 +23,11 @@ import { defineComponent } from 'vue'
 
 export default defineComponent({
   name: 'ModalMarkdownDialog',
+  // Without this, a parent's `@click` also falls through $attrs onto the root element, so
+  // every click calls the handler twice: once with the button index, once with a
+  // PointerEvent. MatrixViewer switches on that index, and `case 2` (Compare) is what a
+  // stray PointerEvent would fall through to.
+  emits: ['click'],
   props: {
     title: String,
     md: String,
@@ -51,7 +56,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .xmodal {
   margin: 3rem auto 0 0;

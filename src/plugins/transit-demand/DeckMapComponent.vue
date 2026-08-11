@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, markRaw, PropType } from 'vue'
 import maplibregl from 'maplibre-gl'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { LineLayer, GeoJsonLayer, SolidPolygonLayer } from '@deck.gl/layers'
@@ -284,22 +284,26 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = new MapboxOverlay({
-        interleaved: false,
-        useDevicePixels: true,
-        layers: this.layers,
-        pickingRadius: 2,
-        onClick: this.handleClick,
-        onHover: this.getTooltip,
-        getCursor: (c: any) => {
-          return c.isHovering ? 'pointer' : 'grab'
-        },
-      })
+      // markRaw: keeps every deck.gl layer out of Vue's proxy path, which
+      // otherwise throws on the frozen `data` prop during layer matching
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          interleaved: false,
+          useDevicePixels: true,
+          layers: this.layers,
+          pickingRadius: 2,
+          onClick: this.handleClick,
+          onHover: this.getTooltip,
+          getCursor: (c: any) => {
+            return c.isHovering ? 'pointer' : 'grab'
+          },
+        })
+      )
       this.mymap?.addControl(this.deckOverlay)
     })
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },

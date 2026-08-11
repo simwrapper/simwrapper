@@ -1,0 +1,14 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 4aa247603822f4225bad5e19a0222054869cc9d6..f8b58a187f28632dc6d402dda129471139332d49 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -98,7 +98,8 @@ function $n(e) {
+         transform: a
+       },
+       "data-bg": c % 2 === 1 ? "" : void 0,
+-      children: c >= 0 && r ? r[c] : c
++      // BILLY 1-index matrix headers: c+1
++      children: c >= 0 && r ? r[c] : c+1
+     },
+     c.toString()
+   ));

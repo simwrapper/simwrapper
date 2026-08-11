@@ -1,41 +1,41 @@
 <template lang="pug">
 .layers-panel
 
-  b-button.is-small.is-warning(@click="addLayer()") + Add Layer
+  o-button.is-small.is-warning(@click="addLayer()") + Add Layer
 
   .layer(v-for="layer,i in layers")
     .delete-button(@click="deleteLayer(i)") x
 
     .xlabel(style="margin-top: 0;"): b Layer Title
-    b-input(size="is-small" v-model="layer.title" @input="updateLayers")
+    o-input(size="small" v-model="layer.title" @input="updateLayers")
 
     .xlabel(:title="helpFileText") File / URL ℹ️
     .flex-row(style="gap: 0.25rem")
-      b-input.flex1(size="is-small" v-model="layer.shapes" @input="updateLayers")
-      b-button.is-small(title="Open file..." @click="openFileDialog(layer)"): i.fas.fa-folder
+      o-input.flex1(size="small" v-model="layer.shapes" @input="updateLayers")
+      o-button.is-small(title="Open file..." @click="openFileDialog(layer)"): i.fas.fa-folder
 
     .flex-row(style="gap: 0.25rem")
       .flex-col.flex1
         .xlabel Fill Color
-        b-input(size="is-small" v-model="layer.fill" @input="updateLayers")
+        o-input(size="small" v-model="layer.fill" @input="updateLayers")
       .flex-col.flex1
         .xlabel Opacity
-        b-input(size="is-small" v-model="layer.opacity" @input="updateLayers")
+        o-input(size="small" v-model="layer.opacity" @input="updateLayers")
 
     .xlabel.flex-row(style="gap: 0.25rem")
       .flex-col.flex1
         .t Border Color
-        b-input(size="is-small" v-model="layer.borderColor" @input="updateLayers")
+        o-input(size="small" v-model="layer.borderColor" @input="updateLayers")
       .flex-col.flex1
         .t Border Width
-        b-input(size="is-small" v-model="layer.borderWidth" @input="updateLayers")
+        o-input(size="small" v-model="layer.borderWidth" @input="updateLayers")
 
     .xlabel Label Column
-    b-input(size="is-small" v-model="layer.label" @input="updateLayers")
+    o-input(size="small" v-model="layer.label" @input="updateLayers")
 
     .flex-row
-      b-checkbox.flex1.simple-checkbox(v-model="layer.visible" @input="updateLayers") Visible
-      b-checkbox.flex1.simple-checkbox(v-model="layer.onTop" @input="updateLayers") On top
+      o-checkbox.flex1.simple-checkbox(v-model="layer.visible" @input="updateLayers") Visible
+      o-checkbox.flex1.simple-checkbox(v-model="layer.onTop" @input="updateLayers") On top
 
   //- //- DATA COLUMN
   //- .widgets
@@ -180,7 +180,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .layers-panel {
   padding-right: 0.25rem;

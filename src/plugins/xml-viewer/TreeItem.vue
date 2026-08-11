@@ -30,9 +30,12 @@ li
 </template>
 
 <script lang="ts">
-import Vue from 'vue'
+import { defineComponent } from 'vue'
 
-export default Vue.component('tree-item', {
+// `name` is what makes the recursive `tree-item` tag in the template above resolve
+// to this component. Vue 2 got that from the global Vue.component() registration.
+export default defineComponent({
+  name: 'TreeItem',
   props: {
     item: { type: Object, required: true },
     expandAll: { type: Boolean },
@@ -101,7 +104,7 @@ export default Vue.component('tree-item', {
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 ul {
   list-style: none outside none;

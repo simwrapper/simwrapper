@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, markRaw, PropType } from 'vue'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { DataFilterExtension } from '@deck.gl/extensions'
 import ScatterplotColorBinsLayer from './ScatterplotColorBinsLayer'
@@ -86,6 +86,26 @@ export default defineComponent({
       if (this.show3dBuildings) enable3DBuildings(this.mymap)
       else disable3DBuildings(this.mymap)
     },
+
+    // this was declared as a *computed* -- a computed named 'globalState.viewState' is
+    // just a property nobody reads, so the map never followed the shared camera
+    'globalState.viewState'() {
+      if (this.mapIsIndependent) return
+      const incoming = this.globalState.viewState as any
+      const center = this.mymap?.getCenter() as any
+      if (!center) return
+      if (
+        incoming.longitude !== center.lng ||
+        incoming.latitude !== center.lat ||
+        incoming.zoom !== this.mymap?.getZoom() ||
+        incoming.pitch !== this.mymap?.getPitch() ||
+        incoming.bearing !== this.mymap?.getBearing()
+      ) {
+        this.mymap?.jumpTo(
+          Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
+        )
+      }
+    },
   },
 
   computed: {
@@ -145,36 +165,24 @@ export default defineComponent({
 
       return xlayers
     },
-
-    'globalState.viewState'() {
-      if (this.mapIsIndependent) return
-      const incoming = this.globalState.viewState as any
-      const center = this.mymap?.getCenter() as any
-      if (
-        incoming.longitude !== center.lng ||
-        incoming.latitude !== center.lat ||
-        incoming.zoom !== this.mymap?.getZoom() ||
-        incoming.pitch !== this.mymap?.getPitch() ||
-        incoming.bearing !== this.mymap?.getBearing()
-      ) {
-        this.mymap?.jumpTo(
-          Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
-        )
-      }
-    },
   },
 
   async mounted() {
     const style = `${BASE_URL}map-styles/${this.dark ? 'dark' : 'positron'}.json`
     const container = this.viewId
     const center = this.globalState.viewState.center as [number, number]
+    // markRaw: maplibre freezes the `rgb` array on the Color objects it parses out of a
+    // style, and deck.gl freezes its layer props -- reading either back through a Vue
+    // proxy violates the proxy invariant and throws. See traps #7.
     //@ts-ignore
-    this.mymap = new maplibregl.Map({
-      center,
-      zoom: 7,
-      container,
-      style,
-    })
+    this.mymap = markRaw(
+      new maplibregl.Map({
+        center,
+        zoom: 7,
+        container,
+        style,
+      })
+    )
     if (this.show3dBuildings && this.mymap) {
       enable3DBuildings(this.mymap)
     }
@@ -184,16 +192,18 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = new MapboxOverlay({
-        interleaved: true,
-        layers: this.layers,
-        onClick: this.handleClick,
-      })
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          interleaved: true,
+          layers: this.layers,
+          onClick: this.handleClick,
+        })
+      )
       this.mymap?.addControl(this.deckOverlay)
     })
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },

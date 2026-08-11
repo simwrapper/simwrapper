@@ -80,17 +80,16 @@
                 br
                 | {{ speed }}x
 
-              b-slider.speed-slider(v-model="speed"
+              //- duration / dotSize / tooltip-placement / tooltip-formatter were Buefy
+              //- props; Oruga's equivalent of the last one is `formatter`, and the rest
+              //- have none, so they would just fall through as DOM attributes.
+              o-slider.speed-slider(v-model="speed"
                 :min="speedStops[0]"
                 :max="speedStops[speedStops.length-1]"
-                :duration="0"
-                :dotSize="20"
                 :tooltip="false"
-                tooltip-placement="bottom"
-                :tooltip-formatter="val => val + 'x'"
+                :formatter="val => val + 'x'"
               )
-                template(v-for="val in speedStops")
-                  b-slider-tick(:value="val" :key="val")
+                o-slider-tick(v-for="val in speedStops" :value="val" :key="val")
 
 </template>
 
@@ -122,7 +121,6 @@ const i18n = {
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import { ToggleButton } from 'vue-js-toggle-button'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
 import crossfilter from 'crossfilter2'
@@ -133,7 +131,7 @@ import LegendColors from './LegendColors.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { arrayBufferToBase64, gUnzip, sleep } from '@/js/util'
+import { arrayBufferToBase64, gUnzip } from '@/js/util'
 import DeckMap from './DeckMapComponent.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import BackgroundLayers from '@/js/BackgroundLayers'
@@ -161,7 +159,6 @@ const MyComponent = defineComponent({
     LegendColors,
     PlaybackControls,
     SettingsPanel,
-    ToggleButton,
     ZoomButtons,
   },
   props: {
@@ -701,9 +698,7 @@ const MyComponent = defineComponent({
 
       const traces: any = []
 
-      // console.log({ capLookup: this.capLookup })
       for (const vehicle of trips) {
-        // console.log(vehicle)
         vehNumber++
 
         let time = vehicle.timestamps[0]
@@ -728,9 +723,7 @@ const MyComponent = defineComponent({
             segments = []
             time = nextTime
           } else {
-            const kep = this.capLookup.kep[vehicle.id]
-            if (!kep) continue
-            const capKep = kep.reduceRight((a, b) => {
+            const capKep = this.capLookup.kep[vehicle.id].reduceRight((a, b) => {
               // console.log(b.endTime, time)
               return time < b.endTime ? b.cap : a
             }, 0)
@@ -766,8 +759,6 @@ const MyComponent = defineComponent({
       // DRT CAPACITIES
       if (this.vizDetails.capacities) {
         try {
-          this.myState.statusMessage = 'Loading capacities'
-          await sleep(0)
           const { allRows } = await this.myDataManager.getDataset({
             dataset: this.vizDetails.capacities,
           })
@@ -785,8 +776,6 @@ const MyComponent = defineComponent({
       }
 
       try {
-        this.myState.statusMessage = 'Loading DRT trips'
-        await sleep(0)
         if (this.vizDetails.drtTrips.endsWith('json')) {
           const json = await this.fileApi.getFileJson(
             this.myState.subfolder + '/' + this.vizDetails.drtTrips
@@ -836,33 +825,27 @@ const MyComponent = defineComponent({
 
     this.setWallClock()
 
-    this.myState.statusMessage = 'Loading files...'
+    this.myState.statusMessage = 'Loading...'
     console.log('loading files')
     const { trips, drtRequests, kepLookup, humanLookup } = await this.loadFiles()
 
     this.capLookup = { kep: kepLookup, human: humanLookup }
 
-    this.myState.statusMessage = 'Analyzing vehicle motion'
-    console.log(this.myState.statusMessage)
-    await sleep(0)
+    console.log('parsing vehicle motion')
     this.myState.statusMessage = `${this.$t('vehicles')}...`
     this.paths = this.parseVehicles(trips)
     this.pathStart = this.paths.dimension(d => d.t0)
     this.pathEnd = this.paths.dimension(d => d.t1)
     this.pathVehicle = this.paths.dimension(d => d.v)
 
-    this.myState.statusMessage = 'Analyzing routes...'
-    console.log(this.myState.statusMessage)
-    await sleep(0)
+    console.log('Routes...')
     this.myState.statusMessage = `${this.$t('routes')}...`
     this.traces = await this.parseRouteTraces(trips)
     this.traceStart = this.traces.dimension(d => d.t0)
     this.traceEnd = this.traces.dimension(d => d.t1)
     this.traceVehicle = this.traces.dimension(d => d.v)
 
-    this.myState.statusMessage = 'Analyzing requests...'
-    console.log(this.myState.statusMessage)
-    await sleep(0)
+    console.log('Requests...')
     this.myState.statusMessage = `${this.$t('requests')}...`
     this.requests = await this.parseDrtRequests(drtRequests)
     this.requestStart = this.requests.dimension(d => d[0]) // time0
@@ -893,7 +876,7 @@ const MyComponent = defineComponent({
     this.animate()
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     document.removeEventListener('visibilityChange', this.handleVisibilityChange)
     globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
@@ -905,7 +888,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .main-layout {
   display: grid;
@@ -914,13 +897,13 @@ export default MyComponent
   grid-template-columns: 1fr auto auto;
   min-height: $thumbnailHeight;
   height: 100%;
-  background-color: var(--bgCream2);
+  background-color: var(--bg);
 }
 
 .area-map {
   grid-row: 1 / 2;
   grid-column: 1 / 2;
-  // background-color: var(--bgBold);
+  background-color: var(--bgBold);
   position: relative;
 }
 
@@ -1008,11 +991,14 @@ export default MyComponent
   margin-top: 1rem;
 }
 
+// padding-left/right, not a `padding` shorthand: theme-oruga puts `padding: 1em 0` on the
+// o-slider root, and a shorthand zeroes that vertical padding out and collapses the track.
 .speed-slider {
   flex: 1;
   width: 100%;
   margin: 0.5rem 0.25rem 0.25rem 0rem;
-  padding: 0 0.5rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
   font-weight: bold;
 }
 
@@ -1027,7 +1013,7 @@ export default MyComponent
   display: flex;
   flex-direction: column;
   padding: 0.5rem 0.5rem;
-  background-color: var(--bgPanel3);
+  background-color: var(--bgCardFrame2);
 }
 
 .bottom-area {
@@ -1059,7 +1045,7 @@ export default MyComponent
 .clock {
   color: white;
   background-color: #000000cc;
-  border: 2px solid white;
+  border: 3px solid white;
   color: white;
 }
 
@@ -1080,7 +1066,7 @@ export default MyComponent
 
 input {
   border: none;
-  background-color: var(--bgCardFrame2);
+  background-color: var(--bgCream);
   color: #ccc;
 }
 

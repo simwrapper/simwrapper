@@ -91,7 +91,7 @@ export default defineComponent({
     window.addEventListener('mousemove', this.dragging)
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.resizer?.disconnect()
     window.removeEventListener('mouseup', this.dragEnd)
     window.removeEventListener('mousemove', this.dragging)
@@ -247,7 +247,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .time-slider-component {
   display: flex;

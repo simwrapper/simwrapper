@@ -53,7 +53,7 @@ const MyComponent = defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (!this.thumbnail) globalStore.commit('setFullScreen', false)
   },
 

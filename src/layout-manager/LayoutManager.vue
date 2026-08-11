@@ -145,7 +145,7 @@ const i18n = {
   },
 }
 
-import Vue, { defineComponent } from 'vue'
+import { defineComponent } from 'vue'
 
 import { Route } from 'vue-router'
 import micromatch from 'micromatch'
@@ -422,18 +422,32 @@ export default defineComponent({
         // be case insensitive for the matching itself
         if (micromatch.isMatch(lowerCaseFileName, vizPlugin.filePatterns)) {
           // plugin matched!
-          // if (!isNavigateNeeded) return
-          if (this.panels.length === 1 && this.panels[0].length === 1) {
-            this.panels = [[this.panels[0][0]]]
+          let subfolder = xsubfolder.substring(0, xsubfolder.lastIndexOf('/'))
+          if (subfolder.startsWith('/')) subfolder = subfolder.slice(1)
+          xsubfolder = subfolder
+
+          // Keep the current panel ONLY when it is already this exact visualization,
+          // so a redundant route event doesn't remount it. Anything else must be
+          // replaced: reusing the existing panel unconditionally (which is what this
+          // did) silently dropped the new URL, so clicking a viz file in a folder
+          // listing left the folder's dashboard on screen. Viz plugins read their
+          // config in mounted(), so a changed file needs a new key, not new props.
+          const solo =
+            this.panels.length === 1 && this.panels[0].length === 1 ? this.panels[0][0] : null
+          const isSameViz =
+            !!solo &&
+            solo.component === vizPlugin.kebabName &&
+            solo.props?.root === root &&
+            solo.props?.subfolder === subfolder &&
+            solo.props?.yamlConfig === fileNameWithoutPath
+
+          if (isSameViz) {
+            this.panels = [[solo]]
           } else {
-            let key = Math.random()
-            let subfolder = xsubfolder.substring(0, xsubfolder.lastIndexOf('/'))
-            if (subfolder.startsWith('/')) subfolder = subfolder.slice(1)
-            xsubfolder = subfolder
             this.panels = [
               [
                 {
-                  key,
+                  key: Math.random(),
                   component: vizPlugin.kebabName,
                   title: '',
                   description: '',
@@ -825,16 +839,24 @@ export default defineComponent({
       const xsubfolder = props.xsubfolder || props.subfolder || ''
       const yaml = props.yamlConfig || ''
 
+      // Folder URLs are normalized to end with '/', so naive interpolation produced
+      // routes like "/local/maps/networks//viz-map.yaml". Harmless, but confusing.
+      const joinPath = (...parts: string[]) =>
+        parts
+          .map(p => p.replace(/^\/+|\/+$/g, ''))
+          .filter(Boolean)
+          .join('/')
+
       if (yaml.indexOf('/') > -1) {
         // a YAML from a config folder will have a path in it:
-        const yamlFileWithoutPath = yaml.substring(yaml.lastIndexOf('/'))
-        this.$router.replace(`${BASE_URL}${root}/${xsubfolder}/${yamlFileWithoutPath}`)
+        const yamlFileWithoutPath = yaml.substring(yaml.lastIndexOf('/') + 1)
+        this.$router.replace(`${BASE_URL}${joinPath(root, xsubfolder, yamlFileWithoutPath)}`)
       } else if (yaml) {
         // YAML config specified
-        this.$router.push(`${BASE_URL}${root}/${xsubfolder}/${yaml}`)
+        this.$router.push(`${BASE_URL}${joinPath(root, xsubfolder, yaml)}`)
       } else {
         // Just the folder and viz file itself
-        let finalUrl = `${BASE_URL}${root}/${xsubfolder}`
+        let finalUrl = `${BASE_URL}${joinPath(root, xsubfolder)}`
         if (props.config) finalUrl += `/${props.config}`
         // back to Folder View if we're going back from a single viz
         if (options?.showFiles) finalUrl += `?tab=files`
@@ -867,8 +889,7 @@ export default defineComponent({
 
     setCardTitles(card: any, event: any) {
       if (typeof event == 'string') {
-        // card.title = event // this isn't working, use Vue.set() instead
-        Vue.set(card, 'title', event)
+        card.title = event
         card.description = ''
       } else {
         card.title = event.title
@@ -1001,7 +1022,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 #layout-manager {
   display: flex;

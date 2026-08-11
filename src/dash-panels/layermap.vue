@@ -1,5 +1,5 @@
 <template lang="pug">
-layer-map.deck-map(
+layer-map.layer-map-panel(
   :root="fileSystemConfig.slug"
   :subfolder="subfolder"
   :configFromDashboard="config"
@@ -37,16 +37,16 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
 
-.deck-map {
+// no display:flex here -- this class lands on the LayerMap root, whose own .layer-map
+// rule lays the panel and the map out as an overlapping grid. A flex column instead
+// stacked them, and the map got zero height.
+.layer-map-panel {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
-  display: flex;
-  flex-direction: column;
 }
 
 @media only screen and (max-width: 640px) {

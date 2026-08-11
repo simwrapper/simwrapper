@@ -1,7 +1,7 @@
 <template lang="pug">
 .time-slider
-  b-slider(:min="0" :max="stops.length" v-model="sliderValue" :tooltip="false")
-    b-slider-tick(v-for="stop,i of allStops" :key="stop" :value="i")
+  o-slider(:min="0" :max="stops.length" :range="useRange" v-model="sliderValue" :tooltip="false" size="small")
+    o-slider-tick(v-for="stop,i of allStops" :key="stop" :value="i")
   p: b {{ stopLabel }}
 
 </template>
@@ -58,8 +58,6 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
-
 .time-slider {
   margin: 0.5rem;
   margin-top: -0.75rem;

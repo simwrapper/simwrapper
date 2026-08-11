@@ -51,17 +51,16 @@
             br
             | {{ speed }}x
 
-          b-slider.speed-slider(v-model="speed"
+          //- duration / dotSize / tooltip-placement / tooltip-formatter were Buefy props;
+          //- Oruga's equivalent of the last one is `formatter`, and the rest have none,
+          //- so they would just fall through as DOM attributes.
+          o-slider.speed-slider(v-model="speed"
             :min="speedStops[0]"
             :max="speedStops[speedStops.length-1]"
-            :duration="0"
-            :dotSize="20"
             :tooltip="false"
-            tooltip-placement="bottom"
-            :tooltip-formatter="val => val + 'x'"
+            :formatter="val => val + 'x'"
           )
-            template(v-for="val in speedStops")
-              b-slider-tick(:value="val" :key="val")
+            o-slider-tick(v-for="val in speedStops" :value="val" :key="val")
 
   playback-controls.bottom-area(v-if="isLoaded && !thumbnail"
       data-testid="playback-controls"
@@ -101,7 +100,6 @@ const i18n = {
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import { ToggleButton } from 'vue-js-toggle-button'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
 import crossfilter from 'crossfilter2'
@@ -137,7 +135,6 @@ const MyComponent = defineComponent({
     LegendColors,
     PlaybackControls,
     SettingsPanel,
-    ToggleButton,
     ZoomButtons,
   },
   props: {
@@ -243,7 +240,7 @@ const MyComponent = defineComponent({
 
       legendBits: [] as any[],
       isEmbedded: false,
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
 
       vehicleLookup: [] as string[],
       vehicleLookupString: {} as { [id: string]: number },
@@ -793,7 +790,7 @@ const MyComponent = defineComponent({
     this.animate()
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     document.removeEventListener('visibilityChange', this.handleVisibilityChange)
     globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
@@ -805,7 +802,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .gl-app {
   position: absolute;

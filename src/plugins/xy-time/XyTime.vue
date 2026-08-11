@@ -86,7 +86,7 @@ import GUI from 'lil-gui'
 import YAML from 'yaml'
 import colormap from 'colormap'
 
-import util from '@/js/util'
+import util, { unreactive } from '@/js/util'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
@@ -235,7 +235,7 @@ const MyComponent = defineComponent({
       animator: null as any,
       guiController: null as GUI | null,
       resizer: null as ResizeObserver | null,
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
       ANIMATE_SPEED: 4,
       animationElapsedTime: 0,
     }
@@ -270,7 +270,7 @@ const MyComponent = defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.resizer?.disconnect()
 
     try {
@@ -285,6 +285,8 @@ const MyComponent = defineComponent({
 
     if (this.animator) window.cancelAnimationFrame(this.animator)
 
+    //@ts-ignore
+    delete window.__testdata__
     this.$store.commit('setFullScreen', false)
   },
 
@@ -574,11 +576,15 @@ const MyComponent = defineComponent({
         }
       }
 
-      this.gzipWorker.postMessage({
-        filepath: filename,
-        fileSystem: this.fileSystem,
-        projection: this.vizDetails.projection,
-      })
+      // unreactive: fileSystem comes out of $store.state.svnProjects, so it is a reactive
+      // Proxy -- and structuredClone throws DataCloneError on those. See trap #1.
+      this.gzipWorker.postMessage(
+        unreactive({
+          filepath: filename,
+          fileSystem: this.fileSystem,
+          projection: this.vizDetails.projection,
+        })
+      )
     },
 
     setFirstZoom(coordinates: any[], rows: number) {
@@ -612,6 +618,17 @@ const MyComponent = defineComponent({
         pitch: 0,
       })
       this.isLoaded = true
+
+      // e2e hook, same convention as aggregate-od / grid-map / links-gl / layer-map:
+      // a canvas diff cannot tell "points loaded" from "points drew nothing".
+      //@ts-ignore
+      window.__testdata__ = {
+        totalRows,
+        chunks: this.pointLayers.length,
+        timeRange: [...this.timeRange],
+        breakpoints: [...this.breakpoints],
+        colors: this.colors.length,
+      }
     },
 
     animate() {
@@ -791,7 +808,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .viz-plugin {
   position: absolute;
@@ -906,10 +923,6 @@ export default MyComponent
   border-left: 1px solid #66669940;
   border-bottom: 1px solid #66669940;
   box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
-}
-
-* > .number {
-  background-color: yellow;
 }
 
 @media only screen and (max-width: 640px) {

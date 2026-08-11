@@ -1,10 +1,10 @@
 <template lang="pug">
 .editable-field
-  span(@click="activateEditor" v-show="!editing") {{value || '&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}}
+  span(@click="activateEditor" v-show="!editing") {{modelValue || '&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}}
   span.editor(v-if="editing"
   )
     input.finger(
-      :value="value"
+      :value="modelValue"
       :ref="id"
       @blur="lostFocus($event)"
       @keydown.enter="editing=false"
@@ -21,7 +21,7 @@ export default defineComponent({
   name: 'EditableField',
   components: {},
   props: {
-    value: String,
+    modelValue: String,
   },
 
   data: () => {
@@ -44,14 +44,14 @@ export default defineComponent({
 
     lostFocus($event: any) {
       this.editing = false
-      this.$emit('input', $event.target.value)
+      this.$emit('update:modelValue', $event.target.value)
     },
   },
 })
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .editable-field {
   cursor: pointer;

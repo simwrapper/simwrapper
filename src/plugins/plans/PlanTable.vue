@@ -133,14 +133,13 @@ const PlanTable = defineComponent({
     // console.log('INTERLE', this.interleavedColumns)
   },
 
-  beforeDestroy() {},
 })
 
 export default PlanTable
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 /* SCROLLBARS
    The emerging W3C standard is currently Firefox-only */

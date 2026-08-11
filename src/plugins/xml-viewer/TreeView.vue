@@ -10,11 +10,11 @@ ul
 </template>
 
 <script lang="ts">
-import Vue from 'vue'
+import { defineComponent } from 'vue'
 import TreeItem from './TreeItem.vue'
-import { faLevelDown } from '@fortawesome/free-solid-svg-icons'
 
-export default Vue.component('tree-view', {
+export default defineComponent({
+  name: 'TreeView',
   props: {
     initialData: {},
     expandAll: { type: Boolean },

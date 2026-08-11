@@ -21,7 +21,7 @@
   .widgets
     .widget.boop
       h4 Add New Filter
-      b-select.tight.selector(expanded v-model="addDataColumn" placeholder="Select...")
+      o-select.tight.selector(expanded v-model="addDataColumn" placeholder="Select...")
         optgroup(v-for="dataset in datasetChoices"
                 :key="dataset" :label="dataset")
           option(v-for="column in numericColumnsInDataset(dataset)"
@@ -29,10 +29,10 @@
                 :label="column")
 
       .filter-details2(v-if="addDataColumn")
-        b-select.operator(expanded v-model="addOperator")
+        o-select.operator(expanded v-model="addOperator")
           option(v-for="operator in OPERATORS" :value="operator" :label="operator")
-        b-field(v-if="addOperator!==OPERATORS[0]")
-          b-input(v-model="addValue" placeholder="1.0")
+        o-field(v-if="addOperator!==OPERATORS[0]")
+          o-input(v-model="addValue" placeholder="1.0")
 
       .button-bar(v-if="addDataColumn")
         button.button.add-button.is-small.is-inverted(
@@ -231,7 +231,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 .width-panel {
   padding-right: 0rem;
 }

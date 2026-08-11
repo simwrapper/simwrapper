@@ -11,13 +11,13 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, toRaw } from 'vue'
 
 import nprogress from 'nprogress'
 import vegaEmbed from 'vega-embed'
 
 import globalStore from '@/store'
-import { FileSystemConfig, VisualizationPlugin } from '@/Globals'
+import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 const MyComponent = defineComponent({
@@ -46,6 +46,7 @@ const MyComponent = defineComponent({
       cleanConfigId: 'vega-' + Math.floor(Math.random() * 1e12),
       zippyId: 'zippy-' + Math.floor(Math.random() * 1e12),
       hasHardCodedHeight: false,
+      isSpecLoaded: false,
     }
   },
   async mounted() {
@@ -154,6 +155,7 @@ const MyComponent = defineComponent({
 
     async getVizDetails() {
       this.vizDetails = await this.loadFiles()
+      this.isSpecLoaded = !!this.vizDetails
       this.loadingText = ''
       nprogress.done()
     },
@@ -217,7 +219,9 @@ const MyComponent = defineComponent({
     },
 
     async embedChart() {
-      if (!this.vizDetails) return
+      // the dashboard registers our resizer before the spec has loaded, so it can
+      // call us early; embedding a spec-less chart yields NaN svg geometry.
+      if (!this.vizDetails || !this.isSpecLoaded) return
 
       let box = document.querySelector(`#${this.cleanConfigId}`) as Element
       if (!box) return
@@ -271,7 +275,9 @@ const MyComponent = defineComponent({
       if (!this.vizDetails.height) this.vizDetails.height = 'container'
 
       try {
-        await vegaEmbed(`#${this.cleanConfigId}`, this.vizDetails, embedOptions)
+        // Vega structured-clones the spec internally, which throws a DataCloneError
+        // on a Vue 3 reactive Proxy. Hand it the raw object instead.
+        await vegaEmbed(`#${this.cleanConfigId}`, toRaw(this.vizDetails), embedOptions)
       } catch (e) {
         let message = '' + e
         console.error(message)
@@ -288,7 +294,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .vega-container {
   position: absolute;

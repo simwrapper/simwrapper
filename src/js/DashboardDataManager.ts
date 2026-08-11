@@ -16,7 +16,7 @@ import { rollup } from 'd3-array'
 import globalStore from '@/store'
 import HTTPFileSystem from './HTTPFileSystem'
 import { DataTable, DataTableColumn, DataType, FileSystemConfig, Status } from '@/Globals'
-import { findMatchingGlobInFiles, gUnzip, parseXML } from '@/js/util'
+import { findMatchingGlobInFiles, gUnzip, parseXML, unreactive } from '@/js/util'
 import avro from '@/js/avro'
 import * as Comlink from 'comlink'
 
@@ -252,7 +252,7 @@ export default class DashboardDataManager {
             // wait for ready signal
             if (e.data.ready) {
               this.threads.push(thread)
-              thread.postMessage({ config: fullConfig, featureProperties })
+              thread.postMessage(unreactive({ config: fullConfig, featureProperties }))
               return
             }
             thread.terminate()
@@ -535,13 +535,15 @@ export default class DashboardDataManager {
           // wait for ready signal and then begin work:
           if (e.data.ready) {
             // this.threads.push(thread)
-            thread.postMessage({
-              fileSystemConfig: this.fileApi,
-              subfolder: options?.subfolder || this.subfolder,
-              files,
-              config: config,
-              options,
-            })
+            thread.postMessage(
+              unreactive({
+                fileSystemConfig: this.fileApi,
+                subfolder: options?.subfolder || this.subfolder,
+                files,
+                config: config,
+                options,
+              })
+            )
             return
           }
           thread.terminate()
@@ -724,12 +726,14 @@ export default class DashboardDataManager {
               }
             }
 
-            wasmWorker.postMessage({
-              path,
-              crs: options.crs || '',
-              fsConfig: this.fileApi,
-              options,
-            })
+            wasmWorker.postMessage(
+              unreactive({
+                path,
+                crs: options.crs || '',
+                fsConfig: this.fileApi,
+                options,
+              })
+            )
           })
           const network = await promise
           resolve(network)
@@ -774,13 +778,15 @@ export default class DashboardDataManager {
           resolve(e.data.links)
         }
 
-        thread.postMessage({
-          filePath: path,
-          fileSystem: this.fileApi,
-          options,
-          extraColumns: !!props.extra, // include freespeed, length (off by default!)
-          isFirefox, // we need this for now, because Firefox bug #260
-        })
+        thread.postMessage(
+          unreactive({
+            filePath: path,
+            fileSystem: this.fileApi,
+            options,
+            extraColumns: !!props.extra, // include freespeed, length (off by default!)
+            isFirefox, // we need this for now, because Firefox bug #260
+          })
+        )
       } catch (err) {
         thread.terminate()
         console.error(err)

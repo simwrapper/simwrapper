@@ -6,10 +6,10 @@
     :eventData = "eventData"
     :network="network"
     :linkIdLookup="linkIdLookup"
-    :dark="this.$store.state.isDarkMode"
-    :colors="this.colors"
-    :breakpoints="this.breakpoints"
-    :radius="this.guiConfig.radius"
+    :dark="$store.state.isDarkMode"
+    :colors="colors"
+    :breakpoints="breakpoints"
+    :radius="guiConfig.radius"
     :mapIsIndependent="false"
     :simulationTime="simTime"
     :projection="vizDetails.projection"
@@ -70,14 +70,14 @@ const i18n = {
   },
 }
 
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw } from 'vue'
 import type { PropType } from 'vue'
 
 import GUI from 'lil-gui'
 import YAML from 'yaml'
 import colormap from 'colormap'
 import * as Comlink from 'comlink'
-import util from '@/js/util'
+import util, { unreactive } from '@/js/util'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
@@ -212,10 +212,11 @@ const MyComponent = defineComponent({
       },
       eventData: [] as { data: any; timeRange: number[] }[],
       isLoaded: false,
+      isUnmounted: false,
       animator: null as any,
       guiController: null as GUI | null,
       resizer: null as ResizeObserver | null,
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
       animationElapsedTime: 0,
       animationClockTime: 0,
       prevBearing: 0,
@@ -434,31 +435,53 @@ const MyComponent = defineComponent({
       this.gzipWorker = new WasmEventStreamer()
       const task = Comlink.wrap(this.gzipWorker) as unknown as EventTask
 
-      const fsConfig = Object.assign({}, this.fileSystem)
-
       const layers = [{ viewer: 'vehicleViewer' }]
 
       // const result = await task.isReady()
       // console.log({ result })
 
+      // unreactive: Comlink structured-clones this payload into the worker, and a Vue 3
+      // reactive Proxy throws DataCloneError. `network` lives in data() and `fileSystem`
+      // comes out of $store.state.svnProjects, so both are proxied. Object.assign({}, ...)
+      // is NOT enough here -- it re-proxies every value. See trap #1 in VUE3-MIGRATION.md.
       task.startStream(
-        {
+        unreactive({
           filename,
           layers,
           network: this.network,
-          fsConfig,
+          fsConfig: this.fileSystem,
           follow: this.follow,
-        },
+        }),
         // callback when stream has new data to report
         Comlink.proxy(this.receiveDataFromEventStreamer)
       )
     },
 
     async receiveDataFromEventStreamer(props: { data: any[]; timeRange: number[] }) {
-      this.eventData = [...this.eventData, props]
+      // markRaw: this bundle of typed arrays goes straight to deck.gl, which freezes its
+      // layer props -- a reactive wrapper there violates the proxy invariant. Trap #7.
+      this.eventData = [...this.eventData, markRaw(props)]
       this.tick = 1
       await this.$nextTick()
       this.tick = 0
+
+      // e2e hook, same convention as aggregate-od / grid-map / links-gl / xy-time:
+      // the worker failure mode here is "nothing arrives", and a map canvas cannot tell
+      // that apart from "arrived and drew nothing". The range is accumulated rather than
+      // taken from this chunk -- the last tranch off the stream is often empty, and then
+      // its own timeRange is [undefined, 0].
+      //@ts-ignore
+      const seen = (window.__testdata__ || { timeRange: [Infinity, -Infinity] }) as any
+      const [t0, t1] = props.timeRange
+      //@ts-ignore
+      window.__testdata__ = {
+        chunks: this.eventData.length,
+        totalTrips: this.eventData.reduce((sum, e) => sum + (e.data?.t0?.length || 0), 0),
+        timeRange: [
+          Number.isFinite(t0) ? Math.min(seen.timeRange[0], t0) : seen.timeRange[0],
+          Number.isFinite(t1) ? Math.max(seen.timeRange[1], t1) : seen.timeRange[1],
+        ],
+      }
     },
 
     setFirstZoom(coordinates: any[], rows: number) {
@@ -666,6 +689,9 @@ const MyComponent = defineComponent({
     await this.getVizDetails()
     await this.buildThumbnail()
 
+    // The network can take a while to load, and the plugin is on screen and navigable the
+    // whole time -- so every await here can resume on a torn-down instance. Trap #10.
+    if (this.isUnmounted) return
     if (this.thumbnail) return
 
     // ----------------------------------------------------
@@ -673,13 +699,17 @@ const MyComponent = defineComponent({
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
     if (!this.isLoaded) await this.loadFiles()
+    if (this.isUnmounted) return
+
     this.isLoaded = true
     this.myState.statusMessage = ''
     this.timeRange = [0, 86400]
     this.toggleAnimation()
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
+    this.isUnmounted = true
+    this.isAnimating = false
     this.resizer?.disconnect()
     // MUST erase the React view handle to prevent gigantic memory leak!
     REACT_VIEW_HANDLES[this.viewId] = undefined
@@ -697,6 +727,8 @@ const MyComponent = defineComponent({
 
     if (this.animator) window.cancelAnimationFrame(this.animator)
 
+    //@ts-ignore
+    delete window.__testdata__
     this.$store.commit('setFullScreen', false)
   },
 })
@@ -705,7 +737,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .viz-plugin {
   position: absolute;
@@ -816,10 +848,6 @@ export default MyComponent
   border-left: 1px solid #66669940;
   border-bottom: 1px solid #66669940;
   box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
-}
-
-* > .number {
-  background-color: yellow;
 }
 
 @media only screen and (max-width: 640px) {

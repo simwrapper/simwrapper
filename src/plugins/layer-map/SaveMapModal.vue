@@ -5,7 +5,7 @@
       p.close-button(@click="$emit('close')"): i.fas.fa-times
 
     .save-options.flex-row
-      b-button.is-outlined.save-option.flex1(
+      o-button.is-outlined.save-option.flex1(
         :class="$store.state.isDarkMode ? 'is-white' : 'is-link'"
         @click="downloadYaml()"
       )
@@ -15,7 +15,7 @@
         br
         | YAML file
 
-      //- b-button.is-outlined.is-white.save-option.flex1(
+      //- o-button.is-outlined.is-white.save-option.flex1(
       //-   :class="$store.state.isDarkMode ? 'is-white' : 'is-link'"
       //-   @click="uploadGist()"
       //- )
@@ -25,7 +25,7 @@
       //-   br
       //-   | GitHub Gist
 
-    p.status-text(v-html="`<p>${statusText}</p>`") {{ statusText }}
+    p.status-text(v-html="`<p>${statusText}</p>`")
 
     p.disclaimer SimWrapper is a client-side application with no server backend. Data stays on your machine unless you choose to upload it to a cloud service such as GitHub.
 </template>
@@ -191,7 +191,7 @@ export default defineComponent({
     window.addEventListener('keyup', this.keyListener)
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('keyup', this.keyListener)
     this.isStillActive = false
   },
@@ -199,7 +199,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 $textBlue: #196096;
 

@@ -10,18 +10,20 @@
       p {{ loadingText }}
 
     .lower-left(v-if="!thumbnail && !loadingText")
-      .subheading {{ $t('lineWidths')}}
+      //- each slider renders its own caption + live value; passing the value back down
+      //- from here would lag, since both @change handlers are debounced
       scale-slider.scale-slider(
         :stops='scaleValues'
         :initialValue='currentScale'
         :tooltip="false"
+        :label="$t('lineWidths')"
         @change='bounceScaleSlider'
       )
 
-      .subheading {{ $t('hide')}}
       line-filter-slider.scale-slider(
         :initialValue="lineFilter"
         :tooltip="false"
+        :label="$t('hide')"
         @change='bounceLineFilter'
       )
 
@@ -32,9 +34,9 @@
   .widgets(v-if="!thumbnail" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '2px 4px'}")
 
     //- TIME SLIDER ----
-    .widget-column(v-if="this.headers.length > 2" style="min-width: 8rem")
+    .widget-column(v-if="headers.length > 2" style="min-width: 10rem")
       h4.heading {{ $t('time')}}
-      b-checkbox.checkbox(v-model="showTimeRange") {{ $t('duration') }}
+      o-checkbox.checkbox(v-model="showTimeRange") {{ $t('duration') }}
       time-slider.xtime-slider(
         :useRange="showTimeRange"
         :stops="headers"
@@ -44,16 +46,16 @@
     //- CENTROID CONTROLS
     .widget-column
       h4.heading {{ $t('circle')}}
-      b-checkbox.checkbox(v-model="showCentroids")
+      o-checkbox.checkbox(v-model="showCentroids")
         | &nbsp;{{ $t('showCentroids')}}
-      b-checkbox.checkbox(v-model="showCentroidLabels")
+      o-checkbox.checkbox(v-model="showCentroidLabels")
         | &nbsp;{{$t('showNumbers')}}
 
     //- ORIG/DEST BUTTONS
     .widget-column(style="margin: 0 0 0 auto")
       h4.heading {{$t('total')}}
-      b-button.is-small(@click='clickedOrigins' :class='{"is-link": isOrigin ,"is-active": isOrigin}') {{$t('origins')}}
-      b-button.is-small(@click='clickedDestinations' hint="Hide" :class='{"is-link": !isOrigin,"is-active": !isOrigin}') {{$t('dest')}}
+      o-button.dir-button(size="small" :class="{selected: isOrigin}" @click='clickedOrigins') {{$t('origins')}}
+      o-button.dir-button(size="small" :class="{selected: !isOrigin}" @click='clickedDestinations') {{$t('dest')}}
 
 </template>
 
@@ -104,16 +106,15 @@ import readBlob from 'read-blob'
 import YAML from 'yaml'
 
 import Coords from '@/js/Coords'
-import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LegendBox from './LegendBoxOD.vue'
 import LineFilterSlider from './LineFilterSlider.vue'
 import ScaleBox from './ScaleBoxOD.vue'
 import TimeSlider from './TimeSlider.vue'
 import ScaleSlider from '@/components/ScaleSlider.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { findMatchingGlobInFiles } from '@/js/util'
+import { sleep, findMatchingGlobInFiles, unreactive } from '@/js/util'
 
-import { ColorScheme, FileSystem, FileSystemConfig, Status, VisualizationPlugin } from '@/Globals'
+import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
 
@@ -150,7 +151,6 @@ const Component = defineComponent({
   name: 'AggregateOD',
   i18n,
   components: {
-    CollapsiblePanel,
     LegendBox,
     LineFilterSlider,
     ScaleBox,
@@ -251,8 +251,8 @@ const Component = defineComponent({
       projection: '',
       hoverId: null as any,
 
-      _mapExtentXYXY: null as any,
-      _maximum: null as any,
+      // [minX, minY, maxX, maxY], grown as each shape is read
+      mapExtentXYXY: [180, 90, -180, -90] as number[],
 
       bounceTimeSlider: {} as any,
       bounceScaleSlider: {} as any,
@@ -263,6 +263,8 @@ const Component = defineComponent({
       show3dBuildings: false,
 
       csvWorker: null as Worker | null,
+      onKeyUp: null as ((event: KeyboardEvent) => void) | null,
+      onKeyDown: null as ((event: KeyboardEvent) => void) | null,
     }
   },
   computed: {
@@ -579,6 +581,9 @@ const Component = defineComponent({
 
     updateSpiderLinks() {
       this.createSpiderLinks()
+      // createSpiderLinks() replaces the whole FeatureCollection, so the e2e hook
+      // would keep pointing at the pre-filter array without this
+      this.updateTestData()
 
       // avoiding mapbox typescript bug:
       if (this.selectedCentroid) {
@@ -808,28 +813,35 @@ const Component = defineComponent({
       const tsMap = this.mymap as any
       tsMap.getSource('centroids').setData(this.centroidSource)
       this.updateCentroidLabels()
+      this.updateTestData()
     },
 
     calculateCentroidValuesForZone(timePeriod: any, feature: any) {
       let from = 0
       let to = 0
 
-      // daily
+      // daily -- read the marginals, the same source buildCentroids() uses. NOT
+      // feature.properties, which handleCentroidsForTimeOfDayChange() overwrites with
+      // the selected bin's values (convertRegionColors needs it to track the
+      // selection), so going back to "All >>" used to show the last bin instead.
       if (timePeriod === TOTAL_MSG) {
-        to = feature.properties.dailyTo
-        from = feature.properties.dailyFrom
+        from = Math.round(this.marginals.rowTotal[feature.id]) || 0
+        to = Math.round(this.marginals.colTotal[feature.id]) || 0
         return { from, to }
       }
 
       const fromMarginal = this.marginals.from[feature.id]
       const toMarginal = this.marginals.to[feature.id]
 
+      // `headers` is exactly the CSV's value columns, so it lines up 1:1 with the
+      // marginals -- there is no leading totals column to skip. The time slider's own
+      // "All >>" stop is prepended by TimeSlider.allStops and handled above.
       // time range
       if (Array.isArray(timePeriod)) {
-        let hourFrom = this.headers.indexOf(timePeriod[0]) - 1
-        if (hourFrom < 0) hourFrom = 0
-
-        const hourTo = this.headers.indexOf(timePeriod[1]) - 1
+        // the low thumb can sit on "All >>", which isn't in headers
+        // There was an off-by-one here!
+        const hourFrom = Math.max(0, this.headers.indexOf(timePeriod[0]))
+        const hourTo = this.headers.indexOf(timePeriod[1])
 
         for (let i = hourFrom; i <= hourTo; i++) {
           from += fromMarginal ? Math.round(fromMarginal[i]) : 0
@@ -839,7 +851,7 @@ const Component = defineComponent({
       }
 
       // one time period
-      const hour = this.headers.indexOf(timePeriod) - 1
+      const hour = this.headers.indexOf(timePeriod)
 
       from = fromMarginal ? Math.round(fromMarginal[hour]) : 0
       to = toMarginal ? Math.round(toMarginal[hour]) : 0
@@ -940,7 +952,7 @@ const Component = defineComponent({
     },
 
     setMapExtent() {
-      localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
+      localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this.mapExtentXYXY))
 
       const options = this.thumbnail
         ? { animate: false }
@@ -948,17 +960,17 @@ const Component = defineComponent({
             padding: { top: 25, bottom: 25, right: 100, left: 100 },
             animate: false,
           }
-      this.mymap.fitBounds(this._mapExtentXYXY, options)
+      this.mymap.fitBounds(this.mapExtentXYXY, options)
     },
 
     setupKeyListeners() {
-      window.addEventListener('keyup', event => {
+      this.onKeyUp = (event: KeyboardEvent) => {
         if (event.keyCode === 27) {
           // ESC
           this.pressedEscape()
         }
-      })
-      window.addEventListener('keydown', event => {
+      }
+      this.onKeyDown = (event: KeyboardEvent) => {
         if (event.keyCode === 38) {
           // UP
           this.pressedArrowKey(-1)
@@ -967,7 +979,16 @@ const Component = defineComponent({
           // DOWN
           this.pressedArrowKey(+1)
         }
-      })
+      }
+      window.addEventListener('keyup', this.onKeyUp)
+      window.addEventListener('keydown', this.onKeyDown)
+    },
+
+    removeKeyListeners() {
+      if (this.onKeyUp) window.removeEventListener('keyup', this.onKeyUp)
+      if (this.onKeyDown) window.removeEventListener('keydown', this.onKeyDown)
+      this.onKeyUp = null
+      this.onKeyDown = null
     },
 
     // To display only the centroids whose dailyTo and dailyFrom values are not
@@ -1071,9 +1092,14 @@ const Component = defineComponent({
       const fromCentroid: any = {}
       const toCentroid: any = {}
 
+      // one slot per time period. `headers` holds only the value columns -- the worker
+      // already sliced the origin/destination columns off -- so there is no totals
+      // column to subtract, and doing so used to drop the final time period entirely.
+      const numTimePeriods = this.headers.length
+
       for (const row of Object.keys(this.zoneData)) {
-        // store number of time periods (no totals here)
-        fromCentroid[row] = Array(this.headers.length - 1).fill(0)
+        // there was an off-by-one here!
+        fromCentroid[row] = Array(numTimePeriods).fill(0)
 
         for (const col of Object.keys(this.zoneData[row])) {
           // daily totals
@@ -1085,11 +1111,10 @@ const Component = defineComponent({
             colTotal[col] += this.dailyData[row][col]
           }
 
-          if (!toCentroid[col]) toCentroid[col] = Array(this.headers.length - 1).fill(0)
+          if (!toCentroid[col]) toCentroid[col] = Array(numTimePeriods).fill(0)
 
           // time-of-day details
-          for (let i = 0; i < this.headers.length - 1; i++) {
-            // number of time periods
+          for (let i = 0; i < numTimePeriods; i++) {
             if (this.zoneData[row][col][i]) {
               fromCentroid[row][i] += this.zoneData[row][col][i]
               toCentroid[col][i] += this.zoneData[row][col][i]
@@ -1123,7 +1148,8 @@ const Component = defineComponent({
 
         // make sure worker is responsive before we ask it to work
         if (message.ready) {
-          csvWorker.postMessage({ fileSystem: this.fileSystem, filePath: csvFilename })
+          // fileSystem comes from store state; de-proxy it or structuredClone throws
+          csvWorker.postMessage(unreactive({ fileSystem: this.fileSystem, filePath: csvFilename }))
         } else if (message.status) {
           this.loadingText = message.status
         } else if (message.error) {
@@ -1145,7 +1171,7 @@ const Component = defineComponent({
     async finishedLoadingData(message: any) {
       this.loadingText = 'Building diagram...'
       this.isFinishedLoading = true
-      await this.$nextTick()
+      await sleep(0)
       this.rowName = message.rowName
       this.colName = message.colName
       this.headers = message.headers
@@ -1165,10 +1191,10 @@ const Component = defineComponent({
     },
 
     updateMapExtent(coordinates: any) {
-      this._mapExtentXYXY[0] = Math.min(this._mapExtentXYXY[0], coordinates[0])
-      this._mapExtentXYXY[1] = Math.min(this._mapExtentXYXY[1], coordinates[1])
-      this._mapExtentXYXY[2] = Math.max(this._mapExtentXYXY[2], coordinates[0])
-      this._mapExtentXYXY[3] = Math.max(this._mapExtentXYXY[3], coordinates[1])
+      this.mapExtentXYXY[0] = Math.min(this.mapExtentXYXY[0], coordinates[0])
+      this.mapExtentXYXY[1] = Math.min(this.mapExtentXYXY[1], coordinates[1])
+      this.mapExtentXYXY[2] = Math.max(this.mapExtentXYXY[2], coordinates[0])
+      this.mapExtentXYXY[3] = Math.max(this.mapExtentXYXY[3], coordinates[1])
     },
 
     addGeojsonToMap(geojson: any) {
@@ -1400,11 +1426,6 @@ const Component = defineComponent({
     },
   },
 
-  async created() {
-    this._mapExtentXYXY = [180, 90, -180, -90]
-    this._maximum = 0
-  },
-
   async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
     this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
@@ -1426,14 +1447,16 @@ const Component = defineComponent({
     this.setupResizer()
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.resizer?.disconnect()
     this.csvWorker?.terminate()
+    this.removeKeyListeners()
+    this.mymap?.remove?.()
     //@ts-ignore
     delete window.__testdata__
   },
 
-  destroyed() {
+  unmounted() {
     globalStore.commit('setFullScreen', false)
   },
 })
@@ -1442,33 +1465,30 @@ export default Component
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 h3 {
   margin: 0px 0px;
 }
 
-h4 {
-  margin-left: 3px;
-}
-
 .mycomponent {
-  // position: absolute;
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: 1fr auto;
-  // position: relative;
 }
 
 .status-blob {
   position: absolute;
-  bottom: 0.5rem;
-  left: 0.5rem;
-  background-color: white;
-  padding: 0.75rem 1.5rem;
+  inset: 2rem 0rem;
+  margin: auto 1rem;
+  text-align: center;
+  height: min-content;
+  background-color: var(--bgPanel);
+  color: var(--textBold);
+  padding: 2rem 1.5rem;
   z-index: 5;
-  filter: $filterShadow;
   font-size: 1.2rem;
+  border-radius: 5px;
 }
 
 .map-container {
@@ -1515,13 +1535,9 @@ h4 {
   flex-direction: column;
 }
 
-.status-blob p {
-  color: #555;
-}
-
 .lower-right {
   position: absolute;
-  bottom: 3rem;
+  bottom: 2rem;
   right: 0.5rem;
   display: flex;
   z-index: 1;
@@ -1531,7 +1547,7 @@ h4 {
   width: 12rem;
   position: absolute;
   left: 0.5rem;
-  bottom: 0.5rem;
+  bottom: 2rem;
   display: flex;
   flex-direction: column;
   z-index: 1;
@@ -1540,7 +1556,7 @@ h4 {
   // filter: $filterShadow;
   border: solid 1px rgba(161, 160, 160, 0.781);
   border-radius: 2px;
-  padding: 3px 4px;
+  padding: 0.5rem 0 0 0;
 }
 
 .complication {
@@ -1552,17 +1568,19 @@ h4 {
   margin: 1px 0px;
 }
 
+// The Origins/Destinations pair is a segmented toggle, rebuilt from Bulma buttons because
+// Oruga has no b-radio-button. It used `is-link`, whose vivid indigo (#485fc7) reads as a
+// hyperlink and is far brighter than anything else on the panel.
+.dir-button.selected {
+  background-color: var(--bgSelected);
+  border-color: var(--bgSelected);
+  color: var(--textSelected);
+}
+
 .heading {
   font-weight: bold;
   text-align: left;
   margin-top: 0.5rem;
-}
-
-.subheading {
-  text-align: left;
-  font-size: 0.9rem;
-  line-height: 1rem;
-  margin: 0.25rem 0 0rem 0.5rem;
 }
 
 .description {
@@ -1621,7 +1639,8 @@ h4 {
 }
 
 .xtime-slider {
-  margin-top: -0.25rem;
+  margin-top: -4px;
+  margin-left: 8px;
 }
 
 @media only screen and (max-width: 640px) {

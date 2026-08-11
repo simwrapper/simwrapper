@@ -18,13 +18,13 @@
       .top-right
         .gui-config(:id="configId")
 
-      click-through-times.time-slider-area( v-if="isLoaded && this.vizDetails.timeSelector && this.vizDetails.timeSelector == 'discrete'"
+      click-through-times.time-slider-area( v-if="isLoaded && vizDetails.timeSelector && vizDetails.timeSelector == 'discrete'"
         :allTimes="allTimes"
         :range="timeRange"
         @timeUpdate="handleDiscreteTimeValues"
       )
 
-      time-slider.time-slider-area(v-if="isLoaded && (!this.vizDetails.timeSelector || this.vizDetails.timeSelector == 'slider')"
+      time-slider.time-slider-area(v-if="isLoaded && (!vizDetails.timeSelector || vizDetails.timeSelector == 'slider')"
         :range="timeRange"
         :allTimes="allTimes"
         @timeExtent="handleTimeSliderValues"
@@ -38,12 +38,10 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue'
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import GUI from 'lil-gui'
-import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import colormap from 'colormap'
 
@@ -196,7 +194,6 @@ const GridMap = defineComponent({
     CollapsiblePanel,
     DrawingTool,
     MapComponent,
-    ToggleButton,
     ZoomButtons,
     ClickThroughTimes,
     TimeSlider,
@@ -314,7 +311,7 @@ const GridMap = defineComponent({
       radiusStep: 5 as number,
       isLoaded: false as boolean,
       show3dBuildings: false,
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;" as string,
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat" as string,
       timeRange: [Infinity, -Infinity] as Number[],
       allTimes: [] as number[],
       // DataManager might be passed in from the dashboard; or we might be
@@ -547,15 +544,15 @@ const GridMap = defineComponent({
     // TODO: Set default values for color attributes
     setRadiusAndHeight() {
       if (!this.vizDetails.cellSize) {
-        Vue.set(this.vizDetails, 'cellSize', 250)
+        this.vizDetails.cellSize = 250
       }
 
       if (!this.vizDetails.maxHeight) {
-        Vue.set(this.vizDetails, 'maxHeight', 0)
+        this.vizDetails.maxHeight = 0
       }
 
       if (!this.vizDetails.opacity) {
-        Vue.set(this.vizDetails, 'opacity', 0.7)
+        this.vizDetails.opacity = 0.7
       }
     },
 
@@ -1449,7 +1446,7 @@ const GridMap = defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     //@ts-ignore
     delete window.__testdata__
 
@@ -1464,7 +1461,9 @@ export default GridMap
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+// @use, not @import: styles.scss no longer forwards Sass variables, and
+// $thumbnailHeight / $filterShadow below would fail the build.
+@use '@/variables' as *;
 
 .grid-map-view {
   position: absolute;

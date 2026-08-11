@@ -2,12 +2,11 @@
 .column-widget
   slot.tight Column
 
-  b-select.column-selector(expanded v-model="dataset")
+  o-select.column-selector(expanded v-model="dataset")
 
     option(v-for="dataset in datasetChoices"
           :key="dataset"
-          :label="dataset"
-          :value="dataset")
+          :value="dataset") {{ dataset }}
 
 </template>
 
@@ -24,6 +23,9 @@ export default defineComponent({
   name: 'DatasetSelector',
   props: {
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
+    // Vue 2 passed this via v-model, which landed in $attrs.value. Vue 3's v-model is
+    // modelValue, so callers bind :value and we declare it as a real prop.
+    value: { type: String, default: '' },
   },
   computed: {
     datasetChoices() {
@@ -46,12 +48,12 @@ export default defineComponent({
     this.datasetsAreLoaded()
 
     await this.$nextTick()
-    this.dataset = this.$attrs.value
+    this.dataset = this.value
   },
 
   watch: {
-    '$attrs.value'() {
-      this.dataset = this.$attrs.value
+    value() {
+      this.dataset = this.value
     },
     datasets() {
       this.datasetsAreLoaded()
@@ -77,7 +79,6 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
 .column-widget {
   width: 100%;
 }

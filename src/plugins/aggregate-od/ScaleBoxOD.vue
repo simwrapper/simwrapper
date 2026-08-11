@@ -1,8 +1,8 @@
 <template lang="pug">
 #scale-container
-  p.title {{$t('linewidth')}}
-    .scale-element {{ "|↔︎|" }}
-    .scale-scale {{ `~ ${this.rows[0]} ` + $t('trips') }}
+  .title {{$t('linewidth')}}
+  .scale-element {{ "|↔︎|" }}
+  .scale-scale {{ `~ ${rows[0]} ` + $t('trips') }}
 
 </template>
 
@@ -17,7 +17,7 @@ const i18n = {
 import { defineComponent } from 'vue'
 
 export default defineComponent({
-  name: 'LineFilterSlider',
+  name: 'ScaleBoxOD',
   i18n,
   props: {
     rows: { type: Array, required: true },
@@ -34,6 +34,7 @@ export default defineComponent({
   padding: 0rem 0.5rem;
   border: solid 1px rgba(161, 160, 160, 0.7);
   border-radius: 4px;
+  width: max-content;
 }
 
 .scale-item {
@@ -42,7 +43,7 @@ export default defineComponent({
   margin-bottom: 0.25rem;
 }
 
-p.title {
+.title {
   color: var(--text);
   font-size: 0.9rem;
   text-transform: uppercase;

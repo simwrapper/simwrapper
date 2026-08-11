@@ -1,0 +1,12 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 2ead9381f24fac61723d03f5f4cb6938172edc27..27703704b99aecfcb7f060c1cd19648c3bd60e6e 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -9,7 +9,6 @@ declare enum Plugin {
+     BZIP2 = "bz2",
+     LZ4 = "lz4",
+     LZF = "lzf",
+-    SZ = "szf",
+     ZFP = "zfp",
+     Zstandard = "zstd"
+ }

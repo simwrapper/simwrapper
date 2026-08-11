@@ -1,9 +1,9 @@
 <template lang="pug">
 .slider-thingy
-  b-slider.slider(
+  o-slider.playback-slider(
     v-model="sliderValue"
     v-bind="sliderOptions"
-    size="is-large"
+    size="large"
     @dragging="dragging"
     @dragstart="dragStart"
     @dragend="dragEnd"
@@ -22,6 +22,12 @@ import * as timeConvert from 'convert-seconds'
 
 export default defineComponent({
   name: 'PlaybackControls',
+  // MUST be declared. In Vue 2 an `@click` on a component was a custom event only
+  // (native needed `.native`); in Vue 3 the parent's listener also falls through onto
+  // this component's root element, so every click anywhere in the control -- including
+  // dragging the time slider -- ALSO fired the parent's play/pause handler, with a
+  // PointerEvent as its argument. Declaring `click` in `emits` takes it out of $attrs.
+  emits: ['click', 'time'],
   props: {
     isRunning: { type: Boolean, required: true },
     timeStart: { type: Number, required: true },
@@ -53,7 +59,7 @@ export default defineComponent({
     window.addEventListener('keyup', this.onKeyPressed)
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('keyup', this.onKeyPressed)
   },
   watch: {
@@ -110,7 +116,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .slider-thingy {
   display: flex;
@@ -118,7 +124,9 @@ export default defineComponent({
   z-index: 1;
 }
 
-.slider {
+// renamed from .slider: theme-bulma's .slider rules are still loaded for the other
+// components, and would double-style this now-Oruga-themed slider
+.playback-slider {
   margin: auto 0;
   flex: 1;
   font-weight: bold;
@@ -156,7 +164,7 @@ export default defineComponent({
     flex-direction: row;
   }
 
-  .slider {
+  .playback-slider {
     flex: 1;
     margin: auto 0rem;
   }

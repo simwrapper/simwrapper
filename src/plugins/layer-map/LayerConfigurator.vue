@@ -20,7 +20,7 @@
         :class="{'is-active': section==2}"
         @click="section=2") Theme
 
-  .layers-section.flex1(v-show="section==0")
+  .layers-section.flex1.flex-col(v-show="section==0")
     p.tight Add Layer +
     .add-buttons
       .add-button(v-for="icon in Object.keys(allThumbs)"
@@ -30,27 +30,30 @@
         img(:src="allThumbs[icon]" width=32)
         p {{ icon }}
 
-      //- b-button.is-small(@click="$emit('add','polygons')") + Polygons
-      //- b-button.is-small(@click="$emit('add','points')") + Points
-      //- b-button.is-small(@click="$emit('add','arcs')") + Arcs
+      //- o-button.is-small(@click="$emit('add','polygons')") + Polygons
+      //- o-button.is-small(@click="$emit('add','points')") + Points
+      //- o-button.is-small(@click="$emit('add','arcs')") + Arcs
 
     //- SCROLLABLE LIST OF ACTIVE LAYERS -------------------------------
     .scrollable
 
-      Draggable(v-model="layerList")
-        transition-group
-          .layer(v-for="layer,i in layerList" :key="layer.getKey()"
-            :is="layer.configPanel()"
-            :options="layer.layerOptions"
+      //- vuedraggable 4 (the Vue 3 fork) requires item-key and renders rows through
+      //- the #item slot. `is` on a plain element means "customized built-in" in Vue 3,
+      //- so the config panel needs a real <component>.
+      draggable(v-model="layerList" item-key="key")
+        template(#item="{element, index}")
+          component.layer(
+            :is="element.configPanel()"
+            :options="element.layerOptions"
             :datasets="datasets"
-            :open="i == openSection"
-            @open="openSection=i"
-            @update="updatePanelConfig(layer, i, $event)"
+            :open="index == openSection"
+            @open="openSection=index"
+            @update="updatePanelConfig(element, index, $event)"
           )
 
   //- DATA SECTION  -------------------------------
   .data-section.flex1.flex-col(v-show="section==1")
-    b-button.btn-add-data(@click="$emit('addData')") Add Data...
+    o-button.btn-add-data(@click="$emit('addData')") Add Data...
 
     p.dataset-label Datasets
 
@@ -64,36 +67,36 @@
     .flex-row
       p.flex2 Map theme
       .flex3.flex-row
-        b-button.bb.is-small(expanded
+        o-button.bb.is-small(expanded
           @click="$emit('theme', {bg: 'off'})"
           :class="{'is-link': theme.bg == 'off'}") &nbsp;Off&nbsp;
-        b-button.bb.is-small(expanded
+        o-button.bb.is-small(expanded
           @click="$emit('theme', {bg: 'light'})"
           :class="{'is-link': theme.bg == 'light'}") Light
-        b-button.bb.is-small(expanded
+        o-button.bb.is-small(expanded
           @click="$emit('theme', {bg: 'dark'})"
           :class="{'is-link': theme.bg == 'dark'}") Dark
 
     .flex-row(style="margin-top: 1rem")
       p.flex2 Show roads
       .flex3.flex-row
-        b-button.bb.is-small(expanded
+        o-button.bb.is-small(expanded
           @click="$emit('theme', {roads: 'off'})"
           :class="{'is-link': theme.roads == 'off'}") &nbsp;Off&nbsp;
-        b-button.bb.is-small(expanded
+        o-button.bb.is-small(expanded
           @click="$emit('theme', {roads: 'above'})"
           :class="{'is-link': theme.roads == 'above'}") Above
-        b-button.bb.is-small(expanded
+        o-button.bb.is-small(expanded
           @click="$emit('theme', {roads: 'below'})"
           :class="{'is-link': theme.roads == 'below'}") Below
 
     .flex-row(v-show="false" style="margin-top: 1rem")
       p.flex2 Place names
       .flex3.flex-row
-        b-button.is-small(expanded
+        o-button.is-small(expanded
           @click="$emit('theme', {labels: 'off'})"
           :class="{'is-link': theme.labels == 'off'}") &nbsp;Off&nbsp;
-        b-button.is-small(expanded
+        o-button.is-small(expanded
           @click="$emit('theme', {labels: 'on'})"
           :class="{'is-link': theme.labels == 'on'}") &nbsp;On&nbsp;
 
@@ -104,11 +107,9 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import YAML from 'js-yaml'
-import Draggable from 'vuedraggable'
+import draggable from 'vuedraggable'
 
 import allThumbIcons from './images/allThumbIcons'
-
-console.log({ allThumbIcons })
 
 import {
   DataTable,
@@ -131,8 +132,8 @@ import LOGO_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_white.png'
 const FLATE = window.flate
 
 export default defineComponent({
-  name: 'ShapeFilePlugin',
-  components: { Draggable },
+  name: 'LayerConfigurator',
+  components: { draggable },
 
   props: {
     layers: { type: Array, required: true },
@@ -179,7 +180,7 @@ export default defineComponent({
     this.layerList = [...this.layers]
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.isStillActive = false
   },
 
@@ -276,7 +277,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .layer-configurator {
   display: flex;
@@ -286,12 +287,19 @@ export default defineComponent({
   min-height: 0;
 }
 
+// Only this list scrolls, and only when it has to. Two things are load-bearing:
+// `min-height: 0`, because a flex item refuses to shrink below its content without it --
+// without it the list simply overflowed the panel and the tail of a long layer list was
+// unreachable, with no scrollbar anywhere; and NOT having a large `padding-bottom`, which
+// used to make the content taller than the box no matter what, so the scrollbar was
+// always visible even with a single layer.
 .scrollable {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  max-height: 100%;
-  padding-bottom: 20rem;
+  padding-bottom: 0.5rem;
 }
 
 .layer {
@@ -375,7 +383,9 @@ export default defineComponent({
 }
 
 .layers-section {
-  max-height: 100%;
+  // min-height, not max-height: this is the flex item that has to give, so that
+  // .scrollable below gets a definite height to scroll inside of
+  min-height: 0;
 }
 
 .show-dataset {

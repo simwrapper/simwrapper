@@ -31,31 +31,31 @@
           //- h3(v-if="!isLoading" style="margin-top: 1rem") Create new run
           p(v-if="statusMessage"): b {{ statusMessage }}
 
-          b-button(v-if="!statusMessage" type="is-danger" @click="clickedNewRun") Create new run&nbsp;&nbsp;
+          o-button(v-if="!statusMessage" variant="danger" @click="clickedNewRun") Create new run&nbsp;&nbsp;
             i.fa(v-if="isShowingRunTemplate").fa-arrow-down
             i.fa(v-else).fa-arrow-right
 
           .new-run-template(v-if="isShowingRunTemplate")
-            b-button.float-right(type="is-success" @click="submitRun" style="marginBottom: 0.5rem")
+            o-button.float-right(variant="success" @click="submitRun" style="marginBottom: 0.5rem")
               b Launch Run
 
             b Command / script
-            b-input.b-input(v-model="jobScript" size="is-small" placeholder="run-model.sh" maxlength="255")
+            o-input.b-input(v-model="jobScript" size="small" placeholder="run-model.sh" maxlength="255")
 
             b Project folder
-            b-input.b-input(v-model="jobProject" size="is-small" placeholder="/project" maxlength="255")
+            o-input.b-input(v-model="jobProject" size="small" placeholder="/project" maxlength="255")
 
             b TU Compute cluster settings
             .flex-row
               .flex-col.flex1
                 p Email
-                b-input.b-input(v-model="clusterEmail" size="is-small" placeholder="me@tu-berlin.de" maxlength="255")
+                o-input.b-input(v-model="clusterEmail" size="small" placeholder="me@tu-berlin.de" maxlength="255")
               .flex-col.flex1
                 p Number of processors
-                b-input.b-input(v-model="clusterProcessors" size="is-small" placeholder="4" maxlength="20")
+                o-input.b-input(v-model="clusterProcessors" size="small" placeholder="4" maxlength="20")
               .flex-col.flex1
                 p Memory per processor
-                b-input.b-input(v-model="clusterRAM" size="is-small" placeholder="16g" maxlength="20")
+                o-input.b-input(v-model="clusterRAM" size="small" placeholder="16g" maxlength="20")
 
             b Files
             .flex-row
@@ -127,8 +127,8 @@ const i18n = {
 import { defineComponent } from 'vue'
 import { filesize } from 'filesize'
 import Papa from '@simwrapper/papaparse'
-import { VueGoodTable } from 'vue-good-table'
-import 'vue-good-table/dist/vue-good-table.css'
+import { VueGoodTable } from 'vue-good-table-next'
+import 'vue-good-table-next/dist/vue-good-table-next.css'
 
 import { Temporal, Intl, toTemporalInstant } from '@js-temporal/polyfill'
 //@ts-ignore
@@ -201,7 +201,7 @@ export default defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     clearInterval(this.cbRefresher)
   },
 
@@ -445,7 +445,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .mpanel {
   display: flex;

@@ -8,25 +8,25 @@
   .panel-content(v-if="open")
 
     .coordinates.flex-row(style="gap: 0.25rem")
-        column-selector.flex1(v-model="startx" :datasets="datasets" @update="startx=$event")
+        column-selector.flex1(:value="startx" :datasets="datasets" @update="startx=$event")
           p.tight Start-Lon/X
 
-        column-selector.flex1(v-model="starty" :datasets="datasets" @update="starty=$event")
+        column-selector.flex1(:value="starty" :datasets="datasets" @update="starty=$event")
           p.tight Start-Lat/Y
 
     .coordinates.flex-row(style="gap: 0.25rem")
-        column-selector.flex1(v-model="endx" :datasets="datasets" @update="endx=$event")
+        column-selector.flex1(:value="endx" :datasets="datasets" @update="endx=$event")
           p.tight End-Lon//X
 
-        column-selector.flex1(v-model="endy" :datasets="datasets" @update="endy=$event")
+        column-selector.flex1(:value="endy" :datasets="datasets" @update="endy=$event")
           p.tight End-Lat/Y
 
     .coordinates.flex-row(style="gap: 0.25rem")
-        column-selector.flex1(v-model="color" :datasets="datasets" @update="color=$event")
+        column-selector.flex1(:value="color" :datasets="datasets" @update="color=$event")
           p.tight Color
 
     .coordidnates.flex-row(style="gap: 0.25rem" title="EPSG code for transforming non-lat/long coordinates")
-        text-selector.flex1(v-model="projection" :datasets="datasets" @update="projection=$event")
+        text-selector.flex1(:value="projection" :datasets="datasets" @update="projection=$event")
           p.tight() EPSG Projection
 
 
@@ -133,12 +133,12 @@ export default defineComponent({
     this.isInitialized = true
   },
 
-  beforeDestroy() {},
+  beforeUnmount() {},
 })
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .layer-config {
   display: flex;

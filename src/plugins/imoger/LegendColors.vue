@@ -3,13 +3,20 @@
   h4 {{ title }}
   p {{ description }}
   .list-items(:class="{horiz: !!icon}")
-    .legend-row(v-for="item in items" :key="item.value + item.value[0]")
+    //- `item.value + item.value[0]` is NaN when value is a *number*, and Vue 3 then warns
+    //- "VNode created with invalid key (NaN)" (dragging two [intlify] deprecation warnings
+    //- with it -- see trap #8). Precautionary here: both rendered legends key off
+    //- Object.keys(), so value is a string and '0'+'0'[0] is the harmless '00'. The one
+    //- legend that passes a number, legendRequests, is commented out of the template.
+    .legend-row(v-for="item in items" :key="`${item.value}`")
       .item-label(v-if="item.label") {{ item.label }}
 
       .item-icon(v-if="icon"
         :style="{backgroundImage: `url(${image})`, filter: filterColor(item.color)}"
       )
-      .item-swatch(v-else :style="`backgroundColor: rgb(${item.color})`")
+      //- an object binding, not a string: "backgroundColor: rgb(...)" as a style *string*
+      //- is not valid CSS, so these swatches have never had any colour
+      .item-swatch(v-else :style="{backgroundColor: `rgb(${item.color})`}")
 
 </template>
 
@@ -85,7 +92,7 @@ h4 {
   font-size: 0.8rem;
   text-transform: uppercase;
   z-index: 2;
-  background-color: var(--bgCream2);
+  background-color: var(--bgCardFrame2);
 }
 
 .legend-row {

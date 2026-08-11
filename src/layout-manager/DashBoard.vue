@@ -99,7 +99,7 @@
 </template>
 
 <script lang="ts">
-import Vue, { defineComponent } from 'vue'
+import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import Markdown from 'markdown-it'
@@ -622,11 +622,10 @@ export default defineComponent({
           // markdown plugin really wants to know the height
           if (card.height !== undefined) card.props.height = card.height
 
-          // Vue 2 is weird about new properties: use Vue.set() instead
-          Vue.set(this.opacity, card.id, 0.5)
-          Vue.set(this.infoToggle, card.id, false)
-          Vue.set(card, 'errors', [] as string[])
-          Vue.set(card, 'visible', false)
+          this.opacity[card.id] = 0.5
+          this.infoToggle[card.id] = false
+          card.errors = [] as string[]
+          card.visible = false
 
           // Card header could be hidden
           if (!card.title && !card.description) card.showHeader = false
@@ -782,7 +781,7 @@ export default defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.resizers = {}
     this.isDestroying = true
     this.narrowPanelObserver?.disconnect()
@@ -793,7 +792,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .dashboard {
   margin: 0 0;

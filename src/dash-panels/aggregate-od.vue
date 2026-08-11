@@ -30,8 +30,6 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
-
 .deck-map {
   position: absolute;
   top: 0;

@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, markRaw, PropType } from 'vue'
 import { GridCellLayer } from '@deck.gl/layers'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import maplibregl from 'maplibre-gl'
@@ -129,6 +129,11 @@ export default defineComponent({
               getFillColor: {
                 value: this.data.mapData[this.currentTimeIndex].colorData,
                 size: this.colorDataDigits,
+                // deck.gl's instanceFillColors is `unorm8`, whose default array type is
+                // Uint8ClampedArray; colorData is a plain Uint8Array. When the types
+                // differ on a normalized attribute deck warns unless we say what we
+                // meant. `true` is what it already assumes, so nothing changes visually.
+                normalized: true,
               },
               // doesn't allow elevation to work if negative values are present. Will think of a better solution for this. - Brendan 15.05.2025
               getElevation: this.negativeValues
@@ -192,16 +197,25 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = new MapboxOverlay({
-        interleaved: true,
-        layers: this.layers,
-        onClick: this.handleClick,
-      })
+      // markRaw: `deckOverlay` lives in data(), so without this the overlay becomes a
+      // reactive Proxy and deck.gl's layer matching reads layer.props.data through it.
+      // deck.gl Object.freeze()es those props, and the spec then requires a proxy `get`
+      // to return the target's actual value -- so it throws
+      // "'get' on proxy: property 'data' is a read-only and non-configurable data
+      // property ... but the proxy did not return its actual value". It fires on layer
+      // *update*, not first paint, so a load-and-screenshot check misses it.
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          interleaved: true,
+          layers: this.layers,
+          onClick: this.handleClick,
+        })
+      )
       this.mymap?.addControl(this.deckOverlay)
     })
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
@@ -262,7 +276,9 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+// @use, not @import: the module system no longer forwards Sass variables through
+// styles.scss, and $filterShadow below would fail the build.
+@use '@/variables' as *;
 
 .deck-map {
   position: relative;

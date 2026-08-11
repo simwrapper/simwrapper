@@ -21,7 +21,7 @@ export default defineComponent({
   data: () => {
     return {}
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.legendStore.clear()
   },
   computed: {
@@ -100,7 +100,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .legend-box {
   font-size: 0.85rem;

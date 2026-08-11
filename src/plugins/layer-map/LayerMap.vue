@@ -17,17 +17,18 @@
 
   .my-map(v-if="!thumbnail" :id="`container-${viewId}`")
 
-    p.btn-show-hide
+    .btn-show-hide(:class="{'is-panel-hidden': isPanelReallyHidden}")
       i.fas(
         :class="`fa-chevron-circle-${isPanelReallyHidden ? 'right': 'left'}`"
         @click="toggleHidePanel()"
       )
 
-    //- all-layers(v-show="!needsInitialMapExtent"
-    //-   :viewId="viewId"
-    //-   :layers="mapLayers"
-    //-   :cbError="emitError"
-    //- )
+    map-component(v-if="!needsInitialMapExtent"
+      :layers="mapLayers"
+      :viewId="viewId"
+      :background="theme.bg"
+      :cbError="emitError"
+    )
 
     background-map-on-top(v-if="theme.roads=='above'")
 
@@ -48,7 +49,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw, toRaw } from 'vue'
 import type { PropType } from 'vue'
 import Sanitize from 'sanitize-filename'
 import YAML from 'js-yaml'
@@ -67,8 +68,8 @@ import {
   DataSet,
 } from '@/Globals'
 
-// import AllLayers from './AllLayers'
 import AddDataModal from './AddDataModal.vue'
+import MapComponent from './MapComponent.vue'
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import LayerConfigurator from './LayerConfigurator.vue'
@@ -103,7 +104,7 @@ const FLATE = window.flate
 export default defineComponent({
   name: 'LayerMap',
   components: {
-    // AllLayers,
+    MapComponent,
     AddDataModal,
     SaveMapModal,
     BackgroundMapOnTop,
@@ -139,14 +140,23 @@ export default defineComponent({
       statusText: 'Loading...',
       needsInitialMapExtent: true,
       triggerScreenshot: 0,
+      // every DataTable stored in here is markRaw'd: `datasets` gets copied with
+      // Object.assign/spread on every change, which reads its values *through* the
+      // reactive proxy and would otherwise replace each table with a Proxy -- and those
+      // reach a Comlink worker, where structuredClone throws (trap #1).
       datasets: {} as { [id: string]: DataTable },
       datasetKeyToFilename: {} as any,
       // datasetJoinSelector: {} as { [id: string]: { title: string; columns: string[] } },
       // showJoiner: false,
 
       // DataManager might be passed in from the dashboard; or we might be
-      // in single-view mode, in which case we need to create one for ourselves
-      myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
+      // in single-view mode, in which case we need to create one for ourselves.
+      // markRaw/toRaw: it is a service, not view state, and its feature collections go
+      // straight to deck.gl (trap #7) and through Comlink to a worker (trap #1) --
+      // both of which throw on a reactive Proxy.
+      myDataManager: markRaw(
+        toRaw(this.datamanager) || new DashboardDataManager(this.root, this.subfolder)
+      ),
 
       config: {} as any,
 
@@ -154,7 +164,6 @@ export default defineComponent({
       filterDefinitions: [] as FilterDefinition[],
 
       resizer: null as null | ResizeObserver,
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
 
       tooltipHtml: '',
 
@@ -197,27 +206,41 @@ export default defineComponent({
     datasetChoices(): string[] {
       return Object.keys(this.datasets)
     },
-
-    urlThumbnail(): string {
-      return this.thumbnailUrl
-    },
   },
 
   watch: {
     'globalState.viewState'() {
-      if (REACT_VIEW_HANDLES[this.viewId]) REACT_VIEW_HANDLES[this.viewId]()
+      // MapComponent follows the camera itself; we only remember where the user left it
       this.dbSaveMapExtent()
+    },
+
+    mapLayers() {
+      this.publishTestData()
     },
 
     'globalState.colorScheme'() {
       this.$nextTick().then(p => {
-        this.theme.bg = this.globalState.isDarkMode ? 'dark' : 'light'
+        // don't undo an explicit "no basemap" choice
+        if (this.theme.bg !== 'off') {
+          this.theme.bg = this.globalState.isDarkMode ? 'dark' : 'light'
+        }
         this.mapLayers = [...this.mapLayers]
       })
     },
   },
 
   methods: {
+    // e2e hook, same convention as aggregate-od / grid-map / links-gl. A canvas diff
+    // cannot tell "layer built" from "layer drew nothing", so specs assert on this.
+    publishTestData() {
+      //@ts-ignore
+      window.__testdata__ = {
+        datasets: Object.keys(this.datasets),
+        layerTypes: this.mapLayers.map((l: any) => l.layerOptions?.type),
+        featureCounts: this.mapLayers.map((l: any) => l.features?.length ?? 0),
+      }
+    },
+
     saveMapExtent() {
       try {
         const remember = {
@@ -257,12 +280,18 @@ export default defineComponent({
         console.log('NEW LAYER', layerType)
 
         const systemProps = {
-          datasets: this.datasets,
+          // toRaw: a layer hands these columns to a Comlink worker, and a reactive
+          // Proxy cannot be structuredClone()d (trap #1).
+          datasets: toRaw(this.datasets),
           datamanager: this.myDataManager,
         }
 
         // try {
-        const mapLayer = new Layer(systemProps, { type: layerType })
+        // markRaw: the layer holds the feature arrays and the deck.gl layer it builds.
+        // Proxying those breaks deck (trap #7) and Comlink's structured clone (trap #1),
+        // and costs a proxy hop per coordinate read. Redraws come from reassigning
+        // mapLayers below, not from mutating the instance.
+        const mapLayer = markRaw(new Layer(systemProps, { type: layerType }))
         this.mapLayers.unshift(mapLayer)
         this.mapLayers = [...this.mapLayers]
         // } catch (e) {
@@ -273,7 +302,11 @@ export default defineComponent({
     },
 
     updateTheme(props: { bg?: string; roads?: string; labels?: string }) {
-      if (props.bg) this.$store.commit('setTheme', props.bg)
+      if (props.bg) {
+        // 'off' means no basemap; it isn't a global colorscheme, so keep it local
+        this.theme.bg = props.bg
+        if (props.bg !== 'off') this.$store.commit('setTheme', props.bg)
+      }
       if (props.roads) this.theme.roads = props.roads
     },
 
@@ -438,7 +471,7 @@ export default defineComponent({
       } as any
 
       this.vizDetails = Object.assign({}, this.vizDetails)
-      this.datasets[datasetId] = dataTable
+      this.datasets[datasetId] = markRaw(dataTable)
       this.datasets = Object.assign({}, this.datasets)
     },
 
@@ -471,7 +504,7 @@ export default defineComponent({
         console.log('ADDING', dataset)
         this.myDataManager.setPreloadedDataset(dataset)
         this.showAddData = false
-        this.datasets[dataset.key] = dataset.dataTable
+        this.datasets[dataset.key] = markRaw(dataset.dataTable)
         this.datasets = { ...this.datasets }
       }
 
@@ -496,7 +529,7 @@ export default defineComponent({
           { subfolder: this.subfolder }
         )
 
-        this.datasets[filename] = dataset.allRows
+        this.datasets[filename] = markRaw(dataset.allRows)
         this.datasets = { ...this.datasets }
       }
     },
@@ -582,7 +615,7 @@ export default defineComponent({
       if (joinColumns.length == 1) joinColumns.push(joinColumns[0])
 
       // save it!
-      this.datasets[datasetKey] = dataset.allRows
+      this.datasets[datasetKey] = markRaw(dataset.allRows)
 
       await this.$nextTick()
 
@@ -643,7 +676,7 @@ export default defineComponent({
 
       // all done
       this.myDataManager.setPreloadedDataset({ key: datasetKey, dataTable: dataset })
-      this.datasets[datasetKey] = dataset
+      this.datasets[datasetKey] = markRaw(dataset)
     },
 
     clearData() {
@@ -705,6 +738,11 @@ export default defineComponent({
       for (const layerProps of this.vizDetails.layers) {
         this.setupLayer(layerProps)
       }
+      // Vue 2 watchers fired when a parent push()ed to an array prop; Vue 3 watchers
+      // only see an identity change. Without this, a YAML-defined layer never reaches
+      // LayerConfigurator -- and since the config panel is what triggers assembleData(),
+      // the layer would silently render nothing.
+      this.mapLayers = [...this.mapLayers]
     },
 
     setupLayer(layerProps: { type: string; title: string; description: string }) {
@@ -714,12 +752,14 @@ export default defineComponent({
         console.log('INIT', layerProps.type)
 
         const systemProps = {
-          datasets: this.datasets,
+          // toRaw: see addNewLayer()
+          datasets: toRaw(this.datasets),
           datamanager: this.myDataManager,
         }
 
         try {
-          const mapLayer = new Layer(systemProps, layerProps)
+          // markRaw: see addNewLayer()
+          const mapLayer = markRaw(new Layer(systemProps, layerProps))
           this.mapLayers.push(mapLayer)
         } catch (e) {
           this.$emit('error', e)
@@ -790,7 +830,7 @@ export default defineComponent({
     }, 500)
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     // MUST delete the React view handles to prevent gigantic memory leaks!
     delete REACT_VIEW_HANDLES[this.viewId]
 
@@ -802,6 +842,8 @@ export default defineComponent({
     this.clearData()
     this.legendStore.clear()
     this.resizer?.disconnect()
+    //@ts-ignore
+    delete window.__testdata__
 
     // this.myDataManager.removeFilterListener(this.config, this.processFiltersNow)
     // this.myDataManager.clearCache()
@@ -811,7 +853,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .layer-map {
   position: absolute;
@@ -823,8 +865,6 @@ export default defineComponent({
   grid-template-rows: 1fr;
   grid-template-columns: auto 1fr;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') no-repeat;
-  background-size: cover;
   z-index: -1;
   height: 100%;
   max-height: 100%;
@@ -840,11 +880,12 @@ export default defineComponent({
   grid-row: 1 / 2;
   grid-column: 1 / 2;
   z-index: 2;
-  margin: 1rem;
+  margin: 0.5rem;
   filter: $filterShadow;
   transform: translateX(0rem);
   transition: transform 0.25s ease-in;
-  opacity: 0.95;
+  opacity: 0.96;
+  border-radius: 4px;
 }
 
 .layer-configurator.is-hide-me {
@@ -866,17 +907,22 @@ export default defineComponent({
 
 .btn-show-hide {
   position: absolute;
-  bottom: 1.25rem;
-  left: 1.25rem;
+  left: 21rem;
+  bottom: 0.5rem;
   z-index: 50;
   border: none;
   font-size: 24px;
   line-height: 24px;
   color: #37d3b1;
-  padding: 2px;
-  border-radius: 8px;
+  padding: 3px;
   background-color: var(--iconShowHide);
   user-select: none;
+  filter: $filterShadow;
+  border-radius: 4px;
+}
+
+.btn-show-hide.is-panel-hidden {
+  left: 0.5rem;
 }
 
 .btn-show-hide:hover {

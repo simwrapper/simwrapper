@@ -33,22 +33,20 @@
 
         .panel-item
           p.ui-label {{ $t('maxHeight') }}: {{ vizDetails.maxHeight }}
-          b-slider.ui-slider(v-model="vizDetails.maxHeight"
-            size="is-small"
+          o-slider.ui-slider(v-model="vizDetails.maxHeight"
+            size="small"
             :min="0" :max="250" :step="5"
-            :duration="0" :dotSize="12"
             :tooltip="false"
           )
 
         .panel-item
-          b-switch(v-model="show3dBuildings" size="is-small")
+          o-switch(v-model="show3dBuildings" size="small")
             | {{ $t('buildings3d') }}
 
           p.ui-label Hex Radius: {{ vizDetails.radius }}
-          b-slider.ui-slider(v-model="vizDetails.radius"
-            size="is-small"
+          o-slider.ui-slider(v-model="vizDetails.radius"
+            size="small"
             :min="50" :max="1000" :step="5"
-            :duration="0" :dotSize="12"
             :tooltip="false"
           )
 
@@ -84,14 +82,12 @@ const i18n = {
     },
   },
 }
-import Vue from 'vue'
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 
-import util from '@/js/util'
+import util, { unreactive } from '@/js/util'
 import globalStore from '@/store'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -148,7 +144,6 @@ const MyComponent = defineComponent({
     CollapsiblePanel,
     DrawingTool,
     XyHexDeckMap,
-    ToggleButton,
     ZoomButtons,
   },
   props: {
@@ -218,7 +213,7 @@ const MyComponent = defineComponent({
       activeAggregation: '',
       isHighlightingZone: false,
       multiSelectedHexagons: {} as { [index: string]: any[] },
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
       hexStats: null as null | {
         rows: number
         numHexagons: number
@@ -289,7 +284,6 @@ const MyComponent = defineComponent({
 
       return this.$store.state.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
     },
-
   },
   watch: {
     extrudeTowers() {
@@ -430,12 +424,16 @@ const MyComponent = defineComponent({
       }
       // save the promise by id so we can look it up when we get messages
       const id = this.resolverId++
-      xmlWorker.postMessage({
-        id,
-        fileSystem: this.fileSystem,
-        filePath: props.filePath,
-        options: props.options,
-      })
+      // fileSystem comes from vuex state -> reactive Proxy, which cannot be
+      // structured-cloned into a worker. See unreactive() in @/js/util.
+      xmlWorker.postMessage(
+        unreactive({
+          id,
+          fileSystem: this.fileSystem,
+          filePath: props.filePath,
+          options: props.options,
+        })
+      )
 
       const promise = new Promise((resolve, reject) => {
         this.resolvers[id] = { resolve, reject }
@@ -495,12 +493,13 @@ const MyComponent = defineComponent({
     },
 
     setRadiusAndHeight() {
+      // was Vue.set(); adding keys is reactive by default in Vue 3
       if (!this.vizDetails.radius) {
-        Vue.set(this.vizDetails, 'radius', 250)
+        this.vizDetails.radius = 250
       }
 
       if (!this.vizDetails.maxHeight) {
-        Vue.set(this.vizDetails, 'maxHeight', 0)
+        this.vizDetails.maxHeight = 0
       }
     },
 
@@ -656,12 +655,14 @@ const MyComponent = defineComponent({
 
       worker.onmessage = async (message: MessageEvent) => {
         if (message.data.ready) {
-          worker.postMessage({
-            filepath: filename,
-            fileSystem: this.fileSystem,
-            aggregations: this.vizDetails.aggregations,
-            projection: this.vizDetails.projection,
-          })
+          worker.postMessage(
+            unreactive({
+              filepath: filename,
+              fileSystem: this.fileSystem,
+              aggregations: this.vizDetails.aggregations,
+              projection: this.vizDetails.projection,
+            })
+          )
           return
         }
         if (message.data.status) {
@@ -725,6 +726,9 @@ const MyComponent = defineComponent({
 
     // background layers
     try {
+      // NB: deliberately NOT markRaw'd -- async initialLoad() signals completion by
+      // reassigning its internal map, which consumers must react to. deck.gl's raw-ness
+      // requirement is handled on the features inside BackgroundLayers.ts. See trap #7.
       this.backgroundLayers = new BackgroundLayers({
         vizDetails: this.vizDetails,
         fileApi: this.fileApi,
@@ -738,7 +742,7 @@ const MyComponent = defineComponent({
     this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // show first data
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this._xmlConfigFetcher) this._xmlConfigFetcher.terminate()
 
     this.resizer?.disconnect()
@@ -759,7 +763,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .xy-hexagons {
   position: absolute;

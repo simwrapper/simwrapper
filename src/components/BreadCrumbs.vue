@@ -123,7 +123,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .trail {
   font-family: FiraSans, Figtree, Roboto, Helvetica, Arial, sans-serif;

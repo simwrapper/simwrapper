@@ -13,24 +13,27 @@
       @changed="handleFilesChanged"
     )
 
-      br
-      | or&nbsp;
-      a
-        b browse your files
+      template(#default)
+        br
+        | or&nbsp;
+        a
+          b browse your files
 
-      .section-top(slot="top")
-        .drag-target.center
-          p.dl-icon: i.fas.fa-download
-          p.ddfiles Drag &amp; Drop Your File(s) Here
-          br
+      template(#top)
+        .section-top
+          .drag-target.center
+            p.dl-icon: i.fas.fa-download
+            p.ddfiles Drag &amp; Drop Your File(s) Here
+            br
 
-          p.spacing Supported file types:&nbsp;
-            b {{ validDataTypes.join(', ')}}
-          p No size limit, but large datasets could crash your browser :-)
+            p.spacing Supported file types:&nbsp;
+              b {{ validDataTypes.join(', ')}}
+            p No size limit, but large datasets could crash your browser :-)
 
-      .section-bottom(slot="loader")
-        p Processing files<br/>
-        p please wait...
+      template(#loader)
+        .section-bottom
+          p Processing files<br/>
+          p please wait...
 
     p.center
       input(style="display: none;" name="dataBrowser" id="dataBrowser" type="file")
@@ -317,14 +320,14 @@ export default defineComponent({
     window.addEventListener('keyup', this.keyListener)
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('keyup', this.keyListener)
   },
 })
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 $textBlue: #196096;
 

@@ -7,29 +7,29 @@
     .markdown(v-html="notes")
     .flex-row
       p.flex1: b Label
-      b-input.flex5(size="is-small" placeholder="e.g. server1" maxlength="32" v-model="labelField")
+      o-input.flex5(size="small" placeholder="e.g. server1" maxlength="32" v-model="labelField")
     .flex-row
       p.flex1: b URL
-      b-input.flex5(size="is-small" placeholder="http://localhost:8001" maxlength="512" v-model="urlField")
+      o-input.flex5(size="small" placeholder="http://localhost:8001" maxlength="512" v-model="urlField")
     .flex-row
       p.flex1: b Note
-      b-input.flex5(size="is-small" placeholder="optional" maxlength="255" v-model="noteField")
+      o-input.flex5(size="small" placeholder="optional" maxlength="255" v-model="noteField")
 
     .flex-row.gap
       p.flex1 &nbsp;
 
-      b-button(
-        size="is-small"
-        type="is-primary"
+      o-button(
+        size="small"
+        variant="primary"
         outlined
         inverted
         @click="$emit('close')"
       ) Cancel
 
-      b-button.is-warning(
-        size="is-small"
+      o-button.is-warning(
+        size="small"
         :disabled="!isValidURL"
-        :type="isValidURL ? '' : 'is-outlined'"
+        :outlined="!isValidURL"
         @click="addURL"
       ) Add Data URL
 
@@ -111,14 +111,14 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .add {
   gap: 0.25rem;
   margin: 0.5rem 0.25rem 0rem 0;
   color: #eee;
 
-  b-field {
+  o-field {
     color: white;
   }
 }
@@ -137,7 +137,7 @@ export default defineComponent({
   line-height: 1.2rem;
 }
 
-b-button {
+o-button {
   text-align: right;
 }
 

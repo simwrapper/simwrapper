@@ -119,7 +119,7 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 .my-tooltip {
   font-size: 0.9rem;
   filter: $filterShadow;

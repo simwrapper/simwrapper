@@ -23,8 +23,6 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
-
 .legend-container {
   display: flex;
   flex-direction: column;

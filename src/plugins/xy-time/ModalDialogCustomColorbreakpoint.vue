@@ -283,7 +283,6 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
 
 .modal-dialog {
   display: flex;

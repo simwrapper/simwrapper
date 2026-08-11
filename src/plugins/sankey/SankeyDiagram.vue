@@ -6,8 +6,8 @@
   .labels(v-if="!thumbnail")
     p.center: b {{ totalTrips.toLocaleString() }} {{ $t('total') }}
 
-  b-switch.switcher(v-if="!thumbnail" v-model="onlyShowNetChanges" size="is-small") {{ $t('showNetChanges')}}
-  b-switch.switcher(v-if="!thumbnail" v-model="onlyShowChanges" size="is-small") {{ $t('showChanges')}}
+  o-switch.switcher(v-if="!thumbnail" v-model="onlyShowNetChanges" size="small") {{ $t('showNetChanges')}}
+  o-switch.switcher(v-if="!thumbnail" v-model="onlyShowChanges" size="small") {{ $t('showChanges')}}
 
 </template>
 
@@ -361,7 +361,7 @@ const MyComponent = defineComponent({
     },
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.resizeObserver) this.resizeObserver.disconnect()
   },
 
@@ -389,7 +389,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .sankey-container {
   // padding-top: 1rem;
