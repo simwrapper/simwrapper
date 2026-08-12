@@ -314,67 +314,67 @@ export default defineComponent({
       if (extraLayers) finalLayers.push(...extraLayers.layersBelow)
 
       // MAIN GEOJSON LAYER
-      // if (this.lineLayers.hasPolygons) {
-      //   console.log('line layer has polygons, using GeojsonOffsetLayer', this.lineLayers)
-      //   console.log('rendering geojson layer with', this.features?.length, 'features')
-      //   finalLayers.push(
-      //     new GeojsonOffsetLayer({
-      //       id: 'geoJsonOffsetLayer',
-      //       beforeId: this.isAtlantis ? undefined : 'water',
-      //       data: this.features,
-      //       // function callbacks: --------------
-      //       getLineWidth: this.cbLineWidth, // 0, // no borders
-      //       getLineColor: this.cbLineColor,
-      //       getFillColor: this.cbFillColor,
-      //       getPointRadius: this.cbPointRadius,
-      //       getElevation: this.cbFillHeight,
-      //       // settings: ------------------------
-      //       extruded: !!this.fillHeights,
-      //       highlightedObjectIndex:
-      //         this.highlightedLinkIndex == -1 ? null : this.highlightedLinkIndex,
-      //       autoHighlight: true,
-      //       highlightColor: [255, 255, 255, 160],
-      //       lineWidthUnits: this.lineWidthUnits,
-      //       lineWidthScale: 1,
-      //       lineWidthMinPixels: 0, //  typeof lineWidths === 'number' ? 0 : 1,
-      //       lineWidthMaxPixels: 50,
-      //       getOffset: OFFSET_DIRECTION.RIGHT,
-      //       opacity: this.opacity,
-      //       pickable: true,
-      //       pointRadiusUnits: this.pointRadiusUnits,
-      //       pointRadiusMinPixels: 2,
-      //       // pointRadiusMaxPixels: 50,
-      //       stroked: this.isStroked,
-      //       // useDevicePixels: this.isTakingScreenshot,
-      //       // fp64: false,
-      //       // material: false,
-      //       updateTriggers: {
-      //         getFillColor: this.fillColors,
-      //         getLineColor: this.lineColors,
-      //         getLineWidth: this.lineWidths,
-      //         getPointRadius: this.pointRadii,
-      //         getElevation: this.fillHeights,
-      //         getFilterValue: this.featureFilter,
-      //       },
-      //       transitions: {
-      //         getFillColor: 300,
-      //         getLineColor: 300,
-      //         getLineWidth: 300,
-      //         getPointRadius: 300,
-      //       },
-      //       parameters: {
-      //         depthTest: !!this.fillHeights,
-      //         fp64: false,
-      //       },
-      //       // filter shapes
-      //       extensions: [new DataFilterExtension({ filterSize: 1 })],
-      //       filterRange: [0, 1], // set filter to -1 to filter element out
-      //       getFilterValue: (_: any, o: DeckObject) => {
-      //         return this.featureFilter[o.index]
-      //       },
-      //     }) as any
-      //   )
-      // }
+      if (this.lineLayers.hasPolygons) {
+        console.log('line layer has polygons, using GeojsonOffsetLayer', this.lineLayers)
+        console.log('rendering geojson layer with', this.features?.length, 'features')
+        finalLayers.push(
+          new GeojsonOffsetLayer({
+            id: 'geoJsonOffsetLayer',
+            beforeId: this.isAtlantis ? undefined : 'water',
+            data: this.features,
+            // function callbacks: --------------
+            getLineWidth: this.cbLineWidth, // 0, // no borders
+            getLineColor: this.cbLineColor,
+            getFillColor: this.cbFillColor,
+            getPointRadius: this.cbPointRadius,
+            getElevation: this.cbFillHeight,
+            // settings: ------------------------
+            extruded: !!this.fillHeights,
+            highlightedObjectIndex:
+              this.highlightedLinkIndex == -1 ? null : this.highlightedLinkIndex,
+            autoHighlight: true,
+            highlightColor: [255, 255, 255, 160],
+            lineWidthUnits: this.lineWidthUnits,
+            lineWidthScale: 1,
+            lineWidthMinPixels: 0, //  typeof lineWidths === 'number' ? 0 : 1,
+            lineWidthMaxPixels: 50,
+            getOffset: OFFSET_DIRECTION.RIGHT,
+            opacity: this.opacity,
+            pickable: true,
+            pointRadiusUnits: this.pointRadiusUnits,
+            pointRadiusMinPixels: 2,
+            // pointRadiusMaxPixels: 50,
+            stroked: this.isStroked,
+            // useDevicePixels: this.isTakingScreenshot,
+            // fp64: false,
+            // material: false,
+            updateTriggers: {
+              getFillColor: this.fillColors,
+              getLineColor: this.lineColors,
+              getLineWidth: this.lineWidths,
+              getPointRadius: this.pointRadii,
+              getElevation: this.fillHeights,
+              getFilterValue: this.featureFilter,
+            },
+            transitions: {
+              getFillColor: 300,
+              getLineColor: 300,
+              getLineWidth: 300,
+              getPointRadius: 300,
+            },
+            parameters: {
+              depthTest: !!this.fillHeights,
+              fp64: false,
+            },
+            // filter shapes
+            extensions: [new DataFilterExtension({ filterSize: 1 })],
+            filterRange: [0, 1], // set filter to -1 to filter element out
+            getFilterValue: (_: any, o: DeckObject) => {
+              return this.featureFilter[o.index]
+            },
+          }) as any
+        )
+      }
 
       // --------- LINE LAYER -- on top of main Geojson layer
       if (this.isStroked) {

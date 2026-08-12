@@ -26,7 +26,6 @@ export default defineComponent({
     config: { type: Object, required: true },
   },
   mounted() {
-    console.log('CARRIERS PANEL MOUNTED', this.fileSystemConfig, this.subfolder, this.files, this.config)
     this.$emit('isLoaded')
   },
 })
@@ -45,5 +44,6 @@ export default defineComponent({
   flex-direction: column;
 }
 
-@media only screen and (max-width: 640px) {}
+@media only screen and (max-width: 640px) {
+}
 </style>
