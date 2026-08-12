@@ -57,7 +57,7 @@
           o-button(v-if="checkIfHubChain()" size="small" :variant="activeTab=='lspShipmentChains' ? 'warning' : ''"
             @click="activeTab='lspShipmentChains'; handleSelectCarrier(lspCarrier, false, '')")
             span {{ $t('Shipment Chains') }}
-          o-button(size="small" :variant="activeTab=='lspTours' ? 'warning' : ''"
+          o-button.btn-tours(size="small" :variant="activeTab=='lspTours' ? 'warning' : ''"
             @click="activeTab='lspTours'; handleSelectLspButton(selectedLsp)")
             span {{ $t('LSP Tours') }}
 

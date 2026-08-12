@@ -48,22 +48,6 @@ test('berlin drt vehicle animation loads', async ({ page }) => {
   expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
 })
 
-/**
- * Regression test for a Vue 3 listener-fallthrough bug.
- *
- * In Vue 2 an `@click` on a *component* was a custom event only; native clicks needed
- * `.native`. In Vue 3 the parent's listener also lands on the child's root element, so
- * `settings-panel(@click="handleSettingChange")` fired TWICE per toggle: once with the
- * label, and once with a raw PointerEvent. The second call did
- * `SETTINGS[PointerEvent] = true`, which adds a junk key -- and since the panel v-for's
- * over Object.keys(SETTINGS), a phantom fourth toggle row appeared. It also handed the
- * PointerEvent to $t(), producing "[intlify] Not found '[object PointerEvent]' key".
- *
- * The fix is `emits: ['click']` on SettingsPanel (and on PlaybackControls, which had the
- * same shape: every click inside it, including a slider drag, also hit play/pause).
- * The row count is the assertion with teeth -- the toggles themselves end up in the
- * right state either way.
- */
 test('toggling a layer fires once, and does not invent a new toggle', async ({ page }) => {
   test.setTimeout(120_000)
   const noise = watchConsole(page)
@@ -72,12 +56,12 @@ test('toggling a layer fires once, and does not invent a new toggle', async ({ p
   await waitForAnimation(page)
   await page.waitForTimeout(5000)
 
-  const rows = page.locator('.settings-area .row')
+  const rows = page.locator('.settings-area .flex-row')
   await expect(rows).toHaveCount(3)
 
   for (const label of ['Routes', 'DRT Requests', 'DRT Vehicles']) {
     await page
-      .locator('.settings-area .row', { hasText: label })
+      .locator('.settings-area .flex-row', { hasText: label })
       .locator('input')
       .click({ force: true })
     await page.waitForTimeout(1500)

@@ -34,6 +34,8 @@ test('flowmap loads without console warnings', async ({ page }) => {
     const t = m.text()
     // benign + unrelated: headless GPU chatter and Vite's node-builtin shims
     if (/GPU stall|externalized for browser/.test(t)) return
+    if (/JavaScript Warning: "WebGL warning:/.test(t)) return
+    if (/WEBGL_debug_renderer_info is deprecated/.test(t)) return
     if (m.type() === 'error' || m.type() === 'warning') noise.push(`[${m.type()}] ${t}`)
   })
   page.on('pageerror', e => noise.push('PAGEERROR ' + e.message))

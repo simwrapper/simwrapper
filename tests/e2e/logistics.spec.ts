@@ -34,8 +34,7 @@ function watchConsole(page: Page, alsoIgnore?: RegExp) {
  * The tab bar only renders once mounted() has picked the first LSP, which happens after
  * the network avro is parsed -- so it doubles as "everything finished loading".
  */
-const waitForViz = (page: Page) =>
-  page.waitForSelector('.detail-buttons', { timeout: 120_000 })
+const waitForViz = (page: Page) => page.waitForSelector('.detail-buttons', { timeout: 120_000 })
 
 test('logistics plugin loads the configured yaml', async ({ page }) => {
   test.setTimeout(180_000)
@@ -88,14 +87,14 @@ test('switching between shipment chains and LSP tours rebuilds the map', async (
   const shipments = page.locator('.detail-buttons button', { hasText: 'Shipment Chains' })
   const tours = page.locator('.detail-buttons button', { hasText: 'LSP Tours' })
 
-  await expect(shipments).toHaveClass(/\bis-warning\b/)
-  await expect(tours).not.toHaveClass(/\bis-warning\b/)
+  await expect(shipments).toHaveClass(/\bwarning\b/)
+  await expect(tours).not.toHaveClass(/\bwarning\b/)
 
   await tours.click()
   await page.waitForTimeout(4000)
 
-  await expect(tours).toHaveClass(/\bis-warning\b/)
-  await expect(shipments).not.toHaveClass(/\bis-warning\b/)
+  await expect(tours).toHaveClass(/\bwarning\b/)
+  await expect(shipments).not.toHaveClass(/\bwarning\b/)
   // the detail list swapped from shipments to the LSP's tours
   await expect(page.locator('.detail-area .leaf')).toHaveCount(53)
 

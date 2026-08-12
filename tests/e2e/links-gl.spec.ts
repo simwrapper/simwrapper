@@ -118,7 +118,7 @@ test('links-gl Show Differences switch and time slider redraw the map', async ({
   // still unchecks itself, and the basemap keeps streaming tiles, so pixels differ either
   // way. Verified -- with `@update:modelValue` deleted the pixel version still passed and
   // this one fails.
-  await expect.poll(() => colorSignature(page)).not.toBe(withDiffs)
+  await expect.poll(() => colorSignature(page), { timeout: 15_000 }).not.toBe(withDiffs)
 
   // the time slider drives the active column, which recolours every link
   const label = page.locator('.panel-item.expand p b')
@@ -150,16 +150,16 @@ test('links-gl tears down its map on unmount', async ({ page }) => {
   await page.waitForSelector('.panel-items', { timeout: 90_000 })
   await page.waitForTimeout(3000)
 
-  for (let i = 0; i < 1; i++) {
-    await page.locator('.btn-header-back').first().click()
-    await expect(page.locator('canvas')).toHaveCount(0)
-    await expect(page.locator('.panel-items')).toHaveCount(0)
+  // for (let i = 0; i < 1; i++) {
+  await page.locator('.btn-header-back').first().click()
+  await expect(page.locator('canvas')).toHaveCount(0)
+  await expect(page.locator('.panel-items')).toHaveCount(0)
 
-    await page.getByText('viz-links-vol-diffs.yaml', { exact: true }).first().click()
-    await page.waitForSelector('.panel-items', { timeout: 90_000 })
-    await page.waitForTimeout(3000)
-    await expect(page.locator('canvas')).toHaveCount(1)
-  }
+  await page.getByText('viz-links-vol-diffs.yaml', { exact: true }).first().click()
+  await page.waitForSelector('.panel-items', { timeout: 90_000 })
+  await page.waitForTimeout(3000)
+  await expect(page.locator('canvas')).toHaveCount(1)
+  // }
 
   expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
 })

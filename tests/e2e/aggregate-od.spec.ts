@@ -162,9 +162,7 @@ test('aggregate-od "hide smaller than" slider filters spider links', async ({ pa
 
   await dragSlider(page, HIDE_SLIDER, 0.5)
   // a mapped stop from LineFilterSlider's STOPS, not the slider index (which is 0-23)
-  await expect
-    .poll(() => sliderLabel(page, HIDE_SLIDER))
-    .toMatch(/^(30|35|40|45|50|55|60)$/)
+  await expect.poll(() => sliderLabel(page, HIDE_SLIDER)).toMatch(/^(30|35|40|45|50|55|60)$/)
 
   // fewer links survive link.daily <= lineFilter
   await expect.poll(async () => (await testdata(page)).spiderLinks).toBeLessThan(390)
@@ -201,7 +199,7 @@ test('aggregate-od Duration checkbox switches the time slider to a range', async
   await expect(label).toHaveText('All >>')
   await expect(thumbs).toHaveCount(1)
 
-  const duration = page.locator('input.check').nth(0)
+  const duration = page.locator('input.checkbox').nth(0)
   await duration.click({ force: true })
   await expect(duration).toBeChecked()
   await expect(thumbs).toHaveCount(2)
@@ -236,7 +234,7 @@ test('aggregate-od centroid checkboxes and Origins/Destinations redraw the map',
   const allOn = await canvas.screenshot()
 
   // "Show centroids" removes the circle layer
-  const centroids = page.locator('input.check').nth(1)
+  const centroids = page.locator('input.checkbox').nth(1)
   await centroids.click({ force: true })
   await expect(centroids).not.toBeChecked()
   await page.waitForTimeout(2000)
@@ -247,7 +245,7 @@ test('aggregate-od centroid checkboxes and Origins/Destinations redraw the map',
   await page.waitForTimeout(2000)
 
   // "Show totals" removes only the symbol layer, so this pins updateCentroidLabels()
-  const totals = page.locator('input.check').nth(2)
+  const totals = page.locator('input.checkbox').nth(2)
   await totals.click({ force: true })
   await expect(totals).not.toBeChecked()
   await page.waitForTimeout(2000)
@@ -361,10 +359,12 @@ test('aggregate-od centroid labels show the selected time bin, not its neighbour
   // and back to the whole day
   await setTimeBin(page, 0)
   await expect(stop).toHaveText('All >>')
-  await expect.poll(() => centroidLabels(page)).toEqual({
-    [ORIGIN]: { from: DAILY_TOTAL, to: 0 },
-    [DEST]: { from: 0, to: DAILY_TOTAL },
-  })
+  await expect
+    .poll(() => centroidLabels(page))
+    .toEqual({
+      [ORIGIN]: { from: DAILY_TOTAL, to: 0 },
+      [DEST]: { from: 0, to: DAILY_TOTAL },
+    })
 })
 
 /**
@@ -408,15 +408,17 @@ test('aggregate-od time-range totals cover every bin in the span', async ({ page
   await openOneRowPanel(page)
   const stop = page.locator('.xtime-slider p b')
 
-  await page.locator('input.check').nth(0).click({ force: true }) // "Duration"
+  await page.locator('input.checkbox').nth(0).click({ force: true }) // "Duration"
   await expect(page.locator('.xtime-slider [role="slider"]')).toHaveCount(2)
   await expect(stop).toHaveText(`${BINS[0][0]} : ${BINS[BINS.length - 1][0]}`)
 
   // the full span is the whole day
-  await expect.poll(() => centroidLabels(page)).toEqual({
-    [ORIGIN]: { from: DAILY_TOTAL, to: 0 },
-    [DEST]: { from: 0, to: DAILY_TOTAL },
-  })
+  await expect
+    .poll(() => centroidLabels(page))
+    .toEqual({
+      [ORIGIN]: { from: DAILY_TOTAL, to: 0 },
+      [DEST]: { from: 0, to: DAILY_TOTAL },
+    })
 
   // walk the low thumb up, dropping one bin from the front each time
   const low = page.locator('.xtime-slider [role="slider"]').first()

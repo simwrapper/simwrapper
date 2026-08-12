@@ -149,18 +149,6 @@ test('the basemap survives a theme switch and a 3d toggle', async ({ page }) => 
   expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
 })
 
-/**
- * `beforeDestroy` is silently dead in Vue 3, so teardown needs its own assertion.
- * Unmount has to be driven by CLICKING away: page.goto() throws the whole JS context
- * away and passes even with a dead hook.
- *
- * This also covers the async-mounted race that is specific to this plugin: unlike
- * `vehicle-animation`, it sets `isLoaded` as soon as the YAML is parsed, so the chrome
- * (and therefore `waitForAnimation`) appears while mounted() is still ~30s deep in
- * loading trips. Clicking away there used to resume mounted() on a dead instance --
- * "this.$t is not a function", a visibilitychange listener added after the teardown
- * hook removed it, and a runaway requestAnimationFrame loop.
- */
 test('the map tears down on unmount', async ({ page }) => {
   test.setTimeout(180_000)
   const noise = watchConsole(page)
@@ -190,7 +178,10 @@ test('the map tears down on unmount', async ({ page }) => {
     await page.waitForTimeout(5000)
 
     // the breadcrumb back to the folder; it renders as "›xmas-kelheim"
-    await page.getByText(/^›xmas-kelheim$/).first().click()
+    await page
+      .getByText(/^›xmas-kelheim$/)
+      .first()
+      .click()
     await expect(page.locator('canvas')).toHaveCount(0)
     await page.waitForTimeout(3000)
     tallies.push(await page.evaluate(() => (window as any).__listeners__))
