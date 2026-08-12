@@ -85,7 +85,7 @@ h4 {
   font-size: 0.8rem;
   text-transform: uppercase;
   z-index: 2;
-  background-color: var(--bgCardFrame2);
+  background-color: var(--bgCream2);
 }
 
 .legend-row {

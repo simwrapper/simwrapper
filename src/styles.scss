@@ -1,5 +1,5 @@
 $mainFont: Figtree, Roboto, Helvetica, Arial, sans-serif;
-$fancyFont: FiraSans, Figtree, Roboto, Helvetica, Arial, sans-serif;
+$fancyFont: Figtree, Roboto, Helvetica, Arial, sans-serif;
 $appTag: #53b589;
 $matsimBlue: #4b7cc4;
 $tuRed: #b40d1e;
@@ -18,8 +18,8 @@ $navHeight: 3.25rem;
 $bannerHighlight: #1d3355;
 $sizeMobile: 30em;
 $sizeVessel: 70rem;
-$thumbnailHeight: 10rem;
 $dashboardWidth: 70rem;
+$thumbnailHeight: 10rem;
 $filterShadow: drop-shadow(0px 3px 5px #22222244);
 $yellowHighlight: #deef6f;
 $cardSpacing: 1.25rem;
@@ -30,6 +30,7 @@ $cardSpacing: 1.25rem;
   --bgBrowser: #7c839f;
   --bgCardFrame: white;
   --bgCardFrame2: #f8f8f8;
+  --bgCardInfo: #f5f5f5;
   --bgCream: #eef2ec;
   --bgCream2: #dddcd7;
   --bgCream3: #dddce7;
@@ -47,10 +48,12 @@ $cardSpacing: 1.25rem;
   --bgPanel2: #ededed;
   --bgPanel3: #e4e4e4;
   --bgMapPanel: #fff;
+  --bgMap: #ebebeb;
   --bgMapWater: #e6eaf1;
   --bgTag: #fdffa3;
   --bgSplash: #eaeaef;
   --bgSplashPage: linear-gradient(25deg, #ebe9f4, #e4ebf7, #e0f4f7);
+  // --bgSplashPage: linear-gradient(25deg, #ececf0, #f8f8fa);
   --bgScrollbar: #888888aa;
   --bgTabBanner: linear-gradient(150deg, #345be6, #29d299);
   --bgTreeItem: #d9f5cb;
@@ -92,6 +95,7 @@ $cardSpacing: 1.25rem;
   --bgBrowser: #56696e; // #212029; // #18242e;
   --bgCardFrame: #14141a;
   --bgCardFrame2: #202028;
+  --bgCardInfo: #303033;
   --bgCream: #282c2f;
   --bgCream2: #33373a;
   --bgCream3: #344857;
@@ -105,6 +109,7 @@ $cardSpacing: 1.25rem;
   --bgHover2: #34618b;
   // --bgIconBar: #344f6c;
   --bgLayerPanel: linear-gradient(150deg, #3d3753, #183d36);
+  --bgMap: #303032;
   --bgMapPanel: #181818;
   --bgMapWater: #1e3048;
   --bgPanel: #2a3c4f;
@@ -145,4 +150,17 @@ $cardSpacing: 1.25rem;
   --opacityAttribution: opacity(60%);
   --yellowHighlight: #edf6ae;
   --iconShowHide: #183d36;
+}
+
+:root,
+[data-dash-theme='cards'] {
+  --dashTitleSize: 1.1rem;
+  --dashTitleLineHeight: 1.5rem;
+  --dashCardMargin: 0 1.25rem 1.25rem 0;
+}
+
+[data-dash-theme='notebook'] {
+  --dashTitleSize: 1.5rem;
+  --dashTitleLineHeight: 1.7rem;
+  --dashCardMargin: 0 3rem 3rem 0rem;
 }

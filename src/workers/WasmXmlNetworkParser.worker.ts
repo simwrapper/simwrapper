@@ -81,7 +81,7 @@ function recenterAtlantis() {
 }
 
 async function processChunk(chunk: any) {
-  // postMessage({ status: 'Got chunk ' + _countLinks })
+  postMessage({ status: 'Reading links: ' + (_countLinks || '') })
 
   // build nodes first ===========================================
   const nodes = chunk.r?.node as { $id: string; $x: string; $y: string }[]
@@ -168,7 +168,6 @@ async function processChunk(chunk: any) {
 }
 
 function finalAssembly() {
-  // console.log(100, _cleanLinks)
   // clear some ram first
   nodeIdOffset = {}
   // _nodeCoords = null
@@ -266,144 +265,157 @@ async function parseXML(props?: {
 
   // Use a writablestream, which the docs say creates backpressure automatically:
   // https://developer.mozilla.org/en-US/docs/Web/API/WritableStream
-  const streamProcessor = new WritableStream(
-    {
-      write(incomingChunk: Uint8Array) {
-        return new Promise(async (resolve, reject) => {
-          _numChunks++
-          if (_isCancelled) reject()
+  // const streamProcessor = new WritableStream({}, strategy)
+  const STREAM_PROCESSOR: any = {
+    write(incomingChunk: Uint8Array) {
+      return new Promise<void>(async (resolve, reject) => {
+        _numChunks++
+        if (_isCancelled) reject()
 
-          // cut off chunk at the last line ending so we never split UTF-8 glyphs
-          let entireChunk = new Uint8Array(_preBytes.length + incomingChunk.length)
-          entireChunk.set(_preBytes)
-          entireChunk.set(incomingChunk, _preBytes.length)
-          _preBytes = new Uint8Array(0)
+        // cut off chunk at the last line ending so we never split UTF-8 glyphs
+        let entireChunk = new Uint8Array(_preBytes.length + incomingChunk.length)
+        entireChunk.set(_preBytes)
+        entireChunk.set(incomingChunk, _preBytes.length)
+        _preBytes = new Uint8Array(0)
 
-          const cutoff = entireChunk.lastIndexOf(10)
-          if (cutoff > -1) {
-            _preBytes = entireChunk.slice(cutoff + 1)
-            entireChunk = entireChunk.subarray(0, cutoff)
-          }
+        const cutoff = entireChunk.lastIndexOf(10)
+        if (cutoff > -1) {
+          _preBytes = entireChunk.slice(cutoff + 1)
+          entireChunk = entireChunk.subarray(0, cutoff)
+        }
 
-          let text = _leftovers + _decoder.decode(entireChunk)
-          entireChunk = null as any
-          _leftovers = ''
+        let text = _leftovers + _decoder.decode(entireChunk)
+        entireChunk = null as any
+        _leftovers = ''
 
-          if (_numChunks == 1) {
-            if (!_crs) {
-              const crsLine = text.indexOf('coordinateReferenceSystem')
-              if (crsLine > -1) {
-                const line = text.slice(crsLine)
-                _crs = line.substring(line.indexOf('>') + 1, line.indexOf('</attribute'))
-                console.log(_crs)
-              }
-            }
-            if (!_confirmed && (_crs == 'Atlantis' || !_crs)) {
-              // STILL no  good crs; ask user
-              postMessage({ requestCRS: _crs })
-              reject('crs')
+        if (_numChunks == 1) {
+          if (!_crs) {
+            const crsLine = text.indexOf('coordinateReferenceSystem')
+            if (crsLine > -1) {
+              const line = text.slice(crsLine)
+              _crs = line.substring(line.indexOf('>') + 1, line.indexOf('</attribute'))
+              console.log(_crs)
             }
           }
-
-          if (!closeNode) closeNode = text.indexOf(closeTag) > -1 ? closeTag : '/>'
-
-          const endOfNodes = text.indexOf(endOfSection)
-          let linkText = ''
-          if (endOfNodes > -1) {
-            linkText = text.slice(endOfNodes)
-            text = text.slice(0, endOfNodes)
+          if (!_confirmed && (_crs == 'Atlantis' || !_crs)) {
+            // STILL no  good crs; ask user
+            postMessage({ requestCRS: _crs })
+            reject('crs')
           }
+        }
 
-          const startNode = text.indexOf(searchElement)
-          if (startNode == -1) reject('no nodes found')
+        if (!closeNode) closeNode = text.indexOf(closeTag) > -1 ? closeTag : '/>'
 
-          const lastNode = text.lastIndexOf(closeNode)
-          const xmlBody = text.slice(startNode, lastNode + closeNode.length)
-          _leftovers = text.slice(lastNode + closeNode.length)
+        const endOfNodes = text.indexOf(endOfSection)
+        let linkText = ''
+        if (endOfNodes > -1) {
+          linkText = text.slice(endOfNodes)
+          text = text.slice(0, endOfNodes)
+        }
 
-          if (xmlBody.length) {
-            _chunkCounter++
-            _xmlStagingArea += xmlBody
-            if (_chunkCounter > 4 || endOfNodes > -1) {
+        const startNode = text.indexOf(searchElement)
+        if (startNode == -1) reject('no nodes found')
+
+        const lastNode = text.lastIndexOf(closeNode)
+        const xmlBody = text.slice(startNode, lastNode + closeNode.length)
+        _leftovers = text.slice(lastNode + closeNode.length)
+
+        if (xmlBody.length) {
+          _chunkCounter++
+          _xmlStagingArea += xmlBody
+          if (_chunkCounter > 4 || endOfNodes > -1) {
+            const fullXml = `<r>${_xmlStagingArea}</r>`
+            _xmlStagingArea = ''
+            _chunkCounter = 0
+            const json = await JSUtil.parseXML(fullXml, {})
+            processChunk(json)
+          }
+        }
+
+        // flip to link mode if we got the </nodes> tag
+        if (endOfNodes > -1) {
+          searchElement = '<link '
+          closeTag = '</link>'
+          // closeTag = ' />'
+          endOfSection = '</links>'
+          closeNode = ''
+          _leftovers += linkText
+        }
+
+        // and if we have ALL the links of a very small network,
+        // drop the leftovers into the staging area
+        const startLinks = _leftovers.indexOf('<links')
+        if (startLinks > -1 && _leftovers.indexOf('</links>') > -1) {
+          console.log('---TINY NETWORK')
+          _xmlStagingArea = _leftovers
+            .substring(_leftovers.indexOf('<link '))
+            .replace('</links>', '')
+            .replace('</network>', '')
+        }
+        resolve()
+      })
+    },
+
+    close() {
+      if (_xmlStagingArea.length) {
+        // console.log('CLEANUP: Got some leftovers in the staging area')
+        promises.push(
+          new Promise<any>(async (resolve, reject) => {
+            try {
               const fullXml = `<r>${_xmlStagingArea}</r>`
               _xmlStagingArea = ''
               _chunkCounter = 0
-              const json = await JSUtil.parseXML(fullXml, {})
+              const json = (await JSUtil.parseXML(fullXml)) as any
               processChunk(json)
+              // resolve(json)
+            } catch (e) {
+              console.error('' + e)
+              reject('' + e)
             }
-          }
-
-          // flip to link mode if we got the </nodes> tag
-          if (endOfNodes > -1) {
-            searchElement = '<link '
-            closeTag = '</link>'
-            // closeTag = ' />'
-            endOfSection = '</links>'
-            closeNode = ''
-            _leftovers += linkText
-          }
-
-          // and if we have ALL the links of a very small network,
-          // drop the leftovers into the staging area
-          const startLinks = _leftovers.indexOf('<links')
-          if (startLinks > -1 && _leftovers.indexOf('</links>') > -1) {
-            console.log('---TINY NETWORK')
-            _xmlStagingArea = _leftovers
-              .substring(_leftovers.indexOf('<link '))
-              .replace('</links>', '')
-              .replace('</network>', '')
-          }
-          resolve()
-        })
-      },
-
-      close() {
-        // if (_leftovers) _xmlStagingArea += _leftovers
-
-        // console.log(22, { _xmlStagingArea, _leftovers })
-        // if (_xmlStagingArea.indexOf('</nodes>') > -1)
-        //   _xmlStagingArea = _xmlStagingArea.replace('</nodes>', '')
-        // _xmlStagingArea = _xmlStagingArea.replace('</network>', '')
-
-        if (_xmlStagingArea.length) {
-          // console.log('CLEANUP: Got some leftovers in the staging area')
-          promises.push(
-            new Promise<any>(async (resolve, reject) => {
-              try {
-                const fullXml = `<r>${_xmlStagingArea}</r>`
-                _xmlStagingArea = ''
-                _chunkCounter = 0
-                const json = (await JSUtil.parseXML(fullXml)) as any
-                processChunk(json)
-                // resolve(json)
-              } catch (e) {
-                console.error('' + e)
-                reject('' + e)
-              }
-            })
-          )
-        }
-        console.log('STREAM FINISHED!')
-      },
-      abort(err) {
-        console.log('STREAM error:', err)
-      },
+          })
+        )
+      }
+      console.log('STREAM FINISHED!')
     },
-    strategy
-  )
+    abort(err: any) {
+      console.log('STREAM error:', err)
+    },
+  }
 
   try {
+    // build the StreamProcessor for processing
+    let streamProcessor = new WritableStream(STREAM_PROCESSOR, strategy)
     // get the readable stream from the server
-    const readableStream = await fileApi.getFileStream(_filename)
-    const lowerFilename = _filename.toLocaleLowerCase()
+    let readableStream: any = await fileApi.getFileStream(_filename)
 
     // stream results through the data pipe
+    const lowerFilename = _filename.toLocaleLowerCase()
     if (lowerFilename.endsWith('.gz')) {
       const gunzipper = new DecompressionStream('gzip')
       await readableStream.pipeThrough(gunzipper).pipeTo(streamProcessor)
     } else if (lowerFilename.endsWith('.zst')) {
-      const zunzipper = new ZStd.ZstdDecompressionStream()
-      await readableStream.pipeThrough(zunzipper).pipeTo(streamProcessor)
+      try {
+        const zunzipper = new ZStd.ZstdDecompressionStream()
+        await readableStream.pipeThrough(zunzipper).pipeTo(streamProcessor)
+      } catch (e) {
+        console.log('--- zstd streamer failed: will try to ingest all at once instead...')
+        readableStream = null
+        let streamProcessor = new WritableStream(STREAM_PROCESSOR, strategy)
+
+        const buffer = await (await fileApi.getFileBlob(_filename)).arrayBuffer()
+        const data = await ZStd.decompress(new Uint8Array(buffer))
+        // now pipe it all at once
+        await new ReadableStream({
+          start(controller) {
+            const CHUNK_SIZE = 1024 * 1024
+            for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+              controller.enqueue(data.slice(i, i + CHUNK_SIZE))
+            }
+            // a
+            controller.close()
+          },
+        }).pipeTo(streamProcessor)
+      }
     } else {
       await readableStream.pipeTo(streamProcessor)
     }

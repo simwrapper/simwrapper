@@ -1,10 +1,12 @@
 <template lang="pug">
-vue-good-table.plugin-panel(
+.table-container
+  vue-good-table.plugin-panel(v-if="isReady"
       data-testid="vue-good-table"
       :class="[globalState.isDarkMode ? 'darktable' : 'lighttable', hideHeader ? 'hide-header' : '', this.config.style, ...this.alignmentClasses]"
       :columns="columns"
       :rows="rows"
       :fixed-header="false"
+      :max-height="maxHeight"
       :pagination-options="paginationOptions"
       styleClass="vgt-table striped bordered condensed")
 </template>
@@ -31,6 +33,7 @@ export default defineComponent({
     cardId: String,
     datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
   },
+
   data: () => {
     return {
       globalState: globalStore.state,
@@ -52,6 +55,7 @@ export default defineComponent({
       hideHeader: undefined as any,
       isFullsize: false,
       alignmentClasses: [] as string[],
+      isReady: false,
     }
   },
   async mounted() {
@@ -60,6 +64,7 @@ export default defineComponent({
     this.prepareData()
 
     this.$emit('isLoaded')
+    this.isReady = true
   },
 
   beforeDestroy() {
@@ -67,6 +72,16 @@ export default defineComponent({
       { ...this.config, subfolder: this.subfolder },
       this.handleFilterChanged
     )
+  },
+
+  computed: {
+    maxHeight() {
+      let h
+      if (Number.isFinite(this.config?.height)) {
+        h = `${60 * this.config.height}px`
+      }
+      return h
+    },
   },
 
   methods: {
@@ -99,6 +114,7 @@ export default defineComponent({
           highPrecision: true,
           subfolder: this.subfolder,
         })
+        if (dataset.comments?.length) this.$emit('comments', dataset.comments)
 
         // no filter? we are done
         if (!this.config.filters) return dataset
@@ -634,6 +650,13 @@ export default defineComponent({
 
 <style scoped lang="scss">
 @import '@/styles.scss';
+.table-container {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  // overflow: hidden !important;
+}
+
 .plugin-panel {
   position: absolute;
   top: 0;

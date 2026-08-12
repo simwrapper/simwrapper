@@ -1,0 +1,24 @@
+diff --git a/node_modules/crossfilter2/src/result.js b/node_modules/crossfilter2/src/result.js
+index 444692a..54ded82 100644
+--- a/node_modules/crossfilter2/src/result.js
++++ b/node_modules/crossfilter2/src/result.js
+@@ -1,6 +1,18 @@
+-import deep from "@ranfdev/deepobj"
++// import deep from "@ranfdev/deepobj"
+ // Note(cg): result was previsouly using lodash.result, not ESM compatible.
+ 
++const deep = function(e, i, n, o, r) {
++  var REJECT = ['__proto__', 'constructor', 'prototype'];
++  o = (n = n.split('.')).splice(-1, 1);
++  for (r in n) {
++    if (REJECT.includes(n[r])) throw new Error('Unsafe path segment: ' + n[r]);
++    i = i[n[r]] = i[n[r]] || {};
++  }
++  if (REJECT.includes(o[0])) throw new Error('Unsafe path segment: ' + o[0]);
++  return e(i, o);
++};
++
++
+ const get = (obj, prop) => {
+   const value = obj[prop];
+   return (typeof value === 'function') ? value.call(obj) : value;

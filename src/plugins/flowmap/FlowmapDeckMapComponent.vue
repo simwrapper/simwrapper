@@ -193,7 +193,7 @@ export default defineComponent({
 
       if (object.type == 'flow') {
         html += `<br/>
-          Station&nbsp;IDs:&nbsp;${object?.origin.id}&nbsp;→&nbsp;${object?.dest.id}<br />
+          IDs:&nbsp;${object?.origin.id}&nbsp;→&nbsp;${object?.dest.id}<br />
           ${this.vizDetails.selectedMetricLabel}: ${object.count || 0}
         `
       }

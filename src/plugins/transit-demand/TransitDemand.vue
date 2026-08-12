@@ -676,7 +676,6 @@ const MyComponent = defineComponent({
     },
 
     dividerDragStart(e: MouseEvent) {
-      console.log('dragstart')
       // console.log('dragStart', e)
       this.isDraggingDivider = e.clientX
       this.dragStartWidth = this.legendSectionWidth

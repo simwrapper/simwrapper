@@ -183,6 +183,7 @@ const tabColors = {
   events: '#4400ff',
   hexagons: '#1Bc99C',
   links: '#1FB3D3',
+  plans: '#cF43D3',
   sankey: '#DF41A1',
   summary: '#AFF05B',
   transit: '#8B008B',

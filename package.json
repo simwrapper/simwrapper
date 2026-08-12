@@ -1,6 +1,6 @@
 {
   "name": "simwrapper",
-  "version": "4.5.1",
+  "version": "4.7.1",
   "private": true,
   "type": "module",
   "license": "GPL-3.0-or-later",
@@ -42,7 +42,7 @@
     "@deck.gl/extensions": "^9.2.9",
     "@deck.gl/layers": "^9.2.9",
     "@deck.gl/mapbox": "^9.2.9",
-    "@duckdb/duckdb-wasm": "^1.33.1-dev45.0",
+    "@duckdb/duckdb-wasm": "1.29.0",
     "@flowmap.gl/data": "^8.0.2",
     "@fortawesome/fontawesome-svg-core": "^6.4.0",
     "@fortawesome/free-brands-svg-icons": "^6.4.0",

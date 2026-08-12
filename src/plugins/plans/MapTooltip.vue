@@ -1,22 +1,21 @@
 <template lang="pug">
-.flex-col(v-if="tooltipType")
-  .tooltip(v-if="tooltipType == 1")
+.my-tooltip.flex-col(v-if="tooltipType")
+  .tooltip(v-if="tooltipType == 9")
     table(style="max-width: 30rem; font-size: 0.8rem"): tbody
       tr
         td(style="text-align: right; padding-right: 0.5rem; padding-top: 0.2rem;") {{ activity }}:
         td(style="padding-top: 0.2rem") {{ hoverInfo.object.shipmentIds.join(', ') }}
 
   .tooltip.flex-col(v-if="tooltipType == 2")
-    b {{ hoverInfo.object?.$id }}
-    h5(style="padding-top: 0.2rem") Capacity Demand: {{hoverInfo.object.$capacityDemand }}
+    h5(style="padding-top: 0.2rem") {{ hoverInfo.object?.mode || hoverInfo.object?.tour?.mode || hoverInfo.object?.type || hoverInfo.object }}
 
-  .tooltip.flex-col(v-if="tooltipType == 3")
+  .tooltip.flex-col(v-if="tooltipType == 9")
     b {{hoverInfo.object?.tour?.vehicleId}}
     p Leg # {{1 + hoverInfo.object?.count}}
     p Shipments on board: {{hoverInfo.object?.shipmentsOnBoard?.length}}
     p Total size: {{hoverInfo.object?.totalSize }}
 
-  .tooltip.flex-col(v-if="tooltipType == 4")
+  .tooltip.flex-col(v-if="tooltipType == 9")
     table(style="font-size: 0.8rem"): tbody
       tr(v-for="a in Object.keys(stop.overview)" :key="a")
         td(style="text-align: right; padding-right: 0.5rem") {{a}}:
@@ -74,11 +73,11 @@ export default defineComponent({
       const { object } = hoverInfo
       if (!object) return null
 
-      if (object?.type == 'pickup') return this.renderActivityTooltip(hoverInfo, 'pickup')
-      if (object?.type == 'delivery') return this.renderActivityTooltip(hoverInfo, 'delivery')
-      if (object?.type == 'service') return this.renderServicesTooltip(hoverInfo, 'service')
-      if (object?.color) return this.renderLegTooltip(hoverInfo)
-      if (object?.type == 'depot') return null
+      // if (object?.type == 'pickup') return this.renderActivityTooltip(hoverInfo, 'pickup')
+      // if (object?.type == 'delivery') return this.renderActivityTooltip(hoverInfo, 'delivery')
+      // if (object?.type == 'service') return this.renderServicesTooltip(hoverInfo, 'service')
+      // if (object?.color) return this.renderLegTooltip(hoverInfo)
+      // if (object?.type == 'depot') return null
       return this.renderStopTooltip(hoverInfo)
     },
 
@@ -99,35 +98,38 @@ export default defineComponent({
       this.tooltipType = TooltipType.SERVICE
       const { object, x, y } = hoverInfo
 
-      // collect some info
-      const visits = object.visits.length
-      const pickups = object.visits.reduce(
-        (prev: number, visit: any) => prev + visit.pickup.length,
-        0
-      )
-      const deliveries = object.visits.reduce(
-        (prev: number, visit: any) => prev + visit.delivery.length,
-        0
-      )
+      // // collect some info
+      // const visits = object.visits.length
+      // const pickups = object.visits.reduce(
+      //   (prev: number, visit: any) => prev + visit.pickup.length,
+      //   0
+      // )
+      // const deliveries = object.visits.reduce(
+      //   (prev: number, visit: any) => prev + visit.delivery.length,
+      //   0
+      // )
 
-      this.stop = {
-        numPickupsAndDeliveries: pickups + deliveries,
-        overview: { visits, pickups, deliveries },
-      }
+      // this.stop = {
+      //   numPickupsAndDeliveries: pickups + deliveries,
+      //   overview: { visits, pickups, deliveries },
+      // }
     },
   },
 })
 </script>
 
 <style lang="scss">
+@import '@/styles.scss';
+.my-tooltip {
+  font-size: 0.9rem;
+  filter: $filterShadow;
+  padding: 0px 5px 2px 5px;
+  background-color: var(--bgBold) !important;
+}
+
 .tooltip {
-  background-color: '#334455ee';
-  box-shadow: '2.5px 2px 4px rgba(0,0,0,0.25)';
-  color: '#eee';
-  padding: '0.5rem 0.5rem';
+  color: var(--textBold);
   position: 'absolute';
   opacity: 0.9;
-  // left: x + 20,
-  // top: y + 20,
 }
 </style>

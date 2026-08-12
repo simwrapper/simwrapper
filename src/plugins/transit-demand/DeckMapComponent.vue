@@ -101,7 +101,6 @@ export default defineComponent({
         incoming.pitch !== this.mymap?.getPitch() ||
         incoming.bearing !== this.mymap?.getBearing()
       ) {
-        console.log(incoming.zoom, incoming.longitude, incoming.latitude, incoming.center)
         this.mymap?.jumpTo(
           Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
         )
@@ -488,7 +487,7 @@ export default defineComponent({
     },
 
     handleClick(event: any) {
-      console.log('click!')
+      // console.log('click!')
       if (this.handleClickEvent) this.handleClickEvent(event)
     },
   },

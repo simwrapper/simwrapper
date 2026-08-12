@@ -1,5 +1,9 @@
 <template lang="pug">
-.dashboard(:class="{wiide, 'is-panel-narrow': isPanelNarrow, 'is-fullscreen-dashboard': isFullScreenDashboard }" :id="viewId")
+.dashboard(
+  :id="viewId"
+  :class="{wiide, 'is-panel-narrow': isPanelNarrow, 'is-fullscreen-dashboard': isFullScreenDashboard}"
+  :data-dash-theme="isDashNotebook"
+)
   .dashboard-content(:class="{wiide, 'is-fullscreen-dashboard': isFullScreenDashboard}" :style="dashWidthCalculator")
 
     .dashboard-header.flex-row(v-if="!fullScreenCardId && (title + description)"
@@ -31,7 +35,7 @@
       //- each card here
       .dash-card-frame(v-for="card,j in row.cards" :key="`${i}/${j}`"
         :style="getCardStyle(card)"
-        :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
+        :class="{wiide, 'is-panel-narrow': isPanelNarrow, 'is-cards': !isDashNotebook}"
       )
 
         //- card header/title
@@ -40,14 +44,16 @@
             h3 {{ card.title }}
             p(v-if="card.description") {{ card.description }}
 
-          //- zoom button
+          //- info/zoom buttons
           .header-buttons
             button.button.is-small.is-white(
-              v-if="card.info"
+              v-show="card.info || hasCardComments(card)"
               @click="handleToggleInfoClick(card)"
               :title="infoToggle[card.id] ? 'Hide Info':'Show Info'"
             )
-              i.fa.fa-info-circle
+              i.fa.fa-info-circle(v-if="!infoToggle[card.id]" style="font-size: 1rem")
+              i.fa.fa-times(v-if="infoToggle[card.id]" style="font-size: 1rem")
+              | &nbsp;Info
 
             button.button.is-small.is-white(
               @click="toggleZoom(card)"
@@ -55,18 +61,15 @@
             )
               i.fa.fa-expand
 
-        //- info contents
-        .info(v-show="infoToggle[card.id]")
-          p
-          p {{ card.info }}
-
         //- card contents
         .spinner-box(v-if="getCardComponent(card)"
           :id="card.id"
           :class="{'is-loaded': card.isLoaded}"
+          :style="getCardMinHeight(getCardStyle(card))"
         )
           component.dash-card(v-if="card.visible"
             :is="getCardComponent(card)"
+            :style="{opacity: opacity[card.id]}"
             :fileSystemConfig="fileSystemConfig"
             :subfolder="row.subtabFolder || xsubfolder"
             :files="fileList"
@@ -74,18 +77,24 @@
             :config="card.props"
             :datamanager="datamanager"
             :split="split"
-            :style="{opacity: opacity[card.id]}"
             :cardId="card.id"
             :cardTitle="card.title"
             :allConfigFiles="allConfigFiles"
             @isLoaded="handleCardIsLoaded(card)"
+            @comments="handleComments(card, $event)"
             @dimension-resizer="setDimensionResizer"
             @titles="setCardTitles(card, $event)"
             @error="setCardError(card, $event)"
           )
+
+          //- info contents
+          .md-card-format.absbox(v-show="infoToggle[card.id]" v-html="mdInfo(card)")
+
           .error-text(v-if="card.errors.length")
             span.clear-error(@click="card.errors=[]") &times;
             p(v-for="err,i in card.errors" :key="i") {{ err }}
+
+        .md-card-format.card-caption(v-if="card.caption && !fullScreenCardId" v-html="mdRender(card.caption)")
 
 </template>
 
@@ -93,6 +102,7 @@
 import Vue, { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
+import Markdown from 'markdown-it'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
@@ -118,6 +128,12 @@ chartTypes.forEach((key: any) => {
   // if (plotlyCharts[key]) plotlyChartTypes[key] = true
 })
 
+const MarkdownRenderer = new Markdown({
+  html: false,
+  linkify: true,
+  breaks: true,
+})
+
 export default defineComponent({
   name: 'Dashboard',
   components: Object.assign({ TopSheet }, namedCharts),
@@ -135,6 +151,7 @@ export default defineComponent({
     return {
       title: '',
       description: '',
+      isDashNotebook: '', // '' | 'notebook' | true
       viewId: 'dashboard-' + Math.floor(1e12 * Math.random()),
       yaml: {} as any,
       rows: [] as { id: string; cards: any[]; subtabFolder?: string }[],
@@ -195,6 +212,36 @@ export default defineComponent({
   },
 
   methods: {
+    hasCardComments(card: any): string {
+      if (!card.comments) return ''
+      return Array.isArray(card.comments)
+        ? card.comments.join('')
+        : Object.values(card.comments).join('')
+    },
+
+    mdRender(md: string) {
+      return MarkdownRenderer.render(md)
+    },
+
+    mdInfo(card: { info: any; comments: any }) {
+      let info = ''
+      if (card.info) {
+        const html = MarkdownRenderer.render(card.info)
+        info += html
+      }
+
+      if (card.comments) {
+        if (info) info += '\n<hr>\n'
+        Object.values(card.comments).forEach((comments: any, index) => {
+          if (!comments) return
+          if (index > 0) info += '\n<hr>\n'
+          const html = MarkdownRenderer.render(comments)
+          info += html
+        })
+      }
+      return info
+    },
+
     clickedFavorite() {
       let hint = `${this.root}/${this.xsubfolder}`
       let finalFolder = this.xsubfolder || this.root
@@ -318,12 +365,17 @@ export default defineComponent({
       if (!this.isResizing) globalStore.commit('resize')
     },
 
+    getCardMinHeight(style: any) {
+      const mh = { minHeight: style.minHeight ?? 'unset' }
+      return mh
+    },
+
     getCardStyle(card: any) {
       // figure out height. If card has registered a resizer with changeDimensions(),
       // then it needs a default height (300)
 
       // markdown does not want a default height
-      const defaultHeight = card.type === 'text' ? undefined : 300
+      const defaultHeight = /text|csv/.test(card.type) ? undefined : 300
 
       const height = card.height ? card.height * 60 : defaultHeight
       const flex = card.width || 1
@@ -610,6 +662,10 @@ export default defineComponent({
       if (this.yaml.header.theme) {
         this.$store.commit('setTheme', this.yaml.header.theme)
       }
+
+      if (this.yaml.header.notebook) {
+        this.isDashNotebook = 'notebook'
+      }
     },
 
     getObjectLabel(o: any, prefix: string) {
@@ -635,6 +691,20 @@ export default defineComponent({
       }
 
       return tag
+    },
+
+    handleComments(card: any, comments: string[] | { filename: string; comments: string[] }) {
+      if (!card.comments) card.comments = {} as { [filename: string]: string[] }
+      let filename = Array.isArray(comments) ? '' : comments.filename
+      let commentStrings = Array.isArray(comments) ? comments : comments.comments
+      let mdRaw = ''
+      if (commentStrings?.length) {
+        mdRaw = commentStrings
+          .map(c => c.slice(1).trim())
+          .filter(c => !c.startsWith('EPSG:')) // hide EPSG codez which are special
+          .join('\n')
+      }
+      card.comments[filename] = mdRaw
     },
 
     async handleCardIsLoaded(card: any) {
@@ -716,6 +786,7 @@ export default defineComponent({
     this.resizers = {}
     this.isDestroying = true
     this.narrowPanelObserver?.disconnect()
+    this.narrowPanelObserver = null
     window.removeEventListener('resize', this.resizeAllCards)
   },
 })
@@ -782,12 +853,16 @@ export default defineComponent({
 
 // --end--
 
+.dash-card-frame.is-cards {
+  background-color: var(--bgCardFrame);
+}
+
 .dash-card-frame {
   display: grid;
   grid-auto-columns: 1fr;
-  grid-auto-rows: auto auto 1fr;
-  margin: 0 $cardSpacing $cardSpacing 0;
-  background-color: var(--bgCardFrame);
+  grid-auto-rows: auto auto 1fr auto;
+  margin: var(--dashCardMargin);
+  // background-color: var(--dashCardFrame);
   padding: 2px 3px 3px 3px;
   border-radius: 4px;
   overflow-x: auto;
@@ -824,8 +899,8 @@ export default defineComponent({
 
   h3 {
     grid-row: 1 / 2;
-    font-size: 1.1rem;
-    line-height: 1.5rem;
+    font-size: var(--dashTitleSize);
+    line-height: var(--dashTitleLineHeight);
     margin-bottom: 0.5rem;
     color: var(--link);
   }
@@ -838,6 +913,7 @@ export default defineComponent({
   }
 
   .spinner-box {
+    margin-top: 0.25rem;
     grid-row: 3 / 4;
     position: relative;
     background: url('../assets/simwrapper-logo/SW_logo_icon_anim.gif');
@@ -859,7 +935,7 @@ export default defineComponent({
   transition: opacity 0.5s;
   overflow-x: hidden;
   overflow-y: hidden;
-  border-radius: 2px;
+  border-radius: 5px;
 }
 
 // Observe for narrowness instead of a media-query
@@ -922,6 +998,35 @@ li.is-not-active b a {
   }
 }
 
+.card-comments {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
+
+.card-caption {
+  margin-top: 1rem;
+  grid-column: 1 / 2;
+  grid-row: 4 / 5;
+  font-size: 1.2rem;
+  max-height: unset;
+  overflow-y: unset;
+  background-color: unset;
+  border: unset;
+  opacity: unset;
+  padding: 0 0.25rem;
+}
+
+.absbox {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+}
+
 .clear-error {
   float: right;
   font-weight: bold;
@@ -951,6 +1056,10 @@ li.is-not-active b a {
 
 .favorite-icon:hover {
   cursor: pointer;
+}
+
+.cardtitles {
+  padding: 0 4px;
 }
 
 @media only screen and (max-width: 640px) {

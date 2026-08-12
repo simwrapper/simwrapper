@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.7.1](https://github.com/simwrapper/simwrapper/compare/v4.7.0...v4.7.1) (2026-06-26)
+
+
+### Bug Fixes
+
+* **sankey:** Sankey learned only-show-diffs mode ([4684024](https://github.com/simwrapper/simwrapper/commit/4684024e9b72bc0bd51e8c92a7c41ae6ab66e629)
+
+* **comments:** show comments from multiple CSVs in plotly chart plugin ([7fbb17c](https://github.com/simwrapper/simwrapper/commit/7fbb17cd0945718a5abbb85d1b9ded7cbf867110))
+* **flowmap:** better error checking on inputs ([a8398c7](https://github.com/simwrapper/simwrapper/commit/a8398c7a956ce34bad83022dcaddff3a85affb19))
+* some ZSTD files trigger a bug in the JS Zstd streaming decompressor library ([475d441](https://github.com/simwrapper/simwrapper/commit/475d44195a564caf2860a1a6b9fe202b7833bf79)), closes [#526](https://github.com/simwrapper/simwrapper/issues/526)
+
+## [4.7.0](https://github.com/simwrapper/simwrapper/compare/v4.6.0...v4.7.0) (2026-06-05)
+
+
+### Features
+
+* **csv:** Show comments in CSV file headers with "#" lines as info blocks ([630fe50](https://github.com/simwrapper/simwrapper/commit/630fe50a785cf0a66a907bf31159a886a56b7505))
+
+## [4.6.0](https://github.com/simwrapper/simwrapper/compare/v4.5.1...v4.6.0) (2026-05-14)
+
+
+### Features
+
+* Event streamer supports .zstd compression now ([617ad10](https://github.com/simwrapper/simwrapper/commit/617ad1074660ff545c13e6d748f088c2d387ee00))
+* Support .zst "ZStandard" file compression formats ([2845233](https://github.com/simwrapper/simwrapper/commit/284523333153edff69c3c29017d76b599a5720be))
+
+
+### Bug Fixes
+
+* MATSim XML network parser failed on (some) large networks, but only on Firefox/Safari ([5819c14](https://github.com/simwrapper/simwrapper/commit/5819c140db51bbd90182afa96aed046b826d700e)), closes [#521](https://github.com/simwrapper/simwrapper/issues/521)
+
 ### [4.5.1](https://github.com/simwrapper/simwrapper/compare/v4.5.0...v4.5.1) (2026-04-21)
 
 

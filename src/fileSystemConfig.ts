@@ -124,6 +124,15 @@ let fileSystems: FileSystemConfig[] = [
   },
 
   {
+    name: 'VF-S3 MATSim',
+    slug: 'vf-matsim',
+    description: 'Hello from S3',
+    baseURL: 'http://129.247.221.5:8333/matsim',
+    isS3: true,
+    hidden: false,
+  },
+
+  {
     name: 'Browse data',
     slug: 'view',
     description: "View this site's datasets",
