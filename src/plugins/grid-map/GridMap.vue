@@ -45,7 +45,7 @@ import GUI from 'lil-gui'
 import YAML from 'yaml'
 import colormap from 'colormap'
 
-import avro from '@/js/avro'
+import { getAvro } from '@/js/avro'
 import globalStore from '@/store'
 import util, { sleep } from '@/js/util'
 import { hexToRgb, getColorRampHexCodes, Ramp } from '@/js/ColorsAndWidths'
@@ -688,6 +688,7 @@ const GridMap = defineComponent({
     async loadAndPrepareAvroData() {
       const filename = `${this.subfolder}/${this.vizDetails.file}`
       const blob = await this.fileApi.getFileBlob(filename)
+      const avro = await getAvro()
 
       const records: any[] = await new Promise((resolve, _) => {
         const rows = [] as any[]

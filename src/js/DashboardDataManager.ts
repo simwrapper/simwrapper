@@ -17,8 +17,7 @@ import globalStore from '@/store'
 import HTTPFileSystem from './HTTPFileSystem'
 import { DataTable, DataTableColumn, DataType, FileSystemConfig, Status } from '@/Globals'
 import { findMatchingGlobInFiles, gUnzip, parseXML, unreactive } from '@/js/util'
-import avro from '@/js/avro'
-import * as Comlink from 'comlink'
+import { getAvro } from '@/js/avro'
 
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
@@ -578,6 +577,7 @@ export default class DashboardDataManager {
     try {
       const httpFileSystem = new HTTPFileSystem(this.fileApi)
       const blob = await httpFileSystem.getFileBlob(`${props.subfolder}/${props.filename}`)
+      const avro = await getAvro()
 
       const records: any[] = await new Promise(async (resolve, reject) => {
         const rows = [] as any[]

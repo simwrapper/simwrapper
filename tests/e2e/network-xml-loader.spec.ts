@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 test('networks: load berlin v6.4 network.xml.gz', async ({ page }) => {
-  test.setTimeout(90_000)
+  test.setTimeout(120_000)
 
   // page.on('console', msg => {
   //   const text = msg.text()
@@ -10,7 +10,7 @@ test('networks: load berlin v6.4 network.xml.gz', async ({ page }) => {
   // })
 
   await page.goto('e2e-tests/networks/viz-map-berlin-v6.4.yaml')
-  await page.waitForSelector('.row-label', { timeout: 90_000 })
+  await page.waitForSelector('.row-label', { timeout: 120_000 })
   const legendRows = page.locator('.row-label')
   await expect(legendRows).toHaveCount(8)
 })

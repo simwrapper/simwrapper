@@ -108,7 +108,7 @@ import { defineComponent, markRaw } from 'vue'
 import type { PropType } from 'vue'
 
 import * as turf from '@turf/turf'
-import avro from '@/js/avro'
+import { getAvro } from '@/js/avro'
 import colormap from 'colormap'
 import crossfilter from 'crossfilter2'
 import { debounce } from 'debounce'
@@ -1060,6 +1060,7 @@ const MyComponent = defineComponent({
       console.log('LOADING AVRO:', this.vizDetails.network)
       const filename = `${this.subfolder}/${this.vizDetails.network}`
       const blob = await this.fileApi.getFileBlob(filename)
+      const avro = await getAvro()
 
       const records: any[] = await new Promise((resolve, reject) => {
         const rows = [] as any[]

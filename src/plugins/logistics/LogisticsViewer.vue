@@ -216,7 +216,7 @@ import { gUnzip, parseXML, findMatchingGlobInFiles, unreactive } from '@/js/util
 import DashboardDataManager from '@/js/DashboardDataManager'
 
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
-import avro from '@/js/avro'
+import { getAvro } from '@/js/avro'
 
 import DeckMap from './DeckMapComponent.vue'
 
@@ -1979,6 +1979,7 @@ const LogisticsPlugin = defineComponent({
       console.log('LOADING AVRO:', this.vizDetails.network)
       const filename = `${this.subfolder}/${this.vizDetails.network}`
       const blob = await this.fileApi.getFileBlob(filename)
+      const avro = await getAvro()
 
       const records: any[] = await new Promise((resolve, reject) => {
         const rows = [] as any[]
