@@ -315,8 +315,6 @@ export default defineComponent({
 
       // MAIN GEOJSON LAYER
       if (this.lineLayers.hasPolygons) {
-        console.log('line layer has polygons, using GeojsonOffsetLayer', this.lineLayers)
-        console.log('rendering geojson layer with', this.features?.length, 'features')
         finalLayers.push(
           new GeojsonOffsetLayer({
             id: 'geoJsonOffsetLayer',
@@ -509,9 +507,7 @@ export default defineComponent({
 
     handleClick(target: any, event: any) {
       // this.tooltipStyle.display = 'none'
-      // if (this.cbClickEvent) this.cbClickEvent(target)
-      console.log('click', target, event)
-      this.getTooltip(target)
+      if (this.cbClickEvent) this.cbClickEvent(target)
     },
 
     handleHover(target: any, event: any) {
@@ -520,7 +516,7 @@ export default defineComponent({
         return
       }
       // console.log('hover', target, event)
-      // this.getTooltip(target)
+      this.getTooltip(target)
       // this.tooltipStyle.display = 'none'
       // if (this.cbClickEvent) this.cbClickEvent(event)
     },

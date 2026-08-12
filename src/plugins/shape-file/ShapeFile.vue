@@ -3032,7 +3032,6 @@ export default MyComponent
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-
 .shapefile-viewer {
   position: absolute;
   top: 0;
@@ -3154,7 +3153,6 @@ export default MyComponent
   background-color: var(--bgPanel);
   z-index: 9;
   opacity: 0.93;
-
   input.slider {
     margin: auto 0 0.5rem auto;
     width: 8rem;
@@ -3171,7 +3169,6 @@ export default MyComponent
     border: var(--borderThin);
     border-radius: 4px;
   }
-
   .img-button:hover {
     border: 2px solid var(--linkHover);
   }
