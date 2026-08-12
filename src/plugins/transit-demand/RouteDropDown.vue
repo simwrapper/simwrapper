@@ -186,8 +186,12 @@ export default defineComponent({
   // toggles it on pre-click activation and the preventDefault then rolls that toggle back,
   // so it never showed a checkmark even though the click registered. Making the control
   // inert routes every click to .leftside, which is what the one-way binding assumes.
-  // (`.checkbox` is theme-bulma's root class; our own class lands on the inner input.)
-  :deep(.checkbox) {
+  //
+  // This has to hit the INPUT, not the o-checkbox root: theme-oruga ships
+  // `.o-checkbox__input { pointer-events: auto }`, which wins back anything set on the
+  // parent. `[data-oruga-input]` comes from the component itself, so unlike a class name
+  // it survives switching Oruga's theme config (see src/main.ts).
+  :deep([data-oruga-input='checkbox']) {
     pointer-events: none;
   }
 }

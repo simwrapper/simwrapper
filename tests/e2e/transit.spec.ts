@@ -102,9 +102,11 @@ test('clicking a transit line selects its routes', async ({ page }) => {
   await page.locator('.card-header-icon').first().click()
   await expect(page.locator('.route-title')).toHaveCount(1)
 
-  // per-route checkbox. `input.check` is theme-bulma's inner <input> for o-checkbox, and
-  // the class we put on the o-checkbox lands there too, not on its root.
-  await page.locator('.card-details input.check').first().click()
+  // per-route checkbox. o-checkbox is `inheritAttrs: false` and spreads the fallthrough
+  // attrs onto its inner <input>, so the class we set lands there, not on the root -- which
+  // makes our own class the stable hook. Oruga's built-in names (`o-checkbox__input`) move
+  // whenever the theme config changes, so don't key off those.
+  await page.locator('.card-details input.route-checkbox').first().click()
   await expect.poll(() => testdata(page)).toMatchObject({ selected: 0 })
 
   await page.locator('.card-header-icon').first().click()
@@ -119,7 +121,9 @@ test('clicking a transit line selects its routes', async ({ page }) => {
  * `@click.prevent`, so a click landing on the input got toggled on by the browser's
  * pre-click activation and then rolled straight back by the canceled-activation steps,
  * while the one-way `:modelValue` binding had no reason to re-sync it. The control is now
- * `pointer-events: none` so every click reaches `.leftside`.
+ * `pointer-events: none` so every click reaches `.leftside`. That rule has to sit on the
+ * <input> itself -- theme-oruga ships `.o-checkbox__input { pointer-events: auto }`, which
+ * overrides anything set on the o-checkbox root.
  *
  * ⚠️ This has to click by COORDINATES. With the fix in place `.leftside` legitimately
  * intercepts pointer events, so `locator.click()` on the input throws "intercepts pointer
@@ -131,7 +135,7 @@ test('clicking the line checkbox itself ticks it, not just the label', async ({ 
   await page.goto(PLUGIN_ROUTE)
   await waitForNetwork(page)
 
-  const box = page.locator('.route-dropdown').first().locator('input.check')
+  const box = page.locator('.route-dropdown').first().locator('.leftside input')
   const clickOnBox = async () => {
     const b = await box.boundingBox()
     await page.mouse.click(b!.x + b!.width / 2, b!.y + b!.height / 2)

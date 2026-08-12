@@ -84,7 +84,8 @@
         option(value="YlOrBr") YlOrBr
         option(value="YlOrRd") YlOrRd
 
-      br
+      .hello &nbsp;
+
       o-checkbox.tight(v-model="vizDetails.animationEnabled")
         p Animation
       br
@@ -894,16 +895,12 @@ export default MyComponent
   flex: 1;
   padding: 0 0.5rem;
   z-index: 20;
+  color: var(--textBold);
+  user-select: none;
 
   p:hover {
-    font-weight: bold !important;
-    color: #c6c1b9;
-  }
-
-  // Oruga+Bulma gives o-checkbox rootClass "checkbox control" (Buefy used .b-checkbox.checkbox)
-  .checkbox.control:not(.button):hover {
-    font-weight: bold !important;
-    color: #c6c1b9;
+    // font-weight: bold !important;
+    // color: #c6c1b9;
   }
 }
 
@@ -964,9 +961,6 @@ export default MyComponent
   margin-left: 0;
   margin-right: 0;
   padding: 0;
-}
-
-.form-select {
 }
 
 @media only screen and (max-width: 640px) {

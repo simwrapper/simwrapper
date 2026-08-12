@@ -66,18 +66,12 @@
   --opacityLogo: opacity(70%);
   --opacityAttribution: opacity(70%);
 
-  // Sliders are the one control on @oruga-ui/theme-oruga (see main.ts). Its stock
-  // --oruga-primary is #445e00, a dark olive that clashes badly here; point it at our own
-  // brand green instead. This drives the slider's fill and its tick marks. Loaded after
-  // theme-oruga's own :root block, so this wins on source order.
-  --oruga-primary: #{$appTag};
-
-  // "This toggle is the active one" fill, for segmented button pairs. Deliberately not
-  // Bulma's is-link (#485fc7, a vivid indigo that reads as a hyperlink) and not $appTag,
-  // which now means "slider fill". One value serves both colour schemes: it is dark
-  // enough against the white panel and light enough against dark mode's #2a3c4f one.
   --bgSelected: #{$matsimBlue};
   --textSelected: #ffffff;
+
+  // oruga widget settings
+  --oruga-primary: #{$appTag};
+  --oruga-font-color: var(--text);
 }
 
 .dark-mode {
@@ -143,12 +137,17 @@
   --iconShowHide: #183d36;
 }
 
-// Every o-slider in the app is size="small", and theme-oruga's stock small gives a 10.5px
-// thumb -- a fiddly grab target. theme-oruga derives the track height from the thumb
-// (track = thumb / 2), so this one variable scales both proportionally. Scoped to the
-// --small step so size="medium"/"large" keep their own proportions.
 .o-slider--small {
   --oruga-slider-thumb-size: 1rem;
+}
+
+[data-oruga-input='checkbox']:not(:checked):not(:indeterminate) {
+  background-color: transparent;
+  border-color: var(--bgScrollbar);
+}
+
+.o-checkbox {
+  --oruga-checkbox-color: var(--text);
 }
 
 :root,
