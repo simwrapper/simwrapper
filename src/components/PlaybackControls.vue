@@ -18,7 +18,7 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import * as timeConvert from 'convert-seconds'
+import { timeConvert } from '@/js/util'
 
 export default defineComponent({
   name: 'PlaybackControls',

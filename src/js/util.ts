@@ -208,6 +208,23 @@ export function sleep(milliseconds: number) {
   return new Promise(resolve => setTimeout(resolve, milliseconds))
 }
 
+/**
+ * Convert a seconds value to an object with { hours, minutes, seconds}
+ *
+ * @param seconds time in seconds
+ */
+export function timeConvert(seconds: any) {
+  seconds = parseInt(seconds, 10)
+
+  if (Number.isNaN(seconds)) throw new TypeError('Invalid value sent to timeConvert')
+
+  let results = {} as any
+  results.hours = Math.floor(seconds / 60 / 60)
+  results.minutes = Math.floor((seconds / 60) % 60)
+  results.seconds = Math.floor(seconds % 60)
+  return results
+}
+
 export default {
   arrayBufferToBase64,
   dataUrlToBytes,
@@ -219,5 +236,6 @@ export default {
   parseXML,
   precise,
   sleep,
+  timeConvert,
   unreactive,
 }

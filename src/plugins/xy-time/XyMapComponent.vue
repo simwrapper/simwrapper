@@ -10,10 +10,10 @@ import { MapboxOverlay } from '@deck.gl/mapbox'
 import { DataFilterExtension } from '@deck.gl/extensions'
 import ScatterplotColorBinsLayer from './ScatterplotColorBinsLayer'
 import maplibregl from 'maplibre-gl'
-import * as timeConvert from 'convert-seconds'
 
 import globalStore from '@/store'
 import BackgroundLayers from '@/js/BackgroundLayers'
+import { timeConvert } from '@/js/util'
 import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
 
 const BASE_URL = import.meta.env.BASE_URL

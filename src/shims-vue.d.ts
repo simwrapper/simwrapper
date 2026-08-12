@@ -27,7 +27,6 @@ declare module '*.md' {
 }
 
 declare module 'colormap'
-declare module 'convert-seconds'
 declare module 'd3-color'
 declare module 'epsg'
 declare module 'epsg-index'

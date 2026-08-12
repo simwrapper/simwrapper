@@ -136,9 +136,6 @@ importers:
       connect-history-api-fallback:
         specifier: ^2.0.0
         version: 2.0.0
-      convert-seconds:
-        specifier: ^1.0.1
-        version: 1.0.1
       crossfilter2:
         specifier: ^1.5.4
         version: 1.5.4(patch_hash=308b61593adcf978744994b78ce5c800343c758a072506affa7cf3436f604674)
@@ -3905,9 +3902,6 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
-  convert-seconds@1.0.1:
-    resolution: {integrity: sha512-sVm4eDiYQwnPXlsG+Xm8uO97X2DEEoVvG9ygc3bASsaF1iPPBIQIjtR5FFGZN1sAokjbyG/t6XayLtp21n6dEw==}
-
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
 
@@ -3936,6 +3930,7 @@ packages:
 
   crypto-js@4.2.0:
     resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
+    deprecated: Active development of CryptoJS has been discontinued. This library is no longer maintained.
 
   css-font-size-keywords@1.0.0:
     resolution: {integrity: sha512-Q+svMDbMlelgCfH/RVDKtTDaf5021O486ZThQPIpahnIjUkMUslC+WuOQSWTgGSrNCH08Y7tYNEmmy0hkfMI8Q==}
@@ -12826,8 +12821,6 @@ snapshots:
       git-semver-tags: 4.1.1
       meow: 8.1.2
       q: 1.5.1
-
-  convert-seconds@1.0.1: {}
 
   convert-source-map@2.0.0: {}
 
