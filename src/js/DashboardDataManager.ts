@@ -151,12 +151,18 @@ export default class DashboardDataManager {
       // this will immediately return dataset if it is already loaded
       let myDataset = await withTimeout(this.datasets[cacheKey].dataset, 60)
 
-      let { _comments, ...allRows } = myDataset
+      let { _comments, ...fullDataset } = myDataset
       let comments = _comments as unknown as string[]
 
-      // make a copy because each viz in a dashboard might be hacking it differently
+      // Make a copy of every column, because each viz in a dashboard might be hacking it
+      // differently: aggregating, pivoting, renaming, etc. Without this, a viz which swaps
+      // out column.values would corrupt the cached dataset for every other viz on the page.
+      // Note the values arrays themselves are shared; consumers must never modify them in place.
       // TODO: be more "functional" and return the object itself, and let views create copies if they need to
-      // let allRows = { ...myDataset }
+      const allRows = {} as any
+      Object.entries(fullDataset as DataTable).forEach(([name, column]) => {
+        allRows[name] = { ...column }
+      })
 
       // remove ignored columns
       if (config.ignoreColumns) {
