@@ -433,6 +433,7 @@ export default defineComponent({
 
 <style scoped lang="scss">
 @use '@/variables' as *;
+
 .color-ramp-picker {
   padding-right: 0rem;
 }
@@ -512,7 +513,8 @@ export default defineComponent({
 .single-color.active {
   border-color: black;
 }
+
 .tight {
-  margin: 0 0 -10px 1px;
+  margin-left: 2px;
 }
 </style>

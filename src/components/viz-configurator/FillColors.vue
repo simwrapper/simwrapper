@@ -523,6 +523,6 @@ export default defineComponent({
   border-color: black;
 }
 .tight {
-  margin: 0 0 -10px 1px;
+  margin-left: 2px;
 }
 </style>
