@@ -37,9 +37,6 @@
     //- SCROLLABLE LIST OF ACTIVE LAYERS -------------------------------
     .scrollable
 
-      //- vuedraggable 4 (the Vue 3 fork) requires item-key and renders rows through
-      //- the #item slot. `is` on a plain element means "customized built-in" in Vue 3,
-      //- so the config panel needs a real <component>.
       draggable(v-model="layerList" item-key="key")
         template(#item="{element, index}")
           component.layer(
@@ -287,12 +284,6 @@ export default defineComponent({
   min-height: 0;
 }
 
-// Only this list scrolls, and only when it has to. Two things are load-bearing:
-// `min-height: 0`, because a flex item refuses to shrink below its content without it --
-// without it the list simply overflowed the panel and the tail of a long layer list was
-// unreachable, with no scrollbar anywhere; and NOT having a large `padding-bottom`, which
-// used to make the content taller than the box no matter what, so the scrollbar was
-// always visible even with a single layer.
 .scrollable {
   display: flex;
   flex-direction: column;
@@ -383,8 +374,6 @@ export default defineComponent({
 }
 
 .layers-section {
-  // min-height, not max-height: this is the flex item that has to give, so that
-  // .scrollable below gets a definite height to scroll inside of
   min-height: 0;
 }
 
