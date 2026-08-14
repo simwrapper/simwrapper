@@ -107,34 +107,24 @@ import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?ur
 import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
-import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import type { Sqlite3Static } from '@sqlite.org/sqlite-wasm';
-import Papa from '@simwrapper/papaparse'
 
 
 
 import {
-    FileSystem,
-    LegendItem,
-    LegendItemType,
     FileSystemConfig,
-    VisualizationPlugin,
-    LIGHT_MODE,
-    DARK_MODE,
     REACT_VIEW_HANDLES,
-    MAP_STYLES_OFFLINE,
-    ColorScheme,
     DataTable,
 } from '@/Globals'
 import LegendStore from '@/js/LegendStore'
 
-export interface MapData {
-    linkId: String
-    agentId: String
-    legId: String
-    hour: Number
-    mode: String
-}
+// export interface MapData {
+//     linkId: String
+//     agentId: String
+//     legId: String
+//     hour: Number
+//     mode: String
+// }
 
 
 
@@ -480,6 +470,13 @@ const SelectLinkAnalysis = defineComponent({
 
             // console.log('caching parquet to allow for faster subsequent queries:', initialResult.toArray())
 
+            //@ts-ignore
+            window.__testdata__ = {
+                db: this.db,
+                conn: this.conn,
+                dbCsv: this.dbCsv,
+                connCsv: this.connCsv,
+            }
         },
 
         splitString(str: string, delimiter: string): string[] {
@@ -491,18 +488,20 @@ const SelectLinkAnalysis = defineComponent({
             try {
                 if (this.conn && this.chosenFormat === 'Parquet') {
 
-                    const result = await this.conn.query(`
+                    const stmt = await this.conn.prepare(`
                         WITH sequences AS (
                             SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
                             FROM 'link-traversals-sorted.parquet' lt
                             INNER JOIN 'leg-sequences-sorted.parquet' ls ON lt.leg_id = ls.leg_id
-                            WHERE lt.link_id = '${linkId}' AND lt.hour = ${hour}
+                            WHERE lt.link_id = '?' AND lt.hour = ?
                         )
                         SELECT co_link_id, COUNT(*) AS traversal_count
                         FROM sequences
                         GROUP BY co_link_id
                         ORDER BY traversal_count DESC
                     `)
+
+                    const result = await stmt.query(linkId, hour)
 
                     this.queryTime = performance.now() - start;
 
@@ -515,18 +514,20 @@ const SelectLinkAnalysis = defineComponent({
                 if (this.connCsv && this.dbCsv && this.chosenFormat === 'Csv') {
                     const start = performance.now();
 
-                    const result = await this.connCsv.query(`
+                    const stmt = await this.connCsv.prepare(`
                         WITH sequences AS (
                             SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
                             FROM 'link-traversals-sorted.csv.zst' lt
                             INNER JOIN 'leg-sequences-sorted.csv.zst' ls ON lt.leg_id = ls.leg_id
-                            WHERE lt.link_id = '${linkId}' AND lt.hour = ${hour}
+                            WHERE lt.link_id = ? AND lt.hour = ?
                         )
                         SELECT co_link_id, COUNT(*) AS traversal_count
                         FROM sequences
                         GROUP BY co_link_id
                         ORDER BY traversal_count DESC
                     `)
+
+                    const result = await stmt.query(linkId, hour)
 
                     this.queryTime = performance.now() - start;
 
@@ -545,13 +546,14 @@ const SelectLinkAnalysis = defineComponent({
             this.currentlyQueriedHour = hour
             try {
                 if (this.conn) {
-                    const result = await this.conn.query(`
+                    const stmt = await this.conn.prepare(`
                         SELECT a.*
                         FROM "agents-sorted.parquet" a
                         INNER JOIN "link-traversals-sorted.parquet" lt
                             ON a.agent_id = lt.agent_id
-                        WHERE lt.link_id = '${linkId}' AND lt.hour = ${hour}
+                        WHERE lt.link_id = ? AND lt.hour = ?
                     `)
+                    const result = await stmt.query(linkId, hour)
 
                     this.originalAgents = Object.fromEntries(
                         result.toArray().map(row => {
@@ -586,7 +588,7 @@ const SelectLinkAnalysis = defineComponent({
 
             this.filteredAgents = []
             this.queriedAgents = Object.fromEntries(
-                (Object.entries(this.originalAgents) as [string, any][]) 
+                (Object.entries(this.originalAgents) as [string, any][])
                     .filter(([agentId, agent]) => {
                         const matches = (agent as any).economic_status === this.selectedEconomicGroup
                         if (matches) {
@@ -597,16 +599,16 @@ const SelectLinkAnalysis = defineComponent({
             )
             if (this.conn) {
                 try {
-                    const result = await this.conn.query(`
+                    const stmt = await this.conn.prepare(`
                         WITH sequences AS (
                             SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
                             FROM 'link-traversals-sorted.parquet' lt
                             INNER JOIN 'leg-sequences-sorted.parquet' ls
                                 ON lt.leg_id = ls.leg_id
-                            WHERE lt.link_id = '${this.currentlyQueriedLinkId}'
-                            AND lt.hour = ${this.currentlyQueriedHour}
+                            WHERE lt.link_id = ?
+                            AND lt.hour = ?
                             AND lt.agent_id IN (
-                                SELECT UNNEST(string_split('${this.filteredAgents.join("|")}', '|'))
+                                SELECT UNNEST(string_split(?, '|'))
                             )
                         )
                         SELECT co_link_id, COUNT(*) AS traversal_count
@@ -614,6 +616,10 @@ const SelectLinkAnalysis = defineComponent({
                         GROUP BY co_link_id
                         ORDER BY traversal_count DESC
                     `);
+
+                    const result = await stmt.query(this.currentlyQueriedLinkId, this.currentlyQueriedHour, this.filteredAgents.join('|'))
+
+
                     this.selectedLinkTraversals = Object.fromEntries(
                         result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
                     );
