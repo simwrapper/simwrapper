@@ -154,6 +154,11 @@ const plugins: any[] = [
     component: defineAsyncComponent(() => import('./imoger/VehicleAnimation.vue')),
   },
   {
+    kebabName: 'select-link',
+    filePatterns: ['**/viz-sla*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./select-link-analysis/SelectLinkAnalysis.vue')),
+  },
+  {
     kebabName: 'plans',
     // filePatterns: ['**/*plans.parquet', '**/viz-plans*.y?(a)ml*'],
     filePatterns: ['**/*plans.parquet'],

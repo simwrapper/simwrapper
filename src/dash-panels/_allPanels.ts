@@ -23,6 +23,8 @@ export const panelLookup: { [key: string]: Component } = {
   vega: defineAsyncComponent(() => import('./vega.vue')),
   video: defineAsyncComponent(() => import('./video.vue')),
   xml: defineAsyncComponent(() => import('./xml.vue')),
+  selectlink: defineAsyncComponent(() => import('./select-link-analysis.vue')),
+
 
   // full-screen map visualizations:
 
