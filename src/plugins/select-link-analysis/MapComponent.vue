@@ -1,10 +1,10 @@
 <template lang="pug">
-.deck-map.flex-col
-  .map-container(:id="`map-${viewId}`")
+.map-container(:id="`map-${viewId}`")
+
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, PropType, markRaw } from 'vue'
 import { ArcLayer, PathLayer, LineLayer } from '@deck.gl/layers'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 
@@ -174,14 +174,17 @@ export default defineComponent({
     }
 
     //@ts-ignore
-    this.mymap = new maplibregl.Map({
-      container,
-      style,
-      center,
-      zoom,
-      canvasContextAttributes: { preserveDrawingBuffer: true },
-      pixelRatio: window.devicePixelRatio,
-    })
+    this.mymap = markRaw(
+      new maplibregl.Map({
+        container,
+        style,
+        center,
+        zoom,
+        canvasContextAttributes: { preserveDrawingBuffer: true },
+        pixelRatio: window.devicePixelRatio,
+      })
+    )
+
     // console.log('map container dimensions:',
     //   document.getElementById(container)?.offsetWidth,
     //   document.getElementById(container)?.offsetHeight
@@ -192,13 +195,16 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = new MapboxOverlay({
-        interleaved: true,
-        layers: this.layers,
-        pickingRadius: 10,
-        onHover: this.handleHover,
-        onClick: this.handleClick,
-      })
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          interleaved: true,
+          layers: this.layers,
+          pickingRadius: 10,
+          onHover: this.handleHover,
+          onClick: this.handleClick,
+        })
+      )
+
       this.mymap?.addControl(this.deckOverlay)
       // console.log('overlay added, layers count:', this.layers.length)
 
@@ -208,7 +214,7 @@ export default defineComponent({
     })
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
@@ -216,6 +222,7 @@ export default defineComponent({
   methods: {
     handleMove() {
       if (this.mapIsIndependent) return
+
       const center = this.mymap?.getCenter() as any
       const view = {
         latitude: center.lat,
@@ -271,16 +278,9 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
-.deck-map {
-  position: absolute;
-  inset: 0 0 0 0;
-  width: 100%;
-  height: 100%;
-}
-
 .map-container {
-  position: absolute;
-  inset: 0 0 0 0;
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
 }
 
 .deck-tooltip {

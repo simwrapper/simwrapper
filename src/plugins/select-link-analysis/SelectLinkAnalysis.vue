@@ -1,6 +1,5 @@
 <template lang="pug">
-.select-link-viewer(
-                oncontextmenu="return false")
+.select-link-viewer(oncontextmenu="return false")
 
   .container-1
     .main-panel
@@ -36,34 +35,33 @@
                     //-     li(v-for="group in economicGroups" :key="group" @click="filterAgentGroups(group)") {{ group }}
 
         MapComponent.anim(v-if="!needsInitialMapExtent"
-        :features="boundaries"
-        :mapIsIndependent="true"
-                    :dark="true"
-                    :data="data"
-                    :viewId="linkLayerId"
-                    :cbTooltip="cbTooltip"
-                    :lineWidths="dataLineWidths"
-                    :selectedLinkPaths="selectedLinkTraversals"
-                    @selectedLink="updateParentValue"
-                )
-            .status-box(v-if="statusText")
-                p {{ statusText }}
-                b-progress.load-progress(v-if="loadProgress > 0"
-                :value="loadProgress" :rounded="false" type='is-success')
-        click-through-times.time-slider-area(
-        :allTimes="allTimes"
-        :range="timeRange"
-        @timeUpdate="handleDiscreteTimeValues"
+            :features="boundaries"
+            :mapIsIndependent="false"
+            :dark="true"
+            :data="data"
+            :viewId="linkLayerId"
+            :cbTooltip="cbTooltip"
+            :lineWidths="dataLineWidths"
+            :selectedLinkPaths="selectedLinkTraversals"
+            @selectedLink="updateParentValue"
         )
 
+        .status-bar(v-if="statusText")
+            p {{ statusText }}
+            progress.load-progress(v-if="loadProgress && loadProgress < 1" :value="loadProgress" :rounded="false" type='is-success')
 
-        //- zoom-buttons(
-        //-     v-if="!thumbnail && isLoaded"
-        //-     corner="top-left"
-        //-     :show3dToggle="true"
-        //-     :is3dBuildings="show3dBuildings"
-        //-     :onToggle3dBuildings="toggle3dBuildings"
-        //- )
+        click-through-times.time-slider-area(
+            :allTimes="allTimes"
+            :range="timeRange"
+            @timeUpdate="handleDiscreteTimeValues"
+        )
+
+        zoom-buttons(v-if="isLoaded"
+            corner="top-left"
+            :show3dToggle="true"
+            :is3dBuildings="show3dBuildings"
+            :onToggle3dBuildings="toggle3dBuildings"
+        )
 
         .tooltip(v-if="tooltip" v-html="tooltip.html" :style="tooltip.style")
     .legend-footer
@@ -82,17 +80,22 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, ref } from 'vue'
 import type { PropType } from 'vue'
 import YAML from 'yaml'
 import readBlob from 'read-blob'
-import { arrayBufferToBase64, debounce } from '@/js/util'
 import * as turf from '@turf/turf'
-import LegendBox from '@/components/viz-configurator/LegendBox.vue'
-import { ref } from 'vue'
-import GUI from 'lil-gui'
+
+import * as duckdb from '@duckdb/duckdb-wasm'
+import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url'
+import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url'
+import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url'
+import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url'
+
 import globalStore from '@/store'
+import { arrayBufferToBase64, debounce, sleep } from '@/js/util'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import LegendBox from '@/components/viz-configurator/LegendBox.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
@@ -100,11 +103,6 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import ClickThroughTimes from '@/components/ClickThroughTimes.vue'
 import TimeSlider from '@/components/TimeSliderV2.vue'
 import MapComponent from './MapComponent.vue'
-import * as duckdb from '@duckdb/duckdb-wasm'
-import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url'
-import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url'
-import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url'
-import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 
 import { FileSystemConfig, REACT_VIEW_HANDLES, DataTable } from '@/Globals'
@@ -203,7 +201,6 @@ const SelectLinkAnalysis = defineComponent({
       show3dBuildings: false,
       data: [] as any[],
       network: [] as any[],
-      guiController: null as GUI | null,
       boundaries: [] as any[],
       centroids: [] as any[],
       cbDatasetJoined: undefined as any,
@@ -278,7 +275,6 @@ const SelectLinkAnalysis = defineComponent({
       },
 
       myState: {
-        statusMessage: '',
         isRunning: false,
         subfolder: '',
         yamlConfig: '',
@@ -306,9 +302,11 @@ const SelectLinkAnalysis = defineComponent({
 
   computed: {
     tooltip() {},
+
     fileApi(): HTTPFileSystem {
       return new HTTPFileSystem(this.fileSystem, globalStore)
     },
+
     fileSystem(): FileSystemConfig {
       const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
         (a: FileSystemConfig) => a.slug === this.root
@@ -324,6 +322,7 @@ const SelectLinkAnalysis = defineComponent({
       console.log('full URL for file system:', svnProject[0].baseURL + '/' + this.subfolder)
       return svnProject[0]
     },
+
     allProps() {
       const props = new Set()
       Object.values(this.queriedAgents).forEach(agent => {
@@ -442,6 +441,8 @@ const SelectLinkAnalysis = defineComponent({
     },
 
     async loadParquetData() {
+      this.statusText = 'Loading parquet data'
+      await sleep(0)
       this.bundle = await duckdb.selectBundle(MANUAL_BUNDLES)
       this.worker = new Worker(this.bundle.mainWorker!)
       this.db = new duckdb.AsyncDuckDB(this.logger ?? new duckdb.ConsoleLogger(), this.worker)
@@ -482,7 +483,10 @@ const SelectLinkAnalysis = defineComponent({
       //     WHERE hour = ${this.selectedHour}
       // `)
 
-      // console.log('caching parquet to allow for faster subsequent queries:', initialResult.toArray())
+      // console.log(
+      //   'caching parquet to allow for faster subsequent queries:',
+      //   initialResult.toArray()
+      // )
 
       //@ts-ignore
       window.__testdata__ = {
@@ -723,7 +727,7 @@ const SelectLinkAnalysis = defineComponent({
         const allNetworks = files.filter(f => f.indexOf('network') > -1)
         if (allNetworks.length) network = allNetworks[0]
         else {
-          this.myState.statusMessage = 'No road network found.'
+          this.statusText = 'No road network found.'
           network = ''
         }
       }
@@ -737,7 +741,8 @@ const SelectLinkAnalysis = defineComponent({
     async loadNetwork() {
       console.log('LOADING NETWORK')
       console.log('vizDetails.network:', this.vizDetails.network)
-      this.myState.statusMessage = 'Loading network...'
+      this.statusText = 'Loading network...'
+      await sleep(0)
 
       if (
         this.vizDetails.network.indexOf('.xml.') > -1 ||
@@ -795,7 +800,7 @@ const SelectLinkAnalysis = defineComponent({
 
     incrementLoadProgress() {
       this.loadSteps += 1
-      this.loadProgress = (100 * this.loadSteps) / this.totalLoadSteps
+      this.loadProgress = this.loadSteps / this.totalLoadSteps
     },
 
     async fetchNetwork(path: string, vizDetails: any) {
@@ -821,7 +826,7 @@ const SelectLinkAnalysis = defineComponent({
             }
 
             if (e.data.status) {
-              this.myState.statusMessage = '' + e.data.status
+              this.statusText = '' + e.data.status
               return
             }
 
@@ -831,7 +836,7 @@ const SelectLinkAnalysis = defineComponent({
             if (e.data.error) {
               console.error(e.data.error)
               globalStore.commit('error', e.data.error)
-              this.myState.statusMessage = e.data.error
+              this.statusText = e.data.error
               reject(e.data.error)
             }
             resolve(e.data.links)
@@ -868,15 +873,14 @@ const SelectLinkAnalysis = defineComponent({
       try {
         this.statusText = 'Loading features...'
         this.incrementLoadProgress()
-        // avro network!
+        await sleep(0)
+
         console.log('--AVRO')
         boundaries = await this.loadNetwork()
 
-        await this.$nextTick()
         this.statusText = 'Processing data...'
         this.incrementLoadProgress()
-        await this.$nextTick()
-        await this.$nextTick()
+        await sleep(0)
 
         let hasNoLines = true
         let hasNoPolygons = true
@@ -923,20 +927,11 @@ const SelectLinkAnalysis = defineComponent({
         if (hasPoints || !hasNoPolygons) this.isAreaMode = true
 
         this.statusText = 'Adding boundaries to map'
-        await this.$nextTick()
+        await sleep(0)
         this.incrementLoadProgress()
 
         this.boundaries = boundaries
         this.incrementLoadProgress()
-
-        // generate centroids if we have polygons
-        // if (!hasNoPolygons || hasPoints) {
-        //   await this.generateCentroidsAndMapCenter()
-        // }
-
-        // Need to wait one tick so Vue inserts the Deck.gl view AFTER center is calculated
-        // (not everyone lives in Berlin)
-        // await this.$nextTick()
       } catch (e) {
         const err = e as any
         const message = err.statusText || 'Could not load'
@@ -1147,18 +1142,15 @@ const SelectLinkAnalysis = defineComponent({
   async mounted() {
     this.dbClearTooltip = debounce(this.clearTooltip, 1000)
 
+    this.incrementLoadProgress()
+    await sleep(0)
+
     globalStore.commit('setFullScreen', !this.thumbnail)
     // this.buildRouteFromUrl()
 
     this.myState.thumbnail = this.thumbnail
     this.myState.subfolder = this.subfolder
 
-    // if (!this.yamlConfig) {
-    //     console.log(this.yamlConfig, this.yamlConfig)
-
-    // } else {
-    //     this.myState.yamlConfig = this.yamlConfig
-    // }
     await this.getVizDetails()
 
     if (this.vizDetails.center && typeof this.vizDetails.center === 'string') {
@@ -1183,7 +1175,7 @@ const SelectLinkAnalysis = defineComponent({
       this.vizDetails.zoom = initialView.zoom
       this.config.zoom = initialView.zoom
     }
-    await this.$nextTick() // update UI update before network load begins
+
     await this.loadAndPrepareData()
 
     // if we have a USER-SUPPLIED center, move there now
@@ -1204,6 +1196,7 @@ const SelectLinkAnalysis = defineComponent({
         this.$store.commit('setMapCamera', view)
       }
     }
+
     await this.loadBoundaries()
 
     // console.log('data', this.data)
@@ -1221,7 +1214,7 @@ const SelectLinkAnalysis = defineComponent({
     this.statusText = ''
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.selectedLinkTraversals = {}
     this.queriedAgents = {}
 
@@ -1259,7 +1252,6 @@ const SelectLinkAnalysis = defineComponent({
     // Clean up other resources
     // delete window.__testdata__;
     this.data = []
-    this.guiController?.destroy()
     this.$store.commit('setFullScreen', false)
     //@ts-ignore
     delete window.__testdata__
@@ -1270,6 +1262,8 @@ export default SelectLinkAnalysis
 </script>
 
 <style lang="scss" scoped>
+@use '@/variables' as *;
+
 *::-webkit-scrollbar {
   width: 10px;
 }
@@ -1296,12 +1290,10 @@ export default SelectLinkAnalysis
 
 .main-panel {
   position: relative;
-  // flex: 1;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  background-color: var(--bgBold);
-  height: 100%;
-  z-index: 0;
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
+  z-index: 500;
 }
 
 .query-info {
@@ -1465,15 +1457,43 @@ export default SelectLinkAnalysis
   border-color: #007bff;
 }
 
+.map-component {
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
+  height: 100%;
+  z-index: 300;
+}
+
 .status-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
   z-index: 200;
+  border-radius: 8px;
   background-color: var(--bgPanel2);
   padding: 1rem 1rem;
-  font-size: 1.1rem;
-  margin-bottom: 6px;
-  border: 1px solid var(--);
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: auto 1rem;
+  text-align: center;
+  color: var(--link);
+  //   border: 1px solid var(--);
+}
+
+.load-progress {
+  background-color: var(--bgBold);
+  width: 10rem;
+  height: 4px;
+}
+.load-progress::-moz-progress-bar {
+  background-color: $appTag;
+}
+.load-progress::-webkit-progress-bar {
+  background-color: var(--bgBold);
+}
+.load-progress::-moz-progress-value {
+  background-color: $appTag;
+}
+.load-progress::-webkit-progress-value {
+  background-color: $appTag;
 }
 </style>
