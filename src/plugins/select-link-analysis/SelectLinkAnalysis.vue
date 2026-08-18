@@ -91,7 +91,6 @@ import * as turf from '@turf/turf'
 import LegendBox from '@/components/viz-configurator/LegendBox.vue'
 import { ref } from 'vue'
 import GUI from 'lil-gui'
-import { ToggleButton } from 'vue-js-toggle-button'
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
@@ -107,7 +106,6 @@ import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?ur
 import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url'
 import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
-import type { Sqlite3Static } from '@sqlite.org/sqlite-wasm'
 
 import { FileSystemConfig, REACT_VIEW_HANDLES, DataTable } from '@/Globals'
 import LegendStore from '@/js/LegendStore'
@@ -172,7 +170,6 @@ const SelectLinkAnalysis = defineComponent({
     CollapsiblePanel,
     DrawingTool,
     MapComponent,
-    ToggleButton,
     ZoomButtons,
     ClickThroughTimes,
     TimeSlider,
