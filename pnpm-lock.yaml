@@ -132,6 +132,9 @@ importers:
       csvtojson:
         specifier: ^2.0.10
         version: 2.0.14
+      d3:
+        specifier: ^7.9.0
+        version: 7.9.0
       d3-array:
         specifier: ^3.2.4
         version: 3.2.4
@@ -468,7 +471,7 @@ importers:
         version: 7.0.0(@typescript-eslint/eslint-plugin@4.33.0(@typescript-eslint/parser@4.33.0(eslint@9.39.5(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@9.39.5(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(@typescript-eslint/parser@4.33.0(eslint@9.39.5(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint-plugin-vue@10.10.0(@typescript-eslint/parser@4.33.0(eslint@9.39.5(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@9.39.5(supports-color@8.1.1))(vue-eslint-parser@10.4.1(eslint@9.39.5(supports-color@8.1.1))(supports-color@8.1.1)))(eslint@9.39.5(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3)
       '@vue/language-plugin-pug':
         specifier: latest
-        version: 3.3.9
+        version: 3.3.10
       '@vue/test-utils':
         specifier: ^2
         version: 2.4.11(@vue/compiler-dom@3.5.40)(@vue/server-renderer@3.5.40)(vue@3.5.40(typescript@6.0.3))
@@ -3266,8 +3269,8 @@ packages:
       typescript:
         optional: true
 
-  '@vue/language-plugin-pug@3.3.9':
-    resolution: {integrity: sha512-+uap3EcLetseWjgXQRku+VNAfc6EYCw6+sZReNp2hf50xfT+0FHUkMo1ltzFDgBstXTr9ZnA0E15fIei+SkmVA==}
+  '@vue/language-plugin-pug@3.3.10':
+    resolution: {integrity: sha512-wwqAlgQwhtjPJhCxbOhQqK+Oq8k1SqR7DsV0tzdWZX1knXxm7oXiYu4AGODoiTG0UGjwidvQfY5EaZtJWsGfVQ==}
 
   '@vue/reactivity@3.5.40':
     resolution: {integrity: sha512-B7ot9UlUZOi1zbq61/LvE88ZLTV8IlajTdiZTAEiDQgrnIMIZoPr9kGw0Zw46ObW62O9+H/Be3kMbfb7kYPQZA==}
@@ -12146,7 +12149,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vue/language-plugin-pug@3.3.9':
+  '@vue/language-plugin-pug@3.3.10':
     dependencies:
       '@volar/source-map': 2.4.28
       muggle-string: 0.4.1

@@ -9,20 +9,18 @@ import { ArcLayer, PathLayer, LineLayer } from '@deck.gl/layers'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 
 import { MapboxOverlay } from '@deck.gl/mapbox'
-import * as d3 from "d3";
-import { color } from "d3-color";
+import * as d3 from 'd3'
+import { color } from 'd3-color'
 import maplibregl from 'maplibre-gl'
 import GeojsonOffsetLayer from '@/layers/GeojsonOffsetLayer'
 import globalStore from '@/store'
 import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
-
 
 interface DeckObject {
   index: number
   target: number[]
   data: any
 }
-
 
 export default defineComponent({
   name: 'MyDeckComponent',
@@ -41,8 +39,6 @@ export default defineComponent({
     // onClick: { type: Function, required: true },
     show3dBuildings: { type: Boolean, required: false, default: false },
   },
-
-
 
   data() {
     return {
@@ -76,7 +72,6 @@ export default defineComponent({
 
     features(val) {
       console.log('features changed:', val?.length)
-
     },
 
     dark() {
@@ -109,7 +104,6 @@ export default defineComponent({
   },
 
   computed: {
-
     isStroked() {
       return !!this.lineColors && this.lineWidths !== 0
     },
@@ -131,13 +125,12 @@ export default defineComponent({
       const finalLayers = []
 
       finalLayers.push(
-
         new LineOffsetLayer({
           id: 'linksLayer',
           data: this.features,
           getColor: (feature: any) => {
             const value = this.countMap.get(feature.id.toString())
-            if (value === undefined) return [80, 80, 80, 80]  // grey = no data
+            if (value === undefined) return [80, 80, 80, 80] // grey = no data
             return this.getLinkColorScale(value)
           },
           getWidth: (feature: any) => {
@@ -164,12 +157,10 @@ export default defineComponent({
         } as any)
       )
       return finalLayers
-
     },
   },
 
   mounted() {
-
     const style = `/map-styles/${this.dark ? 'dark' : 'positron'}.json`
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as any
@@ -190,7 +181,6 @@ export default defineComponent({
       zoom,
       canvasContextAttributes: { preserveDrawingBuffer: true },
       pixelRatio: window.devicePixelRatio,
-
     })
     // console.log('map container dimensions:',
     //   document.getElementById(container)?.offsetWidth,
@@ -215,7 +205,6 @@ export default defineComponent({
       this.$nextTick(() => {
         this.deckOverlay?.setProps({ layers: this.layers })
       })
-
     })
   },
 
@@ -256,12 +245,12 @@ export default defineComponent({
     },
 
     handleHover(target: any, event: any) {
-
       target.color = [255, 0, 0, 255]
       if (target.index == -1) {
         this.cbTooltip(-1, null)
         return
       }
+
       this.getTooltip(target)
       // this.tooltipStyle.display = 'none'
       // if (this.cbClickEvent) this.cbClickEvent(event)
@@ -270,11 +259,12 @@ export default defineComponent({
       if (vehicleCount === undefined || this.maxVehicleCount === this.minVehicleCount) {
         return [80, 80, 80, 255]
       }
-      const t = (vehicleCount - this.minVehicleCount) / (this.maxVehicleCount - this.minVehicleCount)
-      const colorStr = d3.scaleSequential(d3.interpolateYlOrRd)(t);
-      const c = color(colorStr)?.rgb();
+      const t =
+        (vehicleCount - this.minVehicleCount) / (this.maxVehicleCount - this.minVehicleCount)
+      const colorStr = d3.scaleSequential(d3.interpolateYlOrRd)(t)
+      const c = color(colorStr)?.rgb()
 
-      return c ? [c.r, c.g, c.b, 255] : [80, 80, 80, 255];
+      return c ? [c.r, c.g, c.b, 255] : [80, 80, 80, 255]
     },
   },
 })
