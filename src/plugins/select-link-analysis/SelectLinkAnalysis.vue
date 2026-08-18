@@ -118,13 +118,13 @@ import {
 } from '@/Globals'
 import LegendStore from '@/js/LegendStore'
 
-// export interface MapData {
-//     linkId: String
-//     agentId: String
-//     legId: String
-//     hour: Number
-//     mode: String
-// }
+/* export interface MapData {
+    linkId: String
+    agentId: String
+    legId: String
+    hour: Number
+    mode: String
+} */
 
 
 
@@ -336,7 +336,7 @@ const SelectLinkAnalysis = defineComponent({
         allProps() {
             const props = new Set();
             Object.values(this.queriedAgents).forEach(agent => {
-                Object.keys(agent).forEach(prop => props.add(prop));
+                Object.keys(agent as any).forEach(prop => props.add(prop));
             });
             return Array.from(props).sort();
         },
@@ -493,7 +493,7 @@ const SelectLinkAnalysis = defineComponent({
                             SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
                             FROM 'link-traversals-sorted.parquet' lt
                             INNER JOIN 'leg-sequences-sorted.parquet' ls ON lt.leg_id = ls.leg_id
-                            WHERE lt.link_id = '?' AND lt.hour = ?
+                            WHERE lt.link_id = ? AND lt.hour = ?
                         )
                         SELECT co_link_id, COUNT(*) AS traversal_count
                         FROM sequences
@@ -502,6 +502,8 @@ const SelectLinkAnalysis = defineComponent({
                     `)
 
                     const result = await stmt.query(linkId, hour)
+
+                    console.log('query result for selected link:', result.toArray())
 
                     this.queryTime = performance.now() - start;
 
@@ -961,8 +963,6 @@ const SelectLinkAnalysis = defineComponent({
         },
 
         cbTooltip(index: number, object: any, forceUpdate: boolean = false) {
-
-            console.log('cbTooltip called with index:', index, 'object:', object, 'forceUpdate:', forceUpdate)
 
             if (this.tooltipIsFixed && !forceUpdate) return
 
