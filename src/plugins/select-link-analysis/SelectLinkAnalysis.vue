@@ -289,7 +289,6 @@ const SelectLinkAnalysis = defineComponent({
       links: null as any,
       selectedLinkTraversals: new Object() as any,
       queriedAgents: new Map<number, any>() as any,
-      sqlite3: null as Sqlite3Static | null,
 
       chosenFormat: 'Parquet' as string,
 
@@ -660,7 +659,7 @@ const SelectLinkAnalysis = defineComponent({
       // subfolder and config file
       const sep = 1 + params.pathMatch.lastIndexOf('/')
       const subfolder = params.pathMatch.substring(0, sep)
-      const config = params.pathMatch.substring(sep)
+      //   const config = params.pathMatch.substring(sep)
 
       this.myState.subfolder = subfolder
       // this.myState.yamlConfig = config
