@@ -527,7 +527,22 @@ export default defineComponent({
 
         const shortFilename = fullPath.substring(0, fullPath.lastIndexOf('.'))
         if (!yaml.header) yaml.header = { title: fullPath, tab: shortFilename }
-        if (!yaml.header.tab) yaml.header.tab = yaml.header.title || shortFilename
+
+        if (this.$store.state.locale === 'de') {
+          yaml.header.tab =
+            yaml.header.tab_de ||
+            yaml.header.tab ||
+            yaml.header.title_de ||
+            yaml.header.title ||
+            shortFilename
+        } else {
+          yaml.header.tab =
+            yaml.header.tab_en ||
+            yaml.header.tab ||
+            yaml.header.title_en ||
+            yaml.header.title ||
+            shortFilename
+        }
 
         this.dashboards[fullPath] = yaml
         // console.log('DASHBOARD:', fullPath)
