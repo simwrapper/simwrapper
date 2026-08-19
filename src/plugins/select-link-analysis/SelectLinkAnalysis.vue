@@ -230,6 +230,7 @@ const SelectLinkAnalysis = defineComponent({
         14 * 3600,
       ] as any[],
       queryTime: 0 as number,
+      queryToken: 0 as number,
 
       originalAgents: {} as any,
       originalTraversals: {} as any,
@@ -347,6 +348,10 @@ const SelectLinkAnalysis = defineComponent({
       // if (!this.yamlConfig) this.buildRouteFromUrl()
       await this.getVizDetails()
     },
+
+    async selectedHour() {
+      await this.refreshSelectedLink()
+    },
   },
 
   methods: {
@@ -355,17 +360,30 @@ const SelectLinkAnalysis = defineComponent({
     },
 
     async updateParentValue(value: any) {
+      // clicking empty map space gives us no link: keep the current selection
+      if (!value?.link?.id) return
+
       this.selectedLink = value
-      let results = await this.queryLinksForSelectedLink(
-        this.selectedLink.link.id,
-        this.selectedHour
-      )
-      let agentResults = await this.queryAgentsForSelectedLink(
-        this.selectedLink.link.id,
-        this.selectedHour
-      )
-      this.selectedLinkTraversals = results
-      this.queriedAgents = agentResults
+      await this.refreshSelectedLink()
+    },
+
+    // Re-run the queries for whatever link is currently selected. Called on a new
+    // selection and whenever the hour changes underneath the existing selection.
+    async refreshSelectedLink() {
+      const linkId = this.selectedLink?.link?.id
+      if (!linkId) return
+
+      const hour = this.selectedHour
+      const token = ++this.queryToken
+
+      const results = await this.queryLinksForSelectedLink(linkId, hour)
+      if (token !== this.queryToken) return // a newer link/hour won the race
+
+      const agentResults = await this.queryAgentsForSelectedLink(linkId, hour)
+      if (token !== this.queryToken) return
+
+      this.selectedLinkTraversals = results || {}
+      this.queriedAgents = agentResults || {}
     },
 
     async loadAndPrepareData() {
@@ -520,8 +538,6 @@ const SelectLinkAnalysis = defineComponent({
 
           const result = await stmt.query(linkId, hour)
 
-          console.log('query result for selected link:', result.toArray())
-
           this.queryTime = performance.now() - start
 
           this.originalTraversals = Object.fromEntries(
@@ -574,12 +590,15 @@ const SelectLinkAnalysis = defineComponent({
                     `)
           const result = await stmt.query(linkId, hour)
 
+          // Arrow rows are exotic Proxies; Vue 3 reactivity chokes on them, so
+          // copy each row into a plain object before it lands in component state
           this.originalAgents = Object.fromEntries(
-            result.toArray().map(row => {
-              for (let key in row) {
-                row[key] = typeof row[key] === 'bigint' ? Number(row[key]) : row[key]
+            result.toArray().map((row: any) => {
+              const agent = { ...row.toJSON() } as any
+              for (const key in agent) {
+                if (typeof agent[key] === 'bigint') agent[key] = Number(agent[key])
               }
-              return [row.agent_id.toString(), row]
+              return [`${agent.agent_id}`, agent]
             })
           )
           return this.originalAgents
@@ -851,7 +870,6 @@ const SelectLinkAnalysis = defineComponent({
 
     handleDiscreteTimeValues(timeUpdate: { extent: number; index: number }) {
       this.selectedHour = timeUpdate.extent / 3600
-      console.log('Selected hour updated:', this.selectedHour)
     },
 
     async loadBoundaries() {

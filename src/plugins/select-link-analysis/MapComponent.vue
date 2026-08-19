@@ -63,15 +63,9 @@ export default defineComponent({
 
   watch: {
     layers() {
-      console.log('updating layers:', this.layers)
-      console.log('deckOverlay?', this.deckOverlay)
       this.deckOverlay?.setProps({
         layers: this.layers,
       })
-    },
-
-    features(val) {
-      console.log('features changed:', val?.length)
     },
 
     dark() {
@@ -167,7 +161,6 @@ export default defineComponent({
     const zoom = this.globalState.viewState.zoom
 
     // check coords before failing
-    console.log({ center, zoom })
     if (center.lng > 180 || center.lat > 90) {
       this.$emit('error', 'Invalid coordinates: long/lat out of range')
       return
@@ -246,7 +239,6 @@ export default defineComponent({
 
     handleClick(target: any, event: any) {
       // this.tooltipStyle.display = 'none'
-      console.log('click', target, event)
       this.$emit('selectedLink', { link: target.object, index: target.index })
       this.getTooltip(target)
     },
