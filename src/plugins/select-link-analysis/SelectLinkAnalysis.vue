@@ -476,6 +476,8 @@ const SelectLinkAnalysis = defineComponent({
                 conn: this.conn,
                 dbCsv: this.dbCsv,
                 connCsv: this.connCsv,
+                getOriginalTraversals: () => this.originalTraversals,
+                selectLink: async (linkId: any, hour: any) => await this.queryLinksForSelectedLink(linkId, hour)
             }
         },
 
