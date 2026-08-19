@@ -26,6 +26,8 @@ export const panelLookup: { [key: string]: AsyncComponent } = {
   vehicles: defineAsyncComponent(() => import('./vehicles.vue')),
   video: defineAsyncComponent(() => import('./video.vue')),
   xml: defineAsyncComponent(() => import('./xml.vue')),
+  selectlink: defineAsyncComponent(() => import('./select-link-analysis.vue')),
+
 
   // full-screen map visualizations:
   aequilibrae: defineAsyncComponent(() => import('./aequilibrae-map.vue')),
