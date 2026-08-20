@@ -46,15 +46,16 @@
       h4 {{ selectedCarrier || 'Details' }}
 
 
-      b-field.detail-buttons(v-if="selectedCarrier" size="is-small")
-
-        b-radio-button(v-model="activeTab" native-value="shipments" size="is-small" type="is-warning")
+      //- Oruga has no radio-button (button-group) control; a plain button group
+      //- with the active one highlighted gives the same behavior as Buefy's.
+      .detail-buttons.buttons.has-addons(v-if="selectedCarrier")
+        o-button(size="small" :variant="activeTab=='shipments' ? 'warning' : ''" @click="activeTab='shipments'")
           span {{ $t('jobs') }}
-        b-radio-button(v-model="activeTab" native-value="tours" size="is-small" type="is-warning")
+        o-button(size="small" :variant="activeTab=='tours' ? 'warning' : ''" @click="activeTab='tours'")
           span {{ $t('tours') }}
-        b-radio-button(v-model="activeTab" native-value="vehicles" size="is-small" type="is-warning")
+        o-button(size="small" :variant="activeTab=='vehicles' ? 'warning' : ''" @click="activeTab='vehicles'")
           span {{ $t('vehicles') }}
-        b-radio-button(v-if="services.length" v-model="activeTab" native-value="services" size="is-small" type="is-warning")
+        o-button(v-if="services.length" size="small" :variant="activeTab=='services' ? 'warning' : ''" @click="activeTab='services'")
           span {{ $t('services') }}
 
       .detail-area
@@ -72,7 +73,7 @@
             ) {{ `${shipment.$id}` }}
 
         .tours(v-if="activeTab=='tours'")
-            .dropdown(v-if="this.plans.length > 1" :class="{'is-active': dropdownIsActive}" style="width: 100%")
+            .dropdown(v-if="plans.length > 1" :class="{'is-active': dropdownIsActive}" style="width: 100%")
               .dropdown-trigger(@click="selectDropdown()")
                 button
                   span Plan {{ selectedPlanIndex + 1 }}
@@ -80,7 +81,7 @@
                     i.fas.fa-angle-down
               .dropdown-menu
                 .dropdown-content
-                  a.dropdown-item(v-for="(plan, index) in this.plans" @click="selectPlan(plan)" :class="{'is-active': plan.$selected == 'true'}") Plan {{ index + 1 }}
+                  a.dropdown-item(v-for="(plan, index) in plans" @click="selectPlan(plan)" :class="{'is-active': plan.$selected == 'true'}") Plan {{ index + 1 }}
 
             span {{ $t('tours')}}: {{ tours.length}}
             .leaf.tour(v-for="tour,i in tours" :key="`${i}-${tour.$id}`"
@@ -100,11 +101,11 @@
       .switchbox
         .switches
           p {{$t('scaleSize')}}
-          b-slider.slider(:tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactor")
+          o-slider.carrier-slider(:tooltip="false" variant="primary" size="small" v-model="vizSettings.scaleFactor")
         .switches
-          b-switch(v-model="vizSettings.shipmentDotsOnTourMap")
+          o-switch(v-model="vizSettings.shipmentDotsOnTourMap")
             span(v-html="$t('shipmentDots')")
-          b-switch(v-model="vizSettings.simplifyTours")
+          o-switch(v-model="vizSettings.simplifyTours")
             span(v-html="$t('flatten')")
 
 </template>
@@ -148,7 +149,6 @@ const i18n = {
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import { ToggleButton } from 'vue-js-toggle-button'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
 import naturalSort from 'javascript-natural-sort'
@@ -158,24 +158,13 @@ import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendColors from '@/components/LegendColors.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { gUnzip, parseXML, findMatchingGlobInFiles, arrayBufferToBase64 } from '@/js/util'
+import { gUnzip, parseXML, findMatchingGlobInFiles, arrayBufferToBase64, unreactive } from '@/js/util'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 import DeckMapComponent from './MapComponent.vue'
 import BackgroundLayers from '@/js/BackgroundLayers'
 
-import {
-  FileSystem,
-  LegendItem,
-  LegendItemType,
-  FileSystemConfig,
-  VisualizationPlugin,
-  LIGHT_MODE,
-  DARK_MODE,
-  REACT_VIEW_HANDLES,
-  MAP_STYLES_OFFLINE,
-  ColorScheme,
-} from '@/Globals'
+import { FileSystemConfig, REACT_VIEW_HANDLES, ColorScheme } from '@/Globals'
 
 interface NetworkLinks {
   source: Float32Array
@@ -206,7 +195,6 @@ const CarrierPlugin = defineComponent({
   components: {
     DeckMapComponent,
     LegendColors,
-    ToggleButton,
     ZoomButtons,
   },
   props: {
@@ -315,7 +303,8 @@ const CarrierPlugin = defineComponent({
       selectedPlanIndex: null as any,
       selectedShipment: null as any,
 
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+      // no trailing semicolon: Vue 3 warns when a style *value* ends with one
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
 
       vehicleLookup: [] as string[],
       vehicleLookupString: {} as { [id: string]: number },
@@ -1122,11 +1111,14 @@ const CarrierPlugin = defineComponent({
       return new Promise<NetworkLinks>((resolve, reject) => {
         const thread = new RoadNetworkLoader()
         try {
-          thread.postMessage({
-            filePath: path,
-            fileSystem: this.fileSystem,
-            vizDetails,
-          })
+          // fileSystem/vizDetails are reactive proxies; structuredClone rejects those
+          thread.postMessage(
+            unreactive({
+              filePath: path,
+              fileSystem: this.fileSystem,
+              vizDetails,
+            })
+          )
 
           thread.onmessage = e => {
             // perhaps network has no CRS and we need to ask user
@@ -1267,6 +1259,10 @@ const CarrierPlugin = defineComponent({
 
     // background layers
     try {
+      // NB: deliberately NOT markRaw'd -- initialLoad() is async and signals completion
+      // by reassigning its internal bgLayers map, which consumers need to react to.
+      // The raw-ness that deck.gl requires is applied to the features inside
+      // BackgroundLayers.ts instead. See trap #7.
       this.backgroundLayers = new BackgroundLayers({
         vizDetails: this.vizDetails,
         fileApi: this.fileApi,
@@ -1278,7 +1274,7 @@ const CarrierPlugin = defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.myState.isRunning = false
 
     globalStore.commit('setFullScreen', false)
@@ -1290,7 +1286,7 @@ export default CarrierPlugin
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 /* SCROLLBARS
    The emerging W3C standard is currently Firefox-only */
@@ -1578,7 +1574,9 @@ input {
   }
 }
 
-.slider {
+// renamed from .slider: theme-bulma's own .slider rules are still loaded for the other
+// components, and would double-style this now-Oruga-themed slider
+.carrier-slider {
   flex: 4;
   margin-right: 0 1rem;
 }

@@ -1,6 +1,7 @@
 declare module '*.vue' {
-  import Vue from 'vue'
-  export default Vue
+  import type { DefineComponent } from 'vue'
+  const component: DefineComponent<{}, {}, any>
+  export default component
 }
 
 declare module '*.vert' {
@@ -25,9 +26,7 @@ declare module '*.md' {
   export default Component
 }
 
-declare module '@/js/avro'
 declare module 'colormap'
-declare module 'convert-seconds'
 declare module 'd3-color'
 declare module 'epsg'
 declare module 'epsg-index'
@@ -47,7 +46,7 @@ declare module 'vueperslides'
 declare module 'react-toggle'
 declare module 'react-dom/client'
 declare module 'vue-good-table'
-declare module 'vue-virtual-scroll-list'
+declare module 'vue3-virtual-scroll-list'
 declare module 'zip-loader'
 declare module 'zstd-wasm-decoder'
 

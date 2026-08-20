@@ -5,7 +5,7 @@
   .widgets
     .widget
         p.tight Display
-        b-select.selector(expanded v-model="dataColumn")
+        o-select.selector(expanded v-model="dataColumn")
           option(label="None" value="^")
           optgroup(v-for="dataset in datasetChoices"
                    :key="dataset"
@@ -20,7 +20,7 @@
   .widgets(v-if="datasetChoices.length > 1")
     .widget
         p.tight Join by
-        b-select.selector(expanded v-model="join")
+        o-select.selector(expanded v-model="join")
           option(label="None" value="")
           option(label="Row count" value="@count")
 
@@ -35,7 +35,7 @@
   .widgets(v-if="dataColumn && dataColumn.length > 1")
     .widget
         p.tight Normalize by
-        b-select.selector(expanded v-model="normalSelection")
+        o-select.selector(expanded v-model="normalSelection")
           option(label="None" value="")
           optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
             option(v-for="column in numericColumnsInDataset(dataset)"
@@ -48,8 +48,8 @@
   .widgets
     .widget
       p Scaling
-      b-field
-        b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
+      o-field
+        o-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
 
 </template>
 
@@ -207,7 +207,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 .height-panel {
   padding-right: 0rem;
 }
@@ -235,6 +235,6 @@ export default defineComponent({
 }
 
 .tight {
-  margin: 0 0 -10px 1px;
+  margin-left: 2px;
 }
 </style>

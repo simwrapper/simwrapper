@@ -6,15 +6,19 @@
   .labels(v-if="!thumbnail")
     p.center: b {{ totalTrips.toLocaleString() }} {{ $t('total') }}
 
-  b-switch.switcher(v-if="!thumbnail" v-model="onlyShowNetChanges" size="is-small") {{ $t('showNetChanges')}}
-  b-switch.switcher(v-if="!thumbnail" v-model="onlyShowChanges" size="is-small") {{ $t('showChanges')}}
+  o-switch.switcher(v-if="!thumbnail" v-model="onlyShowNetChanges" size="small") {{ $t('showNetChanges')}}
+  o-switch.switcher(v-if="!thumbnail" v-model="onlyShowChanges" size="small") {{ $t('showChanges')}}
 
 </template>
 
 <script lang="ts">
 const i18n = {
   messages: {
-    en: { total: 'total', showChanges: 'Only show changes', showNetChanges: 'Only show net changes' },
+    en: {
+      total: 'total',
+      showChanges: 'Only show changes',
+      showNetChanges: 'Only show net changes',
+    },
     de: { total: 'Insgesamt', showChanges: 'Nur Änderungen zeigen', showNetChanges: 'saldieren' },
   },
 }
@@ -122,7 +126,7 @@ const MyComponent = defineComponent({
       }
       this.jsonChart = this.processInputs()
       this.doD3()
-    }
+    },
   },
 
   methods: {
@@ -223,7 +227,6 @@ const MyComponent = defineComponent({
           // Don't include non-changes in the graph if we are hiding them
           if (this.onlyShowChanges && cols[0] === cols[1]) continue
 
-
           links.push([cols[0], cols[1], value])
           this.totalTrips += value
         }
@@ -231,7 +234,6 @@ const MyComponent = defineComponent({
         const e = err as any
         console.error(e)
       }
-
 
       // build js object
       const fromOrder = [] as number[]
@@ -260,11 +262,8 @@ const MyComponent = defineComponent({
         toOrder.push(offset)
       })
 
-
       if (this.onlyShowNetChanges) {
-
         for (const link of links) {
-
           if (link[0] != link[1]) {
             // find reverse
             links.forEach((subLink: any) => {
@@ -276,7 +275,7 @@ const MyComponent = defineComponent({
                   subLink[2] = Math.abs(subLink[2] - link[2])
                   link[2] = 0
                 } else {
-                  link[2], subLink[2] = 0
+                  link[2], (subLink[2] = 0)
                 }
               }
             })
@@ -317,8 +316,8 @@ const MyComponent = defineComponent({
         this.textSize == Size.large
           ? 'bold 33px Arial'
           : this.textSize == Size.med
-            ? '24px Arial'
-            : '16px Arial'
+          ? '24px Arial'
+          : '16px Arial'
 
       let max = 0
 
@@ -361,7 +360,7 @@ const MyComponent = defineComponent({
     },
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.resizeObserver) this.resizeObserver.disconnect()
   },
 
@@ -389,7 +388,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .sankey-container {
   // padding-top: 1rem;
@@ -481,8 +480,9 @@ p {
   }
 }
 
-.switcher {
-  margin: 0.5rem auto 0.5rem 1rem;
+.o-switch {
+  margin: 0 0 2px 2px;
+  color: var(--text);
 }
 
 .chart-area {

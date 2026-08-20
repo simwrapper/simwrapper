@@ -16,9 +16,8 @@ import { rollup } from 'd3-array'
 import globalStore from '@/store'
 import HTTPFileSystem from './HTTPFileSystem'
 import { DataTable, DataTableColumn, DataType, FileSystemConfig, Status } from '@/Globals'
-import { findMatchingGlobInFiles, gUnzip, parseXML } from '@/js/util'
-import avro from '@/js/avro'
-import * as Comlink from 'comlink'
+import { findMatchingGlobInFiles, gUnzip, parseXML, unreactive } from '@/js/util'
+import { getAvro } from '@/js/avro'
 
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
@@ -151,12 +150,18 @@ export default class DashboardDataManager {
       // this will immediately return dataset if it is already loaded
       let myDataset = await withTimeout(this.datasets[cacheKey].dataset, 60)
 
-      let { _comments, ...allRows } = myDataset
+      let { _comments, ...fullDataset } = myDataset
       let comments = _comments as unknown as string[]
 
-      // make a copy because each viz in a dashboard might be hacking it differently
+      // Make a copy of every column, because each viz in a dashboard might be hacking it
+      // differently: aggregating, pivoting, renaming, etc. Without this, a viz which swaps
+      // out column.values would corrupt the cached dataset for every other viz on the page.
+      // Note the values arrays themselves are shared; consumers must never modify them in place.
       // TODO: be more "functional" and return the object itself, and let views create copies if they need to
-      // let allRows = { ...myDataset }
+      const allRows = {} as any
+      Object.entries(fullDataset as DataTable).forEach(([name, column]) => {
+        allRows[name] = { ...column }
+      })
 
       // remove ignored columns
       if (config.ignoreColumns) {
@@ -252,7 +257,7 @@ export default class DashboardDataManager {
             // wait for ready signal
             if (e.data.ready) {
               this.threads.push(thread)
-              thread.postMessage({ config: fullConfig, featureProperties })
+              thread.postMessage(unreactive({ config: fullConfig, featureProperties }))
               return
             }
             thread.terminate()
@@ -535,13 +540,15 @@ export default class DashboardDataManager {
           // wait for ready signal and then begin work:
           if (e.data.ready) {
             // this.threads.push(thread)
-            thread.postMessage({
-              fileSystemConfig: this.fileApi,
-              subfolder: options?.subfolder || this.subfolder,
-              files,
-              config: config,
-              options,
-            })
+            thread.postMessage(
+              unreactive({
+                fileSystemConfig: this.fileApi,
+                subfolder: options?.subfolder || this.subfolder,
+                files,
+                config: config,
+                options,
+              })
+            )
             return
           }
           thread.terminate()
@@ -570,6 +577,7 @@ export default class DashboardDataManager {
     try {
       const httpFileSystem = new HTTPFileSystem(this.fileApi)
       const blob = await httpFileSystem.getFileBlob(`${props.subfolder}/${props.filename}`)
+      const avro = await getAvro()
 
       const records: any[] = await new Promise(async (resolve, reject) => {
         const rows = [] as any[]
@@ -724,12 +732,14 @@ export default class DashboardDataManager {
               }
             }
 
-            wasmWorker.postMessage({
-              path,
-              crs: options.crs || '',
-              fsConfig: this.fileApi,
-              options,
-            })
+            wasmWorker.postMessage(
+              unreactive({
+                path,
+                crs: options.crs || '',
+                fsConfig: this.fileApi,
+                options,
+              })
+            )
           })
           const network = await promise
           resolve(network)
@@ -774,13 +784,15 @@ export default class DashboardDataManager {
           resolve(e.data.links)
         }
 
-        thread.postMessage({
-          filePath: path,
-          fileSystem: this.fileApi,
-          options,
-          extraColumns: !!props.extra, // include freespeed, length (off by default!)
-          isFirefox, // we need this for now, because Firefox bug #260
-        })
+        thread.postMessage(
+          unreactive({
+            filePath: path,
+            fileSystem: this.fileApi,
+            options,
+            extraColumns: !!props.extra, // include freespeed, length (off by default!)
+            isFirefox, // we need this for now, because Firefox bug #260
+          })
+        )
       } catch (err) {
         thread.terminate()
         console.error(err)

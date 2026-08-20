@@ -1,6 +1,6 @@
 <template lang="pug">
 .c-xmlviewer.flex-col(:class="{'is-thumbnail': thumbnail}")
-  b-input.xml-searchbox(
+  o-input.xml-searchbox(
     type="search"
     icon-pack="fas"
     icon="search"
@@ -31,6 +31,7 @@ import debounce from 'debounce'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import { unreactive } from '@/js/util'
 import TreeView from './TreeView.vue'
 import XmlWorker from '@/workers/NewXmlFetcher.worker?worker'
 
@@ -157,17 +158,21 @@ const MyComponent = defineComponent({
           resolve(message.data.xml)
         }
 
-        this.xmlWorker.postMessage({
-          id: 1,
-          fileSystem: this.fileSystem,
-          filePath: this.vizDetails.file,
-          options: {
-            ignoreAttributes: false,
-            preserveOrder: true,
-            attributeNamePrefix: '$$',
-            isFirefox,
-          },
-        })
+        // fileSystem comes from vuex state, so it's a reactive Proxy and cannot be
+        // structured-cloned into the worker. See unreactive() in @/js/util.
+        this.xmlWorker.postMessage(
+          unreactive({
+            id: 1,
+            fileSystem: this.fileSystem,
+            filePath: this.vizDetails.file,
+            options: {
+              ignoreAttributes: false,
+              preserveOrder: true,
+              attributeNamePrefix: '$$',
+              isFirefox,
+            },
+          })
+        )
       })
     },
 
@@ -240,7 +245,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .c-xmlviewer {
   position: absolute;

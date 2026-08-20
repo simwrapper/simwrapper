@@ -1,3 +1,4 @@
+import { markRaw } from 'vue'
 import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
 import * as d3ScaleChromatic from 'd3-scale-chromatic'
@@ -256,7 +257,11 @@ export default class BackgroundLayers {
       // console.log('FINAL FEATURES', features)
 
       const details = {
-        features,
+        // markRaw: these go straight to deck.gl, which freezes its props. A reactive
+        // features array both breaks a Proxy invariant on layer update (trap #7) and
+        // costs a proxy hop per coordinate read. The instance itself stays reactive --
+        // the `this.bgLayers = {...}` below is what tells consumers to redraw.
+        features: markRaw(features),
         opacity,
         borderWidth,
         borderColor,

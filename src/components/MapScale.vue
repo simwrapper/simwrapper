@@ -141,7 +141,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .map-scale {
   display: flex;
@@ -177,7 +177,7 @@ p {
 }
 
 .leftside {
-  margin-left: 10px;
+  margin-left: 0px;
 }
 
 @media only screen and (max-width: 640px) {

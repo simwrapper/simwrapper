@@ -5,7 +5,7 @@
   .widgets
     .widget
         p.tight Display
-        b-select.selector(expanded v-model="dataColumn")
+        o-select.selector(expanded v-model="dataColumn")
           option(label="None" value="@0")
           option(label="Single color" value="@")
 
@@ -23,7 +23,7 @@
   .widgets(v-if="datasetChoices.length > 1 && dataColumn && dataColumn.length > 1")
     .widget
         p.tight Join by
-        b-select.selector(expanded v-model="join")
+        o-select.selector(expanded v-model="join")
           option(label="None" value="")
           option(label="Row count" value="@count")
 
@@ -37,7 +37,7 @@
   .widgets(v-if="dataColumn && dataColumn.length > 1")
     .widget
         p.tight Normalize by
-        b-select.selector(expanded v-model="normalSelection")
+        o-select.selector(expanded v-model="normalSelection")
           option(label="None" value="")
           optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)"
@@ -51,7 +51,7 @@
     .widgets
       .widget(style="flex: 3")
         p.tight Compare datasets
-        b-select.selector(
+        o-select.selector(
           :disabled="!dataColumn || diffChoices.length<2"
           expanded
           v-model="diffUISelection"
@@ -60,7 +60,7 @@
 
       .widget
         p %Diff
-        b-checkbox.hello(
+        o-checkbox.hello(
           :disabled="!diffUISelection || !dataColumn || diffChoices.length<2"
           v-model="diffRelative"
         )
@@ -78,7 +78,7 @@
     .widgets
       .widget(style="flex: 3")
         p Steps
-        b-input(v-model="steps"
+        o-input(v-model="steps"
             placeholder="Number"
             type="number"
             min="2"
@@ -86,7 +86,7 @@
 
       .widget
         p Flip
-        b-checkbox.hello(v-model="flip")
+        o-checkbox.hello(v-model="flip")
 
     .color-ramp(v-for="choice of colorChoices" :key="choice.ramp"
       @click="pickColor(choice)"
@@ -432,7 +432,8 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
+
 .color-ramp-picker {
   padding-right: 0rem;
 }
@@ -512,7 +513,8 @@ export default defineComponent({
 .single-color.active {
   border-color: black;
 }
+
 .tight {
-  margin: 0 0 -10px 1px;
+  margin-left: 2px;
 }
 </style>

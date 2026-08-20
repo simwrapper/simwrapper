@@ -2,15 +2,17 @@
 .topsheet.curate-content
   h3.curate-heading(v-if="title")  {{ title }}
 
+  //- User input entries
   .output-table(v-if="entries.length" data-testid="entry-table")
     .row(v-for="row,i in entries" :key="'entry'+i")
       .cell.top-label(:style="row.style") {{ row.title }}
-      b-input.b-input-tight.cell.top-value(
+      o-input.b-input-tight.cell.top-value(
         v-model="row.value"
         :style="row.style"
         @input="boxChanged"
       )
 
+  //- Output table rows
   .output-table(v-if="table.length" style="margin-top: 1rem" data-testid="output-table")
     .row(v-for="row,i in table" :key="'row'+i")
       .cell.top-label(:style="row.style") {{ row.title }}
@@ -26,6 +28,7 @@ import { FileSystemConfig, YamlConfigs } from '@/Globals'
 
 import TopSheetWorker from './TopSheetWorker.worker.ts?worker'
 import globalStore from '@/store'
+import { unreactive } from '@/js/util'
 
 export type TableRow = {
   title: string
@@ -56,7 +59,7 @@ export default defineComponent({
     if (this.files.length) this.runTopSheet()
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     try {
       if (this.solverThread) {
         this.solverThread.terminate()
@@ -69,11 +72,13 @@ export default defineComponent({
   watch: {
     'globalState.locale'() {
       if (this.solverThread) {
-        this.solverThread.postMessage({
-          command: 'updateCalculations',
-          entries: this.entries,
-          locale: this.globalState.locale,
-        })
+        this.solverThread.postMessage(
+          unreactive({
+            command: 'updateCalculations',
+            entries: this.entries,
+            locale: this.globalState.locale,
+          })
+        )
       }
     },
   },
@@ -87,11 +92,13 @@ export default defineComponent({
     async boxChanged() {
       console.log('changed!')
       if (this.solverThread) {
-        this.solverThread.postMessage({
-          command: 'updateCalculations',
-          entries: this.entries,
-          locale: this.globalState.locale,
-        })
+        this.solverThread.postMessage(
+          unreactive({
+            command: 'updateCalculations',
+            entries: this.entries,
+            locale: this.globalState.locale,
+          })
+        )
       }
     },
 
@@ -107,18 +114,20 @@ export default defineComponent({
           }
         }
 
-        this.solverThread.postMessage({
-          command: 'runTopSheet',
-          fileSystemConfig: this.fileSystemConfig,
-          subfolder: this.subfolder,
-          files: this.files,
-          yaml: this.yaml,
-          locale: this.$store.state.locale,
-          allConfigFiles: this.allConfigFiles,
-        })
+        this.solverThread.postMessage(
+          unreactive({
+            command: 'runTopSheet',
+            fileSystemConfig: this.fileSystemConfig,
+            subfolder: this.subfolder,
+            files: this.files,
+            yaml: this.yaml,
+            locale: this.$store.state.locale,
+            allConfigFiles: this.allConfigFiles,
+          })
+        )
       } catch (e) {
         const message = '' + e
-        console.log(message)
+        console.error(message)
         this.table = []
         // this.table = [{ title: message, value: '', style: { backgroundColor: 'yellow' } }]
       }
@@ -153,7 +162,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 h3.curate-heading {
   font-size: 1.6rem;
@@ -176,19 +185,21 @@ h3.curate-heading {
 }
 
 .row {
-  display: table-row;
+  display: flex;
+  margin: 0 0.5rem 0 0.25rem;
 }
 
 .cell {
-  padding-right: 1rem;
+  // padding-right: 1rem;
   display: table-cell;
   font-size: 1.1rem;
   line-height: 1.2rem;
   padding-bottom: 0.4rem;
 }
 
-// .top-label {
-// }
+.top-label {
+  flex: 1;
+}
 
 .top-value {
   text-align: right;

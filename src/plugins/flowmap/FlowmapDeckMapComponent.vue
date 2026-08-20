@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, markRaw, PropType } from 'vue'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import maplibregl from 'maplibre-gl'
 import { debounce } from 'debounce'
@@ -102,7 +102,11 @@ export default defineComponent({
           getLocationLat: (location: any) => location.lat,
           getFlowOriginId: (flow: any) => flow.o,
           getFlowDestId: (flow: any) => flow.d,
-          getFlowMagnitude: (flow: any) => flow.v || null,
+          // `flow.v || null` also threw away a legitimate magnitude of 0 -- this
+          // dataset has ~1300 such rows -- and flowmap.gl seeds a cluster's total
+          // with the first member's value, so one of those could null out a whole
+          // cluster. Only genuinely missing values become null.
+          getFlowMagnitude: (flow: any) => (Number.isFinite(flow.v) ? flow.v : null),
           adaptiveScalesEnabled: true,
           colorScheme: this.vizDetails.colorScheme,
           animationEnabled: this.vizDetails.animationEnabled,
@@ -146,16 +150,20 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = new MapboxOverlay({
-        interleaved: true,
-        layers: this.layers,
-        onClick: this.handleClick,
-      })
+      // markRaw: a reactive overlay makes deck's layer-matching read frozen props
+      // through Vue's proxy, which throws. See trap #7 in VUE3-MIGRATION.md.
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          interleaved: true,
+          layers: this.layers,
+          onClick: this.handleClick,
+        })
+      )
       this.mymap?.addControl(this.deckOverlay)
     })
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },

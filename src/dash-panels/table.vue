@@ -2,7 +2,7 @@
 .table-container
   vue-good-table.plugin-panel(v-if="isReady"
       data-testid="vue-good-table"
-      :class="[globalState.isDarkMode ? 'darktable' : 'lighttable', hideHeader ? 'hide-header' : '', this.config.style, ...this.alignmentClasses]"
+      :class="[globalState.isDarkMode ? 'darktable' : 'lighttable', hideHeader ? 'hide-header' : '', config.style, ...alignmentClasses]"
       :columns="columns"
       :rows="rows"
       :fixed-header="false"
@@ -14,8 +14,8 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import 'vue-good-table/src/styles/style.scss'
-import { VueGoodTable } from 'vue-good-table'
+import 'vue-good-table-next/dist/vue-good-table-next.css'
+import { VueGoodTable } from 'vue-good-table-next'
 
 import globalStore from '@/store'
 import { FileSystemConfig, Status } from '@/Globals'
@@ -67,7 +67,7 @@ export default defineComponent({
     this.isReady = true
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.datamanager?.removeFilterListener(
       { ...this.config, subfolder: this.subfolder },
       this.handleFilterChanged
@@ -649,7 +649,7 @@ export default defineComponent({
 </style>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 .table-container {
   position: relative;
   height: 100%;
@@ -657,12 +657,13 @@ export default defineComponent({
   // overflow: hidden !important;
 }
 
+// Stay in normal flow. DashBoard gives `csv` cards no default height (see
+// `defaultHeight` in DashBoard.vue) so the card sizes to this content; absolutely
+// positioning the table contributes zero height and collapses the card to ~21px,
+// which silently clips every row below the sticky header.
+// When a card *does* pin a height, .dash-card-frame's own `overflow: auto` scrolls.
 .plugin-panel {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  width: 100%;
   overflow: auto;
 }
 

@@ -8,11 +8,11 @@
   .panel-content.flex-col(v-show="open")
 
     .widget-row
-      dataset-selector(v-model="shapes" :datasets="datasets" @update="shapes=$event")
+      dataset-selector(:value="shapes" :datasets="datasets" @update="shapes=$event")
         p.tight Shapes
 
     .widget-row.flex-col
-      column-selector(v-model="metric" :extra="solidColors" :datasets="datasets" @update="metric=$event")
+      column-selector(:value="metric" :extra="solidColors" :datasets="datasets" @update="metric=$event")
         p.tight Fill
 
       .colorbar.flex-row.single(v-show="metric=='@2'")
@@ -25,7 +25,7 @@
       //- JOIN BY ---
       .widget.flex1
         column-selector(
-          v-model="join"
+          :value="join"
           :extra="joinOptions"
           :datasets="getJoinOptions"
           @update="join=$event"
@@ -34,7 +34,7 @@
 
       //- NORMALIZE COLUMN ---
       .widget.flex1
-        column-selector(v-model="normalize"
+        column-selector(:value="normalize"
           :extra="['None']" :datasets="datasets" @update="normalize=$event"
         )
             p.tight Normalize
@@ -42,14 +42,14 @@
     //- DIFF MODE
     .widget-row(v-show="metric.indexOf(':') > -1")
       .widget.flex1
-        column-selector(v-model="diff"
+        column-selector(:value="diff"
           :extra="['None']" :datasets="datasets" @update="diff=$event"
         )
             p.tight Diff vs.
 
       .widget.flex1
         p.tight(style="margin-bottom: 6px;") % Diff
-        b-switch(v-model="diffRelative").is-small
+        o-switch(v-model="diffRelative").is-small
 
     .widget-row(v-if="metric.indexOf(':') > -1").flex-col
       p.tight Colors
@@ -62,10 +62,10 @@
 
     .widget-row.flex-col
       p.tight Opacity
-      b-slider.slider(:tooltip="false" v-model="opacity" @input="debOpacity")
+      o-slider.slider(:tooltip="false" v-model="opacity" @update:modelValue="debOpacity")
 
     .widget-row.flex-col
-      column-selector(v-model="outline" :extra="solidColors" :datasets="{}" @update="outline=$event")
+      column-selector(:value="outline" :extra="solidColors" :datasets="{}" @update="outline=$event")
         p.tight Outline
 
       .colorbar.flex-row.single(v-show="outline=='@2'")
@@ -75,11 +75,11 @@
           @click="clickedSingleColor('outline', swatch)")
 
     //- .coordidnates.flex-row(style="gap: 0.25rem" title="EPSG code for transforming non-lat/long coordinates")
-    //-     text-selector.flex1(v-model="projection" :datasets="datasets" @update="projection=$event")
+    //-     text-selector.flex1(:value="projection" :datasets="datasets" @update="projection=$event")
     //-       p.tight() Transform (EPSG)
 
   modal-id-column-picker(v-if="showJoinPicker"
-    :data1="{ columns: Object.keys(this.datasets[this.shapes]  || {} ) } "
+    :data1="{ columns: Object.keys(datasets[shapes] || {}) }"
     @join="joinClicked($event)"
   )
 
@@ -97,7 +97,7 @@ import TextSelector from '@/plugins/layer-map/components/TextSelector.vue'
 import { buildRGBfromHexCodes, getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
 
 import ModalIdColumnPicker from '@/components/ModalIdColumnPicker.vue'
-import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector'
+import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector.vue'
 import { ColorMap } from '@/components/ColorMapSelector/models'
 
 import globalStore from '@/store'
@@ -133,7 +133,9 @@ export default defineComponent({
   data() {
     return {
       globalState: globalStore.state,
-      debOpacity: {} as any,
+      // see the debScale note in LinesLayerConfig: this is bound as an event handler
+      // on first render, before mounted() replaces it with the debounced version.
+      debOpacity: ((v: any) => {}) as any,
 
       // view model
       shapes: '',
@@ -376,7 +378,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .layer-config {
   display: flex;

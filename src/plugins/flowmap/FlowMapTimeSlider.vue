@@ -179,7 +179,6 @@ export default defineComponent({
       this.pctStart = this.thumbLeft / totalWidth
       this.pctEnd = (this.thumbLeft + this.thumbWidth) / totalWidth
 
-      console.log(this.pctStart, this.pctEnd)
       this.$emit('range', { start: this.pctStart, end: this.pctEnd })
     },
 
@@ -204,7 +203,6 @@ export default defineComponent({
     },
 
     sizerDragStart(e: MouseEvent) {
-      console.log('dragStart', e)
       this.isDraggingDivider = e.clientX
       this.dragStartWidth = this.thumbLeft
     },
@@ -216,20 +214,15 @@ export default defineComponent({
     sizerDragging(e: MouseEvent) {
       if (!this.isDraggingDivider) return
 
-      console.log('sizer', this.isDraggingDivider, e.clientX, this.thumbLeft, this.thumbWidth)
 
       const hourlybar = document.getElementById('hourlybar') as HTMLElement
       const totalWidth = hourlybar.clientWidth
 
       const deltaX = e.clientX - this.isDraggingDivider
-      console.log({ deltaX })
       let diff = deltaX
       // Math.max(0, this.dragStartWidth + deltaX)
       // diff = Math.min(this.thumbLeft, totalWidth - this.thumbWidth)
-      console.log(diff)
 
-      console.log('oldwidth', this.thumbWidth, 'newwidth', this.thumbWidth - diff)
-      console.log('oldleft', this.thumbLeft, 'newleft', this.thumbLeft + diff)
       this.thumbWidth -= diff
       this.thumbLeft += diff
 

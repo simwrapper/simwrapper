@@ -14,9 +14,11 @@ shape-file.deck-map(
 </template>
 
 <script lang="ts">
+import { defineComponent } from 'vue'
+
 import ShapeFile from '@/plugins/shape-file/ShapeFile.vue'
 
-export default {
+export default defineComponent({
   name: 'AreaMapPanel',
   components: { ShapeFile },
   props: {
@@ -31,12 +33,10 @@ export default {
       this.$emit('isLoaded')
     },
   },
-}
+})
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
-
 .deck-map {
   position: absolute;
   top: 0;

@@ -19,7 +19,10 @@ export default defineComponent({
   name: 'clickThroughTimes',
   props: {
     range: { type: Array as PropType<number[]>, required: true },
-    allTimes: [] as any[],
+    // NOT `[] as any[]`: an empty array as a prop *type* matches no constructor, so
+    // Vue 3 warns "Prop type [] for prop 'allTimes' won't match anything" -- which also
+    // drags in two [intlify] deprecation warnings when Vue builds the component trace.
+    allTimes: { type: Array as PropType<any[]>, required: true },
   },
   data: () => {
     return {
@@ -142,7 +145,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .click-through-times-component {
   display: flex;

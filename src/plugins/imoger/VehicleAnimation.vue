@@ -46,8 +46,6 @@
 
       .right-panel(:style="{width: `${legendSectionWidth}px`}")
 
-          //- .xtitle VEHICLE TRACKER
-
           .big.clock
             p {{ myState.clock }}
 
@@ -62,7 +60,13 @@
               icon="/images/icon-atlas-vehicles.png"
             )
 
-            //- legend-colors.legend-block(:title="`${$t('requests')}:`" :items="legendRequests")
+            .kep-legend
+              label {{ $t('packages')}}:
+
+              .flex-row(style="gap: 3px")
+                .color-block(v-for="v in Object.entries(ncolors.kep)"
+                    :style="{backgroundColor: `rgb(${v[1][0]},${v[1][1]},${v[1][2]})`}"
+                ) {{ v[0] }}
 
             .search-panel
               p.speed-label(:style="{margin: '1rem 0 0 0'}") {{ $t('search') }}
@@ -80,17 +84,14 @@
                 br
                 | {{ speed }}x
 
-              b-slider.speed-slider(v-model="speed"
+              o-slider.speed-slider(
+                v-model="speed"
                 :min="speedStops[0]"
                 :max="speedStops[speedStops.length-1]"
-                :duration="0"
-                :dotSize="20"
                 :tooltip="false"
-                tooltip-placement="bottom"
-                :tooltip-formatter="val => val + 'x'"
+                :formatter="val => val + 'x'"
               )
-                template(v-for="val in speedStops")
-                  b-slider-tick(:value="val" :key="val")
+                  o-slider-tick(v-for="val in speedStops" :value="val" :key="val")
 
 </template>
 
@@ -100,6 +101,7 @@ const i18n = {
     en: {
       requests: 'DRT Requests',
       passengers: 'Passengers',
+      packages: 'Packages',
       capacities: 'Capsule type',
       search: 'Search',
       showhide: 'Show/Hide',
@@ -122,21 +124,21 @@ const i18n = {
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import { ToggleButton } from 'vue-js-toggle-button'
-import readBlob from 'read-blob'
 import YAML from 'yaml'
 import crossfilter from 'crossfilter2'
+import * as d3sc from 'd3-scale-chromatic'
 
 import globalStore from '@/store'
-import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
+import { gUnzip, sleep } from '@/js/util'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
+import DashboardDataManager from '@/js/DashboardDataManager'
+
+import BackgroundLayers from '@/js/BackgroundLayers'
 import LegendColors from './LegendColors.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { arrayBufferToBase64, gUnzip, sleep } from '@/js/util'
 import DeckMap from './DeckMapComponent.vue'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
-import BackgroundLayers from '@/js/BackgroundLayers'
 
 const DEFAULT_ZOOM = 8
 
@@ -150,18 +152,15 @@ import {
   LIGHT_MODE,
   DARK_MODE,
 } from '@/Globals'
-import DashboardDataManager from '@/js/DashboardDataManager'
 
 const MyComponent = defineComponent({
   name: 'VehicleAnimationPlugin',
   i18n,
   components: {
-    CollapsiblePanel,
     DeckMap,
     LegendColors,
     PlaybackControls,
     SettingsPanel,
-    ToggleButton,
     ZoomButtons,
   },
   props: {
@@ -173,8 +172,8 @@ const MyComponent = defineComponent({
   },
   data() {
     const COLOR_KEP = {
-      0: [35, 230, 250],
-      12: [235, 25, 185],
+      false: [35, 230, 250],
+      true: [235, 25, 185],
     } as any
 
     const COLOR_OCCUPANCY = {
@@ -199,12 +198,14 @@ const MyComponent = defineComponent({
       COLOR_KEP,
       SETTINGS,
 
+      ncolors: { kep: [] } as any,
+
       legendCapsules: Object.keys(COLOR_KEP).map(key => {
         return {
           type: LegendItemType.box,
           color: COLOR_KEP[key],
           value: key,
-          label: key == '0' ? 'Humans' : 'Packages',
+          label: key == 'false' ? 'Humans' : 'Packages',
         }
       }),
 
@@ -352,7 +353,6 @@ const MyComponent = defineComponent({
 
     'globalState.colorScheme'() {
       this.isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
-      this.updateLegendColors()
     },
 
     searchTerm() {
@@ -505,19 +505,6 @@ const MyComponent = defineComponent({
       else this.searchTerm = vehId
     },
 
-    updateLegendColors() {
-      // const theme = this.myState.colorScheme == ColorScheme.LightMode ? LIGHT_MODE : DARK_MODE
-      // this.legendBits = [
-      //   { label: 'susceptible', color: theme.susceptible },
-      //   { label: 'latently infected', color: theme.infectedButNotContagious },
-      //   { label: 'contagious', color: theme.contagious },
-      //   { label: 'symptomatic', color: theme.symptomatic },
-      //   { label: 'seriously ill', color: theme.seriouslyIll },
-      //   { label: 'critical', color: theme.critical },
-      //   { label: 'recovered', color: theme.recovered },
-      // ]
-    },
-
     setWallClock() {
       const hour = Math.floor(this.simulationTime / 3600)
       const minute = Math.floor(this.simulationTime / 60) % 60
@@ -575,7 +562,41 @@ const MyComponent = defineComponent({
       return crossfilter(requests)
     },
 
+    generateColorsByOccupancy() {
+      const colorByOcc = {} as { [occ: number]: number[] }
+
+      let maxk = 0
+      Object.values(this.capLookup.kep).forEach(v => {
+        maxk = v.reduce((a, b) => {
+          return Math.max(maxk, b.cap)
+        }, 0)
+      })
+      console.log('MAX is', maxk)
+
+      colorByOcc[0] = [128, 128, 128]
+
+      for (let i = 0; i < maxk; i++) {
+        const scaled = 0.15 + (0.85 * i) / (maxk - 1)
+        const rgbString = d3sc.interpolateTurbo(scaled)
+        //@ts-ignore
+        const rgbArray = rgbString.match(/\d+/g).map(Number)
+        colorByOcc[i + 1] = rgbArray
+      }
+      return {
+        kep: colorByOcc,
+        human: {
+          0: [128, 128, 128], //gray
+          1: [0, 255, 0], //green
+          2: [248, 244, 0], //yellow
+          3: [255, 140, 0], // orange
+          4: [180, 0, 0], // red
+        },
+      }
+    },
+
     parseVehicles(trips: any[]) {
+      this.ncolors = this.generateColorsByOccupancy()
+
       const allTrips: any[] = []
       let vehNumber = -1
 
@@ -594,14 +615,31 @@ const MyComponent = defineComponent({
         this.vehicleLookup[vehNumber] = trip.id
         this.vehicleLookupString[trip.id] = vehNumber
 
+        const keplookup = this.capLookup.kep[trip.id]
+
         for (let i = 0; i < trip.path.length - 1; i++) {
+          // does this segment have kep capacity?
+          const time = timestamps[i]
+          let kep = 0
+          if (keplookup) {
+            kep = keplookup.reduceRight((a, b) => {
+              return time < b.endTime ? b.cap : a
+            }, 0)
+          }
+
+          // figure out colors based on kep & capacity
+          const occ = passengers[i]
+          //@ts-ignore
+          const c = kep ? this.ncolors.kep[occ] : this.ncolors.human[occ]
           const trip = {
             t0: timestamps[i],
             t1: timestamps[i + 1],
             p0: path[i],
             p1: path[i + 1],
             v: vehNumber,
-            occ: passengers[i],
+            kep: !!kep,
+            occ,
+            c,
           }
           // grey out vehicles that aren't moving
           if (trip.p0[0] == trip.p1[0] && trip.p0[1] == trip.p1[1]) trip.occ = 0
@@ -701,9 +739,7 @@ const MyComponent = defineComponent({
 
       const traces: any = []
 
-      // console.log({ capLookup: this.capLookup })
       for (const vehicle of trips) {
-        // console.log(vehicle)
         vehNumber++
 
         let time = vehicle.timestamps[0]
@@ -728,13 +764,12 @@ const MyComponent = defineComponent({
             segments = []
             time = nextTime
           } else {
-            const kep = this.capLookup.kep[vehicle.id]
-            if (!kep) continue
-            const capKep = kep.reduceRight((a, b) => {
-              // console.log(b.endTime, time)
-              return time < b.endTime ? b.cap : a
-            }, 0)
-
+            let capKep = 0
+            if (vehicle.id in this.capLookup.kep) {
+              capKep = this.capLookup.kep[vehicle.id].reduceRight((a, b) => {
+                return time < b.endTime ? b.cap : a
+              }, 0)
+            }
             segments.push({
               t0: time,
               p0: vehicle.path[i - 1],
@@ -766,8 +801,6 @@ const MyComponent = defineComponent({
       // DRT CAPACITIES
       if (this.vizDetails.capacities) {
         try {
-          this.myState.statusMessage = 'Loading capacities'
-          await sleep(0)
           const { allRows } = await this.myDataManager.getDataset({
             dataset: this.vizDetails.capacities,
           })
@@ -785,8 +818,6 @@ const MyComponent = defineComponent({
       }
 
       try {
-        this.myState.statusMessage = 'Loading DRT trips'
-        await sleep(0)
         if (this.vizDetails.drtTrips.endsWith('json')) {
           const json = await this.fileApi.getFileJson(
             this.myState.subfolder + '/' + this.vizDetails.drtTrips
@@ -832,37 +863,30 @@ const MyComponent = defineComponent({
     await this.getVizDetails()
 
     this.showHelp = false
-    this.updateLegendColors()
 
     this.setWallClock()
 
-    this.myState.statusMessage = 'Loading files...'
+    this.myState.statusMessage = 'Loading...'
     console.log('loading files')
     const { trips, drtRequests, kepLookup, humanLookup } = await this.loadFiles()
 
     this.capLookup = { kep: kepLookup, human: humanLookup }
 
-    this.myState.statusMessage = 'Analyzing vehicle motion'
-    console.log(this.myState.statusMessage)
-    await sleep(0)
+    console.log('parsing vehicle motion')
     this.myState.statusMessage = `${this.$t('vehicles')}...`
     this.paths = this.parseVehicles(trips)
     this.pathStart = this.paths.dimension(d => d.t0)
     this.pathEnd = this.paths.dimension(d => d.t1)
     this.pathVehicle = this.paths.dimension(d => d.v)
 
-    this.myState.statusMessage = 'Analyzing routes...'
-    console.log(this.myState.statusMessage)
-    await sleep(0)
+    console.log('Routes...')
     this.myState.statusMessage = `${this.$t('routes')}...`
     this.traces = await this.parseRouteTraces(trips)
     this.traceStart = this.traces.dimension(d => d.t0)
     this.traceEnd = this.traces.dimension(d => d.t1)
     this.traceVehicle = this.traces.dimension(d => d.v)
 
-    this.myState.statusMessage = 'Analyzing requests...'
-    console.log(this.myState.statusMessage)
-    await sleep(0)
+    console.log('Requests...')
     this.myState.statusMessage = `${this.$t('requests')}...`
     this.requests = await this.parseDrtRequests(drtRequests)
     this.requestStart = this.requests.dimension(d => d[0]) // time0
@@ -893,7 +917,7 @@ const MyComponent = defineComponent({
     this.animate()
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     document.removeEventListener('visibilityChange', this.handleVisibilityChange)
     globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
@@ -905,7 +929,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .main-layout {
   display: grid;
@@ -914,13 +938,13 @@ export default MyComponent
   grid-template-columns: 1fr auto auto;
   min-height: $thumbnailHeight;
   height: 100%;
-  background-color: var(--bgCream2);
+  background-color: var(--bg);
 }
 
 .area-map {
   grid-row: 1 / 2;
   grid-column: 1 / 2;
-  // background-color: var(--bgBold);
+  background-color: var(--bgBold);
   position: relative;
 }
 
@@ -1008,11 +1032,14 @@ export default MyComponent
   margin-top: 1rem;
 }
 
+// padding-left/right, not a `padding` shorthand: theme-oruga puts `padding: 1em 0` on the
+// o-slider root, and a shorthand zeroes that vertical padding out and collapses the track.
 .speed-slider {
   flex: 1;
   width: 100%;
   margin: 0.5rem 0.25rem 0.25rem 0rem;
-  padding: 0 0.5rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
   font-weight: bold;
 }
 
@@ -1027,7 +1054,7 @@ export default MyComponent
   display: flex;
   flex-direction: column;
   padding: 0.5rem 0.5rem;
-  background-color: var(--bgPanel3);
+  background-color: var(--bgCardFrame2);
 }
 
 .bottom-area {
@@ -1059,7 +1086,7 @@ export default MyComponent
 .clock {
   color: white;
   background-color: #000000cc;
-  border: 2px solid white;
+  border: 3px solid white;
   color: white;
 }
 
@@ -1080,7 +1107,7 @@ export default MyComponent
 
 input {
   border: none;
-  background-color: var(--bgCardFrame2);
+  background-color: var(--bgCream);
   color: #ccc;
 }
 
@@ -1114,6 +1141,27 @@ input {
 .xtitle {
   font-weight: bold;
   margin: 0.2rem 0;
+}
+
+.kep-legend {
+  margin-top: 0.75rem;
+
+  label {
+    text-transform: uppercase;
+    color: var(--textBold);
+    font-size: 0.8rem;
+    font-weight: bold;
+  }
+
+  .color-block {
+    margin: 0.25rem 0;
+    width: 1.25rem;
+    text-align: center;
+    color: black;
+    font-size: 0.9rem;
+    line-height: 1.1rem;
+    font-weight: bold;
+  }
 }
 
 @media only screen and (max-width: 640px) {

@@ -156,7 +156,6 @@ export default defineComponent({
     toggleLocale() {
       const newLocale = this.state.locale === 'en' ? 'de' : 'en'
       this.$store.commit('setLocale', newLocale)
-      this.$root.$i18n.locale = newLocale
     },
 
     toggleTheme() {
@@ -211,7 +210,7 @@ export default defineComponent({
       this.showSplash = false
     }, 5000)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$store.dispatch('gamepadStop')
     document.removeEventListener('keydown', this.toggleUIPanels)
     window.clearTimeout(this.splasher)
@@ -220,13 +219,8 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
-@import '~/the-new-css-reset/css/reset.css';
-@import '~/lil-gui/dist/lil-gui.min.css';
-@import '~/maplibre-gl/dist/maplibre-gl.css';
-@import '~/bulma/css/bulma.min.css';
-@import '~/buefy/dist/buefy.css';
-
-@import '@/styles.scss';
+// Sass variables only; global CSS libs + theme are imported in main.ts.
+@use '@/variables' as *;
 
 @font-face {
   font-family: 'FiraSans';
@@ -265,6 +259,12 @@ html {
   height: 100%;
   overscroll-behavior: contain;
   font-weight: 300;
+}
+
+// Vue 3 mounts the app *inside* #app (Vue 2 replaced it), so #app needs
+// full height for the height:100% chain down to #main-app to work.
+#app {
+  height: 100%;
 }
 
 h1,
@@ -781,9 +781,10 @@ maplibregl-ctrl-attrib-button {
   float: right;
 }
 
-.b-input-tight input {
-  padding: 0 0.25rem;
+.b-input-tight {
+  text-align: right;
   font-size: 0.9rem;
+  font-weight: bold;
 }
 
 .vgt-table {

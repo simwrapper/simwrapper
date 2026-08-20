@@ -8,7 +8,7 @@
       :subfolder="subfolder"
       :fileApi="fileApi"
       @isLoaded="$emit('isLoaded')"
-      v-slot="{ geoJsonFeatures, fillColors, lineColors, lineWidths, pointRadii, fillHeights, featureFilter, isRGBA, redrawCounter, legendItems: slotLegendItems, initialView }"
+      v-slot="{ geoJsonFeatures, fillColors, lineColors, lineWidths, pointRadii, fillHeights, featureFilter, isRGBA, redrawCounter, legendItems, initialView }"
     )
       DeckMapComponent(
         ref="deckMap"
@@ -36,12 +36,10 @@
         :lineWidthUnits="'meters'"
         :pointRadiusUnits="'meters'"
       )
-      div(v-show="false" :data-legend="syncLegend(slotLegendItems)")
+      .legend-overlay(v-if="legendItems && legendItems.length" :style="{background: legendBgColor}")
+        LegendColors(:items="legendItems" title="Legend")
 
       zoom-buttons(v-if="!thumbnail")
-
-  .legend-overlay(v-if="currentLegendItems && currentLegendItems.length" :style="{background: legendBgColor, left: '1rem', right: 'unset'}")
-    LegendColors(:items="currentLegendItems" title="Legend")
 </template>
 
 <script lang="ts">
@@ -83,7 +81,6 @@ export default defineComponent({
       layerId: uid,
       fileApi: null as HTTPFileSystem | null,
       bgLayers: null as BackgroundLayers | null,
-      currentLegendItems: [] as Array<{ label: string; color: string; value: any }>,
       isDestroyed: false,
     }
   },
@@ -118,6 +115,9 @@ export default defineComponent({
       await this.loadConfig()
       if (this.isDestroyed) return
 
+      // NB: deliberately NOT markRaw'd -- async initialLoad() signals completion by
+      // reassigning its internal map, which consumers must react to. deck.gl's raw-ness
+      // requirement is handled on the features inside BackgroundLayers.ts. See trap #7.
       this.bgLayers = new BackgroundLayers({
         vizDetails: this.vizConfig,
         fileApi: this.fileApi,
@@ -130,21 +130,13 @@ export default defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.isDestroyed = true
-    this.currentLegendItems = []
     this.bgLayers = null
     this.fileApi = null
   },
 
   methods: {
-    syncLegend(items: any[]) {
-      if (items && items.length) {
-        this.currentLegendItems = items
-      }
-      return items
-    },
-
     async loadConfig(): Promise<void> {
       if (this.config) {
         this.vizConfig = { ...this.config }
@@ -182,8 +174,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
-@import '../sqlite-map/reader.scss';
+@use '../sqlite-map/reader.scss';
 
 .c-aequilibrae-viewer {
   position: absolute;
@@ -208,7 +199,7 @@ export default defineComponent({
 .legend-overlay {
   position: absolute;
   top: 1rem;
-  right: 1rem;
+  left: 1rem;
   z-index: 100;
   border-radius: 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);

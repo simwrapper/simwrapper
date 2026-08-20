@@ -50,18 +50,23 @@
 
         h4 {{ selectedLsp || 'Details' }}
 
-        b-field.detail-buttons(v-if="selectedLsp" size="is-small")
-          // watch array and if the length changes, change value of boolean for v-if
-          b-radio-button(v-if="checkIfDirectChain()" v-model="activeTab" native-value="shipments" size="is-small" type="is-warning" @click.native="handleSelectCarrier(lspCarrier, false, '')")
+        .detail-buttons.buttons.has-addons(v-if="selectedLsp")
+          o-button(v-if="checkIfDirectChain()" size="small" :variant="activeTab=='shipments' ? 'warning' : ''"
+            @click="activeTab='shipments'; handleSelectCarrier(lspCarrier, false, '')")
             span {{ $t('Shipment Chains') }}
-          b-radio-button(v-if="checkIfHubChain()" v-model="activeTab" native-value="lspShipmentChains" size="is-small" type="is-warning" @click.native="handleSelectCarrier(lspCarrier, false, '')")
+          o-button(v-if="checkIfHubChain()" size="small" :variant="activeTab=='lspShipmentChains' ? 'warning' : ''"
+            @click="activeTab='lspShipmentChains'; handleSelectCarrier(lspCarrier, false, '')")
             span {{ $t('Shipment Chains') }}
-          b-radio-button(v-model="activeTab" native-value="lspTours" style="50%" size="is-small" type="is-warning" @click.native="handleSelectLspButton(selectedLsp)")
+          o-button.btn-tours(size="small" :variant="activeTab=='lspTours' ? 'warning' : ''"
+            @click="activeTab='lspTours'; handleSelectLspButton(selectedLsp)")
             span {{ $t('LSP Tours') }}
 
         br
         br
-        h6(v-if="activeTab == 'lspTours' || activeTab == 'tours'") <b>*All Carriers shown. Please select individual Carrier to view its specific tours.</b>
+
+        h6(v-if="activeTab == 'lspTours' || activeTab == 'tours'")
+          b *All Carriers shown. Please select individual Carrier to view its specific tours.*
+
         br
 
         h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'Carriers' }}
@@ -86,7 +91,7 @@
 
         .switchbox
           .switches
-            b-switch(v-if="(activeTab == 'lspTours' || activeTab == 'tours') && selectedCarrier != ''" v-model="vizSettings.showEachCarrierTour")
+            o-switch(v-if="(activeTab == 'lspTours' || activeTab == 'tours') && selectedCarrier != ''" v-model="vizSettings.showEachCarrierTour")
               span(v-html="$t('Carrier Tours')")
 
         .detail-area
@@ -129,14 +134,20 @@
         .switchbox
           .switches(v-if="activeTab == 'shipments' || activeTab=='lspShipmentChains'")
             p {{$t('scaleSize')}}
-            b-slider.slider(v-if=" activeTab=='lspShipmentChains'" :tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactor")
-            b-slider.slider(v-if="activeTab == 'shipments'" :tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactorShipments")
+            o-slider.carrier-slider(v-if="activeTab=='lspShipmentChains'"
+              :tooltip="false" variant="primary" size="small" v-model="vizSettings.scaleFactor"
+            )
+            o-slider.carrier-slider(v-if="activeTab=='shipments'"
+              :tooltip="false" variant="primary" size="small" v-model="vizSettings.scaleFactorShipments"
+            )
+
           .addedSpace(v-if="activeTab == 'tours' || activeTab=='lspTours'")
             br
+
           .switches(v-if="activeTab == 'tours' || activeTab=='lspTours'")
-            b-switch(v-model="vizSettings.shipmentDotsOnTourMap")
+            o-switch(v-model="vizSettings.shipmentDotsOnTourMap")
               span(v-html="$t('shipmentDots')")
-            b-switch(v-model="vizSettings.simplifyTours")
+            o-switch(v-model="vizSettings.simplifyTours")
               span(v-html="$t('flatten')")
 
   </template>
@@ -193,7 +204,6 @@ const i18n = {
 
 import { defineComponent, PropType } from 'vue'
 
-import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import naturalSort from 'javascript-natural-sort'
 import colorMap from 'colormap'
@@ -202,11 +212,11 @@ import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendColors from '@/components/LegendColors.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { gUnzip, parseXML, findMatchingGlobInFiles } from '@/js/util'
+import { gUnzip, parseXML, findMatchingGlobInFiles, unreactive } from '@/js/util'
 import DashboardDataManager from '@/js/DashboardDataManager'
 
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
-import avro from '@/js/avro'
+import { getAvro } from '@/js/avro'
 
 import DeckMap from './DeckMapComponent.vue'
 
@@ -293,7 +303,6 @@ const LogisticsPlugin = defineComponent({
   i18n,
   components: {
     LegendColors,
-    ToggleButton,
     DeckMap,
     ZoomButtons,
   },
@@ -356,6 +365,7 @@ const LogisticsPlugin = defineComponent({
 
       globalState: globalStore.state,
       isLoaded: true,
+      isUnmounted: false,
       showHelp: false,
       activeTab: '',
 
@@ -1969,6 +1979,7 @@ const LogisticsPlugin = defineComponent({
       console.log('LOADING AVRO:', this.vizDetails.network)
       const filename = `${this.subfolder}/${this.vizDetails.network}`
       const blob = await this.fileApi.getFileBlob(filename)
+      const avro = await getAvro()
 
       const records: any[] = await new Promise((resolve, reject) => {
         const rows = [] as any[]
@@ -2060,11 +2071,16 @@ const LogisticsPlugin = defineComponent({
       return new Promise<NetworkLinks>((resolve, reject) => {
         const thread = new RoadNetworkLoader()
         try {
-          thread.postMessage({
-            filePath: path,
-            fileSystem: this.fileSystem,
-            vizDetails,
-          })
+          // unreactive(): fileSystem comes out of $store.state.svnProjects and vizDetails
+          // out of data(), so both are reactive Proxies -- which structuredClone cannot
+          // clone. See unreactive() in @/js/util, and trap #1 in VUE3-MIGRATION.md.
+          thread.postMessage(
+            unreactive({
+              filePath: path,
+              fileSystem: this.fileSystem,
+              vizDetails,
+            })
+          )
 
           thread.onmessage = e => {
             // perhaps network has no CRS and we need to ask user
@@ -2188,6 +2204,7 @@ const LogisticsPlugin = defineComponent({
 
     if (!this.yamlConfig) this.buildRouteFromUrl()
     await this.getVizDetails()
+    if (this.isUnmounted) return
 
     if (this.thumbnail) return
 
@@ -2208,6 +2225,7 @@ const LogisticsPlugin = defineComponent({
       if (!this.carriers) this.$emit('error', 'Error loading carriers:' + e)
       return
     }
+    if (this.isUnmounted) return
 
     await this.$nextTick() // update UI update before network load begins
     try {
@@ -2216,6 +2234,7 @@ const LogisticsPlugin = defineComponent({
       this.$emit('error', 'Error loading network: ' + e)
       return
     }
+    if (this.isUnmounted) return
 
     this.setMapCenter()
     this.myState.statusMessage = ''
@@ -2236,6 +2255,10 @@ const LogisticsPlugin = defineComponent({
     this.selectedCarrier = this.getFirstCarrierFromSelectedLsp(this.lsps[0])
 
     try {
+      // NB: deliberately NOT markRaw'd -- initialLoad() is async and signals completion
+      // by reassigning its internal bgLayers map, which consumers need to react to.
+      // The raw-ness that deck.gl requires is applied to the features inside
+      // BackgroundLayers.ts instead. See trap #7.
       this.backgroundLayers = new BackgroundLayers({
         vizDetails: this.vizDetails,
         fileApi: this.fileApi,
@@ -2247,7 +2270,10 @@ const LogisticsPlugin = defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
+    // this plugin renders its chrome as soon as the YAML parses, so the user can
+    // navigate away while mounted() is still loading. See trap #10.
+    this.isUnmounted = true
     this.myState.isRunning = false
     globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
@@ -2258,7 +2284,7 @@ export default LogisticsPlugin
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 /* SCROLLBARS
        The emerging W3C standard is currently Firefox-only */
@@ -2649,9 +2675,10 @@ input {
   }
 }
 
-.slider {
+.carrier-slider {
   flex: 4;
   margin-right: 0 1rem;
+  user-select: none;
 }
 
 .detail-buttons {
@@ -2661,6 +2688,7 @@ input {
 
 .switchbox {
   margin: 0 0.25rem 0.5rem 0.25rem;
+  user-select: none;
 }
 
 .xmessage {

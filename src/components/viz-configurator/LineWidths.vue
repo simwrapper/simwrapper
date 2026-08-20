@@ -5,7 +5,7 @@
   .widgets
     .widget
         p.tight Display
-        b-select.selector(expanded v-model="dataColumn")
+        o-select.selector(expanded v-model="dataColumn")
 
           option(label="None" value="@0")
           option(label="1px" value="@1")
@@ -25,7 +25,7 @@
   .widgets(v-if="datasetChoices.length > 1 && dataColumn && dataColumn.length > 2")
     .widget
         p.tight Join by
-        b-select.selector(expanded v-model="join")
+        o-select.selector(expanded v-model="join")
           option(label="None" value="")
           option(label="Row count" value="@count")
 
@@ -40,15 +40,15 @@
   .widgets(v-if="dataColumn && dataColumn.length > 2")
     .widget
       p Scaling
-      b-field
-        b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
+      o-field
+        o-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
 
   //- DIFF MODE --------------
   .more(:title="diffChoices.length<2 ? 'Add two datasets to enable comparisons' : ''")
     .widgets
       .widget(style="flex: 3")
         p.tight Compare datasets
-        b-select.selector(
+        o-select.selector(
           :disabled="!dataColumn || diffChoices.length<2"
           expanded
           v-model="diffUISelection"
@@ -309,7 +309,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 .width-panel {
   padding-right: 0rem;
 }
@@ -337,6 +337,6 @@ export default defineComponent({
 }
 
 .tight {
-  margin: 0 0 -10px 1px;
+  margin-left: 2px;
 }
 </style>

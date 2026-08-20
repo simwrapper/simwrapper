@@ -4,9 +4,9 @@
   .title-panel.flex-row
       .leftside.flex-row.flex1(@click.prevent="toggleCheck")
         .mode-color-strip
-        b-checkbox.fade(
-            v-model="lineCheckActive"
-            size="is-small"
+        o-checkbox.fade(
+            :modelValue="lineCheckActive"
+            size="small"
             :class="{faded: isPartial}"
         )
         .text-area.flex-col
@@ -22,14 +22,14 @@
 
       .rightside.flex-row
           a.card-header-icon(@click="toggleOpen")
-            b-icon.icon-reveal(size="is-small" :icon="isOpen ? 'menu-down' : 'menu-up'")
+            font-awesome-icon.icon-reveal(:icon="isOpen ? 'chevron-down' : 'chevron-up'")
 
 
   .card-details.flex-col(v-if="isOpen")
-    .route.flex-row(v-for="route in this.line.transitRoutes" :key="route.id")
+    .route.flex-row(v-for="route in line.transitRoutes" :key="route.id")
       .stuff.flex-col
-        b-checkbox.route-checkbox(v-model="checkStates[route.id]" size="is-small"
-          @input="toggleRoute(route.id)"
+        o-checkbox.route-checkbox(:modelValue="!!checkStates[route.id]" size="small"
+          @update:modelValue="value => toggleRoute(route.id, value)"
         )
           .route-title {{ route.id}}
         .service-period {{ route.firstDeparture }} — {{ route.lastDeparture }}
@@ -155,11 +155,13 @@ export default defineComponent({
       this.setRouteCheckmarks()
       this.cbToggleLineOpen({ offset: this.line.offset, isOpen: this.isOpen })
     },
-    toggleRoute(id: string) {
+    toggleRoute(id: string, isChecked: boolean) {
+      // o-checkbox is bound one-way; we own the checkmark state
+      this.checkStates[id] = isChecked
       this.cbToggleRouteChecked({
         route: id,
         offset: this.line.offset,
-        isChecked: this.checkStates[id],
+        isChecked,
       })
     },
   },
@@ -167,8 +169,6 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
-
 .route-dropdown {
   cursor: auto;
   user-select: none;
@@ -180,6 +180,20 @@ export default defineComponent({
 
 .leftside {
   cursor: pointer;
+
+  // The line checkbox only *displays* `lineCheckActive` -- the whole row is the click
+  // target, via `@click.prevent` above. Letting the input take the click means the browser
+  // toggles it on pre-click activation and the preventDefault then rolls that toggle back,
+  // so it never showed a checkmark even though the click registered. Making the control
+  // inert routes every click to .leftside, which is what the one-way binding assumes.
+  //
+  // This has to hit the INPUT, not the o-checkbox root: theme-oruga ships
+  // `.o-checkbox__input { pointer-events: auto }`, which wins back anything set on the
+  // parent. `[data-oruga-input]` comes from the component itself, so unlike a class name
+  // it survives switching Oruga's theme config (see src/main.ts).
+  :deep([data-oruga-input='checkbox']) {
+    pointer-events: none;
+  }
 }
 
 .is-open {
@@ -188,7 +202,7 @@ export default defineComponent({
 
 .title-panel {
   display: flex;
-  padding: 0px 0px 0px 0px;
+  padding: 0px 0px 2px 0px;
 }
 
 .line-title {
@@ -203,7 +217,12 @@ export default defineComponent({
   width: 2px;
   height: 8px;
   background-color: #76353500;
-  margin: auto 10px auto 0px;
+  // 2px strip + 8px == the 10px .text-area gets on the other side of the checkbox
+  margin: auto 8px auto 0px;
+}
+
+.text-area {
+  margin-left: 10px;
 }
 
 .metrics {
@@ -216,8 +235,10 @@ export default defineComponent({
 .icon-reveal {
   border: 1px solid #80808060;
   border-radius: 4px;
-  padding: 7px;
-  font-size: 20px;
+  // sizes the whole control: the svg is 1em, and padding+border add 12x10 around it
+  font-size: 12px;
+  padding: 3px 3px;
+  margin: auto 6px auto 0;
 }
 
 .icon-reveal:hover {
@@ -238,7 +259,9 @@ export default defineComponent({
   font-weight: bold;
   // color: var(--textBold);
 }
-.route-checkbox:hover {
+// Oruga forwards a class to the checkbox's inner <input>, which never carries
+// the scope id -- so these two need :deep() to match at all.
+:deep(.route-checkbox):hover {
   // font-weight: bold !important;
   color: var(--textBold) !important;
 }
@@ -261,7 +284,7 @@ export default defineComponent({
   color: var(--link);
 }
 
-.faded {
+:deep(.faded) {
   filter: grayscale(100%) brightness(130%);
 }
 </style>

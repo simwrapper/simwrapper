@@ -48,7 +48,7 @@
               i.fas.fa-search
 
       .filter-plans
-          b-switch(v-model="vizSettings.selectedPlansOnly")
+          o-switch(v-model="vizSettings.selectedPlansOnly")
             span(v-html="$t('selectedPlansOnly')")
 
       .carrier-list.mb1(data-testid="plan-list")
@@ -57,7 +57,8 @@
                  @click="handleSelectPlan(i)")
           .carrier-title {{ `${plan[0].person_id}&nbsp;/&nbsp;${plan[0].plan_num}&nbsp;&nbsp;${plan[0].plan_selected=='yes' ? '(*)':''}` }}
 
-        b-loading.loader-theme(v-model="isQueryRunning" :is-full-page="false")
+        //- Oruga's loading takes `fullPage` (camelCase) and `active` via v-model
+        o-loading.loader-theme(v-model:active="isQueryRunning" :fullPage="false")
 
       .detail-area
         .speed-label(style="margin-bottom: 0.5rem") Legend
@@ -66,15 +67,20 @@
           .flex-row
             span(:style="{color: `rgb(${c[1][0]},${c[1][1]},${c[1][2]})`}") ───&nbsp;{{ c[0]}}
 
-      b-field.detail-buttons(v-if="selectedCarrier" size="is-small")
+      //- ⚠️ DEAD UI, inherited from carrier-viewer: `selectedCarrier` starts '' and is only
+      //- ever cleared, never assigned -- the code that would set it is commented out. Ported
+      //- rather than deleted so it compiles and would work if it is ever wired back up.
+      //- Oruga has no radio-button (button-group) control; a plain button group with the
+      //- active one highlighted gives the same behavior as Buefy's.
+      .detail-buttons.buttons.has-addons(v-if="selectedCarrier")
 
-        b-radio-button(v-model="activeTab" native-value="shipments" size="is-small" type="is-warning")
+        o-button(size="small" :variant="activeTab=='shipments' ? 'warning' : ''" @click="activeTab='shipments'")
           span {{ $t('jobs') }}
-        b-radio-button(v-model="activeTab" native-value="tours" size="is-small" type="is-warning")
+        o-button(size="small" :variant="activeTab=='tours' ? 'warning' : ''" @click="activeTab='tours'")
           span {{ $t('tours') }}
-        b-radio-button(v-model="activeTab" native-value="vehicles" size="is-small" type="is-warning")
+        o-button(size="small" :variant="activeTab=='vehicles' ? 'warning' : ''" @click="activeTab='vehicles'")
           span {{ $t('vehicles') }}
-        b-radio-button(v-if="services.length" v-model="activeTab" native-value="services" size="is-small" type="is-warning")
+        o-button(v-if="services.length" size="small" :variant="activeTab=='services' ? 'warning' : ''" @click="activeTab='services'")
           span {{ $t('services') }}
 
         .shipments(v-if="activeTab=='shipments' && !vizDetails.services")
@@ -93,9 +99,9 @@
 
       .switchbox
         .switches
-          b-switch(v-model="vizSettings.shipmentDotsOnTourMap")
+          o-switch(v-model="vizSettings.shipmentDotsOnTourMap")
             span(v-html="$t('showActivities')")
-          b-switch(v-model="vizSettings.simplifyTours")
+          o-switch(v-model="vizSettings.simplifyTours")
             span(v-html="$t('flatten')")
 
 </template>
@@ -142,7 +148,6 @@ const i18n = {
 }
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import { ToggleButton } from 'vue-js-toggle-button'
 
 import DuckDB from '@/js/duckdb'
 import type {
@@ -165,6 +170,7 @@ import {
   arrayBufferToBase64,
   sleep,
   debounce,
+  unreactive,
 } from '@/js/util'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
@@ -241,7 +247,6 @@ const PlansViewerPlugin = defineComponent({
     DeckMapComponent,
     LegendColors,
     PlanTable,
-    ToggleButton,
     ZoomButtons,
   },
 
@@ -362,7 +367,10 @@ const PlansViewerPlugin = defineComponent({
       selectedPlanIndex: null as any,
       selectedShipment: null as any,
 
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+      // NB no trailing ';' -- this string is bound via :style, and Vue 3 warns
+      // "Unexpected semicolon at the end of 'background' style value" on every render,
+      // dragging two [intlify] deprecation warnings with it. See trap #8.
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
 
       vehicleLookup: [] as string[],
       vehicleLookupString: {} as { [id: string]: number },
@@ -1203,11 +1211,17 @@ const PlansViewerPlugin = defineComponent({
       return new Promise<NetworkLinks>((resolve, reject) => {
         const thread = new RoadNetworkLoader()
         try {
-          thread.postMessage({
-            filePath: path,
-            fileSystem: this.fileSystem,
-            vizDetails,
-          })
+          // unreactive(): fileSystem comes out of $store.state.svnProjects and vizDetails
+          // out of data(), so both are reactive Proxies -- which structuredClone cannot
+          // clone. See unreactive() in @/js/util, and trap #1 in VUE3-MIGRATION.md.
+          // (NB this method is currently unreachable -- see the note on loadNetwork.)
+          thread.postMessage(
+            unreactive({
+              filePath: path,
+              fileSystem: this.fileSystem,
+              vizDetails,
+            })
+          )
 
           thread.onmessage = e => {
             // perhaps network has no CRS and we need to ask user
@@ -1366,7 +1380,7 @@ const PlansViewerPlugin = defineComponent({
     this.dbUrl = await this.setupDbUrl()
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.myState.isRunning = false
 
     if (this.fileSystem.handle && this.dbUrl) this.duck.dropFile?.(this.dbUrl)
@@ -1378,7 +1392,7 @@ export default PlansViewerPlugin
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 /* SCROLLBARS
    The emerging W3C standard is currently Firefox-only */

@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, markRaw, PropType } from 'vue'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { LineLayer } from '@deck.gl/layers'
 import { COORDINATE_SYSTEM } from '@deck.gl/core'
@@ -142,7 +142,11 @@ export default defineComponent({
             attributes: {
               getSourcePosition: { value: this.links.source, size: 2 },
               getTargetPosition: { value: this.links.dest, size: 2 },
-              getColor: { value: this.newColors, size: 4 },
+              // deck's instanceColors is `unorm8` (default array type Uint8ClampedArray)
+              // and newColors is a plain Uint8Array; on a normalized attribute whose types
+              // differ, deck warns unless we state what we meant. `true` is what it
+              // already assumed, so nothing changes visually.
+              getColor: { value: this.newColors, size: 4, normalized: true },
               getWidth: { value: this.newWidths, size: 1 },
             },
           },
@@ -202,16 +206,20 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = new MapboxOverlay({
-        interleaved: true,
-        layers: this.layers,
-        onClick: this.handleClick,
-      })
+      // markRaw: deckOverlay lives in data(), so otherwise the overlay becomes a
+      // reactive Proxy and deck.gl reads the frozen layer.props.data through it (trap #7).
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          interleaved: true,
+          layers: this.layers,
+          onClick: this.handleClick,
+        })
+      )
       this.mymap?.addControl(this.deckOverlay)
     })
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },

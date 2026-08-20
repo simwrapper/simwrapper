@@ -3,12 +3,9 @@
   h4 Ein-/Ausblenden
 
   .row(:key="label" v-for="label in Object.keys(items)")
-    toggle-button.toggle(
-      :width="40"
-      :value="items[label]"
-      :labels="false"
-      :color="{checked: '#4b7cc4', unchecked: '#222'}"
-      @change="$emit('click',label)")
+    o-switch.toggle(
+      :model-value="items[label]"
+      @update:model-value="$emit('click',label)")
     label {{ label }}
 
 </template>
@@ -16,11 +13,9 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import { ToggleButton } from 'vue-js-toggle-button'
 
 export default defineComponent({
   name: 'SettingsPanelComponent',
-  components: { ToggleButton },
   props: {
     items: { type: Object as PropType<{ [label: string]: boolean }>, required: true },
   },

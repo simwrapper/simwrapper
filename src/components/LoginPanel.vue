@@ -1,13 +1,12 @@
 <template lang="pug">
 .sidebar-page
     section.sidebar-layout
-      b-sidebar(
-        type="is-light"
+      o-sidebar(
         :fullheight="fullheight"
         :fullwidth="fullwidth"
         :overlay="overlay"
-        :right="right"
-        :open.sync="open")
+        :position="right ? 'right' : 'left'"
+        v-model:active="open")
 
         .all-stuff
           .block
@@ -16,19 +15,19 @@
                 src="@/assets/images/logos/vsp-logo-300dpi.png"
                 alt="TU Berlin VSP Department")
 
-          b-menu-list(label="Login Required")
+          p.menu-label Login Required
 
           p.my-label {{ whichLogin }}: access to this site requires a login.
 
-          b-menu-list(label="Username")
-          b-input(v-model="username" placeholder="VSP username" maxlength=30)
+          p.menu-label Username
+          o-input(v-model="username" placeholder="VSP username" maxlength=30)
 
           //- b-menu-list(label="Password")
           //- b-input(type="password"
           //-   v-model="password"
           //-   password-reveal)
 
-          b-button.my-space.is-primary(
+          o-button.my-space.is-primary(
             @click="clickedLogin"
             :disabled="!username || !password") Login
 
@@ -100,7 +99,7 @@ export default defineComponent({
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .boop {
   padding-top: 1rem;

@@ -40,7 +40,9 @@ export default defineComponent({
     this.myPlot.on('plotly_click', this.handleClick)
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
+    // mounted() awaits a tick, so myPlot may not be set if we unmount that fast
+    if (!this.myPlot) return
     this.myPlot.removeAllListeners()
     Plotly.purge(this.$refs[this.plotlyId])
   },

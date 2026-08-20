@@ -8,17 +8,17 @@
       .flex-col.flex2
         h4 Map Selection
         .zone-selector.flex-row
-          b-button.button.flex1.btn-rowcol(
-            :type="mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
-            size="is-small"
+          o-button.button.flex1.btn-rowcol(
+            variant="success" :outlined="!mapConfig.isRowWise"
+            size="small"
             @click="$emit('changeRowWise', true)"
           )
             i.fa.fa-bars
             | &nbsp;Row
 
-          b-button.button.flex1.btn-rowcol(
-            :type="!mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
-            size="is-small"
+          o-button.button.flex1.btn-rowcol(
+            variant="success" :outlined="mapConfig.isRowWise"
+            size="small"
             @click="$emit('changeRowWise', false)"
           )
             i.fa.fa-bars(style="rotate: 90deg;")
@@ -117,13 +117,13 @@
 
   .left-grabby(
     @mousedown="dividerDragStart"
-    :style="{right: `${this.leftSectionWidth-4}px`}"
+    :style="{right: `${leftSectionWidth-4}px`}"
   )
 
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw } from 'vue'
 import type { PropType } from 'vue'
 
 import * as shapefile from 'shapefile'
@@ -143,7 +143,7 @@ import { H5WasmLocalFileApi } from './local/h5wasm-local-file-api'
 
 import LegendColors from './LegendColors.vue'
 import ZoneLayer from './DeckMapComponent.vue'
-import { MapConfig, Matrix, ZoneSystems } from './MatrixViewer.vue'
+import type { MapConfig, Matrix, ZoneSystems } from './MatrixViewer.vue'
 import { ScaleType } from '@/components/ColorMapSelector/models-vis'
 
 import dataScalers from './util'
@@ -156,6 +156,7 @@ const BASE_URL = import.meta.env.BASE_URL
 const MyComponent = defineComponent({
   name: 'H5MapViewer',
   components: { LegendColors, ZoneLayer, BackgroundMapOnTop, ZoomButtons },
+  emits: ['changeRowWise', 'hasShapes', 'rowlookup', 'nozones', 'error', 'isLoaded'],
   props: {
     activeTable: String,
     config: String,
@@ -191,7 +192,8 @@ const MyComponent = defineComponent({
       colorThresholds: {} as any,
       currentKey: '',
       dataArray: [] as number[],
-      dbExtractH5ArrayData: {} as any,
+      // starts as a function: watchers can fire it before mounted() installs the debounced one
+      dbExtractH5ArrayData: (() => {}) as any,
       dragDividerWidth: 0,
       d3ColorThresholds: {} as any,
       leftSectionWidth: 260,
@@ -206,6 +208,7 @@ const MyComponent = defineComponent({
       isLoading: false,
       isOmxApi: false,
       isEditingLegend: false,
+      isUnmounted: false,
       layerId: Math.floor(1e12 * Math.random()),
       prettyDataArray: [] as any[],
       searchTerm: '',
@@ -227,10 +230,11 @@ const MyComponent = defineComponent({
     const prevLeftBarWidth = localStorage.getItem('matrixLeftPanelWidth')
     this.leftSectionWidth = prevLeftBarWidth ? parseInt(prevLeftBarWidth) : 256
     this.dbExtractH5ArrayData = debounce(this.extractH5Slice, 300)
-    this.d3ColorThresholds = scaleThreshold()
+    this.d3ColorThresholds = markRaw(scaleThreshold())
 
     // Load GeoJSON features
     await this.setupBoundaries()
+    if (this.isUnmounted) return
 
     if (this.$route.query.filter) {
       this.filterText = `${this.$route.query.filter}`
@@ -248,6 +252,10 @@ const MyComponent = defineComponent({
     }
 
     this.isMapReady = true
+  },
+
+  beforeUnmount() {
+    this.isUnmounted = true
   },
 
   computed: {
@@ -426,7 +434,7 @@ const MyComponent = defineComponent({
     async setupBoundaries() {
       if (this.shapes.length) {
         // Shapes may already be dropped in from drag/drop
-        this.features = this.shapes
+        this.features = markRaw(this.shapes)
         this.zoneID = this.userSuppliedZoneID || 'TAZ'
       } else if (this.filenameShapes) {
         // We have a filename from the configbar, load that file
@@ -614,8 +622,10 @@ const MyComponent = defineComponent({
           this.features[i].properties.color = [40, 40, 40]
         }
       }
-      // Tell vue this is new
-      this.features = [...this.features]
+      // Tell vue this is new. markRaw keeps deck.gl off the reactive path (trap #7) and
+      // saves a proxy hop per coordinate read; reassigning the property is still what
+      // triggers the child's `layers` computed, so reactivity is unaffected.
+      this.features = markRaw([...this.features])
     },
 
     breakpointsChanged(breakpoints: any[]) {
@@ -676,7 +686,7 @@ const MyComponent = defineComponent({
           const rawtext = await gUnzip(buffer)
           const text = new TextDecoder('utf-8').decode(rawtext)
           const json = JSON.parse(text)
-          this.features = json.features
+          this.features = markRaw(json.features)
         } catch (e) {
           this.$emit('error', 'Failed to load zone boundaries: ' + zoneSystem.url)
         }
@@ -722,7 +732,7 @@ const MyComponent = defineComponent({
           boundaries = (await this.fileApi.getFileJson(path)).features
         }
 
-        this.features = boundaries
+        this.features = markRaw(boundaries)
       } catch (e) {
         const err = e as any
         const message = err.statusText || 'Could not load'
@@ -845,8 +855,6 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
-
 $bgBeige: #636a67;
 $bgLightGreen: #d2e4c9;
 $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;

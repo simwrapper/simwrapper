@@ -41,26 +41,28 @@ export default defineComponent({
   },
 
   // Vue directives let me process user clicks on links: needed for links in splitview mode
+  // Vue 3 renamed the hooks (inserted -> mounted, unbind -> unmounted) and removed
+  // vnode.context; the component instance now comes from binding.instance.
   directives: {
     markdownLinks: {
-      unbind(el: any) {
+      unmounted(el: any) {
         if (el._markdownHandler) {
           el.removeEventListener('click', el._markdownHandler)
           delete el._markdownHandler
         }
       },
-      inserted(el: Element, binding: any, vnode: any) {
+      mounted(el: Element, binding: any) {
         const handler = (event: any) => {
           try {
             const target = event.target?.closest('a')
             if (target) {
-              const path = vnode?.context?.$route?.path || ''
+              const path = binding.instance?.$route?.path || ''
               if (path.startsWith('/split/')) {
                 const href = target.getAttribute('href')
                 // only capture local relative links; external links behave as normal.
                 if (!href.startsWith('http')) {
                   // figure out relative path and get this panel's details
-                  const mythis = vnode.context
+                  const mythis = binding.instance
                   const split = mythis.$props.split
                   const splitData = JSON.parse(atob(path.slice(7)))
                   const thisPanel = splitData[split.row][split.col]
@@ -146,7 +148,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .text-panel-element {
   top: 0;

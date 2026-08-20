@@ -1,11 +1,10 @@
 <template lang="pug">
 .column-widget
   slot.tight Column
-  b-select.column-selector(expanded v-model="dataColumn")
+  o-select.column-selector(expanded v-model="dataColumn")
     option(v-if="extra" v-for="extraOption,i in extra" :key="i"
       :value="`@${i+1}`"
-      :label="extraOption"
-    )
+    ) {{ extraOption }}
 
     optgroup(v-for="dataset in datasetChoices"
               :key="dataset"
@@ -14,8 +13,7 @@
       option(v-for="column in columnsInDataset(dataset)"
               :key="`${dataset}:${column}`"
               :value="`${dataset}:${column}`"
-              :label="column"
-      )
+      ) {{ column }}
 
 </template>
 
@@ -34,6 +32,9 @@ export default defineComponent({
     // vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
     extra: { type: Array as PropType<String[]>, required: false },
+    // Vue 2 passed this via v-model, which landed in $attrs.value. Vue 3's v-model is
+    // modelValue, so callers bind :value and we declare it as a real prop.
+    value: { type: String, default: '' },
   },
   computed: {
     datasetChoices() {
@@ -55,12 +56,9 @@ export default defineComponent({
     this.datasetsAreLoaded()
 
     await this.$nextTick()
-    this.dataColumn = this.$attrs.value
+    this.dataColumn = this.value
   },
   watch: {
-    '$attrs.value'() {
-      // this.dataColumn = this.$attrs.value
-    },
     datasets() {
       this.datasetsAreLoaded()
     },
@@ -123,7 +121,6 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
 
 .column-selector {
   margin-top: 0.75rem;

@@ -2,14 +2,16 @@
 .legend-colors.flex-col
   h4 {{ title }}
   p {{ description }}
+
   .list-items(:class="{horiz: !!icon}")
-    .legend-row(v-for="item in items" :key="item.value + item.value[0]")
+    .legend-row(v-for="item in items" :key="`${item.value}`")
       .item-label(v-if="item.label") {{ item.label }}
 
       .item-icon(v-if="icon"
+        :class="which ? 'icon-package' : '' "
         :style="{backgroundImage: `url(${image})`, filter: filterColor(item.color)}"
       )
-      .item-swatch(v-else :style="`backgroundColor: rgb(${item.color})`")
+      .item-swatch(v-else :style="{backgroundColor: `rgb(${item.color})`}")
 
 </template>
 
@@ -28,6 +30,7 @@ export default defineComponent({
     icon: { type: String, required: false },
     values: { type: Array },
     items: { type: Array as PropType<LegendItem[]> },
+    which: String,
   },
   computed: {
     image() {
@@ -76,6 +79,12 @@ export default defineComponent({
   margin-top: -18px;
 }
 
+.icon-package {
+  background-size: 205px 76px !important;
+  background-position: -178px -54px;
+  margin-top: -14px;
+}
+
 h4 {
   text-align: left;
   font-weight: bold;
@@ -85,7 +94,7 @@ h4 {
   font-size: 0.8rem;
   text-transform: uppercase;
   z-index: 2;
-  background-color: var(--bgCream2);
+  background-color: var(--bgCardFrame2);
 }
 
 .legend-row {

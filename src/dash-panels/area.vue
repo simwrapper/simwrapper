@@ -105,7 +105,7 @@ export default defineComponent({
     this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.datamanager?.removeFilterListener(
       { ...this.config, subfolder: this.subfolder },
       this.handleFilterChanged
@@ -294,7 +294,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .myplot {
   position: absolute;

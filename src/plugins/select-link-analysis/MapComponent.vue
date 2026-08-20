@@ -1,28 +1,26 @@
 <template lang="pug">
-.deck-map.flex-col
-  .map-container(:id="`map-${viewId}`")
+.map-container(:id="`map-${viewId}`")
+
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, PropType, markRaw } from 'vue'
 import { ArcLayer, PathLayer, LineLayer } from '@deck.gl/layers'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 
 import { MapboxOverlay } from '@deck.gl/mapbox'
-import * as d3 from "d3";
-import { color } from "d3-color";
+import * as d3 from 'd3'
+import { color } from 'd3-color'
 import maplibregl from 'maplibre-gl'
 import GeojsonOffsetLayer from '@/layers/GeojsonOffsetLayer'
 import globalStore from '@/store'
 import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
-
 
 interface DeckObject {
   index: number
   target: number[]
   data: any
 }
-
 
 export default defineComponent({
   name: 'MyDeckComponent',
@@ -41,8 +39,6 @@ export default defineComponent({
     // onClick: { type: Function, required: true },
     show3dBuildings: { type: Boolean, required: false, default: false },
   },
-
-
 
   data() {
     return {
@@ -67,16 +63,9 @@ export default defineComponent({
 
   watch: {
     layers() {
-      console.log('updating layers:', this.layers)
-      console.log('deckOverlay?', this.deckOverlay)
       this.deckOverlay?.setProps({
         layers: this.layers,
       })
-    },
-
-    features(val) {
-      console.log('features changed:', val?.length)
-
     },
 
     dark() {
@@ -109,7 +98,6 @@ export default defineComponent({
   },
 
   computed: {
-
     isStroked() {
       return !!this.lineColors && this.lineWidths !== 0
     },
@@ -131,13 +119,12 @@ export default defineComponent({
       const finalLayers = []
 
       finalLayers.push(
-
         new LineOffsetLayer({
           id: 'linksLayer',
           data: this.features,
           getColor: (feature: any) => {
             const value = this.countMap.get(feature.id.toString())
-            if (value === undefined) return [80, 80, 80, 80]  // grey = no data
+            if (value === undefined) return [80, 80, 80, 80] // grey = no data
             return this.getLinkColorScale(value)
           },
           getWidth: (feature: any) => {
@@ -164,34 +151,33 @@ export default defineComponent({
         } as any)
       )
       return finalLayers
-
     },
   },
 
   mounted() {
-
     const style = `/map-styles/${this.dark ? 'dark' : 'positron'}.json`
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as any
     const zoom = this.globalState.viewState.zoom
 
     // check coords before failing
-    console.log({ center, zoom })
     if (center.lng > 180 || center.lat > 90) {
       this.$emit('error', 'Invalid coordinates: long/lat out of range')
       return
     }
 
     //@ts-ignore
-    this.mymap = new maplibregl.Map({
-      container,
-      style,
-      center,
-      zoom,
-      canvasContextAttributes: { preserveDrawingBuffer: true },
-      pixelRatio: window.devicePixelRatio,
+    this.mymap = markRaw(
+      new maplibregl.Map({
+        container,
+        style,
+        center,
+        zoom,
+        canvasContextAttributes: { preserveDrawingBuffer: true },
+        pixelRatio: window.devicePixelRatio,
+      })
+    )
 
-    })
     // console.log('map container dimensions:',
     //   document.getElementById(container)?.offsetWidth,
     //   document.getElementById(container)?.offsetHeight
@@ -202,24 +188,26 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = new MapboxOverlay({
-        interleaved: true,
-        layers: this.layers,
-        pickingRadius: 10,
-        onHover: this.handleHover,
-        onClick: this.handleClick,
-      })
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          interleaved: true,
+          layers: this.layers,
+          pickingRadius: 10,
+          onHover: this.handleHover,
+          onClick: this.handleClick,
+        })
+      )
+
       this.mymap?.addControl(this.deckOverlay)
       // console.log('overlay added, layers count:', this.layers.length)
 
       this.$nextTick(() => {
         this.deckOverlay?.setProps({ layers: this.layers })
       })
-
     })
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
@@ -227,6 +215,7 @@ export default defineComponent({
   methods: {
     handleMove() {
       if (this.mapIsIndependent) return
+
       const center = this.mymap?.getCenter() as any
       const view = {
         latitude: center.lat,
@@ -250,18 +239,17 @@ export default defineComponent({
 
     handleClick(target: any, event: any) {
       // this.tooltipStyle.display = 'none'
-      console.log('click', target, event)
       this.$emit('selectedLink', { link: target.object, index: target.index })
       this.getTooltip(target)
     },
 
     handleHover(target: any, event: any) {
-
       target.color = [255, 0, 0, 255]
       if (target.index == -1) {
         this.cbTooltip(-1, null)
         return
       }
+
       this.getTooltip(target)
       // this.tooltipStyle.display = 'none'
       // if (this.cbClickEvent) this.cbClickEvent(event)
@@ -270,27 +258,21 @@ export default defineComponent({
       if (vehicleCount === undefined || this.maxVehicleCount === this.minVehicleCount) {
         return [80, 80, 80, 255]
       }
-      const t = (vehicleCount - this.minVehicleCount) / (this.maxVehicleCount - this.minVehicleCount)
-      const colorStr = d3.scaleSequential(d3.interpolateYlOrRd)(t);
-      const c = color(colorStr)?.rgb();
+      const t =
+        (vehicleCount - this.minVehicleCount) / (this.maxVehicleCount - this.minVehicleCount)
+      const colorStr = d3.scaleSequential(d3.interpolateYlOrRd)(t)
+      const c = color(colorStr)?.rgb()
 
-      return c ? [c.r, c.g, c.b, 255] : [80, 80, 80, 255];
+      return c ? [c.r, c.g, c.b, 255] : [80, 80, 80, 255]
     },
   },
 })
 </script>
 
 <style lang="scss">
-.deck-map {
-  position: absolute;
-  inset: 0 0 0 0;
-  width: 100%;
-  height: 100%;
-}
-
 .map-container {
-  position: absolute;
-  inset: 0 0 0 0;
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
 }
 
 .deck-tooltip {

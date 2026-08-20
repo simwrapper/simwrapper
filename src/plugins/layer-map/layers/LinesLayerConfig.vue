@@ -8,15 +8,15 @@
   .panel-content.flex-col(v-show="open")
 
     .widget-row
-      dataset-selector(v-model="shapes" :datasets="datasets" @update="shapes=$event")
+      dataset-selector(:value="shapes" :datasets="datasets" @update="shapes=$event")
         p.tight Lines
 
     .widget-row
-      column-selector.flex1(v-model="width" :extra="widthOptions"  :datasets="datasets" @update="width=$event")
+      column-selector.flex1(:value="width" :extra="widthOptions"  :datasets="datasets" @update="width=$event")
         p.tight Width
 
       column-selector.flex1(
-        v-model="join"
+        :value="join"
         :extra="joinOptions"
         :datasets="getJoinOptions"
         @update="join=$event"
@@ -25,10 +25,10 @@
 
     .widget-row.flex-col
       p.tight Scale
-      b-slider.slider(:tooltip="false" v-model="scaleFactor" @input="debScale")
+      o-slider.slider(:tooltip="false" v-model="scaleFactor" @update:modelValue="debScale")
 
     .widget-row.flex-col
-      column-selector(v-model="color" :extra="solidColors" :datasets="datasets" @update="color=$event")
+      column-selector(:value="color" :extra="solidColors" :datasets="datasets" @update="color=$event")
         p.tight Color by
 
       .colorbar.flex-row.single(v-show="color=='@2'")
@@ -41,7 +41,7 @@
       //- JOIN BY ---
       .widget.flex1
         column-selector(
-          v-model="join2"
+          :value="join2"
           :extra="joinOptions"
           :datasets="getJoinOptions"
           @update="join2=$event"
@@ -50,7 +50,7 @@
 
       //- NORMALIZE COLUMN ---
       .widget.flex1
-        column-selector(v-model="normalize"
+        column-selector(:value="normalize"
           :extra="['None']" :datasets="datasets" @update="normalize=$event"
         )
             p.tight Normalize
@@ -58,14 +58,14 @@
     //- DIFF MODE
     .widget-row(v-show="color.indexOf(':') > -1")
       .widget.flex1
-        column-selector(v-model="diff"
+        column-selector(:value="diff"
           :extra="['None']" :datasets="datasets" @update="diff=$event"
         )
             p.tight Diff vs.
 
       .widget.flex1
         p.tight(style="margin-bottom: 6px;") % Diff
-        b-switch(v-model="diffRelative").is-small
+        o-switch(v-model="diffRelative").is-small
 
     .widget-row(v-if="color.indexOf(':') > -1").flex-col
       p.tight Colors
@@ -77,11 +77,11 @@
       )
 
     //- .coordidnates.flex-row(style="gap: 0.25rem" title="EPSG code for transforming non-lat/long coordinates")
-    //-     text-selector.flex1(v-model="projection" :datasets="datasets" @update="projection=$event")
+    //-     text-selector.flex1(:value="projection" :datasets="datasets" @update="projection=$event")
     //-       p.tight() Transform (EPSG)
 
   modal-id-column-picker(v-if="showJoinPicker"
-    :data1="{ columns: Object.keys(this.datasets[this.shapes]  || {} ) } "
+    :data1="{ columns: Object.keys(datasets[shapes] || {}) }"
     @join="joinClicked($event)"
   )
 
@@ -99,7 +99,7 @@ import TextSelector from '@/plugins/layer-map/components/TextSelector.vue'
 import { buildRGBfromHexCodes, getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
 
 import ModalIdColumnPicker from '@/components/ModalIdColumnPicker.vue'
-import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector'
+import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector.vue'
 import { ColorMap } from '@/components/ColorMapSelector/models'
 
 import globalStore from '@/store'
@@ -117,7 +117,7 @@ import {
 } from '@/Globals'
 
 export default defineComponent({
-  name: 'PolygonsLayerConfig',
+  name: 'LinesLayerConfig',
   components: {
     ColumnSelector,
     DatasetSelector,
@@ -135,7 +135,10 @@ export default defineComponent({
   data() {
     return {
       globalState: globalStore.state,
-      debScale: {} as any,
+      // a placeholder function, not {}: the template binds it as an event handler on
+      // first render, which is before mounted() swaps in the debounced version. Vue 3
+      // warns "Invalid value type passed to callWithAsyncErrorHandling(): object".
+      debScale: ((v: any) => {}) as any,
 
       // view model
       shapes: '',
@@ -377,7 +380,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .layer-config {
   display: flex;

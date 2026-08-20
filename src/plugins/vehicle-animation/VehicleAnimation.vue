@@ -1,8 +1,12 @@
 <template lang="pug">
 .gl-app(:class="{'hide-thumbnail': !thumbnail}"
-        :style='{"background": urlThumbnail}' oncontextmenu="return false")
+        :style='{"background": urlThumbnail}'
+         oncontextmenu="return false"
+)
 
-  deck-map.anim(v-if="!thumbnail && isLoaded"
+  .loadmsg(v-if="myState.statusMessage") {{ myState.statusMessage }}
+
+  deck-map.the-deck-map(v-if="!thumbnail && isLoaded"
                 :colors = "COLOR_OCCUPANCY"
                 :drtRequests = "$options.drtRequests || []"
                 :dark = "globalState.isDarkMode"
@@ -20,11 +24,9 @@
                 :show3dBuildings="show3dBuildings"
   )
 
-  h3.loadmsg(v-if="!isLoaded") {{ myState.statusMessage }}
-
   zoom-buttons(v-if="!thumbnail" corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
 
-  .right-side(v-if="isLoaded && !thumbnail")
+  .right-side(v-if="isLoaded")
     collapsible-panel(direction="right")
       .big.clock
         p {{ myState.clock }}
@@ -47,21 +49,17 @@
         settings-panel.settings-area(:items="SETTINGS" @click="handleSettingChange")
 
         .speed-block
-          p.speed-label {{ $t('speed') }}:
-            br
-            | {{ speed }}x
+          .flex-row(style="margin: 0 0.5rem")
+            .speed-label.flex1 {{ $t('speed') }}:
+            .speed-label {{ speed }}x
 
-          b-slider.speed-slider(v-model="speed"
+          o-slider.speed-slider(v-model="speed"
             :min="speedStops[0]"
             :max="speedStops[speedStops.length-1]"
-            :duration="0"
-            :dotSize="20"
             :tooltip="false"
-            tooltip-placement="bottom"
-            :tooltip-formatter="val => val + 'x'"
+            :formatter="val => val + 'x'"
           )
-            template(v-for="val in speedStops")
-              b-slider-tick(:value="val" :key="val")
+            o-slider-tick(v-for="val in speedStops" :value="val" :key="val")
 
   playback-controls.bottom-area(v-if="isLoaded && !thumbnail"
       data-testid="playback-controls"
@@ -85,6 +83,7 @@ const i18n = {
       vehicles: 'Vehicles',
       routes: 'Routes',
       speed: 'Speed',
+      loading: 'Loading',
     },
     de: {
       requests: 'DRT Anfragen',
@@ -94,6 +93,7 @@ const i18n = {
       vehicles: 'DRT Fahrzeuge',
       routes: 'DRT Routen',
       speed: 'Geschwindigkeit',
+      loading: 'Loading',
     },
   },
 }
@@ -101,7 +101,6 @@ const i18n = {
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import { ToggleButton } from 'vue-js-toggle-button'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
 import crossfilter from 'crossfilter2'
@@ -112,7 +111,7 @@ import LegendColors from './LegendColors.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { arrayBufferToBase64, gUnzip } from '@/js/util'
+import { arrayBufferToBase64, gUnzip, sleep } from '@/js/util'
 import DeckMap from './DeckMapComponent.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import BackgroundLayers from '@/js/BackgroundLayers'
@@ -128,7 +127,7 @@ import {
   DARK_MODE,
 } from '@/Globals'
 
-const MyComponent = defineComponent({
+const ZMyComponent = defineComponent({
   name: 'VehicleAnimationPlugin',
   i18n,
   components: {
@@ -137,7 +136,6 @@ const MyComponent = defineComponent({
     LegendColors,
     PlaybackControls,
     SettingsPanel,
-    ToggleButton,
     ZoomButtons,
   },
   props: {
@@ -243,7 +241,7 @@ const MyComponent = defineComponent({
 
       legendBits: [] as any[],
       isEmbedded: false,
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
 
       vehicleLookup: [] as string[],
       vehicleLookupString: {} as { [id: string]: number },
@@ -744,26 +742,30 @@ const MyComponent = defineComponent({
 
     this.setWallClock()
 
-    this.myState.statusMessage = 'Loading...'
+    this.myState.statusMessage = `${this.$t('loading')}...`
     console.log('loading files')
+    await sleep(0)
     const { trips, drtRequests } = await this.loadFiles()
 
     console.log('parsing vehicle motion')
-    this.myState.statusMessage = `${this.$t('vehicles')}...`
+    this.myState.statusMessage = `${this.$t('loading')} ${this.$t('vehicles')}...`
+    await sleep(0)
     this.paths = this.parseVehicles(trips)
     this.pathStart = this.paths.dimension(d => d.t0)
     this.pathEnd = this.paths.dimension(d => d.t1)
     this.pathVehicle = this.paths.dimension(d => d.v)
 
     console.log('Routes...')
-    this.myState.statusMessage = `${this.$t('routes')}...`
+    this.myState.statusMessage = `${this.$t('loading')} ${this.$t('routes')}...`
+    await sleep(0)
     this.traces = await this.parseRouteTraces(trips)
     this.traceStart = this.traces.dimension(d => d.t0)
     this.traceEnd = this.traces.dimension(d => d.t1)
     this.traceVehicle = this.traces.dimension(d => d.v)
 
     console.log('Requests...')
-    this.myState.statusMessage = `${this.$t('requests')}...`
+    this.myState.statusMessage = `${this.$t('loading')} ${this.$t('requests')}...`
+    await sleep(0)
     this.requests = await this.parseDrtRequests(drtRequests)
     this.requestStart = this.requests.dimension(d => d[0]) // time0
     this.requestEnd = this.requests.dimension(d => d[6]) // arrival
@@ -793,7 +795,7 @@ const MyComponent = defineComponent({
     this.animate()
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     document.removeEventListener('visibilityChange', this.handleVisibilityChange)
     globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
@@ -801,59 +803,24 @@ const MyComponent = defineComponent({
   },
 })
 
-export default MyComponent
+export default ZMyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .gl-app {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  display: grid;
+  inset: 0 0 0 0;
+  display: grid !important;
   pointer-events: none;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') no-repeat;
-  background-size: cover;
   grid-template-columns: 1fr min-content;
-  grid-template-rows: auto auto 1fr auto;
-  grid-template-areas:
-    'title         clock'
-    '.           rightside'
-    'playback    rightside';
+  grid-template-rows: 1fr auto;
 }
 
 .gl-app.hide-thumbnail {
   background: none;
-}
-
-.nav {
-  z-index: 5;
-  grid-column: 1 / 4;
-  grid-row: 1 / 4;
-  box-shadow: 0px 2px 10px #22222266;
-  display: flex;
-  flex-direction: row;
-  margin: auto auto 0 0;
-  background-color: var(--bgPanel);
-  padding: 0rem 3rem;
-
-  a {
-    color: white;
-    text-decoration: none;
-
-    &.router-link-exact-active {
-      color: white;
-    }
-  }
-
-  p {
-    margin: auto 0.5rem auto 0;
-    font-weight: normal;
-    padding: 0 0;
-    color: var(--textFancy);
-  }
 }
 
 .speed-block {
@@ -881,27 +848,40 @@ export default MyComponent
 }
 
 .right-side {
-  width: 11rem;
-  grid-area: rightside;
+  width: 12rem;
+  grid-column: 2 / 3;
+  grid-row: 1 / 2;
   display: flex;
   flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
-  margin-top: auto;
-  margin-bottom: 0;
-  margin-left: auto;
+  margin: auto 0 auto auto;
   z-index: 5;
 }
 
 .bottom-area {
-  grid-area: playback;
+  grid-column: 1 / 3;
+  grid-row: 2 / 3;
   display: flex;
   flex-direction: row;
   margin-top: auto;
   margin-bottom: 35px;
   padding: 0.5rem 1rem;
   pointer-events: auto;
-  width: 100%;
+}
+
+.loadmsg {
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
+  background-color: var(--bgPanel3);
+  padding: 2rem 2rem;
+  color: var(--link);
+  font-weight: bold;
+  z-index: 10;
+  text-align: center;
+  margin: auto 2rem;
+  pointer-events: none;
+  border-radius: 8px;
 }
 
 .settings-area {
@@ -912,9 +892,9 @@ export default MyComponent
   margin: 1.5rem 0rem 0 0;
 }
 
-.anim {
+.the-deck-map {
   grid-column: 1 / 3;
-  grid-row: 1 / 7;
+  grid-row: 1 / 3;
   pointer-events: auto;
 }
 
@@ -949,36 +929,10 @@ export default MyComponent
 input {
   border: none;
   background-color: var(--bgCream);
-  color: #ccc;
-}
-
-.loadmsg {
-  background-color: var(--bgBold);
-  padding: 2rem 2rem;
-  color: var(--link);
-  z-index: 10;
-  text-align: center;
-  position: absolute;
-  top: 4px;
-  left: 4px;
-}
-
-.left-side {
-  grid-column: 1/4;
-  grid-row: 1/4;
-  display: flex;
-  flex-direction: column;
-  font-size: 0.8rem;
-  pointer-events: auto;
-  margin: 0 auto 0 0;
-  z-index: 1;
+  color: var(--textBold);
 }
 
 @media only screen and (max-width: 640px) {
-  .nav {
-    padding: 0.5rem 0.5rem;
-  }
-
   .clock {
     text-align: center;
   }

@@ -32,19 +32,20 @@
           .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
               //- width slider
               img.icon-blue-ramp(:src="icons.blueramp")
-              b-slider.pie-slider(type="is-success" :tooltip="false" size="is-small"  v-model="widthSlider")
+              o-slider.pie-slider(:tooltip="false" size="small"  v-model="widthSlider")
               //- pie slider
               img.icon-pie-slider(v-if="crossFilters.length" :src="icons.piechart")
-              b-slider.pie-slider(v-if="crossFilters.length" type="is-success" :tooltip="false" size="is-small"  v-model="pieSlider")
+              o-slider.pie-slider(v-if="crossFilters.length" :tooltip="false" size="small"  v-model="pieSlider")
 
           zoom-buttons(corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
 
           .status-corner.flex-col(v-if="loadingText" :style="{'height': networkOptions.length ? '15rem':'5rem'}")
             p {{ loadingText }}
-            b-progress.load-progress(v-if="loadProgress > 0" :value="loadProgress" :rounded="false" type='is-success')
+            progress.progress.load-progress.is-success(v-if="loadProgress > 0" :value="loadProgress" max="100")
             .network-options.flex-col(v-if="networkOptions.length")
-              b-button.xbutton.is-small.center(v-for="networkFile of networkOptions" :key="networkFile"
-              expanded
+              o-button.xbutton.center(v-for="networkFile of networkOptions" :key="networkFile"
+                size="small"
+                expanded
                 @click="selectNetwork(networkFile)"
               )  {{ networkFile }}
 
@@ -64,9 +65,9 @@
 
           //- p(v-if="transitLines.length" style="margin: 0.75rem 0 0rem 0"): b LINES AND ROUTES
 
-          b-input.searchbox(v-if="transitLines.length"
-            v-model="searchText" style="padding: 0rem 0.5rem 0.75rem 0" size="is-small" placeholder="Search line ID or /regex/"
-          )
+          //- Oruga hands our class/style to the inner <input>, so the layout lives on a wrapper
+          .searchbox(v-if="transitLines.length")
+            o-input(v-model="searchText" size="small" placeholder="Search line ID or /regex/")
 
           .transit-lines.flex-col.flex1
 
@@ -103,11 +104,11 @@ const i18n = {
   },
 }
 
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw } from 'vue'
 import type { PropType } from 'vue'
 
 import * as turf from '@turf/turf'
-import avro from '@/js/avro'
+import { getAvro } from '@/js/avro'
 import colormap from 'colormap'
 import crossfilter from 'crossfilter2'
 import { debounce } from 'debounce'
@@ -118,21 +119,18 @@ import naturalSort from 'javascript-natural-sort'
 import { color } from 'd3-color'
 
 import globalStore from '@/store'
-import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import LeftDataPanel from '@/components/LeftDataPanel.vue'
 import { Network, NetworkInputs, NetworkNode, TransitLine, RouteDetails } from './Interfaces'
 import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
 import TransitSupplyWorker from './TransitSupplyHelper.worker?worker'
-import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import TransitLayers from './DeckMapComponent.vue'
 import LegendBox from './LegendBox.vue'
-import RouteDropDown from './RouteDropDown.vue'
 import LazyList from './LazyList.vue'
+import { unreactive } from '@/js/util'
 
-import { FileSystem, FileSystemConfig, ColorScheme, VisualizationPlugin } from '@/Globals'
+import { FileSystemConfig, ColorScheme } from '@/Globals'
 
 import GzipWorker from '@/workers/GzipFetcher.worker?worker'
 import IconPieChart from './assets/icon-pie-chart.png'
@@ -263,11 +261,7 @@ const MyComponent = defineComponent({
   name: 'TransitViewer',
   i18n,
   components: {
-    CollapsiblePanel,
-    DrawingTool,
-    LeftDataPanel,
     LegendBox,
-    RouteDropDown,
     TransitLayers,
     ZoomButtons,
     LazyList,
@@ -381,8 +375,6 @@ const MyComponent = defineComponent({
 
       routeColors: [] as { match: any; color: string; label: string; hide: boolean }[],
       usedLabels: [] as string[],
-
-      listComponent: RouteDropDown,
     }
   },
 
@@ -512,6 +504,11 @@ const MyComponent = defineComponent({
       this.showTransitRoutes()
       this.showTransitStops()
       this.updateSummaryStats()
+      this.updateTestData()
+    },
+
+    transitLinks() {
+      this.updateTestData()
     },
 
     searchText() {
@@ -520,6 +517,15 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    updateTestData() {
+      //@ts-ignore
+      window.__testdata__ = {
+        transitLinks: this.transitLinks.features,
+        transitLines: this.transitLines,
+        selectedRouteIds: this.selectedRouteIds,
+      }
+    },
+
     async selectNetwork(filename: string) {
       console.log(filename)
       this.vizDetails.network = filename
@@ -629,6 +635,8 @@ const MyComponent = defineComponent({
 
       if (!searchTerm) {
         this.resetLinkColors()
+        // trigger redraw
+        this.transitLinks = { ...this.transitLinks }
         return
       }
 
@@ -1028,12 +1036,15 @@ const MyComponent = defineComponent({
       // save the promise by id so we can look it up when we get messages
       const id = this.resolverId++
 
-      xmlWorker.postMessage({
-        id,
-        fileSystem: this.fileSystem,
-        filePath: props.filePath,
-        options: props.options,
-      })
+      // unreactive: a reactive Proxy cannot be structuredClone'd
+      xmlWorker.postMessage(
+        unreactive({
+          id,
+          fileSystem: this.fileSystem,
+          filePath: props.filePath,
+          options: props.options,
+        })
+      )
 
       const promise = new Promise((resolve, reject) => {
         this.resolvers[id] = { resolve, reject }
@@ -1049,6 +1060,7 @@ const MyComponent = defineComponent({
       console.log('LOADING AVRO:', this.vizDetails.network)
       const filename = `${this.subfolder}/${this.vizDetails.network}`
       const blob = await this.fileApi.getFileBlob(filename)
+      const avro = await getAvro()
 
       const records: any[] = await new Promise((resolve, reject) => {
         const rows = [] as any[]
@@ -1066,7 +1078,8 @@ const MyComponent = defineComponent({
       })
 
       // console.log({ records })
-      this.avroNetwork = records[0]
+      // markRaw: this is a large column-store network, read but never rendered
+      this.avroNetwork = markRaw(records[0])
       return records[0]
     },
 
@@ -1087,7 +1100,7 @@ const MyComponent = defineComponent({
         )) as any
 
         this.isAtlantis = !!roads.isAtlantis
-        this.avroNetwork = roads
+        this.avroNetwork = markRaw(roads)
 
         const transit = this.fetchXML({
           worker: this._transitFetcher,
@@ -1199,10 +1212,12 @@ const MyComponent = defineComponent({
           resolve([])
         }
 
-        worker.postMessage({
-          filePath: this.myState.subfolder + '/' + filename,
-          fileSystem: this.fileSystem,
-        })
+        worker.postMessage(
+          unreactive({
+            filePath: this.myState.subfolder + '/' + filename,
+            fileSystem: this.fileSystem,
+          })
+        )
       })
       return promise
     },
@@ -1317,6 +1332,9 @@ const MyComponent = defineComponent({
       }
 
       console.log('Transit schedule using', transitProjection)
+      // NB: `networks` is deliberately NOT run through unreactive() -- it holds the
+      // entire road network, and it never passes through reactive state on its way
+      // here (both halves are awaited straight off a worker), so it carries no Proxy.
       this._transitHelper.postMessage({
         xml: networks,
         projection: transitProjection,
@@ -1477,7 +1495,6 @@ const MyComponent = defineComponent({
                 coordinates: coordinates,
               },
               properties: {
-                ...this.$props,
                 color,
                 departures: departures,
                 id: linkID,
@@ -1495,7 +1512,13 @@ const MyComponent = defineComponent({
       if (!geojson.length) {
         throw Error('No links found. Does the network contain PT links?')
       }
-      return { type: 'FeatureCollection', features: geojson } as GeoJSON.FeatureCollection
+      // markRaw: these features are handed straight to deck.gl and can number in
+      // the 100k -- proxying every one of them costs a lot and buys nothing, since
+      // redraws are triggered by replacing the FeatureCollection, not by mutation.
+      return {
+        type: 'FeatureCollection',
+        features: markRaw(geojson),
+      } as GeoJSON.FeatureCollection
     },
 
     determineRouteColor(id: string) {
@@ -1881,8 +1904,9 @@ const MyComponent = defineComponent({
     this.loadEverything()
   },
 
-  beforeDestroy() {
-    console.log('DESTROYING')
+  beforeUnmount() {
+    //@ts-ignore
+    delete window.__testdata__
     this.clearData()
 
     this._transitFetcher?.terminate()
@@ -1894,7 +1918,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .mapboxgl-popup-content {
   padding: 0px 20px 0px 0px;
@@ -2213,13 +2237,22 @@ h3 {
 
 .searchbox {
   margin-top: 0.25rem;
+  padding: 0 0.5rem 0.75rem 0;
+
+  // Oruga's root here is a bare `.control` and Bulma 1.x doesn't stretch `.input`,
+  // so both need saying explicitly or the box keeps its default ~20ch width.
+  :deep(.control),
+  :deep(input) {
+    width: 100%;
+  }
 }
 
 .load-progress {
-  padding: 0 5rem;
+  width: auto;
   height: 3px;
-  margin-top: 2px;
-  margin-bottom: 0.5rem;
+  margin: 2px 5rem 0.5rem 5rem;
+  // Bulma rounds progress bars; the original Buefy one was square
+  border-radius: 0;
 }
 
 .right-side-column {
@@ -2292,8 +2325,11 @@ h3 {
 }
 
 .pie-slider {
+  // NB: a `padding` shorthand here would zero out theme-oruga's vertical
+  // padding and collapse the slider -- set the sides only.
   width: 10rem;
-  padding: 1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
   margin: 0;
 }
 

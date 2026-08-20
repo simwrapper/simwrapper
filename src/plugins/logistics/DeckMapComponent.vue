@@ -7,7 +7,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, markRaw, PropType } from 'vue'
 import maplibregl from 'maplibre-gl'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { ArcLayer, ScatterplotLayer, PathLayer, TextLayer } from '@deck.gl/layers'
@@ -97,7 +97,6 @@ export default defineComponent({
       mymap: null as maplibregl.Map | null,
       deckOverlay: null as InstanceType<typeof MapboxOverlay> | null,
       globalState: globalStore.state,
-      prevHubChains: this.lspShipmentChains,
       totalShipmentsPerHub: [] as hubShipment[],
       tip: null as any,
       tooltipStyle: {
@@ -263,30 +262,39 @@ export default defineComponent({
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
     const zoom = this.globalState.viewState.zoom as number
+    // markRaw: maplibre freezes the rgb array on every Color it parses out of a style,
+    // so a reactive Map throws the proxy-invariant TypeError on setStyle() -- i.e. when
+    // the user switches the basemap theme. See trap #7 in VUE3-MIGRATION.md.
     //@ts-ignore
-    this.mymap = new maplibregl.Map({
-      container,
-      style,
-      center,
-      zoom,
-    })
+    this.mymap = markRaw(
+      new maplibregl.Map({
+        container,
+        style,
+        center,
+        zoom,
+      })
+    )
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
       if (this.projection !== 'Atlantis' && this.show3dBuildings && this.mymap) {
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = new MapboxOverlay({
-        interleaved: true,
-        layers: this.layers,
-        onClick: this.handleClick,
-        onHover: this.getTooltip,
-      } as any)
+      // markRaw: a reactive overlay makes deck's layer-matching read frozen props
+      // through Vue's proxy, which throws. See trap #7 in VUE3-MIGRATION.md.
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          interleaved: true,
+          layers: this.layers,
+          onClick: this.handleClick,
+          onHover: this.getTooltip,
+        } as any)
+      )
       this.mymap?.addControl(this.deckOverlay)
     })
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
@@ -383,23 +391,21 @@ export default defineComponent({
           return acc
         }, [])
 
-        uniqueHubs.forEach((hub: any) => {
-          let newHubShipment: hubShipment = {
-            hubId: hub.id,
-            shipmentTotal: 0,
-          }
-          this.totalShipmentsPerHub.push(newHubShipment)
-        })
-
-        this.totalShipmentsPerHub.forEach((hub: any) => {
-          hub.shipmentTotal = 0
+        // Tally the shipments per hub in a LOCAL array, and publish it once at the end.
+        // This used to push straight into this.totalShipmentsPerHub and read it back, so
+        // the `layers` computed both read and wrote the same reactive array: it grew by
+        // uniqueHubs.length on EVERY evaluation and was never cleared. Nothing looked
+        // broken because find() returns the first match, so the tooltip's totals stayed
+        // right while the array leaked.
+        const shipmentsPerHub: hubShipment[] = uniqueHubs.map((hub: any) => {
+          return { hubId: hub.id, shipmentTotal: 0 }
         })
 
         this.lspShipmentChains[0].hubsChains.forEach(lspShipmentChain => {
           lspShipmentChain.hubs.forEach((hub: any) => {
             const hubExists = uniqueHubs.some((uniqueHub: any) => uniqueHub.id === hub.id)
             if (hubExists) {
-              let shipmentHub = this.totalShipmentsPerHub.find(obj => obj.hubId === hub.id)
+              let shipmentHub = shipmentsPerHub.find(obj => obj.hubId === hub.id)
               if (shipmentHub) {
                 shipmentHub.shipmentTotal++
               }
@@ -469,6 +475,8 @@ export default defineComponent({
             } as any)
           )
         })
+
+        this.totalShipmentsPerHub = shipmentsPerHub
 
         newLayers.push(
           //@ts-ignore

@@ -1,28 +1,6 @@
-$mainFont: Figtree, Roboto, Helvetica, Arial, sans-serif;
-$fancyFont: Figtree, Roboto, Helvetica, Arial, sans-serif;
-$appTag: #53b589;
-$matsimBlue: #4b7cc4;
-$tuRed: #b40d1e;
-$steelGray: #2a3c4f;
-$themeColor: $matsimBlue;
-$themeColorPale: #363645; // #364673;
-$themeColorPaler: #b9c9df;
-$colorBoldBackground: $steelGray;
-$colorPurple: #6a1b9a;
-$colorYellow: #ffdf80;
-$colorSimWrapperYellow: #ffe07f;
-$paleBackground: #dbd9d7;
-$panelTitle: #5555ccdd;
-$darkBackground: #181a1b;
-$navHeight: 3.25rem;
-$bannerHighlight: #1d3355;
-$sizeMobile: 30em;
-$sizeVessel: 70rem;
-$dashboardWidth: 70rem;
-$thumbnailHeight: 10rem;
-$filterShadow: drop-shadow(0px 3px 5px #22222244);
-$yellowHighlight: #deef6f;
-$cardSpacing: 1.25rem;
+// Shared Sass variables now live in _variables.scss (no CSS output there).
+// This file emits the global theme CSS custom properties.
+@use './variables' as *;
 
 :root {
   --bg: #edebe4;
@@ -43,7 +21,7 @@ $cardSpacing: 1.25rem;
   --bgHideButton: #ece9f5;
   --bgHover: #eaeaea;
   --bgHover2: #9191bd; // #9cbafb;
-  --bgLayerPanel: linear-gradient(150deg, #d5dcf1, #dbf2ea);
+  --bgLayerPanel: linear-gradient(150deg, #d5dcf1, #d1ebf3);
   --bgPanel: #fff;
   --bgPanel2: #ededed;
   --bgPanel3: #e4e4e4;
@@ -87,6 +65,13 @@ $cardSpacing: 1.25rem;
 
   --opacityLogo: opacity(70%);
   --opacityAttribution: opacity(70%);
+
+  --bgSelected: #{$matsimBlue};
+  --textSelected: #ffffff;
+
+  // oruga widget settings
+  --oruga-primary: #{$appTag};
+  --oruga-font-color: var(--text);
 }
 
 .dark-mode {
@@ -108,7 +93,7 @@ $cardSpacing: 1.25rem;
   --bgHover: #433b53;
   --bgHover2: #34618b;
   // --bgIconBar: #344f6c;
-  --bgLayerPanel: linear-gradient(150deg, #3d3753, #183d36);
+  --bgLayerPanel: linear-gradient(150deg, #3d3753, #1c3f4b);
   --bgMap: #303032;
   --bgMapPanel: #181818;
   --bgMapWater: #1e3048;
@@ -150,6 +135,19 @@ $cardSpacing: 1.25rem;
   --opacityAttribution: opacity(60%);
   --yellowHighlight: #edf6ae;
   --iconShowHide: #183d36;
+}
+
+.o-slider--small {
+  --oruga-slider-thumb-size: 1rem;
+}
+
+[data-oruga-input='checkbox']:not(:checked):not(:indeterminate) {
+  background-color: transparent;
+  border-color: var(--bgScrollbar);
+}
+
+.o-checkbox {
+  --oruga-checkbox-color: var(--text);
 }
 
 :root,

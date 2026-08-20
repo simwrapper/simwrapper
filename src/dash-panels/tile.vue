@@ -2,9 +2,9 @@
 .content
   .tiles-container(v-if="imagesAreLoaded")
     .tile(
-      v-for="(value, index) in this.dataSet.data"
+      v-for="(value, index) in dataSet.data"
+      :key="index"
       :style="getTileStyle(index)"
-      @click=""
     )
       a(:href="value[urlIndex]" target="_blank" :class="{ 'is-not-clickable': !value[urlIndex] }")
         p.tile-title(:style="{ color: tileTextColor }") {{ value[tileNameIndex] }}
@@ -74,7 +74,7 @@ const PALETTE_MONOCHROME = [
 ]
 
 export default defineComponent({
-  name: 'Tile',
+  name: 'TilePanel',
   components: { FontAwesomeIcon },
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
@@ -368,7 +368,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .content {
   display: flex;
@@ -406,9 +406,10 @@ export default defineComponent({
 
 .tile {
   display: grid;
+  flex: 1;
   grid-auto-columns: 1fr;
   grid-auto-flow: column;
-  background-color: #845ec2;
+  background-color: #aaa;
   margin: 10px;
   padding: 20px;
   min-width: 250px;

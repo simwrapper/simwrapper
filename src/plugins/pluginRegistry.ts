@@ -1,8 +1,8 @@
-import { AsyncComponent, defineAsyncComponent } from 'vue'
+import { Component, defineAsyncComponent } from 'vue'
 
 // EVERY plugin must be registered here:
 
-const plugins = [
+const plugins: any[] = [
   {
     kebabName: 'layers',
     filePatterns: ['**/viz-layers*.y?(a)ml'],
@@ -32,11 +32,11 @@ const plugins = [
     ],
     component: defineAsyncComponent(() => import('./shape-file/ShapeFile.vue')),
   },
-  {
-    kebabName: 'pie-layer',
-    filePatterns: ['**/viz-pie*.y?(a)ml*'],
-    component: defineAsyncComponent(() => import('./pie-chart/PieChartDemo.vue')),
-  },
+  // {
+  //   kebabName: 'pie-layer',
+  //   filePatterns: ['**/viz-pie*.y?(a)ml*'],
+  //   component: defineAsyncComponent(() => import('./pie-chart/PieChartDemo.vue')),
+  // },
   {
     kebabName: 'carriers',
     filePatterns: ['**/*carriers.xml*', '**/viz-carrier*.y?(a)ml*'],
@@ -166,7 +166,7 @@ const plugins = [
   },
 ]
 
-export const pluginComponents: { [key: string]: AsyncComponent } = {}
+export const pluginComponents: { [key: string]: Component } = {}
 
 plugins.forEach(p => {
   pluginComponents[p.kebabName] = p.component

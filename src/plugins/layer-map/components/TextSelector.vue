@@ -17,7 +17,9 @@ import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 export default defineComponent({
   name: 'TextSelector',
   props: {
-    // datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
+    // Vue 2 passed this via v-model, which landed in $attrs.value. Vue 3's v-model is
+    // modelValue, so callers bind :value and we declare it as a real prop.
+    value: { type: String, default: '' },
   },
   computed: {
     datasetChoices() {
@@ -39,12 +41,9 @@ export default defineComponent({
     this.datasetsAreLoaded()
 
     await this.$nextTick()
-    this.dataColumn = this.$attrs.value
+    this.dataColumn = this.value
   },
   watch: {
-    datasets() {
-      this.datasetsAreLoaded()
-    },
     dataColumn() {
       this.emitSpecification()
     },
@@ -60,7 +59,6 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
 
 .text-selector {
   display: flex;

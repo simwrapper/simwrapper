@@ -1,12 +1,12 @@
 <template lang="pug">
 .comparison-selector
-  b-dropdown(aria-role="list" @change="$emit('change', $event)")
+  o-dropdown(selectable @change="$emit('change', $event)")
       template(#trigger="{active}")
-        b-button.is-small(
-          :icon-right="active ? 'menu-up' : 'menu-down'"
-        ) {{ compareLabel }}
+        o-button(size="small")
+          span {{ compareLabel }}
+          i.fa(:class="active ? 'fa-caret-up' : 'fa-caret-down'" style="margin-left: 0.4rem")
 
-      b-dropdown-item(aria-role="listitem" :value="matrix"
+      o-dropdown-item(:value="matrix"
         v-for="matrix in comparators" :key="`${matrix.root}/${matrix.subfolder}/${matrix.filename}`"
       )
         .media
@@ -16,10 +16,10 @@
             h3.diffFile {{ matrix.filename }}
             small {{ `${matrix.root}/${matrix.subfolder}` }}
 
-      b-dropdown-item(:value="false" aria-role="listitem" custom)
+      o-dropdown-item(:value="false" :clickable="false")
         hr.divider
 
-      b-dropdown-item(aria-role="listitem" @click="addToComparators")
+      o-dropdown-item(clickable @click="addToComparators")
         i.fa.fa-exchange-alt
         span &nbsp;&nbsp;&nbsp;Set this file as the base for comparisons
 
@@ -28,11 +28,12 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import { ComparisonMatrix } from './MatrixViewer.vue'
+import type { ComparisonMatrix } from './MatrixViewer.vue'
 
 const MyComponent = defineComponent({
   name: 'GeographySelector',
   components: {},
+  emits: ['change', 'shapes', 'addBase'],
   props: {
     comparators: { type: Array as PropType<ComparisonMatrix[]> },
     compareLabel: String,
@@ -63,10 +64,6 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '~/bulma/css/bulma.min.css';
-@import '~/buefy/dist/buefy.css';
-@import '@/styles.scss';
-
 $bgBeige: #636a67;
 $bgLightGreen: #d2e4c9;
 $bgLightCyan: #effaf6;

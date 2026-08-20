@@ -4,6 +4,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 import DashboardDataManager, { NetworkLinks } from '@/js/DashboardDataManager'
 import MATSimEventStreamer from '@/workers/MATSimEventStreamer.worker.ts?worker'
+import { unreactive } from '@/js/util'
 
 export default class EventParser {
   private fileApi: HTTPFileSystem
@@ -32,10 +33,15 @@ export default class EventParser {
     $emit?: any
     boundBox?: number[][]
   }) {
-    this.params = { ...props }
-    this.fileApi = new HTTPFileSystem(props.fileSystem)
+    // unreactive: the caller's `fileSystem` comes from the Vuex store, so it is a
+    // reactive Proxy. HTTPFileSystem is fine with that, but the worker payload below
+    // is not -- structuredClone throws DataCloneError on a Proxy. See trap #1.
+    // unreactive() only recurses into plain objects, so `handle` (a real
+    // FileSystemAPIHandle, needed for Chrome local-folder access) survives untouched.
+    this.params = { ...props, fileSystem: unreactive(props.fileSystem) }
+    this.fileApi = new HTTPFileSystem(this.params.fileSystem)
     if (props.$emit) this.$emit = props.$emit
-    if (props.boundBox) this.boundBox = props.boundBox
+    if (props.boundBox) this.boundBox = unreactive(props.boundBox)
   }
 
   public async loadFiles() {
@@ -183,12 +189,14 @@ export default class EventParser {
         }
       }
 
-      this.eventWorker.postMessage({
-        filePath: filename,
-        fileSystem: this.params.fileSystem,
-        projection: this.params.vizDetails.projection,
-        boundBox: this.boundBox,
-      })
+      this.eventWorker.postMessage(
+        unreactive({
+          filePath: filename,
+          fileSystem: this.params.fileSystem,
+          projection: this.params.vizDetails.projection,
+          boundBox: this.boundBox,
+        })
+      )
     })
     return promise
   }

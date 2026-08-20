@@ -22,19 +22,22 @@
             :isDarkMode="isDarkMode"
             @hourSelected="filterByHour"
           )
+
     .right-side-panel
       .metric-label Metrics
       .metric-buttons
         button.button.is-small.metric-button(
           v-for="metric,i in vizDetails.metrics" :key="i"
           @click="handleClickedMetric(metric)"
-          ) {{metric.label}}
+        ) {{metric.label}}
+
       br
+
       .metric-label Color scheme
-      b-select.form-select.is-small(
+      o-select.form-select(
+        size="small"
         expanded
         v-model="vizDetails.colorScheme"
-        @input="vizDetails = {...vizDetails}"
       )
         option(value="Blues") Blues
         option(value="BluGrn") BluGrn
@@ -81,11 +84,12 @@
         option(value="YlOrBr") YlOrBr
         option(value="YlOrRd") YlOrRd
 
-      br
-      b-checkbox.tight(v-model="vizDetails.animationEnabled")
+      .hello &nbsp;
+
+      o-checkbox.tight(v-model="vizDetails.animationEnabled")
         p Animation
       br
-      b-checkbox.tight(v-model="vizDetails.clustering")
+      o-checkbox.tight(v-model="vizDetails.clustering")
         p Clustering
 </template>
 
@@ -102,7 +106,7 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import FlowMapLayer from '@/plugins/flowmap/FlowmapDeckMapComponent.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
-import util from '@/js/util'
+import util, { unreactive } from '@/js/util'
 import TimeSlider from '@/plugins/flowmap/FlowMapTimeSlider.vue'
 import Coords from '@/js/Coords'
 import BackgroundLayers from '@/js/BackgroundLayers'
@@ -176,7 +180,6 @@ const MyComponent = defineComponent({
     },
 
     vizDetails: function (val) {
-      console.log('color changed')
       this.vizDetails = val
     },
   },
@@ -197,7 +200,8 @@ const MyComponent = defineComponent({
       statusText: 'Loading...',
       needsInitialMapExtent: true,
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+      // no trailing semicolon: Vue 3 warns when a style *value* ends with one (trap #8)
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
 
       backgroundLayers: null as BackgroundLayers | null,
 
@@ -381,7 +385,7 @@ const MyComponent = defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this._roadFetcher) this._roadFetcher.terminate()
 
     if (this.animator) window.cancelAnimationFrame(this.animator)
@@ -391,9 +395,7 @@ const MyComponent = defineComponent({
     async getVizDetails() {
       // Config was passed in from dashboard:
       if (this.configFromDashboard) {
-        console.log('we have a dashboard')
         // this.validateYAML()
-        console.log(this.configFromDashboard)
         this.vizDetails = Object.assign({}, this.configFromDashboard) as any
         this.sync3dBuildingsSetting()
         return
@@ -402,7 +404,6 @@ const MyComponent = defineComponent({
       // Config is in a YAML file which we can parse
       const hasYaml = new RegExp('.*(yml|yaml)$').test(this.yamlConfig ?? '')
       if (hasYaml) {
-        console.log('has yaml')
         await this.loadStandaloneYAMLConfig()
       }
       // No config at all; use the default
@@ -420,7 +421,6 @@ const MyComponent = defineComponent({
     },
 
     async buildThumbnail() {
-      console.log(this.myState.fileApi)
       if (!this.myState.fileApi) return
       if (this.thumbnail && this.vizDetails.thumbnail) {
         try {
@@ -492,12 +492,15 @@ const MyComponent = defineComponent({
       // save the promise by id so we can look it up when we get messages
       const id = this.resolverId++
 
-      xmlWorker.postMessage({
-        id,
-        fileSystem: this.fileSystem,
-        filePath: props.filePath,
-        options: props.options,
-      })
+      // fileSystem comes from store state; de-proxy or structuredClone throws
+      xmlWorker.postMessage(
+        unreactive({
+          id,
+          fileSystem: this.fileSystem,
+          filePath: props.filePath,
+          options: props.options,
+        })
+      )
 
       const promise = new Promise((resolve, reject) => {
         this.resolvers[id] = { resolve, reject }
@@ -635,7 +638,6 @@ const MyComponent = defineComponent({
           this.stopFacilities?.attributes?.attribute?.name === 'coordinateReferenceSystem'
         ) {
           this.crs = this.stopFacilities?.attributes?.attribute?.['#text']
-          console.log(this.crs)
         } else {
           console.log('no crs found in transit schedule, reverting to WGS 84')
           this.crs = 'EPSG:4326'
@@ -742,24 +744,38 @@ const MyComponent = defineComponent({
 
         const flows = [] as any[]
         const invert = 'inverse' == datasetInfo.valueTransform?.enum?.[0]
+        let skipped = 0
         for (let i = 0; i < origin.length; i++) {
           try {
+            const value = Number(invert ? 1 / count[i] : count[i])
+
+            // A flow needs a finite magnitude to be drawn or scaled. An inverted
+            // zero gives Infinity and an unparseable cell gives NaN; either one
+            // poisons the colour/thickness scales downstream.
+            if (!Number.isFinite(value)) {
+              skipped++
+              continue
+            }
+
             flows.push({
               o: `${origin[i]}`,
               d: `${destination[i]}`,
-              v: invert ? 1 / count[i] : count[i],
+              v: value,
               h: this.hasHours ? hours[i] : 0,
             })
           } catch {
             // missing data; ignore
           }
         }
+        if (skipped) {
+          console.log(`Flowmap: skipped ${skipped} of ${origin.length} rows with no ${flowColumn}`)
+        }
         this.flows = flows
         this.filteredFlows = this.flows
         if (this.hasHours) this.setupHourlyTotals()
         this.isLoaded = true
       } catch (e) {
-        console.log('' + e)
+        console.error('' + e)
         this.flows = []
         this.$emit('error', '' + e)
       }
@@ -771,7 +787,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .flowmap {
   position: relative;
@@ -874,19 +890,17 @@ export default MyComponent
 }
 
 .right-side-panel {
+  min-width: 12rem;
   background-color: var(--bgCream5);
   flex: 1;
-  padding-left: 15px;
+  padding: 0 0.5rem;
   z-index: 20;
+  color: var(--textBold);
+  user-select: none;
 
   p:hover {
-    font-weight: bold !important;
-    color: #c6c1b9;
-  }
-
-  .b-checkbox.checkbox:not(.button):hover {
-    font-weight: bold !important;
-    color: #c6c1b9;
+    // font-weight: bold !important;
+    // color: #c6c1b9;
   }
 }
 
@@ -910,10 +924,6 @@ export default MyComponent
 
 .time-slider-component {
   width: -webkit-fill-available;
-}
-
-.control {
-  padding-right: 1rem;
 }
 
 .panel-items {

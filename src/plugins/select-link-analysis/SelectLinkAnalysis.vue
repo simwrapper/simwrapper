@@ -1,6 +1,5 @@
 <template lang="pug">
-.select-link-viewer(
-                oncontextmenu="return false")
+.select-link-viewer(oncontextmenu="return false")
 
   .container-1
     .main-panel
@@ -36,34 +35,33 @@
                     //-     li(v-for="group in economicGroups" :key="group" @click="filterAgentGroups(group)") {{ group }}
 
         MapComponent.anim(v-if="!needsInitialMapExtent"
-        :features="boundaries"
-        :mapIsIndependent="true"
-                    :dark="true"
-                    :data="data"
-                    :viewId="linkLayerId"
-                    :cbTooltip="cbTooltip"
-                    :lineWidths="dataLineWidths"
-                    :selectedLinkPaths="selectedLinkTraversals"
-                    @selectedLink="updateParentValue"
-                )
-            .status-box(v-if="statusText")
-                p {{ statusText }}
-                b-progress.load-progress(v-if="loadProgress > 0"
-                :value="loadProgress" :rounded="false" type='is-success')
-        click-through-times.time-slider-area(
-        :allTimes="allTimes"
-        :range="timeRange"
-        @timeUpdate="handleDiscreteTimeValues"
+            :features="boundaries"
+            :mapIsIndependent="false"
+            :dark="true"
+            :data="data"
+            :viewId="linkLayerId"
+            :cbTooltip="cbTooltip"
+            :lineWidths="dataLineWidths"
+            :selectedLinkPaths="selectedLinkTraversals"
+            @selectedLink="updateParentValue"
         )
 
+        .status-bar(v-if="statusText")
+            p {{ statusText }}
+            progress.load-progress(v-if="loadProgress && loadProgress < 1" :value="loadProgress" :rounded="false" type='is-success')
 
-        //- zoom-buttons(
-        //-     v-if="!thumbnail && isLoaded"
-        //-     corner="top-left"
-        //-     :show3dToggle="true"
-        //-     :is3dBuildings="show3dBuildings"
-        //-     :onToggle3dBuildings="toggle3dBuildings"
-        //- )
+        click-through-times.time-slider-area(
+            :allTimes="allTimes"
+            :range="timeRange"
+            @timeUpdate="handleDiscreteTimeValues"
+        )
+
+        zoom-buttons(v-if="isLoaded"
+            corner="top-left"
+            :show3dToggle="true"
+            :is3dBuildings="show3dBuildings"
+            :onToggle3dBuildings="toggle3dBuildings"
+        )
 
         .tooltip(v-if="tooltip" v-html="tooltip.html" :style="tooltip.style")
     .legend-footer
@@ -82,18 +80,22 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, ref } from 'vue'
 import type { PropType } from 'vue'
 import YAML from 'yaml'
 import readBlob from 'read-blob'
-import { arrayBufferToBase64, debounce } from '@/js/util'
 import * as turf from '@turf/turf'
-import LegendBox from '@/components/viz-configurator/LegendBox.vue'
-import { ref } from 'vue';
-import GUI from 'lil-gui'
-import { ToggleButton } from 'vue-js-toggle-button'
+
+import * as duckdb from '@duckdb/duckdb-wasm'
+import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url'
+import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url'
+import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url'
+import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url'
+
 import globalStore from '@/store'
+import { arrayBufferToBase64, debounce, sleep } from '@/js/util'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import LegendBox from '@/components/viz-configurator/LegendBox.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
@@ -101,21 +103,9 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import ClickThroughTimes from '@/components/ClickThroughTimes.vue'
 import TimeSlider from '@/components/TimeSliderV2.vue'
 import MapComponent from './MapComponent.vue'
-import * as duckdb from '@duckdb/duckdb-wasm';
-import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
-import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url';
-import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
-import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
-import type { Sqlite3Static } from '@sqlite.org/sqlite-wasm';
 
-
-
-import {
-    FileSystemConfig,
-    REACT_VIEW_HANDLES,
-    DataTable,
-} from '@/Globals'
+import { FileSystemConfig, REACT_VIEW_HANDLES, DataTable } from '@/Globals'
 import LegendStore from '@/js/LegendStore'
 
 /* export interface MapData {
@@ -126,371 +116,405 @@ import LegendStore from '@/js/LegendStore'
     mode: String
 } */
 
-
-
 const i18n = {
-    messages: {
-        en: {
-            loading: 'Loading data...',
-            sorting: 'Sorting into bins...',
-            aggregate: 'Summary',
-            maxHeight: '3D Height',
-            showDetails: 'Show Details',
-            selection: 'Selection',
-            areas: 'Areas',
-            count: 'Count',
-        },
-        de: {
-            loading: 'Dateien laden...',
-            sorting: 'Sortieren...',
-            aggregate: 'Daten',
-            maxHeight: '3-D Höhe',
-            showDetails: 'Details anzeigen',
-            selection: 'Ausgewählt',
-            areas: 'Orte',
-            count: 'Anzahl',
-        },
+  messages: {
+    en: {
+      loading: 'Loading data...',
+      sorting: 'Sorting into bins...',
+      aggregate: 'Summary',
+      maxHeight: '3D Height',
+      showDetails: 'Show Details',
+      selection: 'Selection',
+      areas: 'Areas',
+      count: 'Count',
     },
+    de: {
+      loading: 'Dateien laden...',
+      sorting: 'Sortieren...',
+      aggregate: 'Daten',
+      maxHeight: '3-D Höhe',
+      showDetails: 'Details anzeigen',
+      selection: 'Ausgewählt',
+      areas: 'Orte',
+      count: 'Anzahl',
+    },
+  },
 }
 
 interface NetworkLinks {
-    source: Float32Array
-    dest: Float32Array
-    linkId: any[]
-    projection: String
+  source: Float32Array
+  dest: Float32Array
+  linkId: any[]
+  projection: String
 }
 
 const MANUAL_BUNDLES: duckdb.DuckDBBundles = {
-    mvp: {
-        mainModule: duckdb_wasm,
-        mainWorker: mvp_worker,
-    },
-    eh: {
-        mainModule: duckdb_wasm_eh,
-        mainWorker: eh_worker,
-    },
-};
-
+  mvp: {
+    mainModule: duckdb_wasm,
+    mainWorker: mvp_worker,
+  },
+  eh: {
+    mainModule: duckdb_wasm_eh,
+    mainWorker: eh_worker,
+  },
+}
 
 const SelectLinkAnalysis = defineComponent({
-    name: 'SelectLinkAnalysis',
-    i18n,
+  name: 'SelectLinkAnalysis',
+  i18n,
 
-    components: {
-        LegendBox,
-        CollapsiblePanel,
-        DrawingTool,
-        MapComponent,
-        ToggleButton,
-        ZoomButtons,
-        ClickThroughTimes,
-        TimeSlider,
+  components: {
+    LegendBox,
+    CollapsiblePanel,
+    DrawingTool,
+    MapComponent,
+    ZoomButtons,
+    ClickThroughTimes,
+    TimeSlider,
+  },
+
+  props: {
+    root: { type: String, required: true },
+    subfolder: { type: String, required: true },
+    yamlConfig: String,
+    config: Object as any,
+    thumbnail: Boolean,
+    datamanager: { type: Object as PropType<DashboardDataManager> },
+  },
+
+  data() {
+    return {
+      linkLayerId: Math.floor(1e12 * Math.random()),
+      isAreaMode: false,
+      db: null as duckdb.AsyncDuckDB | null,
+      dbCsv: null as any,
+      worker: null as Worker | null,
+      logger: null as duckdb.ConsoleLogger | null,
+      bundle: null as duckdb.DuckDBBundle | null,
+      bundleCsv: null as duckdb.DuckDBBundle | null,
+      workerCsv: null as Worker | null,
+      loggerCsv: null as duckdb.ConsoleLogger | null,
+      conn: null as duckdb.AsyncDuckDBConnection | null,
+      connCsv: null as duckdb.AsyncDuckDBConnection | null,
+      globalState: globalStore.state,
+      isLoaded: false,
+      show3dBuildings: false,
+      data: [] as any[],
+      network: [] as any[],
+      boundaries: [] as any[],
+      centroids: [] as any[],
+      cbDatasetJoined: undefined as any,
+      // legendStore: new LegendStore(),
+      chosenNewFilterColumn: '',
+      boundaryDataTable: {} as DataTable,
+      dataFillColors: '#888' as string | Uint8ClampedArray,
+      dataLineColors: '' as string | Uint8ClampedArray,
+      dataLineWidths: 1 as number | Float32Array,
+      dataPointRadii: 5 as number | Float32Array,
+      dataFillHeights: 0 as number | Float32Array,
+      dataCalculatedValues: null as Float32Array | null,
+      dataNormalizedValues: null as Float32Array | null,
+      constantLineWidth: null as null | number,
+      dataCalculatedValueLabel: '',
+      dbClearTooltip: {} as any,
+      selectedLink: ref({}) as any,
+      selectedHour: ref(6) as any,
+      timeRange: [8, 14] as Number[],
+      allTimes: [
+        8 * 3600,
+        9 * 3600,
+        10 * 3600,
+        11 * 3600,
+        12 * 3600,
+        13 * 3600,
+        14 * 3600,
+      ] as any[],
+      queryTime: 0 as number,
+      queryToken: 0 as number,
+
+      originalAgents: {} as any,
+      originalTraversals: {} as any,
+
+      tooltipHtml: '' as string,
+      tooltipIsFixed: false as boolean,
+      tooltipDesiredColumns: [] as { col: string; enabled: boolean }[],
+      showTooltipConfigurator: false,
+      showLegend: false,
+      legendStore: new LegendStore(),
+      // legendSectionWidth: 200,
+      statusText: 'Loading...',
+      loadProgress: 0,
+      loadSteps: 0,
+      totalLoadSteps: 6,
+
+      needsInitialMapExtent: true,
+      initialView: null as null | { center: [number, number]; zoom: number },
+
+      highlightedLinkIndex: -1 as number,
+      wantToClearTooltip: false,
+
+      // demograpic data
+      economicGroups: ['low', 'medium', 'high'] as String[],
+      selectedEconomicGroup: '',
+      filteredAgents: [] as string[],
+      currentlyQueriedLinkId: null as number | null,
+      currentlyQueriedHour: null as number | null,
+
+      vizDetails: {
+        network: '',
+        projection: '',
+        title: '',
+        description: '',
+        thumbnail: '',
+        tooltip: [] as string[],
+        mapIsIndependent: false,
+        zoom: null as number | null,
+        bearing: null as number | null,
+        pitch: null as number | null,
+        center: null as any,
+        timeSelector: null as string | null,
+      },
+
+      myState: {
+        isRunning: false,
+        subfolder: '',
+        yamlConfig: '',
+        thumbnail: true,
+        data: [] as any[],
+      },
+
+      links: null as any,
+      selectedLinkTraversals: new Object() as any,
+      queriedAgents: new Map<number, any>() as any,
+
+      chosenFormat: 'Parquet' as string,
+
+      myMap: new Map<string, number[]>(),
+
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+
+      csvLinkTraversalData: [] as any[],
+
+      // DataManager might be passed in from the dashboard; or we might be
+      // in single-view mode, in which case we need to create one for ourselves
+      myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
+    }
+  },
+
+  computed: {
+    tooltip() {},
+
+    fileApi(): HTTPFileSystem {
+      return new HTTPFileSystem(this.fileSystem, globalStore)
     },
 
-    props: {
-        root: { type: String, required: true },
-        subfolder: { type: String, required: true },
-        yamlConfig: String,
-        config: Object as any,
-        thumbnail: Boolean,
-        datamanager: { type: Object as PropType<DashboardDataManager> },
+    fileSystem(): FileSystemConfig {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === this.root
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
+      }
+      // else {console.log('found project', )}
+      // svnProject[0].baseURL = svnProject[0].baseURL + "/" + this.subfolder
+      console.log('Using file system config:', svnProject[0])
+      console.log('subfolder:', this.subfolder)
+      console.log('full URL for file system:', svnProject[0].baseURL + '/' + this.subfolder)
+      return svnProject[0]
     },
 
+    allProps() {
+      const props = new Set()
+      Object.values(this.queriedAgents).forEach(agent => {
+        Object.keys(agent as any).forEach(prop => props.add(prop))
+      })
+      return Array.from(props).sort()
+    },
+  },
 
-    data() {
-        return {
-            linkLayerId: Math.floor(1e12 * Math.random()),
-            isAreaMode: false,
-            db: null as duckdb.AsyncDuckDB | null,
-            dbCsv: null as any,
-            worker: null as Worker | null,
-            logger: null as duckdb.ConsoleLogger | null,
-            bundle: null as duckdb.DuckDBBundle | null,
-            bundleCsv: null as duckdb.DuckDBBundle | null,
-            workerCsv: null as Worker | null,
-            loggerCsv: null as duckdb.ConsoleLogger | null,
-            conn: null as duckdb.AsyncDuckDBConnection | null,
-            connCsv: null as duckdb.AsyncDuckDBConnection | null,
-            globalState: globalStore.state,
-            isLoaded: false,
-            show3dBuildings: false,
-            data: [] as any[],
-            network: [] as any[],
-            guiController: null as GUI | null,
-            boundaries: [] as any[],
-            centroids: [] as any[],
-            cbDatasetJoined: undefined as any,
-            // legendStore: new LegendStore(),
-            chosenNewFilterColumn: '',
-            boundaryDataTable: {} as DataTable,
-            dataFillColors: '#888' as string | Uint8ClampedArray,
-            dataLineColors: '' as string | Uint8ClampedArray,
-            dataLineWidths: 1 as number | Float32Array,
-            dataPointRadii: 5 as number | Float32Array,
-            dataFillHeights: 0 as number | Float32Array,
-            dataCalculatedValues: null as Float32Array | null,
-            dataNormalizedValues: null as Float32Array | null,
-            constantLineWidth: null as null | number,
-            dataCalculatedValueLabel: '',
-            dbClearTooltip: {} as any,
-            selectedLink: ref({}) as any,
-            selectedHour: ref(6) as any,
-            timeRange: [8, 14] as Number[],
-            allTimes: [8 * 3600, 9 * 3600, 10 * 3600, 11 * 3600, 12 * 3600, 13 * 3600, 14 * 3600] as any[],
-            queryTime: 0 as number,
-
-            originalAgents: {} as any,
-            originalTraversals: {} as any,
-
-            tooltipHtml: '' as string,
-            tooltipIsFixed: false as boolean,
-            tooltipDesiredColumns: [] as { col: string; enabled: boolean }[],
-            showTooltipConfigurator: false,
-            showLegend: false,
-            legendStore: new LegendStore(),
-            // legendSectionWidth: 200,
-            statusText: 'Loading...',
-            loadProgress: 0,
-            loadSteps: 0,
-            totalLoadSteps: 6,
-
-            needsInitialMapExtent: true,
-            initialView: null as null | { center: [number, number]; zoom: number },
-
-            highlightedLinkIndex: -1 as number,
-            wantToClearTooltip: false,
-
-            // demograpic data
-            economicGroups: ['low', 'medium', 'high'] as String[],
-            selectedEconomicGroup: '',
-            filteredAgents: [] as string[],
-            currentlyQueriedLinkId: null as number | null,
-            currentlyQueriedHour: null as number | null,
-
-            vizDetails: {
-                network: '',
-                projection: '',
-                title: '',
-                description: '',
-                thumbnail: '',
-                tooltip: [] as string[],
-                mapIsIndependent: false,
-                zoom: null as number | null,
-                bearing: null as number | null,
-                pitch: null as number | null,
-                center: null as any,
-                timeSelector: null as string | null,
-            },
-
-            myState: {
-                statusMessage: '',
-                isRunning: false,
-                subfolder: '',
-                yamlConfig: '',
-                thumbnail: true,
-                data: [] as any[],
-            },
-
-            links: null as any,
-            selectedLinkTraversals: new Object() as any,
-            queriedAgents: new Map<number, any>() as any,
-            sqlite3: null as Sqlite3Static | null,
-
-            chosenFormat: 'Parquet' as string,
-
-            myMap: new Map<string, number[]>(),
-
-            thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
-
-            csvLinkTraversalData: [] as any[],
-
-            // DataManager might be passed in from the dashboard; or we might be
-            // in single-view mode, in which case we need to create one for ourselves
-            myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
-        }
+  watch: {
+    '$store.state.viewState'() {
+      if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
+      REACT_VIEW_HANDLES[this.linkLayerId]()
     },
 
-    computed: {
-
-        tooltip() {
-
-        },
-        fileApi(): HTTPFileSystem {
-            return new HTTPFileSystem(this.fileSystem, globalStore)
-        },
-        fileSystem(): FileSystemConfig {
-            const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
-                (a: FileSystemConfig) => a.slug === this.root
-            )
-            if (svnProject.length === 0) {
-                console.log('no such project')
-                throw Error
-            }
-            // else {console.log('found project', )}
-            // svnProject[0].baseURL = svnProject[0].baseURL + "/" + this.subfolder
-            console.log('Using file system config:', svnProject[0])
-            console.log('subfolder:', this.subfolder)
-            console.log('full URL for file system:', svnProject[0].baseURL + '/' + this.subfolder)
-            return svnProject[0]
-        },
-        allProps() {
-            const props = new Set();
-            Object.values(this.queriedAgents).forEach(agent => {
-                Object.keys(agent as any).forEach(prop => props.add(prop));
-            });
-            return Array.from(props).sort();
-        },
+    'globalState.isDarkMode'() {
+      this.updateLegendColors()
     },
 
-    watch: {
-        '$store.state.viewState'() {
-            if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
-            REACT_VIEW_HANDLES[this.linkLayerId]()
-        },
-
-        'globalState.isDarkMode'() {
-            this.updateLegendColors()
-        },
-
-        async 'globalState.authAttempts'() {
-            console.log('AUTH CHANGED - Reload')
-            // if (!this.yamlConfig) this.buildRouteFromUrl()
-            await this.getVizDetails()
-        }
-
+    async 'globalState.authAttempts'() {
+      console.log('AUTH CHANGED - Reload')
+      // if (!this.yamlConfig) this.buildRouteFromUrl()
+      await this.getVizDetails()
     },
 
-    methods: {
-        toggle3dBuildings() {
-            this.show3dBuildings = !this.show3dBuildings
-        },
+    async selectedHour() {
+      await this.refreshSelectedLink()
+    },
+  },
 
-        async updateParentValue(value: any) {
-            this.selectedLink = value;
-            let results = await this.queryLinksForSelectedLink(this.selectedLink.link.id, this.selectedHour)
-            let agentResults = await this.queryAgentsForSelectedLink(this.selectedLink.link.id, this.selectedHour)
-            this.selectedLinkTraversals = results
-            this.queriedAgents = agentResults
-        },
+  methods: {
+    toggle3dBuildings() {
+      this.show3dBuildings = !this.show3dBuildings
+    },
 
-        async loadAndPrepareData() {
-            this.logger = new duckdb.ConsoleLogger();
-            await this.loadParquetData()
-            // await this.loadSQLiteData()
-            await this.loadAndPrepareCSVData()
-            console.log('CSV data loaded and prepared:', this.csvLinkTraversalData)
-        },
+    async updateParentValue(value: any) {
+      // clicking empty map space gives us no link: keep the current selection
+      if (!value?.link?.id) return
 
-        // async loadSQLiteData() {
+      this.selectedLink = value
+      await this.refreshSelectedLink()
+    },
 
-        //     if (this.dbSql) {
-        //         this.dbSql.close();
-        //         this.dbSql = null;
-        //     }
+    // Re-run the queries for whatever link is currently selected. Called on a new
+    // selection and whenever the hour changes underneath the existing selection.
+    async refreshSelectedLink() {
+      const linkId = this.selectedLink?.link?.id
+      if (!linkId) return
 
-        //     // Only initialize once
-        //     if (!this.sqlite3) {
-        //         this.sqlite3 = await sqlite3InitModule();
-        //     }
-        //     const sqlite3 = this.sqlite3;
+      const hour = this.selectedHour
+      const token = ++this.queryToken
 
+      const results = await this.queryLinksForSelectedLink(linkId, hour)
+      if (token !== this.queryToken) return // a newer link/hour won the race
 
-        //     // Load sla.db as a blob
-        //     const blob = await this.fileApi.getFileBlob('sla.db');
-        //     const arrayBuffer = await blob.arrayBuffer();
-        //     const uint8Array = new Uint8Array(arrayBuffer);
+      const agentResults = await this.queryAgentsForSelectedLink(linkId, hour)
+      if (token !== this.queryToken) return
 
-        //     // Create a new database in memory
-        //     this.dbSql = new sqlite3.oo1.DB('/mydb', 'c');
+      this.selectedLinkTraversals = results || {}
+      this.queriedAgents = agentResults || {}
+    },
 
-        //     // Import the sla.db file into the in-memory database
-        //     const pDb = sqlite3.wasm.allocFromTypedArray(uint8Array);
-        //     sqlite3.capi.sqlite3_deserialize(
-        //         this.dbSql.pointer,
-        //         'main',
-        //         pDb,
-        //         uint8Array.byteLength,
-        //         uint8Array.byteLength,
-        //         sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE | sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE
-        //     );
+    async loadAndPrepareData() {
+      this.logger = new duckdb.ConsoleLogger()
+      await this.loadParquetData()
+      // await this.loadSQLiteData()
+      await this.loadAndPrepareCSVData()
+      console.log('CSV data loaded and prepared:', this.csvLinkTraversalData)
+    },
 
-        // },
+    // async loadSQLiteData() {
 
+    //     if (this.dbSql) {
+    //         this.dbSql.close();
+    //         this.dbSql = null;
+    //     }
 
-        // csv will be loaded as direct path for the moment - will work on incorporating it into dashboard structure after Zwischenpräsi
-        async loadAndPrepareCSVData() {
-            this.bundleCsv = await duckdb.selectBundle(MANUAL_BUNDLES);
-            this.workerCsv = new Worker(this.bundleCsv.mainWorker!);
-            this.dbCsv = new duckdb.AsyncDuckDB(this.loggerCsv ?? new duckdb.ConsoleLogger(), this.workerCsv)
-            await this.dbCsv.instantiate(this.bundleCsv.mainModule, this.bundleCsv.pthreadWorker);
-            this.connCsv = await this.dbCsv.connect();
+    //     // Only initialize once
+    //     if (!this.sqlite3) {
+    //         this.sqlite3 = await sqlite3InitModule();
+    //     }
+    //     const sqlite3 = this.sqlite3;
 
-            const traversalsUrl = this.fileApi.cleanURL(this.subfolder + '/link-traversals-sorted.csv.zst')
-            const legSeqUrl = this.fileApi.cleanURL(this.subfolder + '/leg-sequences-sorted.csv.zst')
+    //     // Load sla.db as a blob
+    //     const blob = await this.fileApi.getFileBlob('sla.db');
+    //     const arrayBuffer = await blob.arrayBuffer();
+    //     const uint8Array = new Uint8Array(arrayBuffer);
 
-            await this.dbCsv.registerFileURL(
-                'link-traversals-sorted.csv.zst',
-                traversalsUrl,
-                duckdb.DuckDBDataProtocol.HTTP,
-                false
-            )
-            await this.dbCsv.registerFileURL(
-                'leg-sequences-sorted.csv.zst',
-                legSeqUrl,
-                duckdb.DuckDBDataProtocol.HTTP,
-                false
-            )
+    //     // Create a new database in memory
+    //     this.dbSql = new sqlite3.oo1.DB('/mydb', 'c');
 
-        },
+    //     // Import the sla.db file into the in-memory database
+    //     const pDb = sqlite3.wasm.allocFromTypedArray(uint8Array);
+    //     sqlite3.capi.sqlite3_deserialize(
+    //         this.dbSql.pointer,
+    //         'main',
+    //         pDb,
+    //         uint8Array.byteLength,
+    //         uint8Array.byteLength,
+    //         sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE | sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE
+    //     );
 
-        async loadParquetData() {
-            this.bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
-            this.worker = new Worker(this.bundle.mainWorker!);
-            this.db = new duckdb.AsyncDuckDB(this.logger ?? new duckdb.ConsoleLogger(), this.worker);
-            await this.db.instantiate(this.bundle.mainModule, this.bundle.pthreadWorker);
-            this.conn = await this.db.connect();
+    // },
 
+    // csv will be loaded as direct path for the moment - will work on incorporating it into dashboard structure after Zwischenpräsi
+    async loadAndPrepareCSVData() {
+      this.bundleCsv = await duckdb.selectBundle(MANUAL_BUNDLES)
+      this.workerCsv = new Worker(this.bundleCsv.mainWorker!)
+      this.dbCsv = new duckdb.AsyncDuckDB(
+        this.loggerCsv ?? new duckdb.ConsoleLogger(),
+        this.workerCsv
+      )
+      await this.dbCsv.instantiate(this.bundleCsv.mainModule, this.bundleCsv.pthreadWorker)
+      this.connCsv = await this.dbCsv.connect()
 
-            const traversalsUrl = this.fileApi.cleanURL(this.subfolder + '/link-traversals-sorted.parquet')
-            const legSeqUrl = this.fileApi.cleanURL(this.subfolder + '/leg-sequences-sorted.parquet')
-            const agentsUrl = this.fileApi.cleanURL(this.subfolder + '/agents-sorted.parquet')
+      const traversalsUrl = this.fileApi.cleanURL(
+        this.subfolder + '/link-traversals-sorted.csv.zst'
+      )
+      const legSeqUrl = this.fileApi.cleanURL(this.subfolder + '/leg-sequences-sorted.csv.zst')
 
-            console.log('Registering:', traversalsUrl, legSeqUrl, agentsUrl)
+      await this.dbCsv.registerFileURL(
+        'link-traversals-sorted.csv.zst',
+        traversalsUrl,
+        duckdb.DuckDBDataProtocol.HTTP,
+        false
+      )
+      await this.dbCsv.registerFileURL(
+        'leg-sequences-sorted.csv.zst',
+        legSeqUrl,
+        duckdb.DuckDBDataProtocol.HTTP,
+        false
+      )
+    },
 
-            await this.db.registerFileURL('link-traversals-sorted.parquet', traversalsUrl, duckdb.DuckDBDataProtocol.HTTP, false)
-            await this.db.registerFileURL('leg-sequences-sorted.parquet', legSeqUrl, duckdb.DuckDBDataProtocol.HTTP, false)
-            await this.db.registerFileURL('agents-sorted.parquet', agentsUrl, duckdb.DuckDBDataProtocol.HTTP, false)
+    async loadParquetData() {
+      this.statusText = 'Loading parquet data'
+      await sleep(0)
+      this.bundle = await duckdb.selectBundle(MANUAL_BUNDLES)
+      this.worker = new Worker(this.bundle.mainWorker!)
+      this.db = new duckdb.AsyncDuckDB(this.logger ?? new duckdb.ConsoleLogger(), this.worker)
+      await this.db.instantiate(this.bundle.mainModule, this.bundle.pthreadWorker)
+      this.conn = await this.db.connect()
 
-            // initial query to warm up the system; also gives us a count of total traversals for the selected hour, which is useful info to have right away
-            // const initialResult = await this.conn.query(`
-            //     SELECT COUNT(*) AS count
-            //     FROM "link-traversals-sorted.parquet"
-            //     WHERE hour = ${this.selectedHour}
-            // `)
+      const traversalsUrl = this.fileApi.cleanURL(
+        this.subfolder + '/link-traversals-sorted.parquet'
+      )
+      const legSeqUrl = this.fileApi.cleanURL(this.subfolder + '/leg-sequences-sorted.parquet')
+      const agentsUrl = this.fileApi.cleanURL(this.subfolder + '/agents-sorted.parquet')
 
-            // console.log('caching parquet to allow for faster subsequent queries:', initialResult.toArray())
+      console.log('Registering:', traversalsUrl, legSeqUrl, agentsUrl)
 
-            //@ts-ignore
-            window.__testdata__ = {
-                db: this.db,
-                conn: this.conn,
-                dbCsv: this.dbCsv,
-                connCsv: this.connCsv,
-                getOriginalTraversals: () => this.originalTraversals,
-                selectLink: async (linkId: any, hour: any) => await this.queryLinksForSelectedLink(linkId, hour)
-            }
-        },
+      //@ts-ignore
+      window.__testdata__ = {
+        db: this.db,
+        conn: this.conn,
+        dbCsv: this.dbCsv,
+        connCsv: this.connCsv,
+        getOriginalTraversals: () => this.originalTraversals,
+        selectLink: async (linkId: any, hour: any) =>
+          await this.queryLinksForSelectedLink(linkId, hour),
+      }
 
-        splitString(str: string, delimiter: string): string[] {
-            return str.split(delimiter);
-        },
+      await this.db.registerFileURL(
+        'link-traversals-sorted.parquet',
+        traversalsUrl,
+        duckdb.DuckDBDataProtocol.HTTP,
+        false
+      )
+      await this.db.registerFileURL(
+        'leg-sequences-sorted.parquet',
+        legSeqUrl,
+        duckdb.DuckDBDataProtocol.HTTP,
+        false
+      )
+      await this.db.registerFileURL(
+        'agents-sorted.parquet',
+        agentsUrl,
+        duckdb.DuckDBDataProtocol.HTTP,
+        false
+      )
+    },
 
-        async queryLinksForSelectedLink(linkId: number, hour: number) {
-            const start = performance.now();
-            try {
-                if (this.conn && this.chosenFormat === 'Parquet') {
+    splitString(str: string, delimiter: string): string[] {
+      return str.split(delimiter)
+    },
 
-                    const stmt = await this.conn.prepare(`
+    async queryLinksForSelectedLink(linkId: number, hour: number) {
+      const start = performance.now()
+      try {
+        if (this.conn && this.chosenFormat === 'Parquet') {
+          const stmt = await this.conn.prepare(`
                         WITH sequences AS (
                             SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
                             FROM 'link-traversals-sorted.parquet' lt
@@ -503,22 +527,20 @@ const SelectLinkAnalysis = defineComponent({
                         ORDER BY traversal_count DESC
                     `)
 
-                    const result = await stmt.query(linkId, hour)
+          const result = await stmt.query(linkId, hour)
 
-                    console.log('query result for selected link:', result.toArray())
+          this.queryTime = performance.now() - start
 
-                    this.queryTime = performance.now() - start;
+          this.originalTraversals = Object.fromEntries(
+            result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
+          )
 
-                    this.originalTraversals = Object.fromEntries(
-                        result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
-                    )
+          return this.originalTraversals
+        }
+        if (this.connCsv && this.dbCsv && this.chosenFormat === 'Csv') {
+          const start = performance.now()
 
-                    return this.originalTraversals
-                }
-                if (this.connCsv && this.dbCsv && this.chosenFormat === 'Csv') {
-                    const start = performance.now();
-
-                    const stmt = await this.connCsv.prepare(`
+          const stmt = await this.connCsv.prepare(`
                         WITH sequences AS (
                             SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
                             FROM 'link-traversals-sorted.csv.zst' lt
@@ -531,79 +553,81 @@ const SelectLinkAnalysis = defineComponent({
                         ORDER BY traversal_count DESC
                     `)
 
-                    const result = await stmt.query(linkId, hour)
+          const result = await stmt.query(linkId, hour)
 
-                    this.queryTime = performance.now() - start;
+          this.queryTime = performance.now() - start
 
-                    return Object.fromEntries(
-                        result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
-                    );
-                }
-            } catch (e) {
-                console.error('Error querying links for selected link:', e);
-                return {};
-            }
-        },
+          return Object.fromEntries(
+            result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
+          )
+        }
+      } catch (e) {
+        console.error('Error querying links for selected link:', e)
+        return {}
+      }
+    },
 
-        async queryAgentsForSelectedLink(linkId: number, hour: number) {
-            this.currentlyQueriedLinkId = linkId
-            this.currentlyQueriedHour = hour
-            try {
-                if (this.conn) {
-                    const stmt = await this.conn.prepare(`
+    async queryAgentsForSelectedLink(linkId: number, hour: number) {
+      this.currentlyQueriedLinkId = linkId
+      this.currentlyQueriedHour = hour
+      try {
+        if (this.conn) {
+          const stmt = await this.conn.prepare(`
                         SELECT a.*
                         FROM "agents-sorted.parquet" a
                         INNER JOIN "link-traversals-sorted.parquet" lt
                             ON a.agent_id = lt.agent_id
                         WHERE lt.link_id = ? AND lt.hour = ?
                     `)
-                    const result = await stmt.query(linkId, hour)
+          const result = await stmt.query(linkId, hour)
 
-                    this.originalAgents = Object.fromEntries(
-                        result.toArray().map(row => {
-                            for (let key in row) {
-                                row[key] = typeof row[key] === 'bigint' ? Number(row[key]) : row[key];
-                            }
-                            return [row.agent_id.toString(), row];
-                        })
-                    )
-                    return this.originalAgents
-                }
-            } catch (e) {
-                console.error('Error querying agents for selected link:', e);
-                return {};
-            }
-            return {} // agent details are not implemented yet, but this is where that query would go
-        },
+          // Arrow rows are exotic Proxies; Vue 3 reactivity chokes on them, so
+          // copy each row into a plain object before it lands in component state
+          this.originalAgents = Object.fromEntries(
+            result.toArray().map((row: any) => {
+              const agent = { ...row.toJSON() } as any
+              for (const key in agent) {
+                if (typeof agent[key] === 'bigint') agent[key] = Number(agent[key])
+              }
+              return [`${agent.agent_id}`, agent]
+            })
+          )
+          return this.originalAgents
+        }
+      } catch (e) {
+        console.error('Error querying agents for selected link:', e)
+        return {}
+      }
+      return {} // agent details are not implemented yet, but this is where that query would go
+    },
 
-        async filterAgentGroups(group: string) {
-            this.selectedEconomicGroup = group
-            // this is where we would apply filters to the queriedAgents based on economicGroups or other demographic data
-            // for now, it just logs the selected groups and doesn't actually filter anything
-            // console.log('Filtering agents based on selected economic groups:', this.economicGroups)
-            // if (!this.queriedAgents || Object.keys(this.queriedAgents).length === 0) return
+    async filterAgentGroups(group: string) {
+      this.selectedEconomicGroup = group
+      // this is where we would apply filters to the queriedAgents based on economicGroups or other demographic data
+      // for now, it just logs the selected groups and doesn't actually filter anything
+      // console.log('Filtering agents based on selected economic groups:', this.economicGroups)
+      // if (!this.queriedAgents || Object.keys(this.queriedAgents).length === 0) return
 
-            // if (!this.economicGroups || this.economicGroups.length === 0) {
-            //     return
-            // }
+      // if (!this.economicGroups || this.economicGroups.length === 0) {
+      //     return
+      // }
 
-            // console.log('Filtering agents based on economic status:', this.selectedEconomicGroup)
-            // console.log('Queried agents before filtering:', this.queriedAgents)
+      // console.log('Filtering agents based on economic status:', this.selectedEconomicGroup)
+      // console.log('Queried agents before filtering:', this.queriedAgents)
 
-            this.filteredAgents = []
-            this.queriedAgents = Object.fromEntries(
-                (Object.entries(this.originalAgents) as [string, any][])
-                    .filter(([agentId, agent]) => {
-                        const matches = (agent as any).economic_status === this.selectedEconomicGroup
-                        if (matches) {
-                            this.filteredAgents.push(agentId) // keep track of filtered agents so we can show them in the UI if needed
-                        }
-                        return matches
-                    })
-            )
-            if (this.conn) {
-                try {
-                    const stmt = await this.conn.prepare(`
+      this.filteredAgents = []
+      this.queriedAgents = Object.fromEntries(
+        (Object.entries(this.originalAgents) as [string, any][]).filter(([agentId, agent]) => {
+          const matches = (agent as any).economic_status === this.selectedEconomicGroup
+          if (matches) {
+            this.filteredAgents.push(agentId) // keep track of filtered agents so we can show them in the UI if needed
+          }
+          return matches
+        })
+      )
+      if (this.conn) {
+        try {
+          const stmt = await this.conn.prepare(`
                         WITH sequences AS (
                             SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
                             FROM 'link-traversals-sorted.parquet' lt
@@ -619,649 +643,653 @@ const SelectLinkAnalysis = defineComponent({
                         FROM sequences
                         GROUP BY co_link_id
                         ORDER BY traversal_count DESC
-                    `);
-
-                    const result = await stmt.query(this.currentlyQueriedLinkId, this.currentlyQueriedHour, this.filteredAgents.join('|'))
-
-
-                    this.selectedLinkTraversals = Object.fromEntries(
-                        result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
-                    );
-
-                } catch (e) {
-                    console.error('Error querying links for selected link:', e);
-                    return {};
-                }
-            }
-
-        },
-
-
-        // this happens if viz is the full page, not a thumbnail on a project page
-        buildRouteFromUrl() {
-            const params = this.$route.params
-            console.log('ROUTE PARAMS', params)
-            if (!params.project || !params.pathMatch) {
-                console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-                return
-            }
-
-
-            // subfolder and config file
-            const sep = 1 + params.pathMatch.lastIndexOf('/')
-            const subfolder = params.pathMatch.substring(0, sep)
-            const config = params.pathMatch.substring(sep)
-
-            this.myState.subfolder = subfolder
-            // this.myState.yamlConfig = config
-        },
-
-        async getVizDetails() {
-            // are we in a dashboard?
-            if (this.config) {
-                // Merge config into existing vizDetails to preserve required shape
-                Object.assign(this.vizDetails, this.config)
-                console.log('Using config from dashboard:', this.vizDetails)
-                console.log('Using config from dashboard:', this.config.network)
-                this.vizDetails.network = this.config.network
-                console.log('Using config from dashboard:', this.vizDetails)
-                console.log('Using config from dashboard:', this.config)
-                return
-            }
-
-            // if a YAML file was passed in, just use it
-            if (this.yamlConfig?.endsWith('yaml') || this.yamlConfig?.endsWith('yml')) {
-                try {
-                    const filename =
-                        this.yamlConfig.indexOf('/') > -1
-                            ? this.yamlConfig
-                            : this.subfolder + '/' + this.yamlConfig
-
-                    const text = await this.fileApi.getFileText(filename)
-                    this.vizDetails = YAML.parse(text)
-                    if (this.vizDetails.title) {
-                        this.$emit('title', this.vizDetails.title)
-                    }
-
-                    return
-                } catch (e) {
-                    console.log('failed' + e)
-                    // maybe it failed because password?
-                    const err = e as any
-                    if (this.fileSystem.needPassword && err.status === 401) {
-                        globalStore.commit('requestLogin', this.fileSystem.slug)
-                    } else {
-                        this.$emit('error', '' + e)
-                    }
-                    return
-                }
-            }
-
-            // Fine, build the config based on folder contents -------------------------
-            const title = this.myState.yamlConfig.substring(
-                0,
-                15 + this.myState.yamlConfig.indexOf('selectLink')
-            )
-
-            // Road network: first try the most obvious network filename:
-            const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
-
-            console.log('files in subfolder:', files)
-
-            let network = this.myState.yamlConfig.replaceAll('selectLink', 'network')
-            // if the obvious network file doesn't exist, just grab... the first network file:
-            if (files.indexOf(network) == -1) {
-                const allNetworks = files.filter(f => f.indexOf('network') > -1)
-                if (allNetworks.length) network = allNetworks[0]
-                else {
-                    this.myState.statusMessage = 'No road network found.'
-                    network = ''
-                }
-            }
-
-
-            const t = 'Select Link Analysis'
-            this.$emit('title', t)
-
-            this.buildThumbnail()
-        },
-
-        async loadNetwork() {
-            console.log('LOADING NETWORK')
-            console.log("vizDetails.network:", this.vizDetails.network)
-            this.myState.statusMessage = 'Loading network...'
-
-            if (
-                this.vizDetails.network.indexOf('.xml.') > -1 ||
-                this.vizDetails.network.endsWith('.avro')
-            ) {
-                const network = (await this.myDataManager.getRoadNetwork(
-                    this.vizDetails.network,
-                    this.subfolder,
-                    this.vizDetails,
-                    null,
-                    true
-                )) as any
-
-                console.log('network keys:', Object.keys(network))
-                console.log('linkId sample:', Array.from(network.linkId).slice(0, 5))
-                console.log('id sample?:', network.id ? Array.from(network.id).slice(0, 5) : 'no id field')
-                console.log('linkAttributes:', network.linkAttributes)
-
-                // Build features with geometry, but no properties yet
-                // (properties get added in setFeaturePropertiesAsDataSource)
-                const numLinks = network.linkId.length
-                const features = [] as any[]
-
-                for (let i = 0; i < numLinks; i++) {
-                    const linkID = network.linkId[i]
-                    const coords = [
-                        network.source.slice(i * 2, i * 2 + 2),
-                        network.dest.slice(i * 2, i * 2 + 2),
-                    ]
-                    const feature = {
-                        id: linkID,
-                        type: 'Feature',
-                        properties: {},
-                        geometry: { type: 'LineString', coordinates: coords },
-                    }
-                    features.push(feature)
-                }
-
-                this.network = network
-                // this.isAvroFile = true
-                console.log('features loaded', features)
-                return features
-            } else {
-                // pre-converted JSON output from create_network.py
-                const jsonNetwork = await this.fileApi.getFileJson(
-                    this.myState.subfolder + '/' + this.vizDetails.network
-                )
-
-                // geojson is ALWAYS in long/lat
-                this.vizDetails.projection = 'EPSG:4326'
-
-                return jsonNetwork
-            }
-        },
-
-        incrementLoadProgress() {
-            this.loadSteps += 1
-            this.loadProgress = (100 * this.loadSteps) / this.totalLoadSteps
-        },
-
-        async fetchNetwork(path: string, vizDetails: any) {
-            return new Promise<NetworkLinks>((resolve, reject) => {
-                const thread = new RoadNetworkLoader()
-                try {
-                    thread.postMessage({
-                        filePath: path,
-                        fileSystem: this.fileSystem,
-                        vizDetails,
-                    })
-
-                    thread.onmessage = e => {
-                        // perhaps network has no CRS and we need to ask user
-                        if (e.data.promptUserForCRS) {
-                            let crs =
-                                prompt('Enter the coordinate reference system, e.g. EPSG:25832') || 'EPSG:31468'
-
-                            if (Number.isFinite(parseInt(crs))) crs = `EPSG:${crs}`
-
-                            thread.postMessage({ crs })
-                            return
-                        }
-
-                        if (e.data.status) {
-                            this.myState.statusMessage = '' + e.data.status
-                            return
-                        }
-
-                        // normal exit
-                        thread.terminate()
-
-                        if (e.data.error) {
-                            console.error(e.data.error)
-                            globalStore.commit('error', e.data.error)
-                            this.myState.statusMessage = e.data.error
-                            reject(e.data.error)
-                        }
-                        resolve(e.data.links)
-                    }
-                } catch (err) {
-                    thread.terminate()
-                    console.error(err)
-                    reject(err)
-                }
-            })
-        },
-
-
-        handleDiscreteTimeValues(timeUpdate: { extent: number; index: number }) {
-            this.selectedHour = timeUpdate.extent / 3600
-            console.log('Selected hour updated:', this.selectedHour)
-        },
-
-        async loadBoundaries() {
-            const shapeConfig =
-                this.config.boundaries ||
-                this.config.shapes ||
-                this.config.geojson ||
-                this.config.network ||
-                this.config.features
-
-            if (!shapeConfig) return
-
-            // shapes could be a string or an object: shape.file=blah
-            let filename: string = this.config.features ? 'shapes' : shapeConfig.file || shapeConfig
-
-            let featureProperties = [] as any[]
-            let boundaries: any[]
-
-            try {
-                this.statusText = 'Loading features...'
-                this.incrementLoadProgress()
-                // avro network!
-                console.log('--AVRO')
-                boundaries = await this.loadNetwork()
-
-                await this.$nextTick()
-                this.statusText = 'Processing data...'
-                this.incrementLoadProgress()
-                await this.$nextTick()
-                await this.$nextTick()
-
-                let hasNoLines = true
-                let hasNoPolygons = true
-                let hasPoints = false
-
-                // for a big speedup, move properties to its own nabob
-                boundaries.forEach(b => {
-                    const properties = b.properties ?? {}
-                    // geojson sometimes has "id" outside of properties:
-                    if ('id' in b) properties.id = b.id
-                    // create a new properties object for each row;
-                    // push this new property object to the featureProperties array
-                    featureProperties.push({ ...properties })
-                    // clear out actual feature properties; they are now in featureProperties instead
-                    b.properties = {}
-
-                    // points?
-                    if (b.geometry.type == 'Point' || b.geometry.type == 'MultiPoint') {
-                        hasPoints = true
-                    }
-
-                    // check if we have linestrings: network mode !
-                    if (
-                        hasNoLines &&
-                        (b.geometry.type == 'LineString' || b.geometry.type == 'MultiLineString')
-                    ) {
-                        hasNoLines = false
-                    }
-
-                    // check if we have polygons: area-map mode !
-                    if (
-                        hasNoPolygons &&
-                        (b.geometry.type == 'Polygon' || b.geometry.type == 'MultiPolygon')
-                    ) {
-                        hasNoPolygons = false
-                    }
-                })
-
-                // set feature properties as a data source
-                // await this.setFeaturePropertiesAsDataSource(filename, [...featureProperties], shapeConfig)
-                this.incrementLoadProgress()
-
-                // hide polygon/point buttons and opacity if we have no polygons or we do have points
-                if (hasPoints || !hasNoPolygons) this.isAreaMode = true
-
-                this.statusText = 'Adding boundaries to map'
-                await this.$nextTick()
-                this.incrementLoadProgress()
-
-                this.boundaries = boundaries
-                this.incrementLoadProgress()
-
-                // generate centroids if we have polygons
-                // if (!hasNoPolygons || hasPoints) {
-                //   await this.generateCentroidsAndMapCenter()
-                // }
-
-                // Need to wait one tick so Vue inserts the Deck.gl view AFTER center is calculated
-                // (not everyone lives in Berlin)
-                // await this.$nextTick()
-            } catch (e) {
-                const err = e as any
-                const message = err.statusText || 'Could not load'
-                const fullError = `${message}: "${filename}"`
-                this.statusText = ''
-                this.$emit('isLoaded')
-                throw Error(fullError)
-            }
-
-            if (!this.boundaries || this.boundaries.length === 0) {
-                throw Error(`No "features" found in shapes file`)
-            }
-        },
-
-        async handleClickEvent(event: any) {
-            if (event.index != -1) {
-                let offset = event?.object?.feature_idx || -1
-                this.cbTooltip(offset, event, true)
-                this.tooltipIsFixed = true
-                this.highlightedLinkIndex = event.index
-            } else {
-                this.tooltipIsFixed = false
-                this.highlightedLinkIndex = -1
-                this.tooltipHtml = ''
-            }
-        },
-
-
-        clearTooltip() {
-            if (this.wantToClearTooltip && this.highlightedLinkIndex == -1) {
-                this.tooltipHtml = ''
-            }
-        },
-
-        cbTooltip(index: number, object: any, forceUpdate: boolean = false) {
-
-            if (this.tooltipIsFixed && !forceUpdate) return
-
-            if (object === null || !this.boundaries[index]?.properties) {
-                this.wantToClearTooltip = true
-                this.dbClearTooltip()
-                return
-            }
-
-            // tooltip will show values for color settings and for width settings.
-            // if there is base data, it will also show values and diff vs. base
-            // for both color and width.
-
-            this.wantToClearTooltip = false
-            const PRECISION = 4
-            let propList = []
-
-            // If user DID NOT provide any tooltip settings, show some useful things:
-            if (!this.vizDetails.tooltip?.length) {
-                // normalized value first
-                if (this.dataNormalizedValues) {
-                    const label = this.dataCalculatedValueLabel || 'Normalized Value'
-                    let value = this.truncateFractionalPart(this.dataNormalizedValues[index], PRECISION)
-                    propList.push(
-                        `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>`
-                    )
-                }
-                // calculated value
-                if (this.dataCalculatedValues) {
-                    let cLabel = this.dataCalculatedValueLabel || 'Value'
-                    const label = this.dataNormalizedValues
-                        ? cLabel.substring(0, cLabel.lastIndexOf('/'))
-                        : cLabel
-                    let value = this.truncateFractionalPart(this.dataCalculatedValues[index], PRECISION)
-                    if (this.dataCalculatedValueLabel.startsWith('%')) value = `${value} %`
-                    propList.push(
-                        `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>
-            <tr><td>&nbsp;</td></tr>`
-                    )
-                }
-            }
-
-            // --- dataset tooltip lines ---
-            let datasetProps = ''
-            const featureTips = Object.entries(this.boundaries[index].properties)
-
-            for (const [tipKey, tipValue] of featureTips) {
-                if (tipValue === null) continue
-
-                // Truncate fractional digits IF it is a simple number that has a fraction
-                let value = this.truncateFractionalPart(tipValue, PRECISION)
-                datasetProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${tipKey}</td><td><b>${value}</b></td></tr>`
-            }
-            if (datasetProps) propList.push(datasetProps)
-
-            // --- boundary feature tooltip lines ---
-            let columns
-            if (this.tooltipDesiredColumns.length) {
-                columns = this.tooltipDesiredColumns.filter(m => m.enabled).map(m => m.col)
-            } else {
-                columns = Object.keys(this.boundaryDataTable)
-            }
-
-            // dont show nodes or coordinates
-            const hide = new Set(['id', 'from', 'to', 'source', 'dest', 'nodeCoordinates', 'nodeId'])
-            columns = columns.filter(m => !hide.has(m))
-
-            if (this.vizDetails.tooltip?.length) {
-                const delim = this.vizDetails.tooltip[0].indexOf(':') > -1 ? ':' : '.'
-                columns = this.vizDetails.tooltip.map(tip => tip.substring(tip.indexOf(delim) + 1))
-            }
-
-            // nice sort order puts useful network fields at the top
-            const sortColumns = ['id', 'from', 'to', ...columns]
-
-            let featureProps = ''
-            sortColumns.forEach(column => {
-                if (this.boundaryDataTable[column]) {
-                    let value = this.boundaryDataTable[column].values[index]
-                    if (value == null) return
-                    if (typeof value == 'number') value = this.truncateFractionalPart(value, PRECISION)
-                    featureProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${column}</td><td><b>${value}</b></td></tr>`
-                }
-            })
-            if (featureProps) propList.push(featureProps)
-
-            // nothing to show? no tooltip
-            if (!propList.length) {
-                this.tooltipHtml = ''
-                return
-            }
-
-            let finalHTML = propList.join('')
-            const html = `<table>${finalHTML}</table>`
-            this.tooltipHtml = html
-            console.log('tooltip html:', this.tooltipHtml)
-        },
-
-        async calculateAndMoveToCenter() {
-            let centerLong = 0
-            let centerLat = 0
-            let numCoords = 0
-            const numFeatures = this.boundaries.length
-
-            for (let idx = 0; idx < numFeatures; idx += 256) {
-                try {
-                    const centroid = turf.centerOfMass(this.boundaries[idx])
-                    if (centroid?.geometry?.coordinates) {
-                        centerLong += centroid.geometry.coordinates[0]
-                        centerLat += centroid.geometry.coordinates[1]
-                        numCoords += 1
-                    }
-                } catch (e) {
-                    // who cares
-                }
-            }
-
-            centerLong /= numCoords
-            centerLat /= numCoords
-            let zoom = 9
-
-            console.log('--- CALCULATED CENTER', centerLong, centerLat)
-            // console.log('SMC: calculateAndMoveToCenter')
-            if (centerLong == undefined || centerLat == undefined) {
-                centerLong = 30
-                centerLat = 30
-                zoom = 5
-            }
-
-            const view = {
-                center: [centerLong, centerLat],
-                bearing: 0,
-                pitch: 0,
-                zoom,
-            } as any
-            this.initialView = view
-
-            if (!this.vizDetails.mapIsIndependent) {
-                this.$store.commit('setMapCamera', view)
-            }
-        },
-
-        // this will only round a number if it is a plain old regular number with
-        // a fractional part to the right of the decimal point.
-        truncateFractionalPart(value: any, precision: number) {
-            if (typeof value !== 'number') return value
-
-            let printValue = '' + value
-            if (printValue.includes('.') && printValue.indexOf('.') === printValue.lastIndexOf('.')) {
-                if (/\d$/.test(printValue))
-                    return printValue.substring(0, 1 + precision + printValue.lastIndexOf('.')) // precise(value, precision)
-            }
-            return value
-        },
-
-        updateLegendColors() { },
-
-        async buildThumbnail() {
-            if (this.thumbnail && this.vizDetails.thumbnail) {
-                try {
-                    const blob = await this.fileApi.getFileBlob(
-                        this.myState.subfolder + '/' + this.vizDetails.thumbnail
-                    )
-                    const buffer = await readBlob.arraybuffer(blob)
-                    const base64 = arrayBufferToBase64(buffer)
-                    if (base64)
-                        this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
-                } catch (e) {
-                    console.error(e)
-                }
-            }
-        },
-
+                    `)
+
+          const result = await stmt.query(
+            this.currentlyQueriedLinkId,
+            this.currentlyQueriedHour,
+            this.filteredAgents.join('|')
+          )
+
+          this.selectedLinkTraversals = Object.fromEntries(
+            result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
+          )
+        } catch (e) {
+          console.error('Error querying links for selected link:', e)
+          return {}
+        }
+      }
     },
 
-    async mounted() {
+    // this happens if viz is the full page, not a thumbnail on a project page
+    buildRouteFromUrl() {
+      const params = this.$route.params
+      console.log('ROUTE PARAMS', params)
+      if (!params.project || !params.pathMatch) {
+        console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
+        return
+      }
 
-        this.dbClearTooltip = debounce(this.clearTooltip, 1000)
+      // subfolder and config file
+      const sep = 1 + params.pathMatch.lastIndexOf('/')
+      const subfolder = (params.pathMatch as string).substring(0, sep)
+      //   const config = params.pathMatch.substring(sep)
 
+      this.myState.subfolder = subfolder
+      // this.myState.yamlConfig = config
+    },
 
-        globalStore.commit('setFullScreen', !this.thumbnail)
-        // this.buildRouteFromUrl()
+    async getVizDetails() {
+      // are we in a dashboard?
+      if (this.config) {
+        // Merge config into existing vizDetails to preserve required shape
+        Object.assign(this.vizDetails, this.config)
+        console.log('Using config from dashboard:', this.vizDetails)
+        console.log('Using config from dashboard:', this.config.network)
+        this.vizDetails.network = this.config.network
+        console.log('Using config from dashboard:', this.vizDetails)
+        console.log('Using config from dashboard:', this.config)
+        return
+      }
 
-        this.myState.thumbnail = this.thumbnail
-        this.myState.subfolder = this.subfolder
+      // if a YAML file was passed in, just use it
+      if (this.yamlConfig?.endsWith('yaml') || this.yamlConfig?.endsWith('yml')) {
+        try {
+          const filename =
+            this.yamlConfig.indexOf('/') > -1
+              ? this.yamlConfig
+              : this.subfolder + '/' + this.yamlConfig
 
-        // if (!this.yamlConfig) {
-        //     console.log(this.yamlConfig, this.yamlConfig)
+          const text = await this.fileApi.getFileText(filename)
+          this.vizDetails = YAML.parse(text)
+          if (this.vizDetails.title) {
+            this.$emit('title', this.vizDetails.title)
+          }
 
-        // } else {
-        //     this.myState.yamlConfig = this.yamlConfig
-        // }
-        await this.getVizDetails()
-
-        if (this.vizDetails.center && typeof this.vizDetails.center === 'string') {
-            this.vizDetails.center = this.vizDetails.center
-                //@ts-ignore
-                .split(',')
-                .map((coord: any) => parseFloat(coord))
-            this.config.center = this.config.center.split(',').map((coord: any) => parseFloat(coord))
+          return
+        } catch (e) {
+          console.log('failed' + e)
+          // maybe it failed because password?
+          const err = e as any
+          if (this.fileSystem.needPassword && err.status === 401) {
+            globalStore.commit('requestLogin', this.fileSystem.slug)
+          } else {
+            this.$emit('error', '' + e)
+          }
+          return
         }
-        // sometimes user doesn't use long/lat
-        if (
-            this.config.center &&
-            (Math.abs(this.config.center[0]) > 180 || Math.abs(this.config.center[1]) > 90)
-        ) {
-            this.$emit(
-                'error',
-                `Invalid map center, doesn't look like longitude/latitude: ${this.config.center}`
-            )
-            const initialView = this.globalState.viewState
-            this.vizDetails.center = [initialView.longitude, initialView.latitude]
-            this.config.center = [initialView.longitude, initialView.latitude]
-            this.vizDetails.zoom = initialView.zoom
-            this.config.zoom = initialView.zoom
+      }
+
+      // Fine, build the config based on folder contents -------------------------
+      const title = this.myState.yamlConfig.substring(
+        0,
+        15 + this.myState.yamlConfig.indexOf('selectLink')
+      )
+
+      // Road network: first try the most obvious network filename:
+      const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
+
+      console.log('files in subfolder:', files)
+
+      let network = this.myState.yamlConfig.replaceAll('selectLink', 'network')
+      // if the obvious network file doesn't exist, just grab... the first network file:
+      if (files.indexOf(network) == -1) {
+        const allNetworks = files.filter(f => f.indexOf('network') > -1)
+        if (allNetworks.length) network = allNetworks[0]
+        else {
+          this.statusText = 'No road network found.'
+          network = ''
         }
-        await this.$nextTick() // update UI update before network load begins
-        await this.loadAndPrepareData()
+      }
 
-        // if we have a USER-SUPPLIED center, move there now
-        // (otherwise we will calc it after the shapes are loaded)
-        if (this.needsInitialMapExtent && this.vizDetails.center) {
-            this.needsInitialMapExtent = false
-            const view = {
-                center: this.vizDetails.center,
-                zoom: this.vizDetails.zoom || 9,
-                bearing: this.vizDetails.bearing || 0,
-                pitch: this.vizDetails.pitch || 0,
-                initial: true,
-            } as any
+      const t = 'Select Link Analysis'
+      this.$emit('title', t)
 
-            if (this.vizDetails.mapIsIndependent) {
-                this.initialView = view
-            } else {
-                this.$store.commit('setMapCamera', view)
+      this.buildThumbnail()
+    },
+
+    async loadNetwork() {
+      console.log('LOADING NETWORK')
+      console.log('vizDetails.network:', this.vizDetails.network)
+      this.statusText = 'Loading network...'
+      await sleep(0)
+
+      if (
+        this.vizDetails.network.indexOf('.xml.') > -1 ||
+        this.vizDetails.network.endsWith('.avro')
+      ) {
+        const network = (await this.myDataManager.getRoadNetwork(
+          this.vizDetails.network,
+          this.subfolder,
+          this.vizDetails,
+          null,
+          true
+        )) as any
+
+        console.log('network keys:', Object.keys(network))
+        console.log('linkId sample:', Array.from(network.linkId).slice(0, 5))
+        console.log('id sample?:', network.id ? Array.from(network.id).slice(0, 5) : 'no id field')
+        console.log('linkAttributes:', network.linkAttributes)
+
+        // Build features with geometry, but no properties yet
+        // (properties get added in setFeaturePropertiesAsDataSource)
+        const numLinks = network.linkId.length
+        const features = [] as any[]
+
+        for (let i = 0; i < numLinks; i++) {
+          const linkID = network.linkId[i]
+          const coords = [
+            network.source.slice(i * 2, i * 2 + 2),
+            network.dest.slice(i * 2, i * 2 + 2),
+          ]
+          const feature = {
+            id: linkID,
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'LineString', coordinates: coords },
+          }
+          features.push(feature)
+        }
+
+        this.network = network
+        // this.isAvroFile = true
+        console.log('features loaded', features)
+        return features
+      } else {
+        // pre-converted JSON output from create_network.py
+        const jsonNetwork = await this.fileApi.getFileJson(
+          this.myState.subfolder + '/' + this.vizDetails.network
+        )
+
+        // geojson is ALWAYS in long/lat
+        this.vizDetails.projection = 'EPSG:4326'
+
+        return jsonNetwork
+      }
+    },
+
+    incrementLoadProgress() {
+      this.loadSteps += 1
+      this.loadProgress = this.loadSteps / this.totalLoadSteps
+    },
+
+    async fetchNetwork(path: string, vizDetails: any) {
+      return new Promise<NetworkLinks>((resolve, reject) => {
+        const thread = new RoadNetworkLoader()
+        try {
+          thread.postMessage({
+            filePath: path,
+            fileSystem: this.fileSystem,
+            vizDetails,
+          })
+
+          thread.onmessage = e => {
+            // perhaps network has no CRS and we need to ask user
+            if (e.data.promptUserForCRS) {
+              let crs =
+                prompt('Enter the coordinate reference system, e.g. EPSG:25832') || 'EPSG:31468'
+
+              if (Number.isFinite(parseInt(crs))) crs = `EPSG:${crs}`
+
+              thread.postMessage({ crs })
+              return
             }
-        }
-        await this.loadBoundaries()
 
-        // console.log('data', this.data)
-        // this.data = []
-        if (this.needsInitialMapExtent && !this.vizDetails.center) {
-            await this.calculateAndMoveToCenter()
-            this.needsInitialMapExtent = false
-        }
-        await this.$nextTick()
-        console.log('about to set isLoaded, boundaries:', this.boundaries.length)
+            if (e.data.status) {
+              this.statusText = '' + e.data.status
+              return
+            }
 
-        this.isLoaded = true
-        this.$emit('isLoaded')
-        this.showLegend = true
+            // normal exit
+            thread.terminate()
+
+            if (e.data.error) {
+              console.error(e.data.error)
+              globalStore.commit('error', e.data.error)
+              this.statusText = e.data.error
+              reject(e.data.error)
+            }
+            resolve(e.data.links)
+          }
+        } catch (err) {
+          thread.terminate()
+          console.error(err)
+          reject(err)
+        }
+      })
+    },
+
+    handleDiscreteTimeValues(timeUpdate: { extent: number; index: number }) {
+      this.selectedHour = timeUpdate.extent / 3600
+    },
+
+    async loadBoundaries() {
+      const shapeConfig =
+        this.config.boundaries ||
+        this.config.shapes ||
+        this.config.geojson ||
+        this.config.network ||
+        this.config.features
+
+      if (!shapeConfig) return
+
+      // shapes could be a string or an object: shape.file=blah
+      let filename: string = this.config.features ? 'shapes' : shapeConfig.file || shapeConfig
+
+      let featureProperties = [] as any[]
+      let boundaries: any[]
+
+      try {
+        this.statusText = 'Loading features...'
+        this.incrementLoadProgress()
+        await sleep(0)
+
+        console.log('--AVRO')
+        boundaries = await this.loadNetwork()
+
+        this.statusText = 'Processing data...'
+        this.incrementLoadProgress()
+        await sleep(0)
+
+        let hasNoLines = true
+        let hasNoPolygons = true
+        let hasPoints = false
+
+        // for a big speedup, move properties to its own nabob
+        boundaries.forEach(b => {
+          const properties = b.properties ?? {}
+          // geojson sometimes has "id" outside of properties:
+          if ('id' in b) properties.id = b.id
+          // create a new properties object for each row;
+          // push this new property object to the featureProperties array
+          featureProperties.push({ ...properties })
+          // clear out actual feature properties; they are now in featureProperties instead
+          b.properties = {}
+
+          // points?
+          if (b.geometry.type == 'Point' || b.geometry.type == 'MultiPoint') {
+            hasPoints = true
+          }
+
+          // check if we have linestrings: network mode !
+          if (
+            hasNoLines &&
+            (b.geometry.type == 'LineString' || b.geometry.type == 'MultiLineString')
+          ) {
+            hasNoLines = false
+          }
+
+          // check if we have polygons: area-map mode !
+          if (
+            hasNoPolygons &&
+            (b.geometry.type == 'Polygon' || b.geometry.type == 'MultiPolygon')
+          ) {
+            hasNoPolygons = false
+          }
+        })
+
+        // set feature properties as a data source
+        // await this.setFeaturePropertiesAsDataSource(filename, [...featureProperties], shapeConfig)
+        this.incrementLoadProgress()
+
+        // hide polygon/point buttons and opacity if we have no polygons or we do have points
+        if (hasPoints || !hasNoPolygons) this.isAreaMode = true
+
+        this.statusText = 'Adding boundaries to map'
+        await sleep(0)
+        this.incrementLoadProgress()
+
+        this.boundaries = boundaries
+        this.incrementLoadProgress()
+      } catch (e) {
+        const err = e as any
+        const message = err.statusText || 'Could not load'
+        const fullError = `${message}: "${filename}"`
         this.statusText = ''
+        this.$emit('isLoaded')
+        throw Error(fullError)
+      }
+
+      if (!this.boundaries || this.boundaries.length === 0) {
+        throw Error(`No "features" found in shapes file`)
+      }
     },
 
-    beforeDestroy() {
+    async handleClickEvent(event: any) {
+      if (event.index != -1) {
+        let offset = event?.object?.feature_idx || -1
+        this.cbTooltip(offset, event, true)
+        this.tooltipIsFixed = true
+        this.highlightedLinkIndex = event.index
+      } else {
+        this.tooltipIsFixed = false
+        this.highlightedLinkIndex = -1
+        this.tooltipHtml = ''
+      }
+    },
 
-        this.selectedLinkTraversals = {}
-        this.queriedAgents = {}
+    clearTooltip() {
+      if (this.wantToClearTooltip && this.highlightedLinkIndex == -1) {
+        this.tooltipHtml = ''
+      }
+    },
 
-        try { this.conn?.close() } catch (e) { console.error(e) }
-        try { this.db?.terminate() } catch (e) { console.error(e) }
-        try { this.connCsv?.close() } catch (e) { console.error(e) }
-        try { this.dbCsv?.terminate() } catch (e) { console.error(e) }
-        try { this.worker?.terminate() } catch (e) { console.error(e) }
-        try { this.workerCsv?.terminate() } catch (e) { console.error(e) }
+    cbTooltip(index: number, object: any, forceUpdate: boolean = false) {
+      if (this.tooltipIsFixed && !forceUpdate) return
 
-        // Clean up other resources
-        // delete window.__testdata__;
-        this.data = [];
-        this.guiController?.destroy();
-        this.$store.commit('setFullScreen', false);
+      if (object === null || !this.boundaries[index]?.properties) {
+        this.wantToClearTooltip = true
+        this.dbClearTooltip()
+        return
+      }
+
+      // tooltip will show values for color settings and for width settings.
+      // if there is base data, it will also show values and diff vs. base
+      // for both color and width.
+
+      this.wantToClearTooltip = false
+      const PRECISION = 4
+      let propList = []
+
+      // If user DID NOT provide any tooltip settings, show some useful things:
+      if (!this.vizDetails.tooltip?.length) {
+        // normalized value first
+        if (this.dataNormalizedValues) {
+          const label = this.dataCalculatedValueLabel || 'Normalized Value'
+          let value = this.truncateFractionalPart(this.dataNormalizedValues[index], PRECISION)
+          propList.push(
+            `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>`
+          )
+        }
+        // calculated value
+        if (this.dataCalculatedValues) {
+          let cLabel = this.dataCalculatedValueLabel || 'Value'
+          const label = this.dataNormalizedValues
+            ? cLabel.substring(0, cLabel.lastIndexOf('/'))
+            : cLabel
+          let value = this.truncateFractionalPart(this.dataCalculatedValues[index], PRECISION)
+          if (this.dataCalculatedValueLabel.startsWith('%')) value = `${value} %`
+          propList.push(
+            `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>
+            <tr><td>&nbsp;</td></tr>`
+          )
+        }
+      }
+
+      // --- dataset tooltip lines ---
+      let datasetProps = ''
+      const featureTips = Object.entries(this.boundaries[index].properties)
+
+      for (const [tipKey, tipValue] of featureTips) {
+        if (tipValue === null) continue
+
+        // Truncate fractional digits IF it is a simple number that has a fraction
+        let value = this.truncateFractionalPart(tipValue, PRECISION)
+        datasetProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${tipKey}</td><td><b>${value}</b></td></tr>`
+      }
+      if (datasetProps) propList.push(datasetProps)
+
+      // --- boundary feature tooltip lines ---
+      let columns
+      if (this.tooltipDesiredColumns.length) {
+        columns = this.tooltipDesiredColumns.filter(m => m.enabled).map(m => m.col)
+      } else {
+        columns = Object.keys(this.boundaryDataTable)
+      }
+
+      // dont show nodes or coordinates
+      const hide = new Set(['id', 'from', 'to', 'source', 'dest', 'nodeCoordinates', 'nodeId'])
+      columns = columns.filter(m => !hide.has(m))
+
+      if (this.vizDetails.tooltip?.length) {
+        const delim = this.vizDetails.tooltip[0].indexOf(':') > -1 ? ':' : '.'
+        columns = this.vizDetails.tooltip.map(tip => tip.substring(tip.indexOf(delim) + 1))
+      }
+
+      // nice sort order puts useful network fields at the top
+      const sortColumns = ['id', 'from', 'to', ...columns]
+
+      let featureProps = ''
+      sortColumns.forEach(column => {
+        if (this.boundaryDataTable[column]) {
+          let value = this.boundaryDataTable[column].values[index]
+          if (value == null) return
+          if (typeof value == 'number') value = this.truncateFractionalPart(value, PRECISION)
+          featureProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${column}</td><td><b>${value}</b></td></tr>`
+        }
+      })
+      if (featureProps) propList.push(featureProps)
+
+      // nothing to show? no tooltip
+      if (!propList.length) {
+        this.tooltipHtml = ''
+        return
+      }
+
+      let finalHTML = propList.join('')
+      const html = `<table>${finalHTML}</table>`
+      this.tooltipHtml = html
+      console.log('tooltip html:', this.tooltipHtml)
+    },
+
+    async calculateAndMoveToCenter() {
+      let centerLong = 0
+      let centerLat = 0
+      let numCoords = 0
+      const numFeatures = this.boundaries.length
+
+      for (let idx = 0; idx < numFeatures; idx += 256) {
+        try {
+          const centroid = turf.centerOfMass(this.boundaries[idx])
+          if (centroid?.geometry?.coordinates) {
+            centerLong += centroid.geometry.coordinates[0]
+            centerLat += centroid.geometry.coordinates[1]
+            numCoords += 1
+          }
+        } catch (e) {
+          // who cares
+        }
+      }
+
+      centerLong /= numCoords
+      centerLat /= numCoords
+      let zoom = 9
+
+      console.log('--- CALCULATED CENTER', centerLong, centerLat)
+      // console.log('SMC: calculateAndMoveToCenter')
+      if (centerLong == undefined || centerLat == undefined) {
+        centerLong = 30
+        centerLat = 30
+        zoom = 5
+      }
+
+      const view = {
+        center: [centerLong, centerLat],
+        bearing: 0,
+        pitch: 0,
+        zoom,
+      } as any
+      this.initialView = view
+
+      if (!this.vizDetails.mapIsIndependent) {
+        this.$store.commit('setMapCamera', view)
+      }
+    },
+
+    // this will only round a number if it is a plain old regular number with
+    // a fractional part to the right of the decimal point.
+    truncateFractionalPart(value: any, precision: number) {
+      if (typeof value !== 'number') return value
+
+      let printValue = '' + value
+      if (printValue.includes('.') && printValue.indexOf('.') === printValue.lastIndexOf('.')) {
+        if (/\d$/.test(printValue))
+          return printValue.substring(0, 1 + precision + printValue.lastIndexOf('.')) // precise(value, precision)
+      }
+      return value
+    },
+
+    updateLegendColors() {},
+
+    async buildThumbnail() {
+      if (this.thumbnail && this.vizDetails.thumbnail) {
+        try {
+          const blob = await this.fileApi.getFileBlob(
+            this.myState.subfolder + '/' + this.vizDetails.thumbnail
+          )
+          const buffer = await readBlob.arraybuffer(blob)
+          const base64 = arrayBufferToBase64(buffer)
+          if (base64)
+            this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
+        } catch (e) {
+          console.error(e)
+        }
+      }
+    },
+  },
+
+  async mounted() {
+    this.dbClearTooltip = debounce(this.clearTooltip, 1000)
+
+    this.incrementLoadProgress()
+    await sleep(0)
+
+    globalStore.commit('setFullScreen', !this.thumbnail)
+    // this.buildRouteFromUrl()
+
+    this.myState.thumbnail = this.thumbnail
+    this.myState.subfolder = this.subfolder
+
+    await this.getVizDetails()
+
+    if (this.vizDetails.center && typeof this.vizDetails.center === 'string') {
+      this.vizDetails.center = this.vizDetails.center
         //@ts-ignore
-        delete window.__testdata__
-    },
+        .split(',')
+        .map((coord: any) => parseFloat(coord))
+      this.config.center = this.config.center.split(',').map((coord: any) => parseFloat(coord))
+    }
+    // sometimes user doesn't use long/lat
+    if (
+      this.config.center &&
+      (Math.abs(this.config.center[0]) > 180 || Math.abs(this.config.center[1]) > 90)
+    ) {
+      this.$emit(
+        'error',
+        `Invalid map center, doesn't look like longitude/latitude: ${this.config.center}`
+      )
+      const initialView = this.globalState.viewState
+      this.vizDetails.center = [initialView.longitude, initialView.latitude]
+      this.config.center = [initialView.longitude, initialView.latitude]
+      this.vizDetails.zoom = initialView.zoom
+      this.config.zoom = initialView.zoom
+    }
+
+    await this.loadAndPrepareData()
+
+    // if we have a USER-SUPPLIED center, move there now
+    // (otherwise we will calc it after the shapes are loaded)
+    if (this.needsInitialMapExtent && this.vizDetails.center) {
+      this.needsInitialMapExtent = false
+      const view = {
+        center: this.vizDetails.center,
+        zoom: this.vizDetails.zoom || 9,
+        bearing: this.vizDetails.bearing || 0,
+        pitch: this.vizDetails.pitch || 0,
+        initial: true,
+      } as any
+
+      if (this.vizDetails.mapIsIndependent) {
+        this.initialView = view
+      } else {
+        this.$store.commit('setMapCamera', view)
+      }
+    }
+
+    await this.loadBoundaries()
+
+    // console.log('data', this.data)
+    // this.data = []
+    if (this.needsInitialMapExtent && !this.vizDetails.center) {
+      await this.calculateAndMoveToCenter()
+      this.needsInitialMapExtent = false
+    }
+    await this.$nextTick()
+    console.log('about to set isLoaded, boundaries:', this.boundaries.length)
+
+    this.isLoaded = true
+    this.$emit('isLoaded')
+    this.showLegend = true
+    this.statusText = ''
+  },
+
+  beforeUnmount() {
+    this.selectedLinkTraversals = {}
+    this.queriedAgents = {}
+
+    try {
+      this.conn?.close()
+    } catch (e) {
+      console.error(e)
+    }
+    try {
+      this.db?.terminate()
+    } catch (e) {
+      console.error(e)
+    }
+    try {
+      this.connCsv?.close()
+    } catch (e) {
+      console.error(e)
+    }
+    try {
+      this.dbCsv?.terminate()
+    } catch (e) {
+      console.error(e)
+    }
+    try {
+      this.worker?.terminate()
+    } catch (e) {
+      console.error(e)
+    }
+    try {
+      this.workerCsv?.terminate()
+    } catch (e) {
+      console.error(e)
+    }
+
+    // Clean up other resources
+    // delete window.__testdata__;
+    this.data = []
+    this.$store.commit('setFullScreen', false)
+    //@ts-ignore
+    delete window.__testdata__
+  },
 })
 
 export default SelectLinkAnalysis
 </script>
 
 <style lang="scss" scoped>
+@use '@/variables' as *;
+
 *::-webkit-scrollbar {
-    width: 10px;
+  width: 10px;
 }
 
 .select-link-viewer {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    pointer-events: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
 }
 
 .container-1 {
-    display: grid;
-    grid-template-columns: 1fr auto auto;
-    grid-template-rows: 1fr auto; // second row for the full-width footer
-    pointer-events: auto;
-    height: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  grid-template-rows: 1fr auto; // second row for the full-width footer
+  pointer-events: auto;
+  height: 100%;
 }
 
 // .legend-footer {
@@ -1270,134 +1298,132 @@ export default SelectLinkAnalysis
 // }
 
 .main-panel {
-    position: relative;
-    // flex: 1;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    background-color: var(--bgBold);
-    height: 100%;
-    z-index: 0;
+  position: relative;
+  display: grid;
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
+  z-index: 500;
 }
 
 .query-info {
-    // position: absolute;
-    margin-top: 0.5rem;
-    margin-left: 0.5rem;
-    // background-color: var(--bgCardFrame);
-    padding: 0.5rem 0.5rem;
-    width: 20rem;
-    // border-radius: 4px;
-    border: #FFF 1px solid;
-    // font-size: 0.8rem;
-    // z-index: 2;
+  // position: absolute;
+  margin-top: 0.5rem;
+  margin-left: 0.5rem;
+  // background-color: var(--bgCardFrame);
+  padding: 0.5rem 0.5rem;
+  width: 20rem;
+  // border-radius: 4px;
+  border: #fff 1px solid;
+  // font-size: 0.8rem;
+  // z-index: 2;
 }
 
 .filter-box {
-    // position: absolute;
-    margin-top: 0.5rem;
-    margin-left: 0.5rem;
-    // background-color: var(--bgCardFrame);
-    padding: 0.25rem 0.5rem;
-    // border-radius: 4px;
-    border: #FFF 1px solid;
-    // font-size: 0.8rem;
-    // z-index: 2;
+  // position: absolute;
+  margin-top: 0.5rem;
+  margin-left: 0.5rem;
+  // background-color: var(--bgCardFrame);
+  padding: 0.25rem 0.5rem;
+  // border-radius: 4px;
+  border: #fff 1px solid;
+  // font-size: 0.8rem;
+  // z-index: 2;
 }
 
 .legend-footer {
-    grid-column: 1 / -1;
-    width: 100%;
-    position: relative; // contains any absolutely-positioned children if needed later
-    background-color: var(--bgCardFrame);
+  grid-column: 1 / -1;
+  width: 100%;
+  position: relative; // contains any absolutely-positioned children if needed later
+  background-color: var(--bgCardFrame);
 }
 
 .agent-list {
-    padding: 0 0.5rem;
-    background-color: var(--bgCardFrame);
-    border-radius: 4px;
+  padding: 0 0.5rem;
+  background-color: var(--bgCardFrame);
+  border-radius: 4px;
 }
 
 .agent-list.scrolly {
-    width: 100%;
-    max-height: 300px;
-    overflow: auto; // handles BOTH vertical and horizontal scroll here, in one place
-    box-sizing: border-box;
+  width: 100%;
+  max-height: 300px;
+  overflow: auto; // handles BOTH vertical and horizontal scroll here, in one place
+  box-sizing: border-box;
 }
 
 .agent-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    white-space: nowrap;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  white-space: nowrap;
 }
 
 .agent-table th,
 .agent-table td {
-    border-bottom: 1px solid #ddd;
-    border-right: 1px solid #ddd;
-    padding: 8px;
-    text-align: left;
+  border-bottom: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
 }
 
 .agent-table th {
-    background-color: #f2f2f2;
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    box-shadow: inset 0 -1px 0 #ddd;
+  background-color: #f2f2f2;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-shadow: inset 0 -1px 0 #ddd;
 }
 
 .new-rightside-info-panel {
-    // grid-row: 1 / 2;
-    grid-column: 3;
+  // grid-row: 1 / 2;
+  grid-column: 3;
+  background-color: var(--bgCardFrame);
+  position: relative;
+  height: 100%;
+  z-index: 1;
+
+  .legend-panel {
+    position: absolute;
+    top: 2px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
     background-color: var(--bgCardFrame);
-    position: relative;
-    height: 100%;
-    z-index: 1;
 
-    .legend-panel {
-        position: absolute;
-        top: 2px;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        flex-direction: column;
-        background-color: var(--bgCardFrame);
-
-        .description {
-            margin-top: 0.5rem;
-        }
+    .description {
+      margin-top: 0.5rem;
     }
+  }
 
-    .tooltip-html {
-        font-size: 0.8rem;
-        padding: 0.25rem;
-        text-align: left;
-        background-color: var(--bgCardFrame);
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        border-top: 1px solid #88888880;
-        max-height: 50%;
-    }
+  .tooltip-html {
+    font-size: 0.8rem;
+    padding: 0.25rem;
+    text-align: left;
+    background-color: var(--bgCardFrame);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-top: 1px solid #88888880;
+    max-height: 50%;
+  }
 }
 
 .tooltip-when-no-legend-present {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    z-index: 20;
-    font-size: 0.8rem;
-    padding: 0.25rem;
-    margin: 0.25rem 0.25rem;
-    min-width: 12rem;
-    text-align: left;
-    background-color: var(--bgCardFrame);
-    border: 1px solid #8888;
-    max-height: 50%;
-    filter: drop-shadow(2px 4px 6px #0004);
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  z-index: 20;
+  font-size: 0.8rem;
+  padding: 0.25rem;
+  margin: 0.25rem 0.25rem;
+  min-width: 12rem;
+  text-align: left;
+  background-color: var(--bgCardFrame);
+  border: 1px solid #8888;
+  max-height: 50%;
+  filter: drop-shadow(2px 4px 6px #0004);
 }
 
 // .the-html {
@@ -1405,50 +1431,78 @@ export default SelectLinkAnalysis
 // }
 
 .time-slider-area {
-    position: absolute;
-    bottom: 0.5rem;
-    left: 0;
-    right: 0;
-    margin: 0 9rem 0 0.5rem;
-    z-index: 2;
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0;
+  right: 0;
+  margin: 0 9rem 0 0.5rem;
+  z-index: 2;
 }
 
 .button-group {
-    margin-left: 5px;
-    display: flex;
-    gap: 8px;
+  margin-left: 5px;
+  display: flex;
+  gap: 8px;
 }
 
 .button-toggle {
-    padding: 4px 8px;
-    border: 1px solid #ccc;
-    border-radius: 2px;
-    background: #f9f9f9;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.9rem;
-    color: #333;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  background: #f9f9f9;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  color: #333;
 }
 
 .button-toggle:hover {
-    background: #e9e9e9;
+  background: #e9e9e9;
 }
 
 .button-toggle.button-active {
-    background: #007bff;
-    color: white;
-    border-color: #007bff;
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.map-component {
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
+  height: 100%;
+  z-index: 300;
 }
 
 .status-bar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    z-index: 200;
-    background-color: var(--bgPanel2);
-    padding: 1rem 1rem;
-    font-size: 1.1rem;
-    margin-bottom: 6px;
-    border: 1px solid var(--);
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
+  z-index: 200;
+  border-radius: 8px;
+  background-color: var(--bgPanel2);
+  padding: 1rem 1rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: auto 1rem;
+  text-align: center;
+  color: var(--link);
+  //   border: 1px solid var(--);
+}
+
+.load-progress {
+  background-color: var(--bgBold);
+  width: 10rem;
+  height: 4px;
+}
+.load-progress::-moz-progress-bar {
+  background-color: $appTag;
+}
+.load-progress::-webkit-progress-bar {
+  background-color: var(--bgBold);
+}
+.load-progress::-moz-progress-value {
+  background-color: $appTag;
+}
+.load-progress::-webkit-progress-value {
+  background-color: $appTag;
 }
 </style>

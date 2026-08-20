@@ -154,8 +154,6 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
-
 .config-panel {
   display: flex;
   flex-direction: row;

@@ -11,14 +11,14 @@ virtual-list.my-list(
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw } from 'vue'
 import type { PropType } from 'vue'
 
 import RouteDropDown from './RouteDropDown.vue'
-import VirtualList from 'vue-virtual-scroll-list'
+import VirtualList from 'vue3-virtual-scroll-list'
 
 export default defineComponent({
-  name: 'RouteDropdown',
+  name: 'LazyList',
   components: { RouteDropDown, VirtualList },
   props: {
     highlightedTransitLines: { type: Array, required: true },
@@ -27,7 +27,8 @@ export default defineComponent({
 
   data() {
     return {
-      listComponent: RouteDropDown,
+      // markRaw: a component definition must not become a reactive object
+      listComponent: markRaw(RouteDropDown),
     }
   },
 

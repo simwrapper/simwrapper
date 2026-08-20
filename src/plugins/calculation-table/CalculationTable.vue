@@ -3,7 +3,6 @@
 
   img.thumb(v-if="thumbnail" src="./assets/table.png" :width="128")
 
-
   .topsheet(v-if="!thumbnail && isLoaded")
       p.header {{ subfolder }}
 
@@ -24,10 +23,6 @@
         :allConfigFiles="allConfigFiles"
       )
 
-      //- @isLoaded="handleCardIsLoaded(card)"
-      //- @dimension-resizer="setDimensionResizer"
-      //- @titles="setCardTitles(card, $event)"
-
 </template>
 
 <script lang="ts">
@@ -42,7 +37,7 @@ import { ColorScheme, FileSystemConfig, VisualizationPlugin, Status, YamlConfigs
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
 
-const thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
+const thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat"
 
 const Component = defineComponent({
   name: 'CalculationTable',
@@ -118,7 +113,7 @@ export default Component
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .my-component {
   margin: 0 0;

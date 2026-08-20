@@ -1,5 +1,7 @@
 <template lang="pug">
-matrix-viewer.deck-map(
+//- NOT .deck-map: DeckMapComponent.vue declares that class in a *global* style block,
+//- and the panel wrapper's copy lands on the plugin's root element
+matrix-viewer.matrix-panel(
     :root="fileSystemConfig.slug"
     :subfolder="subfolder"
     :configFromDashboard="config"
@@ -12,11 +14,14 @@ matrix-viewer.deck-map(
 </template>
 
 <script lang="ts">
+import { defineComponent } from 'vue'
+
 import MatrixViewer from '@/plugins/matrix/MatrixViewer.vue'
 
-export default {
+export default defineComponent({
   name: 'MatrixPanel',
   components: { MatrixViewer },
+  emits: ['isLoaded', 'error', 'dimension-resizer'],
   props: {
     config: Object,
     datamanager: Object,
@@ -29,13 +34,11 @@ export default {
       this.$emit('isLoaded')
     },
   },
-}
+})
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
-
-.deck-map {
+.matrix-panel {
   position: absolute;
   top: 0;
   bottom: 0;

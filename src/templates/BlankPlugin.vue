@@ -31,7 +31,7 @@ const MyComponent = defineComponent({
     return {
       globalState: globalStore.state,
       fileSystem: null as FileSystemConfig | null,
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
       vizDetails: {
         title: '',
         description: '',
@@ -107,7 +107,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 // .my-component {
 // }

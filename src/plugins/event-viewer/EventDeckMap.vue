@@ -1,11 +1,11 @@
 <template lang="pug">
 .deck-map.flex-col
   .map-container(:id="`map-${viewId}`")
-  .deck-tooltip(v-if="tooltipHTML" :v-html="tooltipHTML" :style="tooltipStyle")
+  .deck-tooltip(v-if="tooltipHTML" v-html="tooltipHTML" :style="tooltipStyle")
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, markRaw, PropType } from 'vue'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { DataFilterExtension } from '@deck.gl/extensions'
 import maplibregl from 'maplibre-gl'
@@ -180,29 +180,36 @@ export default defineComponent({
     const zoom = (this.globalState.viewState.zoom || 8) as number
 
     // --- CREATE THE MAP ---
+    // markRaw: maplibre freezes the `rgb` array on the Color objects it parses out of a
+    // style, and deck.gl freezes its layer props -- reading either back through a Vue
+    // proxy violates the proxy invariant and throws. See trap #7.
     //@ts-ignore
-    this.mymap = new maplibregl.Map({
-      container,
-      style,
-      center,
-      zoom,
-    })
+    this.mymap = markRaw(
+      new maplibregl.Map({
+        container,
+        style,
+        center,
+        zoom,
+      })
+    )
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
       if (this.projection !== 'Atlantis' && this.show3dBuildings && this.mymap) {
         enable3DBuildings(this.mymap)
       }
       // --- deck overlay
-      this.deckOverlay = new MapboxOverlay({
-        interleaved: true,
-        layers: this.layers,
-        onClick: this.handleClick,
-      })
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          interleaved: true,
+          layers: this.layers,
+          onClick: this.handleClick,
+        })
+      )
       this.mymap?.addControl(this.deckOverlay)
     })
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },
@@ -236,10 +243,9 @@ export default defineComponent({
 
 <style lang="scss">
 .deck-map {
-  position: absolute;
-  inset: 0 0 0 0;
   width: 100%;
   height: 100%;
+  position: relative;
 }
 
 .map-container {

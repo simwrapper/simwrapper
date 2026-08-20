@@ -22,7 +22,7 @@
     //- mobile: dashboard dropdown-button
     .dashboard-mobile-section(v-show="!isZoomed && Object.keys(dashboards).length > 1 && isMobile")
       .dropdown
-        b-button.dropbtn(@click="dropDownClicked()") {{ activeTabLabel }}
+        o-button.dropbtn(@click="dropDownClicked()") {{ activeTabLabel }}
           i.fa.fa-caret-down
 
         .dropdown-content(v-if="showDropDown")
@@ -66,7 +66,7 @@
 </template>
 
 <script lang="ts">
-import Vue, { defineComponent } from 'vue'
+import { defineComponent } from 'vue'
 
 import markdown from 'markdown-it'
 import micromatch from 'micromatch'
@@ -282,7 +282,7 @@ export default defineComponent({
         if (showDashboards) {
           for (const fullPath of Object.values(this.allConfigFiles.dashboards)) {
             // add the tab now
-            Vue.set(this.dashboards, fullPath, { header: { tab: '...' } })
+            this.dashboards[fullPath] = { header: { tab: '...' } }
             // load the details (title)
             const showThisDashboard = await this.initDashboard(fullPath)
             // and now remove it if it isn't triggered. Yes this order is correct
@@ -292,7 +292,7 @@ export default defineComponent({
 
         // Add FileBrowser as "Files" tab
         if (this.globalState.isShowingFilesTab) {
-          Vue.set(this.dashboards, 'FILE__BROWSER', { header: { tab: 'Files' } })
+          this.dashboards['FILE__BROWSER'] = { header: { tab: 'Files' } }
         }
 
         // // Start on correct tab
@@ -527,7 +527,22 @@ export default defineComponent({
 
         const shortFilename = fullPath.substring(0, fullPath.lastIndexOf('.'))
         if (!yaml.header) yaml.header = { title: fullPath, tab: shortFilename }
-        if (!yaml.header.tab) yaml.header.tab = yaml.header.title || shortFilename
+
+        if (this.$store.state.locale === 'de') {
+          yaml.header.tab =
+            yaml.header.tab_de ||
+            yaml.header.tab ||
+            yaml.header.title_de ||
+            yaml.header.title ||
+            shortFilename
+        } else {
+          yaml.header.tab =
+            yaml.header.tab_en ||
+            yaml.header.tab ||
+            yaml.header.title_en ||
+            yaml.header.title ||
+            shortFilename
+        }
 
         this.dashboards[fullPath] = yaml
         // console.log('DASHBOARD:', fullPath)
@@ -665,7 +680,7 @@ export default defineComponent({
       this.isMobile = false
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
     this.clearStyles()
   },
@@ -673,7 +688,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .tabbed-folder-view {
   position: absolute;

@@ -1,5 +1,5 @@
 <template lang="pug">
-.panel
+.mmpanel
 
   .top-panel
     h4
@@ -16,7 +16,7 @@
           @click="clickedBreadcrumb(crumb)"
           @dragstart="dragBreadCrumb($event, crumb.url)"
           @dragend="dragEnd"
-          draggable
+          draggable="true"
         ) &nbsp;&bullet;&nbsp;{{ crumb.label }}
 
   .middle-panel
@@ -39,7 +39,7 @@
             @click="clickedBrowseChromeLocalFolder(row)"
             @dragstart="dragStart($event, row.slug)"
             @dragend="dragEnd"
-            draggable
+            draggable="true"
           )
 
             h5.remove-local(style="flex: 1;") {{ row.handle.name}}
@@ -53,7 +53,7 @@
           @click="clickedOnFolder({root: project.slug})"
           @dragstart="dragStart($event, project.slug)"
           @dragend="dragEnd"
-          draggable
+          draggable="true"
         )
           h5 {{ project.name }}
           p {{ project.description }}
@@ -65,7 +65,7 @@
         h3.curate-heading(
           @dragstart="dragStart($event, subfolder)"
           @dragend="dragEnd"
-          draggable
+          draggable="true"
         ) {{ globalState.breadcrumbs[globalState.breadcrumbs.length - 1].label }}
 
         .curate-content(v-if="myState.folders.length")
@@ -76,8 +76,8 @@
               :class="{fade: myState.isLoading, upfolder: i == 0}"
               @dragstart="dragStart($event, `${myState.subfolder}/${folder}`)"
               @dragend="dragEnd"
+              draggable="true"
               @click="clickedOnFolder({folder, i})"
-              draggable
             )
               i.fa(:class="i == 0 ? 'fa-arrow-up' : 'fa-folder-open'")
               p {{ cleanName(folder) }}
@@ -637,8 +637,9 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
-.panel {
+@use '@/variables' as *;
+
+.mmpanel {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -676,7 +677,6 @@ h4 {
   flex: 1;
   display: flex;
   flex-direction: column;
-  // width: 100%;
   margin-bottom: 0rem;
   padding: 0 1rem;
   overflow-x: hidden;
@@ -765,11 +765,14 @@ h2 {
   padding: 3px 4px;
   border-radius: 0;
   word-wrap: break-word;
+  pointer-events: all;
+  user-select: none;
 
   i {
     margin-top: 1px;
   }
   p {
+    // user-select: none;
     margin-left: 4px;
   }
 }
@@ -790,6 +793,7 @@ h2 {
 }
 
 .curate-heading {
+  cursor: grab;
   padding: 0rem 0rem;
   margin: 0rem 0rem;
 }
@@ -946,7 +950,7 @@ p.v-plugin {
 
   p:hover {
     color: var(--linkHover);
-    cursor: pointer;
+    cursor: grab;
   }
 }
 

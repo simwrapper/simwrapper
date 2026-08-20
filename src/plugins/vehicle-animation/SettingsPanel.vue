@@ -2,13 +2,11 @@
 .settings-panel-content
   h4 {{ $t('showhide')}}
 
-  .row(:key="label" v-for="label in Object.keys(items)")
-    toggle-button.toggle(
-      :width="40"
-      :value="items[label]"
-      :labels="false"
-      :color="{checked: '#4b7cc4', unchecked: '#222'}"
-      @change="$emit('click',label)")
+  .flex-row(:key="label" v-for="label in Object.keys(items)" style="gap:0.5rem; margin-bottom: 2px;")
+    o-switch.toggle(
+      :modelValue="items[label]"
+      @update:modelValue="$emit('click',label)"
+    )
     label(v-html="$t(label)")
 
 </template>
@@ -40,12 +38,11 @@ const i18n = {
 }
 
 import { defineComponent } from 'vue'
-import { ToggleButton } from 'vue-js-toggle-button'
 
 export default defineComponent({
-  name: 'XmasSettingsPanel',
+  name: 'VehicleSettingsPanel',
   i18n,
-  components: { ToggleButton },
+  emits: ['click'],
   props: {
     items: { type: Object, required: true },
   },
@@ -57,23 +54,23 @@ export default defineComponent({
   margin: 2rem 0.25rem 0 0.25rem;
 }
 
+.toggle {
+  margin-right: 1rem !important;
+}
+
 h4 {
   font-weight: bold;
   font-size: 0.8rem;
   margin-bottom: 0.5rem;
 }
 
-.row {
-  display: 'grid';
-  grid-template-columns: 'auto 1fr';
-}
-
 label {
-  margin: auto 0 auto 0rem;
   text-align: 'left';
 }
 
-.toggle {
+// :deep, because theme-bulma gives o-switch a rootClass of "switch control" -- a class
+// you put on the tag lands on the *inner input*, where these margins do nothing.
+:deep(.switch) {
   margin-bottom: 0.25rem;
   margin-right: 0.5rem;
 }

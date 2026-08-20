@@ -57,9 +57,7 @@
 
         //- DIFF checkbox
         .panel-item.diff-section(v-if="vizDetails.datasets.csvBase")
-          toggle-button.toggle(:width="40" :value="vizDetails.showDifferences" :sync="true" :labels="false"
-            :color="{checked: '#4b7cc4', unchecked: '#222'}"
-            @change="toggleShowDiffs")
+          o-switch.toggle(:modelValue="vizDetails.showDifferences" @update:modelValue="toggleShowDiffs")
           p: b {{ $t('showDiffs') }}
 
         //- FilterPanel.filter-panel(v-if="vizDetails.useSlider"
@@ -97,7 +95,6 @@ const i18n = {
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import { ToggleButton } from 'vue-js-toggle-button'
 import { rgb } from 'd3-color'
 import { scaleThreshold, scaleOrdinal } from 'd3-scale'
 import { shallowEqualObjects } from 'shallow-equal'
@@ -134,7 +131,6 @@ const MyComponent = defineComponent({
     SelectorPanel,
     DrawingTool,
     LinkGlLayer,
-    ToggleButton,
     VizConfigurator,
     ZoomButtons,
   },
@@ -267,7 +263,7 @@ const MyComponent = defineComponent({
       // private linkOffsetLookup: { [id: string]: number } = {}
       isDarkMode: this.$store.state.colorScheme === ColorScheme.DarkMode,
       isDataLoaded: false,
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
 
       currentWidthDefinition: { columnName: '' } as LineWidthDefinition,
 
@@ -893,6 +889,13 @@ const MyComponent = defineComponent({
       }
 
       this.colorArray = colors
+
+      // e2e hook, same as aggregate-od / grid-map publish. The link colours are the only
+      // observable effect of the "Show Differences" switch and the column slider, and they
+      // live in a WebGL buffer -- a canvas pixel diff can't distinguish them from basemap
+      // tiles still streaming in. Deleted in beforeUnmount.
+      //@ts-ignore
+      window.__testdata__ = { colorArray: colors, activeColumn: this.csvData?.activeColumn }
     },
 
     loadCSVFiles() {
@@ -1070,7 +1073,9 @@ const MyComponent = defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
+    //@ts-ignore
+    delete window.__testdata__
     this.resizer?.disconnect()
     // MUST delete the React view handle to prevent gigantic memory leak!
 
@@ -1086,7 +1091,9 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+// @use, not @import: styles.scss no longer forwards Sass variables and
+// $thumbnailHeight below would fail the build.
+@use '@/variables' as *;
 
 .link-volume-plot {
   background: url('assets/thumbnail.jpg') no-repeat;
@@ -1206,6 +1213,7 @@ input {
   display: flex;
   flex-direction: row;
   margin-top: 0.7rem;
+  gap: 4px;
 
   p {
     margin: auto 0;

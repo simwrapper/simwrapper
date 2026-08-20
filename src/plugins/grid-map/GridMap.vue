@@ -2,7 +2,7 @@
 .grid-map-view(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
       MapComponent(
-        v-if="!thumbnail && isLoaded"
+        v-if="isLoaded"
         v-bind="mapProps"
         :negativeValues="valuesIncludeNeg"
       )
@@ -18,19 +18,19 @@
       .top-right
         .gui-config(:id="configId")
 
-      click-through-times.time-slider-area( v-if="isLoaded && this.vizDetails.timeSelector && this.vizDetails.timeSelector == 'discrete'"
+      click-through-times.time-slider-area( v-if="isLoaded && vizDetails.timeSelector && vizDetails.timeSelector == 'discrete'"
         :allTimes="allTimes"
         :range="timeRange"
         @timeUpdate="handleDiscreteTimeValues"
       )
 
-      time-slider.time-slider-area(v-if="isLoaded && (!this.vizDetails.timeSelector || this.vizDetails.timeSelector == 'slider')"
+      time-slider.time-slider-area(v-if="isLoaded && (!vizDetails.timeSelector || vizDetails.timeSelector == 'slider')"
         :range="timeRange"
         :allTimes="allTimes"
         @timeExtent="handleTimeSliderValues"
       )
 
-      .message(v-if="!thumbnail && myState.statusMessage")
+      .message(v-if="myState.statusMessage")
         p.status-message {{ myState.statusMessage }}
 
       .tooltip(v-if="tooltip" v-html="tooltip.html" :style="tooltip.style")
@@ -38,18 +38,16 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue'
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import GUI from 'lil-gui'
-import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import colormap from 'colormap'
 
-import avro from '@/js/avro'
+import { getAvro } from '@/js/avro'
 import globalStore from '@/store'
-import util from '@/js/util'
+import util, { sleep } from '@/js/util'
 import { hexToRgb, getColorRampHexCodes, Ramp } from '@/js/ColorsAndWidths'
 
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
@@ -196,7 +194,6 @@ const GridMap = defineComponent({
     CollapsiblePanel,
     DrawingTool,
     MapComponent,
-    ToggleButton,
     ZoomButtons,
     ClickThroughTimes,
     TimeSlider,
@@ -314,7 +311,7 @@ const GridMap = defineComponent({
       radiusStep: 5 as number,
       isLoaded: false as boolean,
       show3dBuildings: false,
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;" as string,
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat" as string,
       timeRange: [Infinity, -Infinity] as Number[],
       allTimes: [] as number[],
       // DataManager might be passed in from the dashboard; or we might be
@@ -394,7 +391,7 @@ const GridMap = defineComponent({
 
     toggle3dBuildings() {
       this.show3dBuildings = !this.show3dBuildings
-      this.guiConfig.show3dBuildings = this.show3dBuildings
+      // this.guiConfig.show3dBuildings = this.show3dBuildings
     },
 
     /**
@@ -547,15 +544,15 @@ const GridMap = defineComponent({
     // TODO: Set default values for color attributes
     setRadiusAndHeight() {
       if (!this.vizDetails.cellSize) {
-        Vue.set(this.vizDetails, 'cellSize', 250)
+        this.vizDetails.cellSize = 250
       }
 
       if (!this.vizDetails.maxHeight) {
-        Vue.set(this.vizDetails, 'maxHeight', 0)
+        this.vizDetails.maxHeight = 0
       }
 
       if (!this.vizDetails.opacity) {
-        Vue.set(this.vizDetails, 'opacity', 0.7)
+        this.vizDetails.opacity = 0.7
       }
     },
 
@@ -691,6 +688,7 @@ const GridMap = defineComponent({
     async loadAndPrepareAvroData() {
       const filename = `${this.subfolder}/${this.vizDetails.file}`
       const blob = await this.fileApi.getFileBlob(filename)
+      const avro = await getAvro()
 
       const records: any[] = await new Promise((resolve, _) => {
         const rows = [] as any[]
@@ -1082,10 +1080,10 @@ const GridMap = defineComponent({
       config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
       config.add(this.guiConfig, 'opacity', 0, 1, 0.1)
       config.add(this.guiConfig, 'height', 0, 250, 5)
-      config
-        .add(this.guiConfig, 'show3dBuildings')
-        .name('3D buildings')
-        .onChange((value: boolean) => (this.show3dBuildings = value))
+      // config
+      //   .add(this.guiConfig, 'show3dBuildings')
+      //   .name('3D buildings')
+      //   .onChange((value: boolean) => (this.show3dBuildings = value))
 
       // Diff checkbox
       config
@@ -1407,6 +1405,7 @@ const GridMap = defineComponent({
     if (this.thumbnail) return
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
+    await sleep(0)
 
     this.data = await this.loadAndPrepareData()
     // this.$emit('error', 'Error loading ' + this.vizDetails.file)
@@ -1449,7 +1448,7 @@ const GridMap = defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     //@ts-ignore
     delete window.__testdata__
 
@@ -1464,7 +1463,9 @@ export default GridMap
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+// @use, not @import: styles.scss no longer forwards Sass variables, and
+// $thumbnailHeight / $filterShadow below would fail the build.
+@use '@/variables' as *;
 
 .grid-map-view {
   position: absolute;
@@ -1475,7 +1476,6 @@ export default GridMap
   display: flex;
   flex-direction: column;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') center / cover no-repeat;
   z-index: -1;
 }
 
@@ -1487,14 +1487,15 @@ export default GridMap
 .message {
   z-index: 5;
   position: absolute;
+  top: 0;
   bottom: 0;
   left: 0;
   width: 100%;
   box-shadow: 0px 2px 10px #22222222;
   display: flex;
   flex-direction: row;
+  pointer-events: none;
   margin: auto auto 0 0;
-  background-color: var(--bgPanel);
   padding: 0.5rem 1.5rem;
 
   a {
@@ -1505,13 +1506,6 @@ export default GridMap
       color: white;
     }
   }
-
-  p {
-    font-size: 1.2rem;
-    line-height: 1.5rem;
-    font-weight: normal;
-    color: var(--textFancy);
-  }
 }
 
 .ui-slider {
@@ -1521,15 +1515,22 @@ export default GridMap
 }
 
 .status-message {
+  background-color: var(--bgPanel);
+  width: 100%;
+  margin: auto 1rem;
+  text-align: center;
+  padding: 2rem;
+  border-radius: 8px;
   font-size: 1.5rem;
-  line-height: 1.75rem;
+  line-height: 1.5rem;
   font-weight: bold;
+  color: var(--link);
 }
 
 .big {
   padding: 0.5rem 0;
-  font-size: 1.5rem;
-  line-height: 1.7rem;
+  font-size: 1.2rem;
+  line-height: 1.5rem;
   font-weight: bold;
 }
 

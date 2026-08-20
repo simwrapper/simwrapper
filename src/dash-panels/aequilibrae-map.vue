@@ -12,7 +12,6 @@ aeq-reader.aeq-panel(
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import type { PropType } from 'vue'
 
 import AeqReader from '@/plugins/aequilibrae-map/AequilibraEMapComponent.vue'
 
@@ -35,8 +34,6 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
-
 .aeq-panel {
   position: absolute;
   top: 0;

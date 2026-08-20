@@ -1,0 +1,332 @@
+import { test, expect, Page } from '@playwright/test'
+
+const PANEL = 'e2e-tests/agg-od'
+const PLUGIN = 'e2e-tests/emissions/viz-od-drt.yaml'
+const ONE_ROW_TAB = 'One Row'
+
+async function waitForData(page: Page) {
+  await page.waitForFunction(() => {
+    const t = (window as any).__testdata__
+    return !!(t && t.centroids?.length && t.spiderLinks?.length && t.geojson?.length)
+  })
+  // the widget bar only renders once loadingText is cleared
+  await expect(page.locator('.lower-left .o-slider')).toHaveCount(2)
+}
+
+const testdata = (page: Page) =>
+  page.evaluate(() => {
+    const t = (window as any).__testdata__
+    return {
+      centroids: t.centroids.length,
+      spiderLinks: t.spiderLinks.length,
+      geojson: t.geojson.length,
+    }
+  })
+
+const ORIGIN = '030405'
+const DEST = '110101'
+const DAILY_TOTAL = 610
+const BINS: [string, number][] = [
+  ['0.0-6.0', 10],
+  ['6.0-9.0', 80],
+  ['9.0-12.0', 140],
+  ['12.0-15.0', 120],
+  ['15.0-18.0', 110],
+  ['18.0-21.0', 130],
+  ['21.0-24.0', 20],
+]
+
+async function openOneRowPanel(page: Page) {
+  await page.goto(PANEL)
+  await page.getByText(ONE_ROW_TAB, { exact: true }).first().click()
+  await page.waitForFunction(() => {
+    const t = (window as any).__testdata__
+    return !!(t && t.centroids?.length === 2 && t.spiderLinks?.length === 1)
+  })
+  await expect(page.locator('.lower-left .o-slider')).toHaveCount(2)
+}
+
+const centroidLabels = (page: Page) =>
+  page.evaluate(() =>
+    Object.fromEntries(
+      (window as any).__testdata__.centroids.map((c: any) => [
+        c.properties.id,
+        { from: c.properties.dailyFrom, to: c.properties.dailyTo },
+      ])
+    )
+  )
+
+/** Move the time slider to an exact stop (0 = "All >>", 1..7 = BINS) via the keyboard. */
+async function setTimeBin(page: Page, index: number) {
+  const thumb = page.locator('.xtime-slider [role="slider"]').first()
+  await thumb.focus()
+  const current = Number(await thumb.getAttribute('aria-valuenow'))
+  const key = index > current ? 'ArrowRight' : 'ArrowLeft'
+  for (let i = 0; i < Math.abs(index - current); i++) await page.keyboard.press(key)
+  await expect(thumb).toHaveAttribute('aria-valuenow', String(index))
+}
+
+const sliderLabel = (page: Page, nth: number) =>
+  page.locator('.lower-left .slider-value').nth(nth).textContent()
+
+/** Drag a slider's thumb to a fraction of its track. */
+async function dragSlider(page: Page, nth: number, fraction: number) {
+  const slider = page.locator('.lower-left .o-slider').nth(nth)
+  const track = await slider.locator('.o-slider__track').boundingBox()
+  const thumb = await slider.locator('[role="slider"]').first().boundingBox()
+  if (!track || !thumb) throw new Error(`slider ${nth} has no track/thumb`)
+  await page.mouse.move(thumb.x + thumb.width / 2, thumb.y + thumb.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(track.x + track.width * fraction, track.y + track.height / 2, { steps: 10 })
+  await page.mouse.up()
+}
+
+const LINE_WIDTH_SLIDER = 0 // "Line widths"       -> components/ScaleSlider.vue
+const HIDE_SLIDER = 1 //       "Hide smaller than" -> LineFilterSlider.vue
+
+test('aggregate-od panel loads berlin data', async ({ page }) => {
+  await page.goto(PANEL)
+  await waitForData(page)
+  expect(await testdata(page)).toEqual({ centroids: 23, spiderLinks: 390, geojson: 23 })
+})
+
+test('aggregate-od plugin route loads the same data', async ({ page }) => {
+  await page.goto(PLUGIN)
+  await waitForData(page)
+  expect(await testdata(page)).toEqual({ centroids: 23, spiderLinks: 390, geojson: 23 })
+  // this fixture's scaleFactor is 0.001, so the legend is in thousands
+  await expect(page.locator('#scale-container .scale-scale')).toHaveText(/~ 1 /)
+})
+
+test('aggregate-od loads without console errors', async ({ page }) => {
+  const noise: string[] = []
+  page.on('console', m => {
+    const t = m.text()
+    if (/GPU stall|WebGL|externalized for browser/.test(t)) return
+    if (m.type() === 'error' || m.type() === 'warning') noise.push(`[${m.type()}] ${t}`)
+  })
+  page.on('pageerror', e => noise.push('PAGEERROR ' + e.message))
+
+  await page.goto(PANEL)
+  await waitForData(page)
+  await page.waitForTimeout(2000)
+  expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
+})
+
+test('aggregate-od "hide smaller than" slider filters spider links', async ({ page }) => {
+  await page.goto(PANEL)
+  await waitForData(page)
+  expect(await sliderLabel(page, HIDE_SLIDER)).toBe('0')
+
+  await dragSlider(page, HIDE_SLIDER, 0.5)
+  // a mapped stop from LineFilterSlider's STOPS, not the slider index (which is 0-23)
+  await expect.poll(() => sliderLabel(page, HIDE_SLIDER)).toMatch(/^(30|35|40|45|50|55|60)$/)
+
+  // fewer links survive link.daily <= lineFilter
+  await expect.poll(async () => (await testdata(page)).spiderLinks).toBeLessThan(390)
+
+  // the last stop is the "no filter" sentinel, and it must render as its label
+  await dragSlider(page, HIDE_SLIDER, 1)
+  await expect.poll(() => sliderLabel(page, HIDE_SLIDER)).toBe('Alle')
+})
+
+test('aggregate-od "line widths" slider rescales the legend', async ({ page }) => {
+  await page.goto(PANEL)
+  await waitForData(page)
+  // note the DOM text is lowercase; the caps are text-transform
+  const legend = page.locator('#scale-container .scale-scale')
+  await expect(legend).toHaveText('~ 1000 trips')
+  expect(await sliderLabel(page, LINE_WIDTH_SLIDER)).toBe('1')
+
+  await dragSlider(page, LINE_WIDTH_SLIDER, 1)
+  // ScaleSlider's formatter maps to SCALE_WIDTH, whose last entry is 5000
+  await expect.poll(() => sliderLabel(page, LINE_WIDTH_SLIDER)).toBe('5000')
+  await expect(legend).not.toHaveText('~ 1000 trips')
+})
+
+test('aggregate-od centroid checkboxes and Origins/Destinations redraw the map', async ({
+  page,
+}) => {
+  await page.goto(PANEL)
+  await waitForData(page)
+  const canvas = page.locator('canvas.maplibregl-canvas').first()
+  await expect(canvas).toBeVisible()
+  await page.waitForTimeout(3000)
+
+  const allOn = await canvas.screenshot()
+
+  // "Show centroids" removes the circle layer
+  const centroids = page.locator('input.checkbox').nth(1)
+  await centroids.click({ force: true })
+  await expect(centroids).not.toBeChecked()
+  await page.waitForTimeout(2000)
+  const withoutCentroids = await canvas.screenshot()
+  expect(withoutCentroids.equals(allOn), '"Show centroids" did not redraw the map').toBe(false)
+
+  await centroids.click({ force: true })
+  await page.waitForTimeout(2000)
+
+  // "Show totals" removes only the symbol layer, so this pins updateCentroidLabels()
+  const totals = page.locator('input.checkbox').nth(2)
+  await totals.click({ force: true })
+  await expect(totals).not.toBeChecked()
+  await page.waitForTimeout(2000)
+  const withoutTotals = await canvas.screenshot()
+  expect(withoutTotals.equals(allOn), '"Show totals" did not redraw the map').toBe(false)
+
+  await totals.click({ force: true })
+  await page.waitForTimeout(2000)
+
+  const origins = page.getByRole('button', { name: 'Origins' })
+  const destinations = page.getByRole('button', { name: 'Destinations' })
+  await expect(origins).toHaveClass(/\bselected\b/)
+  await expect(destinations).not.toHaveClass(/\bselected\b/)
+
+  const asOrigin = await canvas.screenshot()
+  await destinations.click()
+  await expect(destinations).toHaveClass(/\bselected\b/)
+  await expect(origins).not.toHaveClass(/\bselected\b/)
+  await page.waitForTimeout(2000)
+
+  const asDestination = await canvas.screenshot()
+  expect(asDestination.equals(asOrigin), 'Destinations did not redraw the map').toBe(false)
+})
+
+test('aggregate-od cleans up after itself on unmount', async ({ page }) => {
+  test.setTimeout(120_000)
+
+  // tally window keyup/keydown listeners so a leak is visible
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__keyListeners__ = { keyup: 0, keydown: 0 }
+    const add = window.addEventListener.bind(window)
+    const remove = window.removeEventListener.bind(window)
+    window.addEventListener = function (type: any, ...rest: any[]) {
+      if (type in w.__keyListeners__) w.__keyListeners__[type]++
+      return (add as any)(type, ...rest)
+    } as any
+    window.removeEventListener = function (type: any, ...rest: any[]) {
+      if (type in w.__keyListeners__) w.__keyListeners__[type]--
+      return (remove as any)(type, ...rest)
+    } as any
+  })
+  const keyListeners = () => page.evaluate(() => (window as any).__keyListeners__)
+
+  await page.goto('e2e-tests/emissions')
+  const baseline = await keyListeners()
+
+  const link = page.getByText('viz-od-drt.yaml', { exact: true }).first()
+  await link.waitFor({ state: 'visible', timeout: 60_000 })
+  await link.click()
+  await waitForData(page)
+  const mounted = await keyListeners()
+  expect(mounted.keyup).toBe(baseline.keyup + 1)
+  expect(mounted.keydown).toBe(baseline.keydown + 1)
+
+  // back to the folder via the header's back arrow (LayoutManager.onBack) -- it swaps
+  // the panel component in place, so this is an unmount with no page reload
+  await page.locator('.btn-header-back').first().click()
+  await expect(page.locator('.mymap')).toHaveCount(0)
+  expect(await page.evaluate(() => (window as any).__testdata__)).toBeUndefined()
+  expect(await keyListeners()).toEqual(baseline)
+
+  // and it comes back
+  await link.waitFor({ state: 'visible', timeout: 60_000 })
+  await link.click()
+  await waitForData(page)
+  expect(await testdata(page)).toEqual({ centroids: 23, spiderLinks: 390, geojson: 23 })
+})
+
+test('aggregate-od centroid labels show the selected time bin, not its neighbour', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  await openOneRowPanel(page)
+  const stop = page.locator('.xtime-slider p b')
+
+  // "All >>" is the whole day
+  await expect(stop).toHaveText('All >>')
+  expect(await centroidLabels(page)).toEqual({
+    [ORIGIN]: { from: DAILY_TOTAL, to: 0 },
+    [DEST]: { from: 0, to: DAILY_TOTAL },
+  })
+
+  for (const [index, [binLabel, value]] of BINS.entries()) {
+    await setTimeBin(page, index + 1) // stop 0 is "All >>"
+    await expect(stop).toHaveText(binLabel)
+    await expect
+      .poll(() => centroidLabels(page), { message: `time bin ${binLabel} should show ${value}` })
+      .toEqual({
+        [ORIGIN]: { from: value, to: 0 },
+        [DEST]: { from: 0, to: value },
+      })
+  }
+
+  // and back to the whole day
+  await setTimeBin(page, 0)
+  await expect(stop).toHaveText('All >>')
+  await expect
+    .poll(() => centroidLabels(page))
+    .toEqual({
+      [ORIGIN]: { from: DAILY_TOTAL, to: 0 },
+      [DEST]: { from: 0, to: DAILY_TOTAL },
+    })
+})
+
+test('aggregate-od per-bin centroid totals sum to the daily total', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.goto(PANEL)
+  await waitForData(page)
+
+  const zone = (labels: any) => labels[DEST] // 110101 appears as both origin and destination
+
+  await expect(page.locator('.xtime-slider p b')).toHaveText('All >>')
+  const daily = zone(await centroidLabels(page))
+  expect(daily.from, 'fixture should have daily traffic to sum against').toBeGreaterThan(0)
+
+  let summed = { from: 0, to: 0 }
+  for (const [index, [binLabel]] of BINS.entries()) {
+    await setTimeBin(page, index + 1)
+    await expect(page.locator('.xtime-slider p b')).toHaveText(binLabel)
+    // settle the 100ms debounce, then read
+    await page.waitForTimeout(400)
+    const bin = zone(await centroidLabels(page))
+    summed = { from: summed.from + bin.from, to: summed.to + bin.to }
+  }
+
+  expect(summed).toEqual(daily)
+})
+
+test('aggregate-od time-range totals cover every bin in the span', async ({ page }) => {
+  test.setTimeout(120_000)
+  await openOneRowPanel(page)
+  const stop = page.locator('.xtime-slider p b')
+
+  await page.locator('input.checkbox').nth(0).click({ force: true }) // "Duration"
+  await expect(page.locator('.xtime-slider [role="slider"]')).toHaveCount(2)
+  await expect(stop).toHaveText(`${BINS[0][0]} : ${BINS[BINS.length - 1][0]}`)
+
+  // the full span is the whole day
+  await expect
+    .poll(() => centroidLabels(page))
+    .toEqual({
+      [ORIGIN]: { from: DAILY_TOTAL, to: 0 },
+      [DEST]: { from: 0, to: DAILY_TOTAL },
+    })
+
+  // walk the low thumb up, dropping one bin from the front each time
+  const low = page.locator('.xtime-slider [role="slider"]').first()
+  await low.focus()
+  let remaining = DAILY_TOTAL
+  for (let i = 0; i < 3; i++) {
+    remaining -= BINS[i][1]
+    await page.keyboard.press('ArrowRight')
+    await expect(stop).toHaveText(`${BINS[i + 1][0]} : ${BINS[BINS.length - 1][0]}`)
+    await expect
+      .poll(() => centroidLabels(page), { message: `span from ${BINS[i + 1][0]}` })
+      .toEqual({
+        [ORIGIN]: { from: remaining, to: 0 },
+        [DEST]: { from: 0, to: remaining },
+      })
+  }
+})

@@ -294,7 +294,7 @@ export default defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.releaseSlot) {
       this.releaseSlot()
       this.releaseSlot = null

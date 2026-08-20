@@ -1,7 +1,4 @@
-import Vue from 'vue'
-import Vuex from 'vuex'
-
-Vue.use(Vuex)
+import { createStore } from 'vuex'
 
 import {
   BreadCrumb,
@@ -52,7 +49,7 @@ const initialLeftSection = isMainThread ? localStorage.getItem('activeLeftSectio
 const gamepad = isMainThread ? parseInt(localStorage.getItem('gamepadAxis') || '1') : 1
 
 // console.log('INITIAL LEFT SECTION', initialLeftSection)
-export default new Vuex.Store({
+export default createStore({
   state: {
     app: 'SimWrapper',
     debug: false,

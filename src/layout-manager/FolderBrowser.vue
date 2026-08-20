@@ -666,7 +666,7 @@ export default defineComponent({
     },
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.resizeObserver?.disconnect()
   },
 
@@ -683,7 +683,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .folder-browser {
   margin-top: 1rem;

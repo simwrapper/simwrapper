@@ -8,26 +8,26 @@
   .panel-content(v-if="open")
 
     .coordinates.flex-row(style="gap: 0.25rem")
-        column-selector.flex1(v-model="lon" :datasets="datasets" @update="lon=$event")
+        column-selector.flex1(:value="lon" :datasets="datasets" @update="lon=$event")
           p.tight Longitude/X
 
-        column-selector.flex1(v-model="lat" :datasets="datasets" @update="lat=$event")
+        column-selector.flex1(:value="lat" :datasets="datasets" @update="lat=$event")
           p.tight Latitude/Y
 
     .coordinates.flex-row(style="gap: 0.25rem")
-        column-selector.flex1(v-model="radius" :datasets="datasets" @update="radius=$event")
+        column-selector.flex1(:value="radius" :datasets="datasets" @update="radius=$event")
           p.tight Radius
 
-        column-selector.flex1(v-model="color" :datasets="datasets" @update="color=$event")
+        column-selector.flex1(:value="color" :datasets="datasets" @update="color=$event")
           p.tight Color
 
     .coordidnates.flex-row(style="gap: 0.25rem" title="EPSG code for transforming non-lat/long coordinates")
-        text-selector.flex1(v-model="projection" :datasets="datasets" @update="projection=$event")
+        text-selector.flex1(:value="projection" :datasets="datasets" @update="projection=$event")
           p.tight() EPSG Projection
 
     .coordinates.flex-column()
         p.field-label Scale
-        b-slider.slider(:tooltip="false" v-model="scaleFactor" @input="debScale")
+        o-slider.slider(:tooltip="false" v-model="scaleFactor" @update:modelValue="debScale")
 
 </template>
 
@@ -72,7 +72,10 @@ export default defineComponent({
       projection: '',
       scaleFactor: 50,
       isInitialized: false,
-      debScale: {} as any,
+      // a placeholder function, not {}: the template binds it as an event handler on
+      // first render, which is before mounted() swaps in the debounced version. Vue 3
+      // warns "Invalid value type passed to callWithAsyncErrorHandling(): object".
+      debScale: ((v: any) => {}) as any,
     }
   },
 
@@ -139,12 +142,12 @@ export default defineComponent({
     this.updateConfig()
   },
 
-  beforeDestroy() {},
+  beforeUnmount() {},
 })
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .layer-config {
   display: flex;

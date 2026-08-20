@@ -2,6 +2,31 @@ import micromatch from 'micromatch'
 import { XMLParser } from 'fast-xml-parser'
 import { format } from 'mathjs'
 import * as ZStd from 'zstd-wasm-decoder'
+import { toRaw } from 'vue'
+
+function isPlainObject(thing: any) {
+  if (Object.prototype.toString.call(thing) !== '[object Object]') return false
+  const proto = Object.getPrototypeOf(thing)
+  return proto === null || proto === Object.prototype
+}
+
+/**
+ * Strip Vue 3 reactivity from anything about to cross a structured-clone boundary.
+ *
+ * Vue 3 exposes props and store state as Proxies, and a Proxy cannot be
+ * structured-cloned: worker.postMessage() fails with DataCloneError. Components
+ * routinely hand their props straight to a worker, so run the payload through this
+ * first. Anything that isn't a plain object or array (e.g. a FileSystemAPIHandle)
+ * is passed through untouched so it stays cloneable/transferable.
+ */
+export function unreactive<T>(thing: T): T {
+  const raw: any = toRaw(thing as any)
+  if (Array.isArray(raw)) return raw.map(unreactive) as any
+  if (!isPlainObject(raw)) return raw
+  const copy: any = {}
+  for (const key of Object.keys(raw)) copy[key] = unreactive(raw[key])
+  return copy
+}
 
 /**
  * Useful for converting loaded PNG images to CSS
@@ -183,6 +208,23 @@ export function sleep(milliseconds: number) {
   return new Promise(resolve => setTimeout(resolve, milliseconds))
 }
 
+/**
+ * Convert a seconds value to an object with { hours, minutes, seconds}
+ *
+ * @param seconds time in seconds
+ */
+export function timeConvert(seconds: any) {
+  seconds = parseInt(seconds, 10)
+
+  if (Number.isNaN(seconds)) throw new TypeError('Invalid value sent to timeConvert')
+
+  let results = {} as any
+  results.hours = Math.floor(seconds / 60 / 60)
+  results.minutes = Math.floor((seconds / 60) % 60)
+  results.seconds = Math.floor(seconds % 60)
+  return results
+}
+
 export default {
   arrayBufferToBase64,
   dataUrlToBytes,
@@ -194,4 +236,6 @@ export default {
   parseXML,
   precise,
   sleep,
+  timeConvert,
+  unreactive,
 }

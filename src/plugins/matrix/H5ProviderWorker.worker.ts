@@ -10,7 +10,7 @@ import { H5WasmLocalFileApi } from './local/h5wasm-local-file-api'
 import { getPlugin } from './plugin-utils'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import globalStore from '@/store'
-import { Matrix } from './MatrixViewer.vue'
+import type { Matrix } from './MatrixViewer.vue'
 
 export interface H5Catalog {
   catalog: string[]

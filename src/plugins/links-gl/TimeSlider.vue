@@ -1,12 +1,13 @@
 <template lang="pug">
 .time-slider-main-content
 
-  b-slider(
+  o-slider(
     v-model="sliderValue"
     :max="stops.length - 1"
+    :range="useRange"
     :tooltip="false"
   )
-      b-slider-tick(v-for="stop,i in stops" :key="i" :value="i")
+      o-slider-tick(v-for="stop,i in stops" :key="i" :value="i")
 
 
 </template>

@@ -26,7 +26,7 @@
             option(value="yaml" aria-role="listitem") Save YAML config
             option(value="png" aria-role="listitem") Take screenshot
 
-          b-button.is-small.is-white.export-button(@click="clickedAddData")
+          o-button.is-small.is-white.export-button(@click="clickedAddData")
             i.fa.fa-sm.fa-plus
             | &nbsp;Add Data
 
@@ -374,7 +374,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .viz-configurator {
   position: absolute;

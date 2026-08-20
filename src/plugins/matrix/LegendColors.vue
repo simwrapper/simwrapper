@@ -3,21 +3,21 @@
   .edit-entries.flex-col(v-if="isEditing")
     .edit-row.flex-row(v-for="entry,i in entries" :key="i")
       .swatch(:style="getColor(entry)") &nbsp;
-      .flex1: b-field(:type="userBreakpoints[i-1] > userBreakpoints[i] ? 'is-danger' : ''")
-        b-input(
+      .flex1: o-field(:variant="userBreakpoints[i-1] > userBreakpoints[i] ? 'danger' : ''")
+        o-input(
           type="number"
           step="any"
-          size="is-small"
+          size="small"
           v-model="userBreakpoints[i-1]"
           :disabled="i==0"
           @input="debHandleEntry"
         )
       p: b &nbsp;{{entry.label[1]}}&nbsp;
-      .flex1: b-field(:type="userBreakpoints[i] < userBreakpoints[i-1] ? 'is-danger' : ''")
-        b-input(
+      .flex1: o-field(:variant="userBreakpoints[i] < userBreakpoints[i-1] ? 'danger' : ''")
+        o-input(
           type="number"
           step="any"
-          size="is-small"
+          size="small"
           v-model="userBreakpoints[i]"
           :disabled="i==entries.length-1"
           @input="debHandleEntry"
@@ -63,6 +63,7 @@ interface LegendEntry {
 const MyComponent = defineComponent({
   name: 'LegendColors',
   components: {},
+  emits: ['breakpoints-changed'],
   props: {
     isEditing: Boolean,
     thresholds: {
@@ -75,7 +76,9 @@ const MyComponent = defineComponent({
       isUpdating: true,
       entries: [] as LegendEntry[],
       userBreakpoints: [] as any[], // can be string or number
-      debHandleEntry: {} as any,
+      // must start as a *function*: the template binds it as an @input handler during the
+      // first render, before mounted() swaps in the debounced version
+      debHandleEntry: (() => {}) as any,
     }
   },
   mounted() {
@@ -169,7 +172,6 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
 .legend-colors {
   margin-right: 0.25rem;
 }

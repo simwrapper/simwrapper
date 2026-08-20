@@ -4,7 +4,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, markRaw, PropType } from 'vue'
 import { GeoJsonLayer, LineLayer } from '@deck.gl/layers'
 import { DataFilterExtension } from '@deck.gl/extensions'
 import { MapboxOverlay } from '@deck.gl/mapbox'
@@ -440,7 +440,6 @@ export default defineComponent({
     const zoom = this.globalState.viewState.zoom
 
     // check coords before failing
-    console.log({ center, zoom })
     if (center.lng > 180 || center.lat > 90) {
       this.$emit('error', 'Invalid coordinates: long/lat out of range')
       return
@@ -461,22 +460,27 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = new MapboxOverlay({
-        interleaved: true,
-        layers: this.layers,
-        onClick: this.handleClick,
-        onHover: this.handleHover,
-        onDrag: this.handleHover,
-        pickingRadius: 2,
-        getCursor: (c: any) => {
-          return c.isHovering ? 'pointer' : 'grab'
-        },
-      })
+      // markRaw: deck.gl freezes each layer's props. If the overlay is reactive, reading
+      // layer.props.data during deck's layer-matching goes through Vue's proxy, which
+      // returns reactive(value) !== the frozen actual value -> TypeError. See trap #7.
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          interleaved: true,
+          layers: this.layers,
+          onClick: this.handleClick,
+          onHover: this.handleHover,
+          onDrag: this.handleHover,
+          pickingRadius: 2,
+          getCursor: (c: any) => {
+            return c.isHovering ? 'pointer' : 'grab'
+          },
+        })
+      )
       this.mymap?.addControl(this.deckOverlay)
     })
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
     this.mymap = null

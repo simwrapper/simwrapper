@@ -14,7 +14,7 @@
 // - delivery legs (path layer, each leg is its own path)
 // - shipment link (dashed line on stopActivity link itself)
 
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, markRaw, PropType } from 'vue'
 import maplibregl from 'maplibre-gl'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { ArcLayer, ScatterplotLayer, IconLayer, TextLayer } from '@deck.gl/layers'
@@ -450,32 +450,39 @@ export default defineComponent({
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
     const zoom = (this.globalState.viewState.zoom || 8) as number
+    // markRaw: maplibre freezes the `rgb` array on the Color objects it parses out of a
+    // style, and deck.gl freezes its layer props -- reading either back through a Vue
+    // proxy violates the proxy invariant and throws. See trap #7.
     //@ts-ignore
-    this.mymap = new maplibregl.Map({
-      center,
-      zoom,
-      container,
-      style,
-    })
+    this.mymap = markRaw(
+      new maplibregl.Map({
+        center,
+        zoom,
+        container,
+        style,
+      })
+    )
     this.mymap.on('style.load', () => {
       if (this.show3dBuildings && this.mymap) {
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = new MapboxOverlay({
-        layers: this.layers,
-        interleaved: true,
-        pickingRadius: 2,
-        onClick: this.handleClick,
-        getCursor: ({ isDragging, isHovering }) =>
-          isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab',
-      })
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          layers: this.layers,
+          interleaved: true,
+          pickingRadius: 2,
+          onClick: this.handleClick,
+          getCursor: ({ isDragging, isHovering }) =>
+            isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab',
+        })
+      )
       this.mymap?.addControl(this.deckOverlay)
     })
     this.mymap.on('move', this.handleMove)
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
   },

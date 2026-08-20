@@ -82,7 +82,7 @@ export default defineComponent({
     this.updateLayers()
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.showShapeDrawer = false
     this.layerManager.destroy()
   },
@@ -266,7 +266,7 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .draw-thing {
   position: absolute;

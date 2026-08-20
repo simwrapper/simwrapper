@@ -9,8 +9,9 @@
 
   .status-box(v-if="statusText")
           p {{ statusText }}
-          b-progress.load-progress(v-if="loadProgress > 0"
-            :value="loadProgress" :rounded="false" type='is-success')
+          //- Oruga has no progress component; native Bulma progress element instead.
+          progress.progress.load-progress.is-success(v-if="loadProgress > 0"
+            :value="loadProgress" max="100")
 
   .main-layout(
       @mousemove="dividerDragging"
@@ -30,9 +31,9 @@
 
         .bglayer-section.flex-col(v-if="Object.keys(bgLayers).length")
           h5 Layers
-          b-checkbox.simple-checkbox(v-if="!isAtlantis" v-model="show3dBuildings")
+          o-checkbox.simple-checkbox(v-if="!isAtlantis" v-model="show3dBuildings")
             | 3D buildings
-          b-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)" :key="layer"
+          o-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)" :key="layer"
             @input="updateBgLayers" v-model="bgLayers[layer].visible"
           ) {{  layer }}
 
@@ -87,12 +88,12 @@
         h4 Configure tooltips
         p(style="margin: 0.5rem auto 0 0.75rem;") Select feature columns to be displayed in default tooltips.
         .flex-row(style="margin: 0.25rem auto 0 0.75rem;gap: 0.25rem;")
-          b-button.is-small(type="is-link" outlined @click="setDesiredTooltipsNone") None
-          b-button.is-small(type="is-link" outlined @click="setDesiredTooltipsAll") &nbsp;All&nbsp;
+          o-button(size="small" variant="link" outlined @click="setDesiredTooltipsNone") None
+          o-button(size="small" variant="link" outlined @click="setDesiredTooltipsAll") &nbsp;All&nbsp;
         .tooltip-items.flex-col.flex1
-          b-checkbox.cbspace(v-for="item,i in tooltipDesiredColumns" :key="item.col" v-model="item.enabled")  {{ item.col}}
+          o-checkbox.cbspace(v-for="item,i in tooltipDesiredColumns" :key="item.col" v-model="item.enabled")  {{ item.col}}
         .close-row.flex-row(style="padding: 0.5rem; margin-left: auto;gap: 0.25rem;")
-          b-button.is-small(type="is-success" @click="showTooltipConfigurator=false") &nbsp;Close&nbsp;
+          o-button(size="small" variant="success" @click="showTooltipConfigurator=false") &nbsp;Close&nbsp;
 
       viz-configurator(v-if="isLoaded"
         :embedded="isEmbedded"
@@ -113,7 +114,7 @@
         :style="{backgroundColor: globalState.isDarkMode ? '#00000099': '#ffffffaa'}"
       )
           img.icon-blue-ramp(:src="icons.blueramp")
-          b-slider.pie-slider(type="is-success" :tooltip="true" size="is-small"  :min="0" :max="100" v-model="sliderOpacity")
+          o-slider.pie-slider(variant="primary" :tooltip="true" size="small" :min="0" :max="100" v-model="sliderOpacity")
 
       zoom-buttons(
         v-if="isLoaded && !vizDetails.mapIsIndependent"
@@ -128,22 +129,27 @@
       //- Filter pickers
       .filter(v-for="filter in Object.keys(filters)")
         p {{ filter }}
-        b-dropdown(
+        //- Oruga needs `selectable` and `keepOpen` spelled out: both were implicit in
+        //- Buefy, and without them clicking an item silently does nothing / closes the menu.
+        o-dropdown(
           v-model="filters[filter].active"
           :scrollable="filters[filter].active.length > 10"
-          max-height="250"
+          :maxHeight="250"
           multiple
+          selectable
+          keepOpen
           @change="handleUserSelectedNewFilters(filter)"
-          aria-role="list" :mobile-modal="false" :close-on-click="true"
+          :mobileModal="false"
         )
           template(#trigger="{ active }")
-            b-button.is-primary(
-              :type="filters[filter].active.length ? '' : 'is-outlined'"
+            o-button(
+              variant="primary"
+              :outlined="!filters[filter].active.length"
               :label="filterLabel(filter)"
             )
 
-          b-dropdown-item(v-for="option in filters[filter].options"
-            :key="option" :value="option" aria-role="listitem") {{ option }}
+          o-dropdown-item(v-for="option in filters[filter].options"
+            :key="option" :value="option") {{ option }}
 
       //- .map-type-buttons(v-if="isAreaMode")
       //-   img.img-button(@click="showCircles(false)" src="../../assets/btn-polygons.jpg" title="Shapes")
@@ -152,7 +158,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw } from 'vue'
 import type { PropType } from 'vue'
 
 import * as shapefile from 'shapefile'
@@ -174,9 +180,7 @@ import {
   DataTableColumn,
   DataType,
   FileSystemConfig,
-  VisualizationPlugin,
   DEFAULT_PROJECTION,
-  Status,
 } from '@/Globals'
 
 import { debounce, gUnzip } from '@/js/util'
@@ -191,7 +195,6 @@ import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
-import { arrayBufferToBase64 } from '@/js/util'
 import { CircleRadiusDefinition } from '@/components/viz-configurator/CircleRadius.vue'
 import { FillColorDefinition } from '@/components/viz-configurator/FillColors.vue'
 import { LineColorDefinition } from '@/components/viz-configurator/LineColors.vue'
@@ -1043,6 +1046,7 @@ const MyComponent = defineComponent({
       }
       this.vizDetails.backgroundLayers = layers
       try {
+        // NB: not markRaw'd on purpose -- see trap #7; raw-ness lives on the features
         this.backgroundLayers = new BackgroundLayers({
           vizDetails: this.vizDetails,
           fileApi: this.fileApi,
@@ -2404,7 +2408,9 @@ const MyComponent = defineComponent({
         await this.$nextTick()
         this.incrementLoadProgress()
 
-        this.boundaries = boundaries
+        // markRaw: this is handed straight to deck.gl and can hold 100k+ features.
+        // Deep reactivity buys nothing here and costs a proxy hop per coordinate read.
+        this.boundaries = markRaw(boundaries)
         this.incrementLoadProgress()
 
         // generate centroids if we have polygons
@@ -2980,6 +2986,25 @@ const MyComponent = defineComponent({
         this.config.display.fill.values = this.convertCommasToArray(this.config.display.fill.values)
       }
 
+      // Kick the background layers off NOW, and await them at the very end.
+      // They don't depend on the boundaries or the datasets, but their fetch+parse is
+      // slow (a geopackage goes through WASM SQLite), and starting them after the main
+      // load meant they queued behind it -- on a big network they took ~13s to appear,
+      // which reads as "background layers are broken". Started here they overlap with
+      // it instead, and each layer paints as soon as its own load resolves.
+      // NB: not markRaw'd on purpose -- see trap #7; raw-ness lives on the features.
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
+      // Capture rather than let it reject while unawaited; rethrown below so the
+      // failure still reaches the same catch it always did.
+      let backgroundLayerError = null as any
+      const backgroundLayersLoaded = this.backgroundLayers
+        .initialLoad()
+        .catch((e: any) => (backgroundLayerError = e))
+
       // load the boundaries first, then the dataset.
       // Need boundaries first so we can build the lookups!
       await this.loadBoundaries()
@@ -3003,12 +3028,8 @@ const MyComponent = defineComponent({
 
       this.honorQueryParameters()
 
-      this.backgroundLayers = new BackgroundLayers({
-        vizDetails: this.vizDetails,
-        fileApi: this.fileApi,
-        subfolder: this.subfolder,
-      })
-      await this.backgroundLayers.initialLoad()
+      await backgroundLayersLoaded
+      if (backgroundLayerError) throw backgroundLayerError
     } catch (e) {
       this.$emit('error', '' + e)
       this.$emit('isLoaded')
@@ -3016,7 +3037,7 @@ const MyComponent = defineComponent({
     this.statusText = ''
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.clearData()
     this.legendStore.clear()
     this.resizer?.disconnect()
@@ -3031,7 +3052,8 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
+
 .shapefile-viewer {
   position: absolute;
   top: 0;
@@ -3304,6 +3326,7 @@ export default MyComponent
   height: 3px;
   margin-top: 2px;
   margin-bottom: 0.5rem;
+  border-radius: 0; // Bulma rounds progress bars; Buefy's :rounded="false" did not
 }
 
 .width-sliders {

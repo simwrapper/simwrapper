@@ -230,7 +230,7 @@ const MyComponent = defineComponent({
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('resize', this.changeDimensions)
   },
 
@@ -1079,14 +1079,16 @@ const MyComponent = defineComponent({
     },
 
     renameColumns(dataTable: DataTable, rename: any, column: string) {
-      // Rename values in one column
+      // Rename values in one column. Write to a copy: the source array is shared
+      // with the DataManager cache and thus with every other chart on the page.
       if (rename && column in dataTable) {
-        const values = dataTable[column].values
+        const values = dataTable[column].values.slice() as any
         for (let i = 0; i < values.length; i++) {
           if (values[i] in rename) {
             values[i] = rename[values[i]]
           }
         }
+        dataTable[column] = { ...dataTable[column], values }
       }
     },
 
@@ -1110,14 +1112,20 @@ const MyComponent = defineComponent({
           }
         }
 
-        for (let i = 0; i < dataTable[target].values.length; i++) {
+        // Write to a copy: the source array is shared with the DataManager cache
+        // and thus with every other chart on the page.
+        const normalized = dataTable[target].values.slice() as any
+
+        for (let i = 0; i < normalized.length; i++) {
           let key = ''
           for (let j = 0; j < groupBy.length; j++) {
             key += dataTable[groupBy[j]].values[i]
           }
 
-          dataTable[target].values[i] /= sumMap[key]
+          normalized[i] /= sumMap[key]
         }
+
+        dataTable[target] = { ...dataTable[target], values: normalized }
       }
     },
 
@@ -1380,7 +1388,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '@/styles.scss';
+@use '@/variables' as *;
 
 .mycomponent {
   position: absolute;

@@ -18,7 +18,6 @@ import type {
   LayerDataSource,
   Accessor,
   AccessorFunction,
-  Position,
   Color,
   Unit,
   UpdateParameters,

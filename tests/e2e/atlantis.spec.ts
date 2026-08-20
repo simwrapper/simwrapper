@@ -22,9 +22,11 @@ test('atlantis transit network loads', async ({ page }) => {
   await page.goto('e2e-tests/atlantis/minibus/input/transitSchedule_15min.xml')
   await page.waitForSelector('canvas')
 
-  const transitLinksLength = await page.evaluate(() => {
-    const el = document.querySelector('#transit-viz') as any
-    return el && el.__vue__ ? el.__vue__.$data.transitLinks.features.length : 0
-  })
+  // Vue 3 has no `el.__vue__` back-door, so the plugin publishes window.__testdata__
+  await page.waitForFunction(() => (window as any).__testdata__?.transitLinks?.length)
+
+  const transitLinksLength = await page.evaluate(
+    () => (window as any).__testdata__.transitLinks.length
+  )
   expect(transitLinksLength).toBe(6)
 })
