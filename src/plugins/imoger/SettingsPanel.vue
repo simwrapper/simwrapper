@@ -2,11 +2,8 @@
 .settings-panel-content
   h4 {{ $t('showhide')}}
 
-  .row(:key="label" v-for="label in Object.keys(items)")
-    //- one-way :modelValue, not v-model: the parent owns `items` and flips it in
-    //- response to the click event. width/labels/color were vue-js-toggle-button
-    //- props with no Oruga equivalent, so they go.
-    o-switch.toggle(
+  .row.flex-row(:key="label" v-for="label in Object.keys(items)")
+    o-switch(
       :modelValue="items[label]"
       @update:modelValue="$emit('click',label)")
     label(v-html="$t(label)")
@@ -44,15 +41,10 @@ import { defineComponent } from 'vue'
 export default defineComponent({
   name: 'ImogerSettingsPanel',
   i18n,
-  // MUST be declared: without it Vue 3 also binds the parent's `@click` to this
-  // component's root element, so each toggle fires handleSettingChange twice -- once
-  // with the label, once with a PointerEvent (which then goes to $t() and produces
-  // "[intlify] Not found '[object PointerEvent]' key", plus a phantom extra toggle row).
-  // See trap #9.
-  emits: ['click'],
   props: {
     items: { type: Object, required: true },
   },
+  emits: ['click'],
 })
 </script>
 
@@ -68,13 +60,12 @@ h4 {
 }
 
 .row {
-  display: 'grid';
-  grid-template-columns: 'auto 1fr';
+  gap: 0.25rem;
+  margin-bottom: 3px;
 }
 
 label {
-  margin: auto 0 auto 0rem;
-  text-align: 'left';
+  margin: auto 0;
 }
 
 // :deep, because theme-bulma gives o-switch a rootClass of "switch control" -- a class

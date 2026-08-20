@@ -21,7 +21,8 @@ const BASE_URL = import.meta.env.BASE_URL
 
 const ICON_MAPPING = {
   circle: { x: 0, y: 0, width: 256, height: 256, mask: true },
-  vehicle: { x: 256, y: 0, width: 256, height: 256, mask: true },
+  delivery: { x: 256, y: 0, width: 256, height: 256, mask: true },
+  vehicle: { x: 512, y: 0, width: 256, height: 256, mask: true },
 }
 
 const ambientLight = new AmbientLight({
@@ -112,8 +113,8 @@ export default defineComponent({
 
     iconAtlas() {
       // left-side driving icons are just vertically flipped
-      const icon = this.leftside ? '-leftside' : ''
-      return `${BASE_URL}images/icon-atlas-vehicles${icon}.png`
+      // const icon = this.leftside ? '-leftside' : ''
+      return `${BASE_URL}images/icon-atlas-imoger.png`
     },
 
     layers(): any[] {
@@ -133,7 +134,7 @@ export default defineComponent({
             getTargetPosition: (d: any) => d.p1,
             getTimeStart: (d: any) => d.t0,
             getTimeEnd: (d: any) => d.t1,
-            getColor: (d: any) => this.colors[d.capKep],
+            getColor: (d: any) => this.colors[`${!!d.capKep}`],
             getWidth: 1, // (d: any) => 3.0 * (d.occ + 1) - 1,
             opacity: 0.7,
             widthMinPixels: 1,
@@ -161,17 +162,17 @@ export default defineComponent({
             getPathEnd: (d: any) => d.p1,
             getTimeStart: (d: any) => d.t0,
             getTimeEnd: (d: any) => d.t1,
-            getColorCode: (d: any) => d.occ,
+            // getColorCode: (d: any) => (d.kep ? 0 : d.occ),
+            getColor: (d: any) => d.c,
 
             // default vehicle icon is at x:256, y:0
-            getBIconFrames: [256, 0, 256, 256],
+            getBIconFrames: (d: any) => (d.kep ? [512, 0, 256, 256] : [256, 0, 256, 256]),
 
-            getSize: this.searchEnabled ? 36 : 16,
+            getSize: this.searchEnabled ? 36 : 22,
             highlightColor: [255, 0, 255, 255],
             iconAtlas: this.iconAtlas,
             iconMapping: ICON_MAPPING,
             latitudeCorrectionFactor: this.latitudeCorrectionFactor,
-            iconMoving: 'vehicle',
             iconStill: 'circle',
             noAlloc: true,
             opacity: 1.0,

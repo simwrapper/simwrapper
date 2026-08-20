@@ -4,7 +4,6 @@
 
 /* global document */
 import { Device, Texture, SamplerProps } from '@luma.gl/core'
-import { AsyncTexture } from '@luma.gl/engine'
 import { load } from '@loaders.gl/core'
 import { createIterable } from '@deck.gl/core'
 
