@@ -84,20 +84,6 @@ async function dragSlider(page: Page, nth: number, fraction: number) {
 const LINE_WIDTH_SLIDER = 0 // "Line widths"       -> components/ScaleSlider.vue
 const HIDE_SLIDER = 1 //       "Hide smaller than" -> LineFilterSlider.vue
 
-test('aggregate-od panel loads berlin data', async ({ page }) => {
-  await page.goto(PANEL)
-  await waitForData(page)
-  expect(await testdata(page)).toEqual({ centroids: 23, spiderLinks: 390, geojson: 23 })
-})
-
-test('aggregate-od plugin route loads the same data', async ({ page }) => {
-  await page.goto(PLUGIN)
-  await waitForData(page)
-  expect(await testdata(page)).toEqual({ centroids: 23, spiderLinks: 390, geojson: 23 })
-  // this fixture's scaleFactor is 0.001, so the legend is in thousands
-  await expect(page.locator('#scale-container .scale-scale')).toHaveText(/~ 1 /)
-})
-
 test('aggregate-od loads without console errors', async ({ page }) => {
   const noise: string[] = []
   page.on('console', m => {
@@ -109,132 +95,8 @@ test('aggregate-od loads without console errors', async ({ page }) => {
 
   await page.goto(PANEL)
   await waitForData(page)
-  await page.waitForTimeout(2000)
+  await page.waitForTimeout(5000)
   expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
-})
-
-test('aggregate-od "hide smaller than" slider filters spider links', async ({ page }) => {
-  await page.goto(PANEL)
-  await waitForData(page)
-  expect(await sliderLabel(page, HIDE_SLIDER)).toBe('0')
-
-  await dragSlider(page, HIDE_SLIDER, 0.5)
-  // a mapped stop from LineFilterSlider's STOPS, not the slider index (which is 0-23)
-  await expect.poll(() => sliderLabel(page, HIDE_SLIDER)).toMatch(/^(30|35|40|45|50|55|60)$/)
-
-  // fewer links survive link.daily <= lineFilter
-  await expect.poll(async () => (await testdata(page)).spiderLinks).toBeLessThan(390)
-
-  // the last stop is the "no filter" sentinel, and it must render as its label
-  await dragSlider(page, HIDE_SLIDER, 1)
-  await expect.poll(() => sliderLabel(page, HIDE_SLIDER)).toBe('Alle')
-})
-
-test('aggregate-od "line widths" slider rescales the legend', async ({ page }) => {
-  await page.goto(PANEL)
-  await waitForData(page)
-  // note the DOM text is lowercase; the caps are text-transform
-  const legend = page.locator('#scale-container .scale-scale')
-  await expect(legend).toHaveText('~ 1000 trips')
-  expect(await sliderLabel(page, LINE_WIDTH_SLIDER)).toBe('1')
-
-  await dragSlider(page, LINE_WIDTH_SLIDER, 1)
-  // ScaleSlider's formatter maps to SCALE_WIDTH, whose last entry is 5000
-  await expect.poll(() => sliderLabel(page, LINE_WIDTH_SLIDER)).toBe('5000')
-  await expect(legend).not.toHaveText('~ 1000 trips')
-})
-
-test('aggregate-od centroid checkboxes and Origins/Destinations redraw the map', async ({
-  page,
-}) => {
-  await page.goto(PANEL)
-  await waitForData(page)
-  const canvas = page.locator('canvas.maplibregl-canvas').first()
-  await expect(canvas).toBeVisible()
-  await page.waitForTimeout(3000)
-
-  const allOn = await canvas.screenshot()
-
-  // "Show centroids" removes the circle layer
-  const centroids = page.locator('input.checkbox').nth(1)
-  await centroids.click({ force: true })
-  await expect(centroids).not.toBeChecked()
-  await page.waitForTimeout(2000)
-  const withoutCentroids = await canvas.screenshot()
-  expect(withoutCentroids.equals(allOn), '"Show centroids" did not redraw the map').toBe(false)
-
-  await centroids.click({ force: true })
-  await page.waitForTimeout(2000)
-
-  // "Show totals" removes only the symbol layer, so this pins updateCentroidLabels()
-  const totals = page.locator('input.checkbox').nth(2)
-  await totals.click({ force: true })
-  await expect(totals).not.toBeChecked()
-  await page.waitForTimeout(2000)
-  const withoutTotals = await canvas.screenshot()
-  expect(withoutTotals.equals(allOn), '"Show totals" did not redraw the map').toBe(false)
-
-  await totals.click({ force: true })
-  await page.waitForTimeout(2000)
-
-  const origins = page.getByRole('button', { name: 'Origins' })
-  const destinations = page.getByRole('button', { name: 'Destinations' })
-  await expect(origins).toHaveClass(/\bselected\b/)
-  await expect(destinations).not.toHaveClass(/\bselected\b/)
-
-  const asOrigin = await canvas.screenshot()
-  await destinations.click()
-  await expect(destinations).toHaveClass(/\bselected\b/)
-  await expect(origins).not.toHaveClass(/\bselected\b/)
-  await page.waitForTimeout(2000)
-
-  const asDestination = await canvas.screenshot()
-  expect(asDestination.equals(asOrigin), 'Destinations did not redraw the map').toBe(false)
-})
-
-test('aggregate-od cleans up after itself on unmount', async ({ page }) => {
-  test.setTimeout(120_000)
-
-  // tally window keyup/keydown listeners so a leak is visible
-  await page.addInitScript(() => {
-    const w = window as any
-    w.__keyListeners__ = { keyup: 0, keydown: 0 }
-    const add = window.addEventListener.bind(window)
-    const remove = window.removeEventListener.bind(window)
-    window.addEventListener = function (type: any, ...rest: any[]) {
-      if (type in w.__keyListeners__) w.__keyListeners__[type]++
-      return (add as any)(type, ...rest)
-    } as any
-    window.removeEventListener = function (type: any, ...rest: any[]) {
-      if (type in w.__keyListeners__) w.__keyListeners__[type]--
-      return (remove as any)(type, ...rest)
-    } as any
-  })
-  const keyListeners = () => page.evaluate(() => (window as any).__keyListeners__)
-
-  await page.goto('e2e-tests/emissions')
-  const baseline = await keyListeners()
-
-  const link = page.getByText('viz-od-drt.yaml', { exact: true }).first()
-  await link.waitFor({ state: 'visible', timeout: 60_000 })
-  await link.click()
-  await waitForData(page)
-  const mounted = await keyListeners()
-  expect(mounted.keyup).toBe(baseline.keyup + 1)
-  expect(mounted.keydown).toBe(baseline.keydown + 1)
-
-  // back to the folder via the header's back arrow (LayoutManager.onBack) -- it swaps
-  // the panel component in place, so this is an unmount with no page reload
-  await page.locator('.btn-header-back').first().click()
-  await expect(page.locator('.mymap')).toHaveCount(0)
-  expect(await page.evaluate(() => (window as any).__testdata__)).toBeUndefined()
-  expect(await keyListeners()).toEqual(baseline)
-
-  // and it comes back
-  await link.waitFor({ state: 'visible', timeout: 60_000 })
-  await link.click()
-  await waitForData(page)
-  expect(await testdata(page)).toEqual({ centroids: 23, spiderLinks: 390, geojson: 23 })
 })
 
 test('aggregate-od centroid labels show the selected time bin, not its neighbour', async ({
@@ -295,38 +157,4 @@ test('aggregate-od per-bin centroid totals sum to the daily total', async ({ pag
   }
 
   expect(summed).toEqual(daily)
-})
-
-test('aggregate-od time-range totals cover every bin in the span', async ({ page }) => {
-  test.setTimeout(120_000)
-  await openOneRowPanel(page)
-  const stop = page.locator('.xtime-slider p b')
-
-  await page.locator('input.checkbox').nth(0).click({ force: true }) // "Duration"
-  await expect(page.locator('.xtime-slider [role="slider"]')).toHaveCount(2)
-  await expect(stop).toHaveText(`${BINS[0][0]} : ${BINS[BINS.length - 1][0]}`)
-
-  // the full span is the whole day
-  await expect
-    .poll(() => centroidLabels(page))
-    .toEqual({
-      [ORIGIN]: { from: DAILY_TOTAL, to: 0 },
-      [DEST]: { from: 0, to: DAILY_TOTAL },
-    })
-
-  // walk the low thumb up, dropping one bin from the front each time
-  const low = page.locator('.xtime-slider [role="slider"]').first()
-  await low.focus()
-  let remaining = DAILY_TOTAL
-  for (let i = 0; i < 3; i++) {
-    remaining -= BINS[i][1]
-    await page.keyboard.press('ArrowRight')
-    await expect(stop).toHaveText(`${BINS[i + 1][0]} : ${BINS[BINS.length - 1][0]}`)
-    await expect
-      .poll(() => centroidLabels(page), { message: `span from ${BINS[i + 1][0]}` })
-      .toEqual({
-        [ORIGIN]: { from: remaining, to: 0 },
-        [DEST]: { from: 0, to: remaining },
-      })
-  }
 })

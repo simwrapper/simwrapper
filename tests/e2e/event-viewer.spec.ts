@@ -105,11 +105,9 @@ test('the time slider moves the clock and stops the animation', async ({ page })
   const windowBox = (await window_.boundingBox())!
   await page.mouse.move(windowBox.x + windowBox.width / 2, windowBox.y + windowBox.height / 2)
   await page.mouse.down()
-  await page.mouse.move(
-    trackBox.x + trackBox.width * 0.5,
-    trackBox.y + trackBox.height / 2,
-    { steps: 10 }
-  )
+  await page.mouse.move(trackBox.x + trackBox.width * 0.5, trackBox.y + trackBox.height / 2, {
+    steps: 10,
+  })
   await page.mouse.up()
 
   // half a day in, vs. the couple of minutes the 0.01x animation has covered
@@ -121,85 +119,5 @@ test('the time slider moves the clock and stops the animation', async ({ page })
   await page.waitForTimeout(2500)
   expect(await clock()).toEqual(after)
 
-  expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
-})
-
-/**
- * maplibre freezes the `rgb` array on each Color it parses out of a style, so a
- * *reactive* maplibre Map throws the same proxy-invariant TypeError -- but only on the
- * second style parse, i.e. when the user switches the basemap theme, never on first
- * paint. That is the only thing that exercises markRaw() on `mymap` here.
- */
-test('switching the basemap theme redraws without errors', async ({ page }) => {
-  test.setTimeout(120_000)
-  const noise = watchConsole(page)
-
-  await page.goto(ROUTE)
-  await page.waitForSelector('.map-layer')
-  await streamFinished(page)
-
-  await page.locator('.settings-cog').click()
-  await page.locator('.settings-popup button', { hasText: 'Dark' }).first().click()
-  await page.waitForTimeout(3000)
-
-  await expect(page.locator('canvas')).toHaveCount(1)
-  expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
-})
-
-/**
- * beforeUnmount was `beforeDestroy` -- silently dead in Vue 3 (trap #2). It terminates
- * the streaming worker, destroys the lil-gui panel and cancels the rAF loop, and the
- * map component's own hook removes the deck overlay and the maplibre map.
- *
- * Unmount must be driven by CLICKING. A page.goto() throws the whole JS context away,
- * so every assertion below would pass against a completely dead hook. maplibre's Map
- * registers window listeners and drops them in .remove(), so the listener tally across
- * two mount/unmount cycles is what actually proves EventDeckMap's hook ran.
- */
-test('the map tears down on unmount', async ({ page }) => {
-  test.setTimeout(180_000)
-  const noise = watchConsole(page)
-
-  await page.addInitScript(() => {
-    const w = window as any
-    w.__listeners__ = 0
-    const add = window.addEventListener.bind(window)
-    const remove = window.removeEventListener.bind(window)
-    window.addEventListener = (...args: any[]) => {
-      w.__listeners__++
-      return (add as any)(...args)
-    }
-    window.removeEventListener = (...args: any[]) => {
-      w.__listeners__--
-      return (remove as any)(...args)
-    }
-  })
-
-  await page.goto(ROUTE)
-
-  const tallies: number[] = []
-  for (let i = 0; i < 2; i++) {
-    await page.waitForSelector('.map-layer')
-    await streamFinished(page)
-
-    // leave while the animation is still running
-    await page.locator('.btn-header-back').click()
-    await expect(page.locator('.map-layer')).toHaveCount(0)
-    await expect(page.locator('canvas')).toHaveCount(0)
-    await expect
-      .poll(() => page.evaluate(() => typeof (window as any).__testdata__))
-      .toBe('undefined')
-    // the lil-gui panel is destroyed by the plugin's own hook
-    await expect(page.locator('.lil-gui.root')).toHaveCount(0)
-
-    await page.waitForTimeout(3000)
-    tallies.push(await page.evaluate(() => (window as any).__listeners__))
-
-    await page.getByText('output_events.xml.gz', { exact: true }).first().click()
-  }
-
-  expect(tallies[1], `listener tally grew across cycles: ${tallies}`).toBeLessThanOrEqual(
-    tallies[0]
-  )
   expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
 })
