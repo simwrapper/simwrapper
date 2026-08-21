@@ -3,7 +3,7 @@ name: Run tests on fly.io
 on: # [ push, pull_request ]
   push:
     branches:
-      - staging
+      - staging-flyio
   repository_dispatch:
 
 env:
@@ -104,10 +104,44 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           VOLUME_ID: ${{ needs.provision-runner.outputs.volume-id }}
         run: |
-          [ -n "$VOLUME_ID" ] || exit 0
-          curl --fail --silent --show-error -X DELETE \
-            -H "Authorization: Bearer $FLY_API_TOKEN" \
-            "https://api.machines.dev/v1/apps/simwrapper-runners/volumes/$VOLUME_ID"
+          set -uo pipefail
+
+          if [ -z "$VOLUME_ID" ] || [ "$VOLUME_ID" = "null" ]; then
+            echo "No volume-id from provision-runner; nothing to destroy."
+            exit 0
+          fi
+
+          # The machine using this volume may still be shutting down, which makes
+          # the delete fail; retry until fly.io lets go of it.
+          max_attempts=12
+          delay=15
+
+          for attempt in $(seq 1 $max_attempts); do
+            body=$(curl --silent --show-error -w '\n%{http_code}' -X DELETE \
+              -H "Authorization: Bearer $FLY_API_TOKEN" \
+              "https://api.machines.dev/v1/apps/simwrapper-runners/volumes/$VOLUME_ID")
+            code=$(echo "$body" | tail -n1)
+            body=$(echo "$body" | sed '$d')
+
+            case "$code" in
+              2*)
+                echo "Volume $VOLUME_ID destroyed (attempt $attempt/$max_attempts)."
+                exit 0
+                ;;
+              404)
+                echo "Volume $VOLUME_ID already gone (attempt $attempt/$max_attempts)."
+                exit 0
+                ;;
+            esac
+
+            echo "Attempt $attempt/$max_attempts failed (HTTP $code): $body"
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              sleep $delay
+            fi
+          done
+
+          echo "::error::Could not destroy volume $VOLUME_ID after $max_attempts attempts; it may still be billing."
+          exit 1
 
   notify-staging:
     needs: e2e-tests
