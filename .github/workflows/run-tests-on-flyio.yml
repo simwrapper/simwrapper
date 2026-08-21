@@ -1,0 +1,122 @@
+name: Run tests on fly.io
+
+on: # [ push, pull_request ]
+  push:
+    branches:
+      - staging
+  repository_dispatch:
+
+env:
+  CPUS: 4
+  RAM: 16384
+
+jobs:
+  provision-runner:
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.gen.outputs.name }}
+      volume-id: ${{ steps.CreateFlyVolume.outputs.volume-id }}
+    steps:
+      - id: gen
+        run: echo "name=fly-runner-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+
+      - name: Get JIT config from GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT_FOR_FLYIO_CI_RUNNER }}
+        run: |
+          JIT=$(gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/actions/runners/generate-jitconfig \
+            -f name="${{ steps.gen.outputs.name }}" \
+            -F runner_group_id=1 \
+            -f "labels[]=self-hosted" -f "labels[]=fly" \
+            --jq .encoded_jit_config)
+          echo "::add-mask::$JIT"
+          echo "JIT_CONFIG=$JIT" >> "$GITHUB_ENV"
+
+      - name: CreateFlyVolume
+        id: CreateFlyVolume
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          resp=$(curl --fail --silent --show-error \
+            -X POST https://api.machines.dev/v1/apps/simwrapper-runners/volumes \
+            -H "Authorization: Bearer $FLY_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"name\": \"runner_vol_${{ github.run_id }}\",
+              \"region\": \"ams\",
+              \"vm-cpukind\": \"performance-${CPUS}x\",
+              \"size_gb\": 10
+            }")
+          vol_id=$(echo "$resp" | jq -r .id)
+          echo "volume-id=$vol_id" >> "$GITHUB_OUTPUT"
+
+      - name: LaunchFlyMachine
+        id: LaunchFlyMachine
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          resp=$(curl --fail --silent --show-error -w "\nHTTP %{http_code}\n" \
+            -X POST https://api.machines.dev/v1/apps/simwrapper-runners/machines \
+            -H "Authorization: Bearer $FLY_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"region\": \"ams\",
+              \"config\": {
+                \"image\": \"registry.fly.io/simwrapper-runners:latest\",
+                \"guest\": { \"cpu_kind\": \"performance\", \"cpus\": $CPUS, \"memory_mb\": $RAM },
+                \"env\": { \"JIT_CONFIG\": \"$JIT_CONFIG\", \"FLY_API_TOKEN\": \"$FLY_API_TOKEN\" },
+                \"mounts\": [
+                  {\"path\": \"/data\", \"volume\": \"runner_vol_${{github.run_id}}\"}
+                ],
+                \"restart\": { \"policy\": \"no\" }
+              }
+            }")
+
+  e2e-tests:
+    needs: provision-runner
+    runs-on: [self-hosted, fly]
+    timeout-minutes: 60 # safety net in case self-destruct fails
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          npx pnpm install --frozen-lockfile
+          npx playwright install chromium firefox webkit
+      - run: npx pnpm test -j 2 --reporter=list
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 14
+
+  destroy-volume:
+    needs: [provision-runner, e2e-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: DestroyFlyVolume
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          VOLUME_ID: ${{ needs.provision-runner.outputs.volume-id }}
+        run: |
+          [ -n "$VOLUME_ID" ] || exit 0
+          curl --fail --silent --show-error -X DELETE \
+            -H "Authorization: Bearer $FLY_API_TOKEN" \
+            "https://api.machines.dev/v1/apps/simwrapper-runners/volumes/$VOLUME_ID"
+
+  notify-staging:
+    needs: e2e-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: PING staging
+        if: github.event.action != 'pong'
+        run: |
+          curl -X POST https://api.github.com/repos/simwrapper/staging/dispatches \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -u ${{ secrets.BUILD_STAGING }} \
+          --data '{"event_type": "ping", "client_payload": { "repository": "'"$GITHUB_REPOSITORY"'" }}'
