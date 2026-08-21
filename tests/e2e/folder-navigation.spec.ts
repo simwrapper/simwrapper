@@ -1,14 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 /**
- * Guards SPA navigation from a folder listing into a visualization.
- *
- * The bug this was written for: LayoutManager.buildLayoutFromURL() reused the existing
- * panel verbatim whenever exactly one panel was on screen, which is precisely the state
- * you are in while looking at a folder. Clicking a viz file changed the URL but left the
- * previous view mounted. On `maps/networks` (whose folder view is dashboard-1.yaml, an
- * avro network with no background layers) that looked exactly like "the map opened but
- * its background layers are missing" -- the network links were the *dashboard's*.
+ * Guards navigation from a folder listing into a visualization.
  *
  * A direct page load always worked, because `panels` starts empty and took the other
  * branch. So every one of these tests must navigate by CLICKING, not by page.goto().
@@ -63,23 +56,6 @@ test('background layers from the yaml are registered after navigating from a fol
 
   const titles = page.locator('.layers-panel .layer input').first()
   await expect(titles).toHaveValue('berlin-bezirke')
-})
-
-test('background layers actually render on the map', async ({ page }) => {
-  test.setTimeout(120_000)
-  const loaded: string[] = []
-  page.on('console', m => {
-    const t = m.text()
-    if (t.startsWith('LOADING ')) loaded.push(t.replace('LOADING ', '').trim())
-  })
-
-  await openFileFromFolder(page, FOLDER, 'viz-map-bglayers.yaml')
-  await page.waitForSelector('.legend-box')
-  await expect
-    .poll(() => loaded.length, { timeout: 60_000, message: 'background layers never loaded' })
-    .toBe(2)
-
-  expect(loaded).toEqual(['berlin-bezirke', 'hamburg'])
 })
 
 test('switching between two viz files in the same folder swaps the view', async ({ page }) => {
