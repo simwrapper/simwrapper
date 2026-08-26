@@ -132,6 +132,15 @@ let fileSystems: FileSystemConfig[] = [
     hidden: false,
   },
 
+    {
+    name: 'VF-S3 SLA',
+    slug: 'vf-SLA',
+    description: 'S3 storage for Select Link Analysis data',
+    baseURL: 'http://192.168.178.92:8333/my-bucket',
+    isS3: true,
+    hidden: false,
+  },
+
   {
     name: 'Browse data',
     slug: 'view',

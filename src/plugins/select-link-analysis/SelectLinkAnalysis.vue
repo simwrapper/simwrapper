@@ -107,7 +107,7 @@ import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?ur
 import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
-import type { Sqlite3Static } from '@sqlite.org/sqlite-wasm';
+// import type { Sqlite3Static } from '@sqlite.org/sqlite-wasm';
 
 
 
@@ -202,6 +202,7 @@ const SelectLinkAnalysis = defineComponent({
             linkLayerId: Math.floor(1e12 * Math.random()),
             isAreaMode: false,
             db: null as duckdb.AsyncDuckDB | null,
+            dbUrl: '' as string,
             dbCsv: null as any,
             worker: null as Worker | null,
             logger: null as duckdb.ConsoleLogger | null,
@@ -294,7 +295,7 @@ const SelectLinkAnalysis = defineComponent({
             links: null as any,
             selectedLinkTraversals: new Object() as any,
             queriedAgents: new Map<number, any>() as any,
-            sqlite3: null as Sqlite3Static | null,
+            // sqlite3: null as Sqlite3Static | null,
 
             chosenFormat: 'Parquet' as string,
 
@@ -450,6 +451,14 @@ const SelectLinkAnalysis = defineComponent({
             await this.db.instantiate(this.bundle.mainModule, this.bundle.pthreadWorker);
             this.conn = await this.db.connect();
 
+            const dir = await this.fileApi.getDirectory(this.subfolder)
+            const handleTraversals = dir.handles[this.yamlConfig || '/link-traversals-sorted.parquet']
+            const handleLegSeq = dir.handles[this.yamlConfig || '/leg-sequences-sorted.parquet']
+            const handleAgents = dir.handles[this.yamlConfig || '/agents-sorted.parquet']
+
+            const fileTraversals = await handleTraversals.getFile()
+            const fileLegSeq = await handleLegSeq.getFile()
+            const fileAgents = await handleAgents.getFile()
 
             const traversalsUrl = this.fileApi.cleanURL(this.subfolder + '/link-traversals-sorted.parquet')
             const legSeqUrl = this.fileApi.cleanURL(this.subfolder + '/leg-sequences-sorted.parquet')
@@ -457,9 +466,14 @@ const SelectLinkAnalysis = defineComponent({
 
             console.log('Registering:', traversalsUrl, legSeqUrl, agentsUrl)
 
-            await this.db.registerFileURL('link-traversals-sorted.parquet', traversalsUrl, duckdb.DuckDBDataProtocol.HTTP, false)
-            await this.db.registerFileURL('leg-sequences-sorted.parquet', legSeqUrl, duckdb.DuckDBDataProtocol.HTTP, false)
-            await this.db.registerFileURL('agents-sorted.parquet', agentsUrl, duckdb.DuckDBDataProtocol.HTTP, false)
+            // await this.db.registerFileURL('link-traversals-sorted.parquet', traversalsUrl, duckdb.DuckDBDataProtocol.HTTP, false)
+            // await this.db.registerFileURL('leg-sequences-sorted.parquet', legSeqUrl, duckdb.DuckDBDataProtocol.HTTP, false)
+            // await this.db.registerFileURL('agents-sorted.parquet', agentsUrl, duckdb.DuckDBDataProtocol.HTTP, false)
+
+            await this.db.registerFileHandle('link-traversals-sorted.parquet', fileTraversals, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, false)
+            await this.db.registerFileHandle('leg-sequences-sorted.parquet', fileLegSeq, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, false)
+            await this.db.registerFileHandle('agents-sorted.parquet', fileAgents, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, false)
+
 
             // initial query to warm up the system; also gives us a count of total traversals for the selected hour, which is useful info to have right away
             // const initialResult = await this.conn.query(`
@@ -479,6 +493,7 @@ const SelectLinkAnalysis = defineComponent({
                 getOriginalTraversals: () => this.originalTraversals,
                 selectLink: async (linkId: any, hour: any) => await this.queryLinksForSelectedLink(linkId, hour)
             }
+
         },
 
         splitString(str: string, delimiter: string): string[] {
@@ -1182,6 +1197,7 @@ const SelectLinkAnalysis = defineComponent({
             this.config.zoom = initialView.zoom
         }
         await this.$nextTick() // update UI update before network load begins
+        // this.dbUrl = await this.setupDbUrl()
         await this.loadAndPrepareData()
 
         // if we have a USER-SUPPLIED center, move there now
