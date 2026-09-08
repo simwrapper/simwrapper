@@ -164,6 +164,11 @@ const plugins: any[] = [
     filePatterns: ['**/*plans.parquet'],
     component: defineAsyncComponent(() => import('./plans/PlansViewer.vue')),
   },
+  {
+    kebabName: 'pm-tiles',
+    filePatterns: ['**/*.pmtiles'],
+    component: defineAsyncComponent(() => import('./pmtiles/PMTiles.vue')),
+  },
 ]
 
 export const pluginComponents: { [key: string]: Component } = {}
