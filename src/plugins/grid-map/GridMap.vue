@@ -349,7 +349,7 @@ const GridMap = defineComponent({
         coverage: 0.65,
         dark: this.$store.state.isDarkMode,
         data: this.data,
-        currentTimeIndex: this.timeToIndex.get(this.currentTime[0]) || 0,
+        currentTimeIndex: this.timeToIndex.get(this.currentTime[1]) || 0,
         mapIsIndependent: this.vizDetails.mapIsIndependent || false,
         maxHeight: this.guiConfig.height,
         colorDataDigits: this.colorDataDigits,
@@ -714,9 +714,13 @@ const GridMap = defineComponent({
       const record = records[0]
 
       this.allTimes = record.timestamps
-      this.allTimes = this.allTimes.sort((n1, n2) => n1 - n2)
-      this.timeRange[0] = this.allTimes[0]
-      this.timeRange[1] = this.allTimes[this.allTimes.length - 1]
+      console.log('ALLTIMES', JSON.stringify(this.allTimes))
+
+      // set initial range
+      const timesSorted = this.allTimes.toSorted((a, b) => (a - b > 0 ? 1 : -1)) // a copy
+      console.log('SORTEDTIMES', JSON.stringify(timesSorted))
+      this.timeRange[0] = timesSorted[0]
+      this.timeRange[1] = timesSorted[timesSorted.length - 1]
 
       const tableName = Object.keys(record.data)[0]
       const dataValues: number[] = record.data[tableName]
@@ -778,24 +782,30 @@ const GridMap = defineComponent({
         })
       })
 
+      // Sometimes avro files don't have timestamps in low-to-high order (!!)
+      // So we need a lookup for the lookup, to get the times in a sane order.
+      const timemap = {} as any
+      timesSorted.forEach(t => {
+        const index = this.allTimes.indexOf(t)
+        timemap[t] = index
+      })
+
       // Loop through the data and create the data object for the map
       for (let timeIndex = 0; timeIndex < this.allTimes.length; timeIndex++) {
-        console.log('time', timeIndex)
+        const seconds = timesSorted[timeIndex]
+        const realIndex = timemap[seconds]
+        console.log('timeIndex', timeIndex, 'seconds', seconds, 'realIndex', realIndex)
         for (let i = 0; i < numPoints; i++) {
-          const offset = timeIndex * numPoints + i
+          const offset = realIndex * numPoints + i
           const value = scaleFactor * dataValues[offset]
-          // commented out to test csv function - will work on in next commit - Brendan 15.05.2025
-          // const colors = this.pickColor(value)
 
-          // add final values to the mapData
-          finalData.mapData[timeIndex].values[i] = value
-          for (let j = 0; j < 3; j++) {
-            // finalData.mapData[timeIndex].colorData[i * 3 + j] = colors[j]
-          }
+          finalData.mapData[realIndex].values[i] = value
         }
       }
 
+      this.allTimes.sort((a, b) => (a - b > 0 ? 1 : -1))
       this.myState.statusMessage = ''
+
       return finalData
     },
 
@@ -1297,15 +1307,20 @@ const GridMap = defineComponent({
       let to_min = 0
       let to_max = 100
 
-      if (this.guiConfig.flip) this.colors = this.colors.reverse()
+      if (this.guiConfig.flip) this.colors.reverse()
 
       // Recalculating the color values for the colorRamp
+      // i: each timeperiod (e.g.0-24)
       for (let i = 0; i < this.data.mapData.length; i++) {
+        // j: each element in each time period (e.g.0-82636)
         for (let j = 0; j < this.data.mapData[i].values.length; j++) {
           const value = this.data.mapData[i].values[j]
 
           const colors = this.pickColor(value, from_min, from_max, to_min, to_max)
-          if (colors == undefined) break
+          if (colors == undefined) {
+            console.log('bad color: ', i, j, value)
+            break
+          }
 
           if (this.guiConfig.opacityColumn == 'none') {
             for (let colorIndex = j * 3; colorIndex <= j * 3 + 2; colorIndex++) {
