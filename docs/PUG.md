@@ -1,13 +1,13 @@
 # Pug template quickstart
 
-Pug is an HTML Template language that makes HTML much easier to read and write, once you've gotten used to the syntax. Like Python, Pug uses **indentation** to define blocks and parent/child relationships, which is super important in HTML! This readme should get you started in understanding how SimWrapper uses Pug in all of its `.vue` template files.
+Pug is an HTML Template language that makes HTML much easier to read and write, once you've gotten used to the syntax. Like Python, Pug uses **indentation** to define blocks and parent/child relationships, which is super important in HTML! This readme should get you started in understanding how SimWrapper uses Pug in its `.vue` template files.
 
 ## Pug documentation
 
-- Official Pug site is here: https://pugjs.org/language/tags.html Good, complete reference. But, you have to click through many pages of reference material on the right-side side bar to get all the necessary pieces which is why I wrote this doc.
+- Official Pug site is here: https://pugjs.org/language/tags.html It's a complete reference, but you have to click through many pages of reference material on the right-side bar to get all the necessary pieces. That's why I wrote this doc.
 - https://www.geeksforgeeks.org/node-js/pug-view-engine-introduction/ also has some intro material.
 
-## HTML Tags and content: h1,h2,p,a, etc
+## HTML Tags and content: h1,h2,p,a,div etc
 
 HTML tags are just written with their names, without any of the `<usual>` `<HTML>` `<brackets>`.
 
@@ -40,28 +40,30 @@ p.
 
 Note that if you forget the period, Pug will think that the `p` has three child elements, elements called `All`, `be`, and `is`. Those are not valid HTML tags! Oops =)
 
-You can put Vue components directly in a template, they are not limited to standard HTML tags. So if I have defined a component "MyVizComponent" in my code, I can reference that in the template directly in two ways:
+You can put Vue components directly in a template: they are not limited to standard HTML tags. So if I have defined a component `MyVizComponent` in my code, I can reference that in the template directly in two ways:
 
 ```pug
 div
-  //- camel case works
+  //- camel case works:
   MyVizComponent
-  //- so does kebab-case!
+  //- so does kebab-case:
   my-viz-component
   //- and yes these are comment strings, ignored
 ```
 
 ## Tag properties: \<div class="my-footer" style="margin-top: 1rem">
 
-Any tag can have properties embedded using parenthesis, e.g. `img(src="/chipmunk.png" width=50)`
-
+Any tag can have properties embedded using parenthesis:
+- e.g: `<img src="/chipmunk.png" width=50 />` becomes `img(src="/chipmunk.png" width=50)`
 - The opening paren MUST be **directly touching** the end of the tag name. No spaces!
   - `div(...)` works,
   - `div (...)` does not!!!
 - You can write multi-line elements this way, just be sure to close the parentheses after all the properties
-- AFTER the close parenthesis, you can add text the same was as above, by continuing the line after a single space
-- E.g. the final div below contains an image and a link. For the `a` link, the text of the link is "Go Back Home" and clicking will go to `/`
-- Pay attention to that close-parenthesis! it divides the set of tag properties from any text content in the element.
+- AFTER the close parenthesis, you can add text the same as in the previous section, by continuing the line after a single space
+
+
+Example: the final div below contains an image and a link. For the `a` link, the text of the link is "Go Back Home" and clicking will go to `/`
+- Pay attention to that close-parenthesis! it divides the set of _tag properties_ from any _text content_ in the element.
 
 ```pug
 p(class="my-header" style="font-size: 2rem") This will be huge
@@ -84,8 +86,8 @@ Because divs are so common and they are often identified with "id" and "class" p
 
 - Any element can have an id by appending `#my-id` to the element.
 - If an element **starts** with a `#`, it becomes a div with that id.
-  - `h2#section1  ---> \<h2 id="section1">`
-  - `#my-item  ---> \<div id="my-item">`
+  - `h2#section1  ---> <h2 id="section1">`
+  - `#my-item  ---> <div id="my-item">`
 - Any element can have class names appended to it using a period `.`
 - If an element **starts** with a period, it becomes a div with that list of classes.
   - `button.btn-cancel.large ---> <button class="btn-cancel large">`
@@ -110,7 +112,7 @@ Vue inserts many things into its templates, whether they be HTML or Pug or whate
 
 ### Text replacements
 
-Any text/content area can have areas surrounded by `{{ double-braces }}`. What's inside of the braces will be interpreted and must be valid TypeScript, and will be inserted into the template.
+Any text/content area can have areas surrounded by `{{ doublebraces }}`. What's inside of the braces will be interpreted and must be valid TypeScript, and will be inserted into the template.
 
 - Pretty much any valid TypeScript expression can be embedded, even string replacements
 - No need for `this.` in the expression -- Vue adds that if needed.
@@ -122,7 +124,7 @@ p Total number of riders: {{ numRiders }}
 
 ### Sending variables and objects to components
 
-Vue has a special syntax for passing Javascript into component properties using the `:colon` syntax. When a property name is prefixed with a colon, the value of the Javascript expression will be passed instead of the raw text:
+Vue has a special syntax for passing Javascript into component properties using the `:colon` syntax. When a property name is prefixed with a colon, the **value** of the Javascript expression will be passed instead of the raw text:
 
 ```pug
 my-component.extra.pretty(
