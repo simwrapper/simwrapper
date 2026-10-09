@@ -2,7 +2,7 @@
 .table-container
   vue-good-table.plugin-panel(v-if="isReady"
       data-testid="vue-good-table"
-      :class="[globalState.isDarkMode ? 'darktable' : 'lighttable', hideHeader ? 'hide-header' : '', config.style, ...alignmentClasses]"
+      :class="[globalState.isDarkMode ? 'darktable' : 'lighttable', hideHeader ? 'hide-header' : '', config.style, highlightClass, ...alignmentClasses]"
       :columns="columns"
       :rows="rows"
       :fixed-header="false"
@@ -56,6 +56,9 @@ export default defineComponent({
       isFullsize: false,
       alignmentClasses: [] as string[],
       isReady: false,
+      // per-instance <style> element holding the cell highlight rules
+      highlightStyleElement: null as HTMLStyleElement | null,
+      highlightClass: '',
     }
   },
   async mounted() {
@@ -72,6 +75,8 @@ export default defineComponent({
       { ...this.config, subfolder: this.subfolder },
       this.handleFilterChanged
     )
+    this.highlightStyleElement?.remove()
+    this.highlightStyleElement = null
   },
 
   computed: {
@@ -346,14 +351,111 @@ export default defineComponent({
         this.paginationOptions.enabled = false
 
       if (numberOfValues < 5) this.paginationOptions.enabled = false
+
+      this.applyCellHighlights()
+    },
+
+    // Parse a cell address into 0-based { col, row }. Accepts spreadsheet
+    // notation ("A2", "AB10") or "col:1,row:2" (1-based, either order).
+    parseCellAddress(address: string): { col: number; row: number } | null {
+      const key = address.toString().trim()
+      const a1 = key.match(/^([A-Za-z]+)(\d+)$/)
+      if (a1) {
+        let col = 0
+        for (const ch of a1[1].toUpperCase()) col = col * 26 + (ch.charCodeAt(0) - 64)
+        const row = parseInt(a1[2])
+        return col > 0 && row > 0 ? { col: col - 1, row: row - 1 } : null
+      }
+      const col = key.match(/col\s*[:=]\s*(\d+)/i)
+      const row = key.match(/row\s*[:=]\s*(\d+)/i)
+      if (col && row) {
+        const c = parseInt(col[1])
+        const r = parseInt(row[1])
+        return c > 0 && r > 0 ? { col: c - 1, row: r - 1 } : null
+      }
+      return null
+    },
+
+    // Convert "color:red; border:1px solid" (or a {color: 'red'} object) into
+    // declarations marked !important, so they beat the dark/light/topsheet rules.
+    parseCellCss(css: any): string[] {
+      const entries: string[] =
+        typeof css === 'object' && css !== null
+          ? Object.entries(css).map(([k, v]) => `${k}:${v}`)
+          : css.toString().split(';')
+
+      return entries
+        .map(d => d.replace(/[{}<>]/g, '').trim())
+        .filter(d => d.includes(':'))
+        .map(d => (/!important$/i.test(d) ? d : `${d} !important`))
+    },
+
+    // YAML "highlights" section: map of cell address -> CSS, e.g.
+    //   highlights:
+    //     A1: "color:red; background:darkblue"
+    //     col:2,row:3: "font-weight:bold"
+    applyCellHighlights() {
+      const highlights = this.config.highlights
+      if (!highlights || typeof highlights !== 'object') return
+      // "col,row" -> CSS declarations
+      const cellCss = new Map<string, string[]>()
+      for (const [address, css] of Object.entries(highlights)) {
+        const cell = this.parseCellAddress(address)
+        if (!cell || css == null) {
+          this.$emit('error', {
+            type: Status.WARNING,
+            msg: `table: invalid highlight cell "${address}"`,
+            desc: 'Use spreadsheet notation like A2, or col:1,row:2',
+          })
+          continue
+        }
+        const key = `${cell.col},${cell.row}`
+        cellCss.set(key, [...(cellCss.get(key) || []), ...this.parseCellCss(css)])
+      }
+      const prefix = `vgt-hl-${this.id}`
+      const rules: string[] = []
+      const classesByColumn = new Map<number, Map<number, string>>()
+
+      for (const [key, declarations] of cellCss) {
+        if (!declarations.length) continue
+        const [col, row] = key.split(',').map(Number)
+        const className = `${prefix}-c${col}-r${row}`
+        rules.push(`.${prefix} .vgt-table td.${className} { ${declarations.join('; ')}; }`)
+        if (!classesByColumn.has(col)) classesByColumn.set(col, new Map())
+        classesByColumn.get(col)?.set(row, className)
+      }
+
+      // make sure cell borders don't bleed
+      if (rules.length) {
+        rules.unshift(
+          `.${prefix} table.vgt-table { border-collapse: separate; border-spacing: 0; }`
+        )
+        this.highlightClass = prefix
+      }
+
+      const visibleColumns = this.columns.filter(c => !c.hidden)
+      classesByColumn.forEach((rowClasses, col) => {
+        const column = visibleColumns[col]
+        if (!column) return
+        const baseClass = typeof column.tdClass === 'string' ? column.tdClass : ''
+        column.tdClass = (row: any) => {
+          const cellClass = rowClasses.get(row.originalIndex)
+          return cellClass ? `${baseClass} ${cellClass}`.trim() : baseClass
+        }
+      })
+
+      if (!this.highlightStyleElement) {
+        this.highlightStyleElement = document.createElement('style')
+        this.highlightStyleElement.setAttribute('data-table-highlights', prefix)
+        document.head.appendChild(this.highlightStyleElement)
+      }
+      this.highlightStyleElement.textContent = rules.join('\n')
     },
   },
 })
 </script>
 
 <style lang="scss">
-// Darkmode Settings
-
 .darktable table.vgt-table {
   border: none;
 }
