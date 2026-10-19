@@ -53,6 +53,7 @@ export default class PolygonsLayer extends BaseLayer {
   datasets: { [id: string]: DataTable }
   error: string
   layerOptions: PolygonsDefinition
+  thread: Worker | null = null
   deckData: {
     colors: Uint8ClampedArray | string | number[]
     outline: string | number[]
@@ -154,57 +155,71 @@ export default class PolygonsLayer extends BaseLayer {
     console.log('NEED TO SEND STATUS:', text)
   }
 
+  destroy() {
+    this.thread?.terminate()
+    this.thread = null
+  }
+
   async generateColors() {
-    const colorWorker = Comlink.wrap(new ColorWorker()) as any
+    // a fresh worker per call: it caches join lookups by column name only, so it must
+    // not outlive this one set of shapes. Terminate it when done, or it leaks a thread.
+    const thread = new ColorWorker()
+    this.thread = thread
+    const colorWorker = Comlink.wrap(thread) as any
 
-    let featureLookupValues
-    let dataLookupValues
+    try {
+      let featureLookupValues
+      let dataLookupValues
 
-    const [m1, m2] = this.layerOptions.metric.split(':') || []
-    const [n1, n2] = this.layerOptions.normalize?.split(':') || []
-    const [d1, d2] = this.layerOptions.diff?.split(':') || []
+      const [m1, m2] = this.layerOptions.metric.split(':') || []
+      const [n1, n2] = this.layerOptions.normalize?.split(':') || []
+      const [d1, d2] = this.layerOptions.diff?.split(':') || []
 
-    // Build joins if we need them
-    if (this.layerOptions?.join && this.layerOptions?.join.indexOf(':') > -1) {
-      const [join1, join2] = this.layerOptions.join.split(':')
-      // shapes
-      const shapeValues = this.datasets[this.layerOptions.shapes][join1].values
-      featureLookupValues = await colorWorker.buildFeatureLookup(join1, shapeValues)
+      // Build joins if we need them
+      if (this.layerOptions?.join && this.layerOptions?.join.indexOf(':') > -1) {
+        const [join1, join2] = this.layerOptions.join.split(':')
+        // shapes
+        const shapeValues = this.datasets[this.layerOptions.shapes][join1].values
+        featureLookupValues = await colorWorker.buildFeatureLookup(join1, shapeValues)
 
-      const datasetCol = this.datasets[m1][join2] // datasetname:joincolumn
+        const datasetCol = this.datasets[m1][join2] // datasetname:joincolumn
 
-      const dataLookupColumn = await colorWorker.buildDatasetLookup({
-        joinColumns: this.layerOptions.join,
-        dataColumn: datasetCol,
-      })
+        const dataLookupColumn = await colorWorker.buildDatasetLookup({
+          joinColumns: this.layerOptions.join,
+          dataColumn: datasetCol,
+        })
 
-      dataLookupValues = dataLookupColumn.values
+        dataLookupValues = dataLookupColumn.values
 
-      // add/replace this dataset in the datamanager, with the new lookup column
-      // this.datamanager.getDataset({dataset: })
-      // dataTable[`@@${dataJoinColumn}`] = lookupColumn
-      // this.myDataManager.setPreloadedDataset({
-      //   key: this.datasetKeyToFilename[datasetId],
-      //   dataTable,
-      // })
+        // add/replace this dataset in the datamanager, with the new lookup column
+        // this.datamanager.getDataset({dataset: })
+        // dataTable[`@@${dataJoinColumn}`] = lookupColumn
+        // this.myDataManager.setPreloadedDataset({
+        //   key: this.datasetKeyToFilename[datasetId],
+        //   dataTable,
+        // })
+      }
+
+      const dataColumn = this.datasets[m1][m2]
+      const normalColumn = n1 && n2 ? this.datasets[n1][n2] : null
+      const diffColumn = d1 && d2 ? this.datasets[d1][d2] : null
+
+      const colors: string | Uint8ClampedArray = await colorWorker.buildColorArray(
+        {
+          numFeatures: this.features.length,
+          dataColumn,
+          diffColumn,
+          normalColumn,
+          options: this.layerOptions,
+          datasetIds: Object.keys(this.datasets),
+        },
+        Comlink.proxy(this.updateStatus)
+      )
+      return colors
+    } finally {
+      thread.terminate()
+      if (this.thread === thread) this.thread = null
     }
-
-    const dataColumn = this.datasets[m1][m2]
-    const normalColumn = n1 && n2 ? this.datasets[n1][n2] : null
-    const diffColumn = d1 && d2 ? this.datasets[d1][d2] : null
-
-    const colors: string | Uint8ClampedArray = await colorWorker.buildColorArray(
-      {
-        numFeatures: this.features.length,
-        dataColumn,
-        diffColumn,
-        normalColumn,
-        options: this.layerOptions,
-        datasetIds: Object.keys(this.datasets),
-      },
-      Comlink.proxy(this.updateStatus)
-    )
-    return colors
   }
 
   deckLayer() {

@@ -183,9 +183,13 @@ const MyComponent = defineComponent({
       filenameShapes: '',
       filenameBase: '',
 
-      h5Main: null as any,
+      // Comlink remotes must never be stored directly in reactive state: they answer *any*
+      // property read with another truthy proxy, including Vue's __v_raw/__v_isReadonly
+      // flags, so the reactive setter's toRaw(oldValue) recurses forever as soon as one is
+      // overwritten or nulled (e.g. in beforeUnmount). markRaw on the remote itself doesn't
+      // help; the holder object must be raw so Vue never sees the remotes at all.
+      h5: markRaw({ main: null as any, compare: null as any }),
       h5MainWorker: null as null | Worker,
-      h5Compare: null as any,
       h5CompareWorker: null as null | Worker,
 
       matrices: {} as { [key: string]: Matrix },
@@ -224,9 +228,9 @@ const MyComponent = defineComponent({
   beforeUnmount() {
     this.isUnmounted = true
 
-    this.h5Main = null
+    this.h5.main = null
     this.h5MainWorker?.terminate()
-    this.h5Compare = null
+    this.h5.compare = null
     this.h5CompareWorker?.terminate()
 
     this.config = null
@@ -268,16 +272,16 @@ const MyComponent = defineComponent({
     try {
       await this.initH5Files()
       if (this.isUnmounted) return
-      if (!this.h5Main) return
+      if (!this.h5.main) return
 
       this.h5zoneLookup = await this.buildTAZLookup()
       if (this.isUnmounted) return
 
       let initialTable = this.$route.query.table || localStorage.getItem('matrix-initial-table')
-      if (!initialTable) initialTable = await this.h5Main.catalog[0]
+      if (!initialTable) initialTable = await this.h5.main.catalog[0]
 
       // if saved table is not in THIS matrix, revert to first table
-      const catalog = await this.h5Main.getCatalog()
+      const catalog = await this.h5.main.getCatalog()
       if (this.isUnmounted) return
       if (initialTable && !catalog?.includes(initialTable)) {
         initialTable = catalog[0]
@@ -332,12 +336,6 @@ const MyComponent = defineComponent({
     subfolder() {
       this.getVizDetails()
     },
-
-    async h5Main() {
-      if (!this.h5Main) return
-      this.catalog = await this.h5Main.getCatalog()
-      this.matrixSize = await this.h5Main.getSize()
-    },
   },
 
   methods: {
@@ -373,7 +371,7 @@ const MyComponent = defineComponent({
 
       // we are going to fabricate an HDF5 file with the current matrix content!
       // unreactive(): Comlink structuredClones this, and a Proxy anywhere in it throws
-      const buffer = await this.h5Main.buildH5Buffer(
+      const buffer = await this.h5.main.buildH5Buffer(
         unreactive({
           size,
           main: zmatrix.main,
@@ -413,16 +411,16 @@ const MyComponent = defineComponent({
 
       let which = this.activeTable + ' from main file'
       try {
-        const mainMatrix = await this.h5Main?.getDataArray(this.activeTable)
+        const mainMatrix = await this.h5.main?.getDataArray(this.activeTable)
         if (!mainMatrix) return
 
         const matrices = {
           main: mainMatrix,
         } as { [id: string]: Matrix }
 
-        if (this.h5Compare) {
+        if (this.h5.compare) {
           which = this.activeTable + ' from comparison file'
-          const baseMatrix = await this.h5Compare?.getDataArray(this.activeTable)
+          const baseMatrix = await this.h5.compare?.getDataArray(this.activeTable)
           if (baseMatrix) {
             matrices.base = baseMatrix
 
@@ -466,7 +464,7 @@ const MyComponent = defineComponent({
       if (this.config) this.filename = this.config.dataset
 
       this.h5MainWorker = markRaw(new H5ProviderWorker())
-      this.h5Main = markRaw(Comlink.wrap(this.h5MainWorker) as any)
+      this.h5.main = Comlink.wrap(this.h5MainWorker) as any
 
       const zkey = `auth-token-${this.fileSystem.slug}`
       const token = localStorage.getItem(zkey) || ''
@@ -476,7 +474,7 @@ const MyComponent = defineComponent({
         // $store.state.svnProjects -- i.e. a reactive Proxy, which throws DataCloneError.
         // unreactive() (not a spread) because FileSystemConfig.handle is a real
         // FileSystemAPIHandle that a naive deep copy would destroy.
-        await this.h5Main.open({
+        await this.h5.main.open({
           fileSystem: unreactive(this.fileSystem),
           subfolder: this.subfolder,
           filename: this.filename,
@@ -488,8 +486,8 @@ const MyComponent = defineComponent({
         return
       }
 
-      this.catalog = await this.h5Main.getCatalog()
-      this.matrixSize = await this.h5Main.getSize()
+      this.catalog = await this.h5.main.getCatalog()
+      this.matrixSize = await this.h5.main.getSize()
       this.statusText = ''
     },
 
@@ -655,14 +653,14 @@ const MyComponent = defineComponent({
 
       this.h5CompareWorker?.terminate()
       this.h5CompareWorker = markRaw(new H5ProviderWorker())
-      this.h5Compare = markRaw(Comlink.wrap(this.h5CompareWorker) as any)
+      this.h5.compare = Comlink.wrap(this.h5CompareWorker) as any
 
       const zkey = `auth-token-${this.fileSystem.slug}`
       const token = localStorage.getItem(zkey) || ''
 
       try {
         // de-proxy before Comlink structuredClones it -- see initH5Files()
-        await this.h5Compare.open({
+        await this.h5.compare.open({
           fileSystem: unreactive(this.fileSystem),
           subfolder: comparisonMatrix.subfolder,
           filename: comparisonMatrix.filename,
@@ -760,7 +758,7 @@ const MyComponent = defineComponent({
           this.showCompareOrReplaceDialog = false
           break
         case 1: // replace
-          this.h5Main = null
+          this.h5.main = null
           this.handleDroppedMatrix(this.showCompareOrReplaceDialog)
           break
         case 2: // compare
@@ -782,13 +780,13 @@ const MyComponent = defineComponent({
 
       this.h5CompareWorker?.terminate()
       this.h5CompareWorker = markRaw(new H5ProviderWorker())
-      this.h5Compare = markRaw(Comlink.wrap(this.h5CompareWorker) as any)
+      this.h5.compare = Comlink.wrap(this.h5CompareWorker) as any
 
       const zkey = `auth-token-${this.fileSystem.slug}`
       const token = localStorage.getItem(zkey) || ''
 
       try {
-        this.h5Compare.open({
+        this.h5.compare.open({
           file,
           subfolder: '',
           filename: file.name,
@@ -814,7 +812,7 @@ const MyComponent = defineComponent({
       this.isDragging = false
 
       // If a matrix is already open, then we ask user if this file is for replace or compare.
-      if (this.h5Main) {
+      if (this.h5.main) {
         this.showCompareOrReplaceDialog = file
         return
       } else {
@@ -829,10 +827,10 @@ const MyComponent = defineComponent({
 
       this.h5MainWorker?.terminate()
       this.h5MainWorker = markRaw(new H5ProviderWorker())
-      this.h5Main = markRaw(Comlink.wrap(this.h5MainWorker) as any)
+      this.h5.main = Comlink.wrap(this.h5MainWorker) as any
       // this opens file, sets up the dimensions and matrix catalog
       try {
-        await this.h5Main.open({
+        await this.h5.main.open({
           file,
           subfolder: '',
           filename: this.filename,
@@ -849,8 +847,8 @@ const MyComponent = defineComponent({
       this.$emit('title', this.filename)
       this.setCompareLabel(file.name)
 
-      this.catalog = await this.h5Main.getCatalog()
-      this.matrixSize = await this.h5Main.getSize()
+      this.catalog = await this.h5.main.getCatalog()
+      this.matrixSize = await this.h5.main.getSize()
       this.statusText = ''
 
       this.statusText = 'Building lookup table'
@@ -981,14 +979,14 @@ const MyComponent = defineComponent({
 
     async buildTAZLookup(): Promise<TAZLookup> {
       const lookup = {} as TAZLookup
-      if (!this.h5Main) return lookup
+      if (!this.h5.main) return lookup
 
-      const catalog = await this.h5Main.getCatalog()
-      const lookups = (await this.h5Main.getLookups()) as string[]
+      const catalog = await this.h5.main.getCatalog()
+      const lookups = (await this.h5.main.getLookups()) as string[]
 
       if (catalog?.indexOf('zone_number') > -1) {
         // If "zone_number" array exists, build lookup from that
-        const offset2zone = await this.h5Main.getDataArray('zone_number')
+        const offset2zone = await this.h5.main.getDataArray('zone_number')
         const zone2offset = {} as any
         offset2zone.data.forEach((zone: any, offset: number) => {
           zone2offset[zone] = offset
@@ -997,7 +995,7 @@ const MyComponent = defineComponent({
       } else if (lookups.length) {
         // If we have rowlookups, use that
         for (const lll of lookups) {
-          const offset2zone = await this.h5Main.getLookup(lll)
+          const offset2zone = await this.h5.main.getLookup(lll)
           const zone2offset = {} as any
           offset2zone.data.forEach((zone: any, i: number) => {
             zone2offset[zone] = i

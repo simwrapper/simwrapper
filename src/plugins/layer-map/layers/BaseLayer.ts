@@ -48,6 +48,10 @@ export default abstract class BaseLayer {
   //   return this.datamanager
   // }
 
+  // release anything the layer owns that outlives it, e.g. worker threads.
+  // LayerMap calls this when the layer is deleted or the map is unmounted.
+  public destroy() {}
+
   abstract deckLayer(): any
   abstract assembleData(): any
   abstract configPanel(): any
