@@ -14,6 +14,31 @@ The SimWrapper code repository is open source and you can find the full commit h
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.8.0](https://github.com/simwrapper/simwrapper/compare/v4.7.1...v4.8.0) (2026-10-19)
+
+
+### Features
+
+* **dashboard:** Dashboard header "notebook: true" gives a clean notebook-style layout ([a30dec4](https://github.com/simwrapper/simwrapper/commit/a30dec48879fd65956cd34d8ed87c8f6d18ca4f9))
+* Migrate platform core from Vue 2.7 to Vue 3 ([f670653](https://github.com/simwrapper/simwrapper/commit/f67065362855fb75b31e19a0aa663812016fb6ba))
+* Migrate to pnpm for resilience vs. supply-chain attacks ([bdb9de7](https://github.com/simwrapper/simwrapper/commit/bdb9de711744a2b5d57ca70ddbad85c606fe7df7))
+* Migrate to pnpm for resilience vs. supply-chain attacks ([aa8a379](https://github.com/simwrapper/simwrapper/commit/aa8a3797578ca129536a967a6ae047d2ba7533e9))
+* **select-link:** New select-link visualization ([9aeba14](https://github.com/simwrapper/simwrapper/commit/9aeba141525e170ae09ea6ec423b41127a566d50))
+* **table:** CSV tables can now highlight specific cells ([23af897](https://github.com/simwrapper/simwrapper/commit/23af89757e5de4cf96a477104e097ab7c07c5597)), closes [#302](https://github.com/simwrapper/simwrapper/issues/302)
+* Vue 3 migration ([266662a](https://github.com/simwrapper/simwrapper/commit/266662a1dbcf0bb7fba4a62ea01d581f42505ea5))
+
+
+### Bug Fixes
+
+* **aggregate-od:** off-by-one error in time period slider for centroids ([deddfc3](https://github.com/simwrapper/simwrapper/commit/deddfc3aed8482e3ffafb01506033756ba40aaca)), closes [#530](https://github.com/simwrapper/simwrapper/issues/530)
+* **gridmap:** Fix loading of Avro files that contain out-of-order timestamps ([468d4db](https://github.com/simwrapper/simwrapper/commit/468d4db6b4379e1aee83be0ee15341cc86d3290a)), closes [#534](https://github.com/simwrapper/simwrapper/issues/534)
+* **i18n:** show correct tab titles in en/de dashboards ([57f852c](https://github.com/simwrapper/simwrapper/commit/57f852c7b90b1d6bbaf77f520d1dd41d7b000648)), closes [#531](https://github.com/simwrapper/simwrapper/issues/531)
+* **imoger:** ignore vehicles without capacity keys ([4e9fabb](https://github.com/simwrapper/simwrapper/commit/4e9fabb3e922cf740a03434ad459fab9b522173c))
+* **matrix:** navigation away from matrix and layer maps can hang ([a352c72](https://github.com/simwrapper/simwrapper/commit/a352c726607ed77e5bb439f11349820850592952))
+* **plotly:** move screenshot button to farthest possible upper-right ([8fc04ab](https://github.com/simwrapper/simwrapper/commit/8fc04abd7a631f687baf540c1056fccff994015a))
+* **plotly:** plotly rename() and normalize() will no longer modify original data ([651aed1](https://github.com/simwrapper/simwrapper/commit/651aed1e105691b8edb779785946c5f87b5d83c6))
+* **table:** allow full-row and full-column formatting ([de08f25](https://github.com/simwrapper/simwrapper/commit/de08f25e191e65434dfd3cec6bf2c0d94d78c2f6))
+
 ### [4.7.1](https://github.com/simwrapper/simwrapper/compare/v4.7.0...v4.7.1) (2026-06-26)
 
 
