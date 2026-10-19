@@ -315,9 +315,13 @@ export default defineComponent({
         this.mapLayers = [...props.layers]
       }
 
+      if (props?.command == 'delete' && props.index !== undefined) {
+        this.mapLayers[props.index]?.destroy()
+      }
+
+      // always reassign: a null update means "a layer changed its config, redraw"
       this.mapLayers = this.mapLayers.filter((l: any, i: number) => {
-        if (!props) return true
-        if ((props.command = 'delete')) return i !== props.index
+        if (props?.command == 'delete') return i !== props.index
         return true
       })
     },
@@ -838,6 +842,9 @@ export default defineComponent({
       REACT_VIEW_HANDLES[1000 + this.viewId]([])
       delete REACT_VIEW_HANDLES[1000 + this.viewId]
     }
+
+    // layers own worker threads; nothing else terminates them
+    this.mapLayers.forEach((l: any) => l.destroy())
 
     this.clearData()
     this.legendStore.clear()

@@ -54,6 +54,7 @@ export default class LinesLayer extends BaseLayer {
   error: string
   layerOptions: LinesDefinition
   worker: any
+  thread: Worker | null = null
   deckData: {
     colors: Uint8ClampedArray | string | number[]
     widths: Float32Array | string
@@ -185,8 +186,22 @@ export default class LinesLayer extends BaseLayer {
     console.log('NEED TO SEND STATUS:', text)
   }
 
+  // one worker per layer, reused across recolors; destroy() shuts it down.
+  // Keep the raw Worker: the Comlink remote can't terminate it.
+  startWorker() {
+    if (this.worker) return
+    this.thread = new ColorWorker()
+    this.worker = Comlink.wrap(this.thread) as any
+  }
+
+  destroy() {
+    this.thread?.terminate()
+    this.thread = null
+    this.worker = null
+  }
+
   async buildLookup(m1key: string) {
-    if (!this.worker) this.worker = Comlink.wrap(new ColorWorker()) as any
+    this.startWorker()
 
     let featureLookupValues
 
@@ -217,7 +232,7 @@ export default class LinesLayer extends BaseLayer {
   }
 
   async generateColors() {
-    if (!this.worker) this.worker = Comlink.wrap(new ColorWorker()) as any
+    this.startWorker()
 
     let featureLookupValues
     let dataLookupValues
