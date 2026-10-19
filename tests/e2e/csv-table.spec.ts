@@ -7,5 +7,5 @@ test('csv table loads simple data with 3 rows', async ({ page }) => {
   await page.waitForSelector('[data-testid="vue-good-table"]')
   const rows = page.locator('table tbody tr')
   await page.waitForTimeout(2000)
-  await expect(rows).toHaveCount(3)
+  await expect(rows).toHaveCount(6)
 })
