@@ -283,7 +283,7 @@ export default defineComponent({
     },
 
     async $route(to: Route, from: Route) {
-      if (to.path === BASE_URL) {
+      if (to.path === '/') {
         // root node is not a normal splitpane, so we instead replace
         // with a brand new clean startpage.
         this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
@@ -822,7 +822,7 @@ export default defineComponent({
       // multipanel has a base64 murky URL:
       if (this.panels.length > 1 || this.panels[0].length > 1) {
         const base64 = btoa(JSON.stringify(this.panels))
-        this.$router.push(`${BASE_URL}split/${base64}`)
+        this.$router.push(`/split/${base64}`)
         return
       }
 
@@ -830,7 +830,7 @@ export default defineComponent({
 
       // simrunner is its own thing
       if (props.serverNickname) {
-        this.$router.replace(`${BASE_URL}runs/${props.serverNickname}`)
+        this.$router.replace(`/runs/${props.serverNickname}`)
         return
       }
 
@@ -850,13 +850,13 @@ export default defineComponent({
       if (yaml.indexOf('/') > -1) {
         // a YAML from a config folder will have a path in it:
         const yamlFileWithoutPath = yaml.substring(yaml.lastIndexOf('/') + 1)
-        this.$router.replace(`${BASE_URL}${joinPath(root, xsubfolder, yamlFileWithoutPath)}`)
+        this.$router.replace(`/${joinPath(root, xsubfolder, yamlFileWithoutPath)}`)
       } else if (yaml) {
         // YAML config specified
-        this.$router.push(`${BASE_URL}${joinPath(root, xsubfolder, yaml)}`)
+        this.$router.push(`/${joinPath(root, xsubfolder, yaml)}`)
       } else {
         // Just the folder and viz file itself
-        let finalUrl = `${BASE_URL}${joinPath(root, xsubfolder)}`
+        let finalUrl = `/${joinPath(root, xsubfolder)}`
         if (props.config) finalUrl += `/${props.config}`
         // back to Folder View if we're going back from a single viz
         if (options?.showFiles) finalUrl += `?tab=files`
@@ -1007,9 +1007,11 @@ export default defineComponent({
             return `${encodeURIComponent(k)}=${encodeURIComponent(v as any)}`
           })
           .join('&')
-        let newUrl = `${BASE_URL}${currentPath}/`
+        let newUrl = `/${currentPath}/`
         if (query) newUrl += '?' + query
-        history.replaceState({}, '', newUrl)
+        // keep vue-router's history.state (position, back/forward, scroll) intact;
+        // its `current` is the URL relative to BASE_URL
+        history.replaceState({ ...history.state, current: newUrl }, '', BASE_URL + newUrl.slice(1))
       }
     }
 

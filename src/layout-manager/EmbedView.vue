@@ -201,13 +201,13 @@ export default defineComponent({
       if (yaml.indexOf('/') > -1) {
         // a YAML from a config folder will have a path in it:
         const yamlFileWithoutPath = yaml.substring(yaml.lastIndexOf('/'))
-        this.$router.replace(`${BASE_URL}${root}/${xsubfolder}/${yamlFileWithoutPath}`)
+        this.$router.replace(`/${root}/${xsubfolder}/${yamlFileWithoutPath}`)
       } else if (yaml) {
         // YAML config specified
-        this.$router.push(`${BASE_URL}${root}/${xsubfolder}/${yaml}`)
+        this.$router.push(`/${root}/${xsubfolder}/${yaml}`)
       } else {
         // Just the folder and viz file itself
-        let finalUrl = `${BASE_URL}${root}/${xsubfolder}`
+        let finalUrl = `/${root}/${xsubfolder}`
         if (props.config) finalUrl += `/${props.config}`
         // back to Folder View if we're going back from a single viz
         if (options?.showFiles) finalUrl += `?tab=files`
@@ -306,9 +306,11 @@ export default defineComponent({
             return `${encodeURIComponent(k)}=${encodeURIComponent(v as any)}`
           })
           .join('&')
-        let newUrl = `${BASE_URL}${currentPath}/`
+        let newUrl = `/${currentPath}/`
         if (query) newUrl += '?' + query
-        history.replaceState({}, '', newUrl)
+        // keep vue-router's history.state (position, back/forward, scroll) intact;
+        // its `current` is the URL relative to BASE_URL
+        history.replaceState({ ...history.state, current: newUrl }, '', BASE_URL + newUrl.slice(1))
       }
     }
 

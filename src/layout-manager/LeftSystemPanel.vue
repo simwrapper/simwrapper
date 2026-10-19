@@ -467,7 +467,7 @@ export default defineComponent({
         const FileSystemDirectoryHandle = window.showDirectoryPicker()
         const dir = await FileSystemDirectoryHandle
         const slug = addLocalFilesystem(dir, null) // no key yet
-        this.$router.push(`${BASE_URL}${slug}/`)
+        this.$router.push(`/${slug}/`)
       } catch (e) {
         // shrug
       }
