@@ -355,25 +355,37 @@ export default defineComponent({
       this.applyCellHighlights()
     },
 
-    // Parse a cell address into 0-based { col, row }. Accepts spreadsheet
-    // notation ("A2", "AB10") or "col:1,row:2" (1-based, either order).
-    parseCellAddress(address: string): { col: number; row: number } | null {
+    // Parse a highlight address into 0-based { col, row }, where null means the
+    // whole column/row. Accepts spreadsheet notation for a cell ("A2", "AB10"),
+    // a column ("B" or "B:B") or a row ("3" or "3:3"), and 1-based offsets
+    // "col:1,row:2" (either order), "col:3" or "row:2".
+    parseCellAddress(address: string): { col: number | null; row: number | null } | null {
       const key = address.toString().trim()
-      const a1 = key.match(/^([A-Za-z]+)(\d+)$/)
-      if (a1) {
-        let col = 0
-        for (const ch of a1[1].toUpperCase()) col = col * 26 + (ch.charCodeAt(0) - 64)
-        const row = parseInt(a1[2])
-        return col > 0 && row > 0 ? { col: col - 1, row: row - 1 } : null
+      const fromLetters = (letters: string) =>
+        [...letters.toUpperCase()].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0)
+
+      let col: number | null = null
+      let row: number | null = null
+      let m: RegExpMatchArray | null
+
+      if ((m = key.match(/^([A-Za-z]+)(\d+)$/))) {
+        col = fromLetters(m[1])
+        row = parseInt(m[2])
+      } else if ((m = key.match(/^([A-Za-z]+)(?::\1)?$/i))) {
+        col = fromLetters(m[1])
+      } else if ((m = key.match(/^(\d+)(?::\1)?$/))) {
+        row = parseInt(m[1])
+      } else {
+        const c = key.match(/col\s*[:=]\s*(\d+)/i)
+        const r = key.match(/row\s*[:=]\s*(\d+)/i)
+        if (!c && !r) return null
+        if (c) col = parseInt(c[1])
+        if (r) row = parseInt(r[1])
       }
-      const col = key.match(/col\s*[:=]\s*(\d+)/i)
-      const row = key.match(/row\s*[:=]\s*(\d+)/i)
-      if (col && row) {
-        const c = parseInt(col[1])
-        const r = parseInt(row[1])
-        return c > 0 && r > 0 ? { col: c - 1, row: r - 1 } : null
-      }
-      return null
+
+      // addresses are 1-based
+      if (col === 0 || row === 0) return null
+      return { col: col === null ? null : col - 1, row: row === null ? null : row - 1 }
     },
 
     // Convert "color:red; border:1px solid" (or a {color: 'red'} object) into
@@ -390,14 +402,17 @@ export default defineComponent({
         .map(d => (/!important$/i.test(d) ? d : `${d} !important`))
     },
 
-    // YAML "highlights" section: map of cell address -> CSS, e.g.
+    // YAML "highlights" section: map of cell, column, or row address -> CSS, e.g.
     //   highlights:
     //     A1: "color:red; background:darkblue"
     //     col:2,row:3: "font-weight:bold"
+    //     B: "color:red"                  # whole column
+    //     'row:4': "background:yellow"    # whole row
+    // A single cell beats its row, which beats its column.
     applyCellHighlights() {
       const highlights = this.config.highlights
       if (!highlights || typeof highlights !== 'object') return
-      // "col,row" -> CSS declarations
+      // "col,row" -> CSS declarations; "*" for a whole column/row
       const cellCss = new Map<string, string[]>()
       for (const [address, css] of Object.entries(highlights)) {
         const cell = this.parseCellAddress(address)
@@ -405,24 +420,40 @@ export default defineComponent({
           this.$emit('error', {
             type: Status.WARNING,
             msg: `table: invalid highlight cell "${address}"`,
-            desc: 'Use spreadsheet notation like A2, or col:1,row:2',
+            desc: 'Use spreadsheet notation like A2, B (column) or 3 (row), or col:1,row:2, col:1, row:2',
           })
           continue
         }
-        const key = `${cell.col},${cell.row}`
+        const key = `${cell.col ?? '*'},${cell.row ?? '*'}`
         cellCss.set(key, [...(cellCss.get(key) || []), ...this.parseCellCss(css)])
       }
       const prefix = `vgt-hl-${this.id}`
       const rules: string[] = []
-      const classesByColumn = new Map<number, Map<number, string>>()
+      const columnClasses = new Map<number, string>()
+      const rowClasses = new Map<number, string>()
+      const cellClassesByColumn = new Map<number, Map<number, string>>()
 
-      for (const [key, declarations] of cellCss) {
+      // The rules all have the same specificity, so source order decides:
+      // emit columns, then rows, then single cells.
+      const rank = (key: string) => (key.endsWith('*') ? 0 : key.startsWith('*') ? 1 : 2)
+      const ordered = [...cellCss].sort(([a], [b]) => rank(a) - rank(b))
+
+      for (const [key, declarations] of ordered) {
         if (!declarations.length) continue
-        const [col, row] = key.split(',').map(Number)
-        const className = `${prefix}-c${col}-r${row}`
+        const [col, row] = key.split(',')
+        let className: string
+        if (row === '*') {
+          className = `${prefix}-c${col}`
+          columnClasses.set(Number(col), className)
+        } else if (col === '*') {
+          className = `${prefix}-r${row}`
+          rowClasses.set(Number(row), className)
+        } else {
+          className = `${prefix}-c${col}-r${row}`
+          if (!cellClassesByColumn.has(Number(col))) cellClassesByColumn.set(Number(col), new Map())
+          cellClassesByColumn.get(Number(col))?.set(Number(row), className)
+        }
         rules.push(`.${prefix} .vgt-table td.${className} { ${declarations.join('; ')}; }`)
-        if (!classesByColumn.has(col)) classesByColumn.set(col, new Map())
-        classesByColumn.get(col)?.set(row, className)
       }
 
       // make sure cell borders don't bleed
@@ -434,14 +465,20 @@ export default defineComponent({
       }
 
       const visibleColumns = this.columns.filter(c => !c.hidden)
-      classesByColumn.forEach((rowClasses, col) => {
-        const column = visibleColumns[col]
-        if (!column) return
+      visibleColumns.forEach((column, col) => {
+        const columnClass = columnClasses.get(col)
+        const cellClasses = cellClassesByColumn.get(col)
+        if (!columnClass && !cellClasses && !rowClasses.size) return
         const baseClass = typeof column.tdClass === 'string' ? column.tdClass : ''
-        column.tdClass = (row: any) => {
-          const cellClass = rowClasses.get(row.originalIndex)
-          return cellClass ? `${baseClass} ${cellClass}`.trim() : baseClass
-        }
+        column.tdClass = (row: any) =>
+          [
+            baseClass,
+            columnClass,
+            rowClasses.get(row.originalIndex),
+            cellClasses?.get(row.originalIndex),
+          ]
+            .filter(Boolean)
+            .join(' ')
       })
 
       if (!this.highlightStyleElement) {
