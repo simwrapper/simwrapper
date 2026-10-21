@@ -60,6 +60,7 @@
     "@simwrapper/gmns": "^0.1.4",
     "@simwrapper/papaparse": "^5.3.2-2",
     "@simwrapper/shp-write": "^0.3.3",
+    "@sqlite.org/sqlite-wasm": "^3.53.4-build2",
     "@turf/turf": "^5.1.6",
     "blob-util": "^2.0.2",
     "buefy": "^0.9.29",

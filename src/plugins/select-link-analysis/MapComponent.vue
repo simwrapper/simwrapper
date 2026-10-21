@@ -192,10 +192,20 @@ export default defineComponent({
       pixelRatio: window.devicePixelRatio,
 
     })
+
+    const testWindow = window as any
+    testWindow.__maps ??= {}
+    testWindow.__maps[this.viewId] = this.mymap
+
+    testWindow.__mapReadyByViewId ??= {}
+    testWindow.__mapReadyByViewId[this.viewId] = false
+
+
     // console.log('map container dimensions:',
     //   document.getElementById(container)?.offsetWidth,
     //   document.getElementById(container)?.offsetHeight
     // )
+
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
       if (this.show3dBuildings && this.mymap) {
@@ -209,11 +219,26 @@ export default defineComponent({
         onHover: this.handleHover,
         onClick: this.handleClick,
       })
+
       this.mymap?.addControl(this.deckOverlay)
-      // console.log('overlay added, layers count:', this.layers.length)
 
       this.$nextTick(() => {
         this.deckOverlay?.setProps({ layers: this.layers })
+
+        const map = this.mymap
+        if (!map) return
+
+        const markReady = () => {
+          const testWindow = window as any
+          testWindow.__mapReadyByViewId[this.viewId] = true
+        }
+
+        // Listen for the next idle event, unless the map is already settled.
+        if (map.loaded() && map.areTilesLoaded() && !map.isMoving()) {
+          markReady()
+        } else {
+          map.once('idle', markReady)
+        }
       })
 
     })

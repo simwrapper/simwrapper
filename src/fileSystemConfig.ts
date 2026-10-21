@@ -104,10 +104,30 @@ let fileSystems: FileSystemConfig[] = [
     name: 'e2e-tests',
     slug: 'e2e-tests',
     description: 'Playwright test data',
-    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper-testdata',
-    // baseURL: 'http://localhost:8000',
+    // baseURL:
+    // process.env.BENCH_BASE_URL ??
+    // 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper-testdata',
+    baseURL:
+      'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/projects/select-link-analysis-test',
     hidden: true,
   },
+  {
+    name: 'e2e-tests-local',
+    slug: 'e2e-tests-local',
+    description: 'Playwright test data (local simwrapper serve)',
+    baseURL: 'http://localhost:8000',
+    hidden: true,
+  },
+
+  {
+    name: 'e2e-tests-s3',
+    slug: 'e2e-tests-s3',
+    description: 'Playwright test data (remote RustFS S3)',
+    baseURL: 'http://f5-vsp-r-126.vsp.tu-berlin.de:9001/brendan',
+    hidden: true,
+    isS3: true,
+  },
+
   {
     name: webLiveHostname + ' live folders',
     slug: 'live',
@@ -132,14 +152,23 @@ let fileSystems: FileSystemConfig[] = [
     hidden: false,
   },
 
-    {
+  {
     name: 'VF-S3 SLA',
-    slug: 'vf-SLA',
+    slug: 'vf-sla',
     description: 'S3 storage for Select Link Analysis data',
-    baseURL: 'http://192.168.178.92:8333/my-bucket',
+    baseURL: 'http://f5-vsp-r-126.vsp.tu-berlin.de:9001/brendan',
     isS3: true,
     hidden: false,
   },
+
+  /*   {
+    name: 'RustFS-S3 SLA',
+    slug: 'rustfs-sla',
+    description: 'RustFS S3 storage for Select Link Analysis data',
+    baseURL: 'http://f5-vsp-r-126.vsp.tu-berlin.de:9000/brendan',
+    isS3: true,
+    hidden: false,
+  }, */
 
   {
     name: 'Browse data',
