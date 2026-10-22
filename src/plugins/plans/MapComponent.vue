@@ -253,11 +253,11 @@ export default defineComponent({
           id: 'activity-locations',
           data: this.stopActivities,
           getLineColor: [128, 128, 128],
-          getFillColor: (d: any) => (d.type?.startsWith('home') ? [70, 128, 255] : [255, 64, 255]),
+          getFillColor: (d: any) => (d.type?.startsWith('home') ? [24, 255, 255] : [255, 64, 255]),
           getLineWidth: 0.5,
-          stroked: true,
+          stroked: false,
           getPosition: (d: any, i: number) => [...d.midpoint, (i + 1) * 4],
-          getRadius: 3, // (d: any) => (d.label == 'Depot' ? 11 : this.numSelectedTours !== 1 ? 4 : 11),
+          getRadius: 4, // (d: any) => (d.label == 'Depot' ? 11 : this.numSelectedTours !== 1 ? 4 : 11),
           radiusUnits: 'pixels',
           lineWidthUnits: 'pixels',
           opacity: 0.9,
@@ -446,6 +446,7 @@ export default defineComponent({
 
   async mounted() {
     const style = `${BASE_URL}map-styles/${this.globalState.isDarkMode ? 'dark' : 'positron'}.json`
+    // const style = 'https://tiles.openfreemap.org/styles/dark'
 
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
