@@ -58,7 +58,7 @@
           .carrier-title {{ `${plan[0].person_id}&nbsp;/&nbsp;${plan[0].plan_num}&nbsp;&nbsp;${plan[0].plan_selected=='yes' ? '(*)':''}` }}
 
         //- Oruga's loading takes `fullPage` (camelCase) and `active` via v-model
-        o-loading.loader-theme(v-model:active="isQueryRunning" :fullPage="false")
+        o-loading(:active="isQueryRunning" :fullPage="false")
 
       .detail-area
         .speed-label(style="margin-bottom: 0.5rem") Legend
@@ -98,9 +98,10 @@
 
 
       .switchbox
+        p.speed-label(:style="{margin: '1rem 0 0 0'}") {{ $t('show') }}
         .switches
           o-switch(v-model="vizSettings.shipmentDotsOnTourMap")
-            span(v-html="$t('showActivities')")
+            span(v-html="$t('Activities')")
           o-switch(v-model="vizSettings.simplifyTours")
             span(v-html="$t('flatten')")
 
@@ -1684,8 +1685,14 @@ input {
   color: var(--text);
 }
 
+.o-switch {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
 .switches {
-  gap: 0.5rem;
+  margin-top: 0.5rem;
+  gap: 1rem;
   display: flex;
   // margin: 0.25rem 0.25rem;
 
@@ -1705,6 +1712,7 @@ input {
 }
 
 .switchbox {
+  user-select: none;
   margin: 0 0.25rem 0.5rem 0.25rem;
 }
 
@@ -1736,7 +1744,7 @@ input {
 .dragger {
   grid-row: 1 / 2;
   grid-column: 2 / 3;
-  width: 0.4rem;
+  width: 4px;
   background-color: var(--bgBold);
   user-select: none;
 }

@@ -7,34 +7,34 @@
     // theme ------------------
     .option
       h5 {{ $t('theme') }}
-      o-button.button.is-small.is-white(@click="setTheme('light')"
-        outlined
+      o-button.button.is-white(@click="setTheme('light')"
+        outlined size="small"
         :style="isLight") {{ $t('light') }}
 
-      o-button.button.is-small.is-white(@click="setTheme('dark')"
-        outlined
+      o-button.button.is-white(@click="setTheme('dark')"
+        outlined size="small"
         :style="isDark") {{ $t('dark') }}
 
     // language ---------------
     .option
       h5 {{ $t('language') }}
-      o-button.button.is-small.is-white(@click="setLanguage('en')"
-        outlined
+      o-button.button.is-white(@click="setLanguage('en')"
+        outlined size="small"
         :style="isEN") EN
 
-      o-button.button.is-small.is-gray(@click="setLanguage('de')"
-        outlined
+      o-button.button.is-gray(@click="setLanguage('de')"
+        outlined size="small"
         :style="isDE") DE
 
     // gamepad axes
     .option
       h5 {{ $t('gamepad') }}
-      o-button.button.is-small.is-white(@click="setGamepad(1)"
-        outlined
+      o-button.button.is-white(@click="setGamepad(1)"
+        outlined size="small"
         :style="isNormal") {{ $t('gamepad-normal') }}
 
-      o-button.button.is-small.is-gray(@click="setGamepad(-1)"
-        outlined
+      o-button.button.is-gray(@click="setGamepad(-1)"
+        outlined size="small"
         :style="isInverted") {{ $t('gamepad-inverted') }}
 
     // account / auth ---------------

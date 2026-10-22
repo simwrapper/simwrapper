@@ -14,7 +14,7 @@
         th.header1 n
         th.header1(v-for="act in headersAct" colspan="2" :key="act") {{ act }}
     tbody
-      tr(v-for="row,i in plans" :key="i" :class="{'is-leg': i%2}")
+      tr(v-for="row,i in plans" :key="i" :class="i%2 ? 'is-leg': 'is-act'")
         td.xcellvalue {{ i+1 }}
         td.xcellvalue(v-for="col in interleavedColumns" :key="col"
         ) {{ `${row[col] || ''}`.replaceAll(' ', '&nbsp;') }}
@@ -132,7 +132,6 @@ const PlanTable = defineComponent({
     this.interleavedColumns = this.zip(this.headersAct, this.headersLeg)
     // console.log('INTERLE', this.interleavedColumns)
   },
-
 })
 
 export default PlanTable
@@ -155,14 +154,17 @@ export default PlanTable
 
 .plan-table {
   position: absolute;
-  bottom: 1rem;
+  bottom: 0rem;
   left: 0;
-  right: 0;
-  margin: 0.5rem 0.5rem;
+  right: 0px;
+  // margin: 0.5rem 0.5rem 1rem 0.5rem;
   max-height: 35%;
   // pointer-events: none;
   font-size: 0.9rem;
   overflow: auto;
+  border: var(--borderThin);
+  filter: drop-shadow(0px 3px 5px #00000033);
+  z-index: 5;
 }
 
 .plan-html-table {
@@ -185,6 +187,17 @@ export default PlanTable
   color: var(--text);
   padding: 0px 4px;
   // font-weight: bold;
+}
+
+th {
+  background: var(--bgPanel);
+}
+.is-leg {
+  // background: var(--bgCream);
+}
+
+.is-act {
+  background: var(--bgCream);
 }
 
 .is-leg .xcellvalue {
