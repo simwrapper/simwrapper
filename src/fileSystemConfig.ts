@@ -133,14 +133,14 @@ let fileSystems: FileSystemConfig[] = [
 
   // ----------- End. Below here, these are editable: -------------------
 
-  // {
-  //   name: 'VF-S3 MATSim',
-  //   slug: 'vf-matsim',
-  //   description: 'Hello from S3',
-  //   baseURL: 'http://129.247.221.5:8333/matsim',
-  //   isS3: true,
-  //   hidden: false,
-  // },
+  {
+    name: 'VF-S3 MATSim',
+    slug: 'vf-s3',
+    description: 'Hello from S3',
+    baseURL: 'http://129.247.221.5:8333/matsim',
+    isS3: true,
+    hidden: true,
+  },
 
   {
     name: 'VSP/ZIB LakeFS',
