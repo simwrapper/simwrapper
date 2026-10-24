@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.8.2](https://github.com/simwrapper/simwrapper/compare/v4.8.1...v4.8.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* **map:** 3D fill heights on features conflicted with transparent water rendering ([6f0c6b9](https://github.com/simwrapper/simwrapper/commit/6f0c6b93c6a5d08a1942bb9f6bb6e7d9da151165)), closes [#516](https://github.com/simwrapper/simwrapper/issues/516)
+* **maps:** initial view sometimes ignored pitch/bearing from YAML config ([cfd2e98](https://github.com/simwrapper/simwrapper/commit/cfd2e98238cfe0ca984164451e0d3a9783dc8cc3))
+
 ### [4.8.1](https://github.com/simwrapper/simwrapper/compare/v4.8.0...v4.8.1) (2026-10-24)
 
 
