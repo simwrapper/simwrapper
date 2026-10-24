@@ -271,6 +271,9 @@ export default defineComponent({
         style,
         center,
         zoom,
+        // without these, the first map 'move' event overwrites the initial YAML bearing/pitch
+        bearing: this.globalState.viewState.bearing || 0,
+        pitch: this.globalState.viewState.pitch || 0,
       })
     )
 

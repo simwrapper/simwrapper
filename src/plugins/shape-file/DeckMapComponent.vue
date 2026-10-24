@@ -437,8 +437,7 @@ export default defineComponent({
     }
 
     const container = `map-${this.viewId}`
-    const center = this.globalState.viewState.center as any
-    const zoom = this.globalState.viewState.zoom
+    const { center, zoom, bearing, pitch } = this.globalState.viewState as any
 
     // check coords before failing
     if (center.lng > 180 || center.lat > 90) {
@@ -452,6 +451,9 @@ export default defineComponent({
       style,
       center,
       zoom,
+      // without these, the first map 'move' event overwrites the initial YAML bearing/pitch
+      bearing: bearing || 0,
+      pitch: pitch || 0,
       canvasContextAttributes: { preserveDrawingBuffer: true },
     })
 

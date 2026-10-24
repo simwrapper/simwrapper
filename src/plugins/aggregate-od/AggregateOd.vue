@@ -136,6 +136,10 @@ interface AggOdYaml {
   lineWidths?: number
   hideSmallerThan?: number
   mapIsIndependent?: boolean
+  center?: number[] | string
+  zoom?: number
+  pitch?: number
+  bearing?: number
 }
 const BASE_URL = import.meta.env.BASE_URL
 const TOTAL_MSG = globalStore.state.locale.startsWith('de') ? 'Alle >>' : 'All >>'
@@ -253,6 +257,8 @@ const Component = defineComponent({
 
       // [minX, minY, maxX, maxY], grown as each shape is read
       mapExtentXYXY: [180, 90, -180, -90] as number[],
+      // initial camera from YAML; if null, we zoom to the data extent instead
+      yamlCamera: null as { center: number[]; zoom: number; pitch: number; bearing: number } | null,
 
       bounceTimeSlider: {} as any,
       bounceScaleSlider: {} as any,
@@ -462,7 +468,44 @@ const Component = defineComponent({
       }
     },
 
+    getYamlCamera() {
+      let center = this.vizDetails.center
+      if (!center) return null
+
+      if (typeof center == 'string') center = center.split(',').map(Number)
+      if (
+        center.length < 2 ||
+        center.some(isNaN) ||
+        Math.abs(center[0]) > 180 ||
+        Math.abs(center[1]) > 90
+      ) {
+        this.$emit('error', `Invalid map center, doesn't look like longitude/latitude: ${center}`)
+        return null
+      }
+
+      return {
+        center,
+        zoom: this.vizDetails.zoom ?? 9,
+        pitch: this.vizDetails.pitch || 0,
+        bearing: this.vizDetails.bearing || 0,
+      }
+    },
+
     async setupMap() {
+      this.yamlCamera = this.getYamlCamera()
+
+      // start from the YAML camera if there is one. Linked maps share the store camera:
+      // the YAML view only becomes the shared view if no other map has set it yet.
+      // No YAML camera: start from the current shared view (not 0,0) until we fit the data extent.
+      if (this.yamlCamera && !this.mapIsIndependent) {
+        this.$store.commit('setMapCamera', { ...this.yamlCamera, initial: true })
+      }
+      const { center, zoom, pitch, bearing } = this.globalState.viewState as any
+      const camera =
+        this.yamlCamera && this.mapIsIndependent
+          ? this.yamlCamera
+          : { center, zoom, pitch, bearing }
+
       try {
         const style = `${BASE_URL}map-styles/${
           this.globalState.isDarkMode ? 'dark' : 'positron'
@@ -471,14 +514,18 @@ const Component = defineComponent({
         this.mymap = new maplibregl.Map({
           container: this.mapId,
           style,
+          ...camera,
         })
       } catch (e) {
         console.error('HUH?')
         return
       }
 
+      // no YAML camera: jump to last-seen data extent while the data loads
       try {
-        const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
+        const extent = this.yamlCamera
+          ? null
+          : localStorage.getItem(this.$route.fullPath + '-bounds')
         if (extent) {
           const lnglat = JSON.parse(extent)
 
@@ -952,6 +999,9 @@ const Component = defineComponent({
     },
 
     setMapExtent() {
+      // YAML camera wins over the data extent
+      if (this.yamlCamera) return
+
       localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this.mapExtentXYXY))
 
       const options = this.thumbnail
@@ -960,7 +1010,12 @@ const Component = defineComponent({
             padding: { top: 25, bottom: 25, right: 100, left: 100 },
             animate: false,
           }
-      this.mymap.fitBounds(this.mapExtentXYXY, options)
+      // YAML may still give pitch/bearing without a center
+      this.mymap.fitBounds(this.mapExtentXYXY, {
+        ...options,
+        pitch: this.vizDetails.pitch || 0,
+        bearing: this.vizDetails.bearing || 0,
+      })
     },
 
     setupKeyListeners() {
