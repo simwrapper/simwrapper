@@ -112,18 +112,12 @@ const MyComponent = defineComponent({
       this.getVizDetails()
     },
 
-    onlyShowChanges(newValue) {
-      if (newValue) {
-        this.onlyShowNetChanges = false
-      }
+    onlyShowChanges() {
       this.jsonChart = this.processInputs()
       this.doD3()
     },
 
-    onlyShowNetChanges(newValue) {
-      if (newValue) {
-        this.onlyShowChanges = false
-      }
+    onlyShowNetChanges() {
       this.jsonChart = this.processInputs()
       this.doD3()
     },
@@ -228,7 +222,6 @@ const MyComponent = defineComponent({
           if (this.onlyShowChanges && cols[0] === cols[1]) continue
 
           links.push([cols[0], cols[1], value])
-          this.totalTrips += value
         }
       } catch (err) {
         const e = err as any
@@ -262,37 +255,28 @@ const MyComponent = defineComponent({
         toOrder.push(offset)
       })
 
+      // Net changes: for each pair of opposing flows A->B and B->A, keep only the
+      // larger one, reduced by the smaller one. Non-changes (A->A) are left alone;
+      // hiding them is the job of the onlyShowChanges switch.
       if (this.onlyShowNetChanges) {
         for (const link of links) {
-          if (link[0] != link[1]) {
-            // find reverse
-            links.forEach((subLink: any) => {
-              if (subLink[0] === link[1] && subLink[1] === link[0]) {
-                if (link[2] > subLink[2]) {
-                  link[2] = Math.abs(link[2] - subLink[2])
-                  subLink[2] = 0
-                } else if (link[2] < subLink[2]) {
-                  subLink[2] = Math.abs(subLink[2] - link[2])
-                  link[2] = 0
-                } else {
-                  link[2], (subLink[2] = 0)
-                }
-              }
-            })
-          } else {
-            link[2] = 0
-          }
+          if (link[0] === link[1]) continue
+          const reverse = links.find((l: any) => l[0] === link[1] && l[1] === link[0])
+          if (!reverse) continue
+          const net = link[2] - reverse[2]
+          link[2] = Math.max(net, 0)
+          reverse[2] = Math.max(-net, 0)
         }
       }
 
-      // something like, for from_nodes, if to_node is different, find flipped relationship and see which abosulte sum is higher - take difference and save it in answers.
-
       for (const link of links) {
+        if (link[2] <= 0) continue
         answer.links.push({
           source: fromLookup[link[0]],
           target: toLookup[link[1]],
           value: link[2],
         })
+        this.totalTrips += link[2]
       }
 
       const numColors = fromNodes.length
