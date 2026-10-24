@@ -318,7 +318,8 @@ export default defineComponent({
         finalLayers.push(
           new GeojsonOffsetLayer({
             id: 'geoJsonOffsetLayer',
-            beforeId: this.isAtlantis ? undefined : 'water',
+            // extruded: draw on top, or the 2D map layers paint over the 3D columns
+            beforeId: this.isAtlantis || this.fillHeights ? undefined : 'water',
             data: this.features,
             // function callbacks: --------------
             getLineWidth: this.cbLineWidth, // 0, // no borders
