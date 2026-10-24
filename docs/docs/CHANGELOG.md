@@ -14,6 +14,14 @@ The SimWrapper code repository is open source and you can find the full commit h
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.8.1](https://github.com/simwrapper/simwrapper/compare/v4.8.0...v4.8.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **sankey:** separate net-changes and hide-non-changes switches; fix totals ([ade636c](https://github.com/simwrapper/simwrapper/commit/ade636c9714cbcc1d9f7e2743876756d78014adb))
+* **simwrapper:** serving from non-root base URLs generates proper URL again ([571dfbf](https://github.com/simwrapper/simwrapper/commit/571dfbfdd212ce97b723362034cc933f86e77d5b))
+
 ## [4.8.0](https://github.com/simwrapper/simwrapper/compare/v4.7.1...v4.8.0) (2026-10-19)
 
 
