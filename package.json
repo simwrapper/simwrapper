@@ -3,6 +3,7 @@
   "version": "4.8.2",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@12.14.0",
   "license": "GPL-3.0-or-later",
   "author": "Billy Charlton <charlton@tu-berlin.de>",
   "contributors": [
