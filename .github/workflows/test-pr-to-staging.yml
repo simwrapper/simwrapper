@@ -19,6 +19,8 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: cd ${{ github.workspace }} && pnpm install --frozen-lockfile
+      - name: Run unit tests
+        run: pnpm test:run
       - name: Install Playwright Browsers
         run: pnpm exec playwright install --with-deps
       - name: Run Playwright tests

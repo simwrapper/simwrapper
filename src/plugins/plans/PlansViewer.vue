@@ -129,6 +129,8 @@ const i18n = {
       search: 'Search',
       searchHint: 'Person_id or pattern*',
       service: 'Service',
+      show: 'Show',
+      Activities: 'Activities',
     },
     de: {
       carriers: 'Unternehmen',
@@ -144,6 +146,8 @@ const i18n = {
       scaleSize: 'Widths',
       scaleFactor: 'Width',
       service: 'Betrieb',
+      show: 'Show',
+      Activities: 'Activities',
     },
   },
 }

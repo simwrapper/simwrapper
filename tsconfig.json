@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
-    "baseUrl": ".",
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "forceConsistentCasingInFileNames": true,
@@ -10,14 +9,22 @@
     "jsx": "react",
     "lib": ["esnext", "dom", "dom.iterable", "scripthost", "webworker"],
     "module": "esnext",
-    "moduleResolution": "node",
-    "paths": { "@/*": ["src/*"], "~/*": ["node_modules/*"] },
+    "moduleResolution": "bundler",
+    "paths": {
+      "@/*": ["./src/*"],
+      "~/*": ["./node_modules/*"],
+      // vuex 4's package.json "exports" has no "types" entry, so bundler resolution can't find them
+      "vuex": ["./node_modules/vuex/types/index.d.ts"]
+    },
     "resolveJsonModule": true,
     "sourceMap": true,
     "skipLibCheck": true,
     "strict": true,
     "target": "esnext",
-    "types": ["vite/client", "@types/jest"]
+    "types": ["vite/client", "vitest/globals"]
+  },
+  "vueCompilerOptions": {
+    "plugins": ["@vue/language-plugin-pug"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "test/**/*.ts", "test/**/*.tsx"],
   "exclude": ["node_modules"]

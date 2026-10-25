@@ -24,10 +24,11 @@
     "build": "npm run index && vite build",
     "wasm": "wasm-pack build ./wasm/matsim-event-streamer --target web",
     "release": "standard-version",
-    "test": "playwright test",
+    "test": "vitest run && playwright test",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "lint": "eslint --ext .js,.ts,.vue src",
+    "typecheck": "vue-tsc --noEmit",
     "bumpversion": "standard-version"
   },
   "optionalDependencies": {
@@ -208,6 +209,7 @@
     "typescript-eslint": "^8.67.0",
     "unplugin-vue-markdown": "^32",
     "vite": "^8",
-    "vitest": "^4"
+    "vitest": "^4",
+    "vue-tsc": "^3.3.13"
   }
 }
