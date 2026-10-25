@@ -1,17 +1,19 @@
 [project]
-version = "4.7.1"
+version = "4.8.2"
 name = "simwrapper"
 description = "SimWrapper command line tools"
 readme = "README.md"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.9"
 dependencies = [
+    "avro>=1.12.1",
     "blosc>=1.11.3",
     "build>=1.2.2.post1",
     "click>=8.0",
     "fastapi>=0.115.0",
     "h5py>=3.0",
     "lxml>=5.0",
+    "matsim-tools>=0.0.22",
     "numpy>=1.24",
     "openmatrix>=0.3.5.0",
     "pandas>=2.0",

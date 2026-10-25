@@ -1,0 +1,22 @@
+storage:
+  e2e-tests:
+    path: '/Users/billy/e2e-tests'
+    description: 'Test dashboards and plugins for development'
+  ddata:
+    path: '/Users/billy/data'
+    description: 'DATA Local model run folder from this server'
+
+zones:
+  MY_ZONES:
+    file: '/Users/billy/data/sfcta/sfcta2454.geojson.gz'
+    sizes: 1454,2454,2475
+    lookup: 'TAZ'
+    rowlookup: 'ZoneID'
+
+tagline: 'The SPACE-AGE Transport simulation data visualizer'
+readme: |
+   Welcome to SimWrapper on Docker
+   ========================
+   - This is running inside a container. Edit CONFIG-DOCKER.yaml to remove this message!
+   - FUNKY!
+
