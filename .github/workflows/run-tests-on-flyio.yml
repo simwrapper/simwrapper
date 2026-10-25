@@ -82,12 +82,12 @@ jobs:
     runs-on: [self-hosted, fly]
     timeout-minutes: 60 # safety net in case self-destruct fails
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - run: |
           npx pnpm install --frozen-lockfile
           npx playwright install chromium firefox webkit
       - run: npx pnpm test -j 2 --reporter=list
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
