@@ -34,7 +34,7 @@ You will need to know this tech in order to hack on this project:
 - [Vue](https://vuejs.org) - the glue that connects UI elements to code. Similar to React but lightweight and awesome
   - We have finished migrating to Vue 3.x!! Woohoo. The code uses the Vue 3 **Option API**, not the Composition API. So if you are learning Vue from the [Vue tutorial](https://vuejs.org/guide/introduction.html), be sure to set the slider to `Options` so the examples look the same!
 - [Pug](https://pugjs.org) - the template language used in Vue files. Pug uses Python-style indentation instead of open/close XML tags, which makes it far easier to read than bare HTML. You don't have to write your own Pug templates; you can use plain HTML, but almost all of our `.vue` files use Pug so you will need to know how to read it. 
-  - We have a [PUG.md](PUG.md) doc which should explain enough so you can read and understand Pug
+  - We have a [PUG.md](docs/PUG.md) doc which should explain enough so you can read and understand Pug
     templates.
 
 ## First time developer setup
@@ -89,6 +89,12 @@ GitHub Actions is configured to automatically run the tests and try to build the
   - `FolderBrowser.vue`: File system pages that don't contain dashboards will be rendered using this template, displaying folders, images, etc. like a file browser.
 - `/public`: large .zip files, project notes, etc go in public. These files are pushed as-is by the build system; i.e. they are not packaged in any way
 - `/scripts`: Random external scripts go here. Most of these are in Python and used for postprocessing model results
+- `/python`: the `simwrapper` Python package on PyPI (command-line tools and local server, which bundles a copy of this app). Build it with `pnpm build:python`; see [python/README.md](python/README.md)
+- `/docs`: the documentation website at https://docs.simwrapper.app, plus developer notes such as [PUG.md](docs/PUG.md). See [docs/README.md](docs/README.md) to build it
+
+### Releases
+
+`pnpm release` bumps the version in `package.json`, `python/pyproject.toml` and `python/uv.lock` together, updates `CHANGELOG.md`, and tags `vX.Y.Z`. Pushing the tag publishes the Python package to PyPI. Pushes to `main` that touch `docs/` or `CHANGELOG.md` redeploy the docs site.
 
 ## Thank you!
 

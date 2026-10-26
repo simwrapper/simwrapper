@@ -46,12 +46,17 @@ def data_dir(tmp_path):
 
 
 @pytest.fixture
-def client(data_dir, monkeypatch):
+def client(data_dir, tmp_path_factory, monkeypatch):
     """TestClient with module globals pointed at the temp data dir.
 
-    Endpoints read the module-level STORAGE/CONFIG/ZONES at call time, so
-    monkeypatching them here (auto-restored after the test) is enough.
+    Endpoints read the module-level STORAGE/CONFIG/ZONES/STATIC_DIR at call
+    time, so monkeypatching them here (auto-restored after the test) is enough.
+    STATIC_DIR gets a stub index.html, since the built app is not in git.
     """
+    static_dir = tmp_path_factory.mktemp("static")
+    (static_dir / "index.html").write_text("<html></html>")
+    monkeypatch.setattr(ApiApp, "STATIC_DIR", str(static_dir))
+
     storage_roots = {
         "data": {"path": "http://localhost:4999", "description": "test data"}
     }

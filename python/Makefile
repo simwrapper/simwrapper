@@ -14,34 +14,25 @@ endif
 .RECIPEPREFIX = >
 # --------------------------------------------------
 
-build: .build-sentinel
+# builds the JS app at the repo root, copies it into simwrapper/static, then builds the wheel.
+# Publishing to PyPI is done by the python-release GitHub Actions workflow on each v* tag.
+build:
+> bash ../scripts/build-python.sh
+.PHONY: build
 
 clean:
 > rm -rf build
 > rm -rf dist
 > rm -rf  simwrapper.egg-info
-> rm -f  .build-sentinel
+> rm -rf simwrapper/static
 .PHONY: clean
 
 test:
-> pytest tests/
+> uv run pytest
 .PHONY: test
 
-docker:
+docker: build
 > rm -rf .venv dist
-> cd ..
 > docker build -t simwrapper/app .
 .PHONY: docker
-
-#push: test build
-push: build
-> twine check dist/*
-> twine upload dist/*
-.PHONY: push
-
-.build-sentinel: $(shell find simwrapper/*.py) pyproject.toml README.md
-> rm -rf dist
-> uv run python3 -m build
-> twine check dist/*
-> touch $@
 

@@ -1,0 +1,15 @@
+# Standalone pnpm project for the Docusaurus v1 docs site, kept separate from the
+# app's root workspace so its legacy dependency tree stays out of the app lockfile.
+# The pnpm version is pinned once, in the root package.json "packageManager" field.
+
+# Docusaurus v1 pages require() packages (e.g. react) they don't declare
+nodeLinker: hoisted
+
+allowBuilds:
+  # imagemin binaries, used to optimize images during docusaurus-build
+  gifsicle: true
+  jpegtran-bin: true
+  optipng-bin: true
+  core-js: false
+  fast-folder-size: false
+  highlight.js: false

@@ -16,7 +16,7 @@ git checkout vite.config.mts public/404.html
 
 echo --- GET LATEST COMMIT ID ---
 SIMWRAPPER_COMMIT=`git rev-parse --short HEAD`
-SIMWRAPPER_TAG=`git describe --tags --abbrev=0`
+SIMWRAPPER_TAG=`git describe --tags --abbrev=0 --match 'v*'`
 sed -I .bak "s/local_build/$SIMWRAPPER_COMMIT/"  .env
 sed -I .bak "s/no_tag/$SIMWRAPPER_TAG/"  .env
 

@@ -1,8 +1,9 @@
 {
   "scripts": {
     "examples": "docusaurus-examples",
-    "start": "docusaurus-start",
-    "build": "docusaurus-build",
+    "changelog": "cat ../docs/CHANGELOG-header.md ../../CHANGELOG.md > ../docs/CHANGELOG.md",
+    "start": "pnpm changelog && docusaurus-start",
+    "build": "pnpm changelog && docusaurus-build",
     "publish-gh-pages": "docusaurus-publish",
     "write-translations": "docusaurus-write-translations",
     "version": "docusaurus-version",

@@ -4,3 +4,7 @@ dist/
 *.egg-info
 .ipynb_checkpoints
 .build-sentinel
+.venv/
+
+# built app, copied from the root dist/ by scripts/build-python.sh
+simwrapper/static/

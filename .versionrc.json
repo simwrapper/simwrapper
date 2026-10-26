@@ -1,0 +1,7 @@
+{
+  "bumpFiles": [
+    { "filename": "package.json", "type": "json" },
+    { "filename": "python/pyproject.toml", "updater": "scripts/python-version-updater.cjs" },
+    { "filename": "python/uv.lock", "updater": "scripts/python-version-updater.cjs" }
+  ]
+}

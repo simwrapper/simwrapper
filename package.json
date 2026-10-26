@@ -30,7 +30,11 @@
     "test:run": "vitest run",
     "lint": "eslint --ext .js,.ts,.vue src",
     "typecheck": "vue-tsc --noEmit",
-    "bumpversion": "standard-version"
+    "bumpversion": "standard-version",
+    "docs:install": "pnpm -C docs/website install",
+    "docs:start": "pnpm -C docs/website start",
+    "docs:build": "pnpm -C docs/website build",
+    "build:python": "bash scripts/build-python.sh"
   },
   "optionalDependencies": {
     "fsevents": "*"

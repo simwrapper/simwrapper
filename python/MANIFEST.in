@@ -1,3 +1,2 @@
 recursive-include simwrapper/static *
-include LICENSE.txt VERSION README.md
-
+include LICENSE.txt README.md

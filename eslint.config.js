@@ -6,7 +6,7 @@ import vueParser from 'vue-eslint-parser'
 import globals from 'globals'
 
 export default defineConfig([
-  { ignores: ['dist/**', 'node_modules/**'] },
+  { ignores: ['dist/**', 'node_modules/**', 'docs/**', 'python/**'] },
   ...tseslint.configs.recommended,
   ...pluginVue.configs['flat/recommended'],
   {

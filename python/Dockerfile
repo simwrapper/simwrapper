@@ -6,7 +6,8 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
-COPY src .
+# build context is python/; run "make docker" so the app gets built into simwrapper/static first
+COPY . .
 COPY CONFIG-EXAMPLE.yaml /app/CONFIG.yaml
 
 RUN uv sync
