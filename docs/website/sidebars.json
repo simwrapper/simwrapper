@@ -1,0 +1,46 @@
+{
+  "doc": {
+    "Introduction": ["index", "examples", "file-management", "running-locally", "help"],
+    "Guides": [
+      "guide-getting-started",
+      "guide-dashboards-from-code",
+      "guide-dashboards",
+      "guide-cloud-storage",
+      "guide-project-sites",
+      "guide-publishing"
+    ],
+    "API Reference / MATSim": [
+      "link-vols",
+      "carrier-viewer",
+      "drt-vehicles",
+      "logistics",
+      "transit-supply",
+      "matsim-events"
+    ],
+    "API Reference / General": [
+      "aequilibrae-map",
+      "aggregate-od",
+      "bar-area-line",
+      "calculation-tables",
+      "csv",
+      "flow-map",
+      "gridmap",
+      "grid-layer",
+      "heatmap-charts",
+      "matrix",
+      "pie-charts",
+      "plotly",
+      "sankey",
+      "xy-scatter-plots",
+      "shapefiles",
+      "text-block",
+      "tiles",
+      "vega-lite",
+      "video",
+      "xml-viewer",
+      "xy-hexagons",
+      "xy-time"
+    ],
+    "For Developers": ["scripts", "dev-guide", "plugin-guide", "changelog"]
+  }
+}

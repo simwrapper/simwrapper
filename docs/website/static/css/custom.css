@@ -1,0 +1,159 @@
+/**
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+/* your custom css */
+
+body {
+  font-family: 'Open Sans', 'Arial', 'Helvetica';
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Slab', 'Open Sans', 'Arial', 'Helvetica';
+}
+
+h1.postHeaderTitle {
+  margin-bottom: 0;
+}
+
+h2.headerTitleWithLogo:hover {
+  color: #effc5e;
+}
+
+.post h2 {
+  /* margin-top: 2rem; */
+  color: #7a265a; /* #4a4b93; */
+}
+
+.post h3 {
+  color: #656;
+}
+
+.post a {
+  /* font-weight: bold; */
+  color: #7541b1;
+}
+
+.docs-prevnext {
+  padding-bottom: 1rem;
+}
+
+.blog-recent {
+  padding-bottom: 3rem;
+}
+
+.mainContainer {
+  padding: 0px 0 0 0;
+}
+
+.homeContainer {
+  background-image: url('/img/berlin-dots.jpg');
+  margin: 0 0;
+  padding: 5rem 0;
+}
+
+.billybutton {
+  color: #33bb77;
+  background-color: white;
+  font-weight: bold;
+  padding: 1rem 1rem;
+}
+
+.billybutton:hover {
+  background-color: #fdffef;
+  color: #222;
+}
+
+h2.projectTitle {
+  color: #33bb77;
+  font-size: 4rem;
+}
+
+.toc .toggleNav .navGroup {
+  margin-bottom: 2rem;
+}
+
+.toc .toggleNav .navGroup .navGroupCategoryTitle {
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  color: #7a265a;
+  /* #4a4b93; */
+}
+
+.nav-footer .sitemap .nav-home {
+  opacity: 1;
+}
+
+.postHeader {
+  margin-top: 50px;
+}
+
+.navigationSlider .slidingNav ul li a:hover {
+  color: #effc5e;
+}
+
+article p img {
+  margin: 0 0;
+  width: 640px;
+}
+
+.visualization-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, 180px);
+  gap: 1rem 1rem;
+}
+
+.visualization h4 {
+  margin: 0 0 0.15rem 0;
+  padding: 0 0;
+}
+
+.visualization img {
+  object-fit: cover;
+  height: 180px;
+  width: 180px;
+  border: 1px solid #c2d5e5;
+  opacity: 0.85;
+}
+
+.visualization img:hover {
+  opacity: 1;
+}
+
+@media only screen and (min-device-width: 360px) and (max-device-width: 736px) {
+  .wrapper {
+    max-width: none;
+  }
+}
+
+@media only screen and (min-width: 1024px) {
+  .wrapper {
+    max-width: none;
+  }
+}
+
+@media only screen and (max-width: 1023px) {
+  .wrapper {
+    max-width: none;
+  }
+}
+
+@media only screen and (min-width: 1400px) {
+  .wrapper {
+    max-width: none;
+  }
+}
+
+@media only screen and (min-width: 1500px) {
+  .wrapper {
+    max-width: none;
+  }
+}
