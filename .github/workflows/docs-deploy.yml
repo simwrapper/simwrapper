@@ -1,0 +1,49 @@
+name: Docs - build and deploy
+
+# Builds the Docusaurus site in docs/ and publishes it to the gh-pages branch of
+# simwrapper/simwrapper.github.io, which serves https://docs.simwrapper.app.
+# That repo must have a deploy key (write access) whose private key is stored
+# here as the DOCS_DEPLOY_KEY secret.
+
+on:
+  push:
+    branches: [main]
+    paths: [docs/**, CHANGELOG.md, .github/workflows/docs-deploy.yml]
+  pull_request:
+    branches: [main]
+    paths: [docs/**, CHANGELOG.md, .github/workflows/docs-deploy.yml]
+  workflow_dispatch:
+    inputs:
+      publish_branch:
+        description: 'Branch of simwrapper.github.io to publish to (e.g. gh-pages-test for a dry run)'
+        required: true
+        default: 'gh-pages'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs/website
+    steps:
+      - uses: actions/checkout@v7
+      # pnpm version comes from the root package.json "packageManager" field
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: docs/website/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build site
+        run: pnpm build
+      - name: Deploy
+        if: github.event_name != 'pull_request'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          deploy_key: ${{ secrets.DOCS_DEPLOY_KEY }}
+          external_repository: simwrapper/simwrapper.github.io
+          publish_branch: ${{ inputs.publish_branch || 'gh-pages' }}
+          publish_dir: ./docs/website/build/simwrapper.app
+          force_orphan: true

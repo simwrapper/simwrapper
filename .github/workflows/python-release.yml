@@ -1,0 +1,43 @@
+name: Python - publish to PyPI
+
+# On each release tag (created by `pnpm release`), build the app, bundle it into
+# the "simwrapper" Python package, and publish to PyPI via trusted publishing.
+# PyPI must list this repo + workflow file + the "pypi" environment as a trusted publisher.
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # full history + tags, for `git describe` in build-python.sh
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: astral-sh/setup-uv@v7
+      - name: Build app and Python package
+        run: bash scripts/build-python.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: python-dist
+          path: python/dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: python-dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

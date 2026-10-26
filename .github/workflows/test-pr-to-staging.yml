@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [staging]
     types: [opened, synchronize]
+    paths-ignore: [docs/**, python/**]
 
 jobs:
   run-tests:

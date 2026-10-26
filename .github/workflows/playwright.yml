@@ -2,8 +2,10 @@ name: End-to-End Tests
 on:
   push:
     branches: [main, master]
+    paths-ignore: [docs/**, python/**]
   pull_request:
     branches: [main, master]
+    paths-ignore: [docs/**, python/**]
 jobs:
   test:
     timeout-minutes: 240

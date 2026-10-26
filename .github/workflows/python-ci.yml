@@ -1,0 +1,23 @@
+name: Python - tests
+
+on:
+  push:
+    branches: [main, master]
+    paths: [python/**, .github/workflows/python-ci.yml]
+  pull_request:
+    branches: [main, master]
+    paths: [python/**, .github/workflows/python-ci.yml]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Run tests
+        run: uv run pytest

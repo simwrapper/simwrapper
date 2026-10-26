@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - bleeding
+    paths-ignore: [docs/**, python/**]
     repository_dispatch:
 
 jobs:
