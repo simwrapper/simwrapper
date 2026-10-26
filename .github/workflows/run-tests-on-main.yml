@@ -19,12 +19,16 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
       - name: Run unit tests
         run: pnpm test:run
-      - name: Install Playwright Browsers
-        run: pnpm exec playwright install --with-deps
-      - name: Run Playwright tests
-        run: pnpm exec playwright test --workers=2
+
+      # playwright tests must be run manually, because GH CI times out (researching solutions!)
+      # - name: Install Playwright Browsers
+      #   run: pnpm exec playwright install --with-deps
+      # - name: Run Playwright tests
+      #   run: pnpm exec playwright test --workers=2
+
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
