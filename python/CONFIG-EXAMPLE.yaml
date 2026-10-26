@@ -1,0 +1,36 @@
+# config-example.yaml
+# ------------------------------------------------
+# This file defines storage locations and any
+# front-page "readme" material in markdown
+
+# --- STORAGE ----------------------
+# **Local/network mounts only: no http URLs here**
+# Each key defines a starting point in the local filesystem.
+# (if no config is found, the current working folder is shared)
+
+storage:
+  data:
+    path: '/data/model-runs'
+    description: 'Local model run folder from this server'
+
+# --- ZONAL GEOJSON BOUNDARIES ---
+# You can supply your own GeoJSON-format boundary files here.
+# Specify the filename, the field containg the zone 'id',
+# and the matrix sizes that map to these boundaries.
+# Supply as many as you like with different key names.
+
+zones:
+  MY_ZONES:
+    file: '/data/zonesystems/TAZ.geojson'
+    sizes: 9999
+    lookup: 'TAZ'
+    rowlookup: 'ZoneID'
+
+# --- FRONT-PAGE TEXT -------------
+tagline: 'Transport simulation data visualizer'
+# Optional readme can be either a .md markdown filename,
+# or you can put markdown text directly in this file with "readme: |"
+# readme: |
+#   Welcome to SimWrapper on Docker
+#   ========================
+#   - This is running inside a container. Edit CONFIG-DOCKER.yaml to remove this message!

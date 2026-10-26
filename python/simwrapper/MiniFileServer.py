@@ -1,0 +1,267 @@
+#!/usr/bin/env python3
+import argparse
+import os
+import re
+import sys
+import socket
+import ssl
+import urllib
+from pathlib import Path
+
+try:
+    # Python3
+    import http.server as SimpleHTTPServer
+    from http.server import HTTPServer, SimpleHTTPRequestHandler, test
+
+except ImportError:
+    # Python 2
+    from BaseHTTPServer import HTTPServer, test
+    from SimpleHTTPServer import SimpleHTTPRequestHandler
+
+
+current_dir = os.getcwd()
+package_dir = os.path.dirname(__file__)
+
+pattern = re.compile('.css|.csv|.gif|.gz|.jpg|.jpeg|.js|.json|.ico|.md|.png|.svg|.ttf|.wasm|.woff|.woff2|.eot', re.IGNORECASE)
+
+SPA_MODE = False
+
+def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=512*1024):
+    '''Like shutil.copyfileobj, but only copy a range of the streams.
+
+    Both start and stop are inclusive.
+    '''
+    if start is not None: infile.seek(start)
+    while 1:
+        to_read = min(bufsize, stop + 1 - infile.tell() if stop is not None else bufsize)
+        buf = infile.read(to_read)
+        if not buf:
+            break
+        outfile.write(buf)
+
+BYTE_RANGE_RE = re.compile(r'bytes=(\d+)?-(\d+)?$')
+def parse_byte_range(byte_range):
+    '''Returns the two numbers in 'bytes=123-456' or throws ValueError.
+
+    Supports three forms (RFC 7233):
+    - 'bytes=123-456'  (first, last)  -> (123, 456)
+    - 'bytes=123-'     (open-ended)   -> (123, None)
+    - 'bytes=-500'     (suffix)       -> (None, 500)   last N bytes
+    '''
+    m = BYTE_RANGE_RE.match(byte_range.strip())
+    if not m:
+        raise ValueError('Invalid byte range %s' % byte_range)
+
+    first, last = [None if x is None else int(x) for x in m.groups()]
+
+    # 'bytes=-' is meaningless (neither endpoint given)
+    if first is None and last is None:
+        raise ValueError('Invalid byte range %s' % byte_range)
+    if first is not None and last is not None and last < first:
+        raise ValueError('Invalid byte range %s' % byte_range)
+    return first, last
+
+class RangeRequestHandler(SimpleHTTPRequestHandler):
+    """Adds support for HTTP 'Range' requests to SimpleHTTPRequestHandler
+
+    The approach is to:
+    - Override send_head to look for 'Range' and respond appropriately.
+    - Override copyfile to only transmit a range when requested.
+    """
+    def send_head(self):
+        if 'Range' not in self.headers:
+            self.range = None
+            return SimpleHTTPRequestHandler.send_head(self)
+        try:
+            first, last = parse_byte_range(self.headers['Range'])
+        except ValueError as e:
+            self.send_error(400, 'Invalid byte range')
+            return None
+
+        # Mirroring SimpleHTTPServer.py here
+        path = self.translate_path(self.path)
+        f = None
+        ctype = self.guess_type(path)
+        try:
+            f = open(path, 'rb')
+        except IOError:
+            self.send_error(404, 'File not found')
+            return None
+
+        fs = os.fstat(f.fileno())
+        file_len = fs[6]
+
+        # Normalize the request into a concrete inclusive [start, end] byte
+        # window, covering open-ended ('bytes=123-'), suffix ('bytes=-500'),
+        # and bounded ('bytes=123-456') forms alike.
+        if first is None:
+            # Suffix range: the last `last` bytes of the file.
+            if last == 0 or file_len == 0:
+                f.close()
+                self.send_range_not_satisfiable(file_len)
+                return None
+            start = max(0, file_len - last)
+            end = file_len - 1
+        else:
+            if first >= file_len:
+                f.close()
+                self.send_range_not_satisfiable(file_len)
+                return None
+            start = first
+            end = file_len - 1 if (last is None or last >= file_len) else last
+
+        # Stash the concrete window for copyfile().
+        self.range = (start, end)
+        response_length = end - start + 1
+
+        self.send_response(206)
+        self.send_header('Content-type', ctype)
+        self.send_header('Content-Range', 'bytes %s-%s/%s' % (start, end, file_len))
+        self.send_header('Content-Length', str(response_length))
+        self.send_header('Last-Modified', self.date_time_string(fs.st_mtime))
+        self.end_headers()
+        return f
+
+    def send_range_not_satisfiable(self, file_len):
+        # RFC 7233: a 416 response should carry Content-Range: bytes */<len>
+        # so the client learns the current resource size.
+        self.send_response(416, 'Requested Range Not Satisfiable')
+        self.send_header('Content-Range', 'bytes */%s' % file_len)
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
+    def copyfile(self, source, outputfile):
+        if not self.range:
+            return SimpleHTTPRequestHandler.copyfile(self, source, outputfile)
+
+        # SimpleHTTPRequestHandler uses shutil.copyfileobj, which doesn't let
+        # you stop the copying before the end of the file.
+        start, stop = self.range  # set in send_head()
+        copy_byte_range(source, outputfile, start, stop)
+
+    def end_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Accept-Ranges,Range,*")
+        self.send_header("Access-Control-Allow-Private-Network", "true")
+        self.send_header("Access-Control-Expose-Headers", "*")
+        self.send_header("Access-Control-Max-Age", "0")
+        self.send_header("Access-Control-Allow-Methods", "GET,OPTIONS,HEAD")
+        self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('Mini-File-Server-Root', current_dir)
+        self.send_header("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
+        SimpleHTTPRequestHandler.end_headers(self)
+
+        # experimenting with no-cache but must-revalidate: which means
+        # the browser MUST ping us to see if there is a new copy of every
+        # file, but if it has the latest file then it can use a cached version
+        # instead of transferring it again.
+        # no caching EVER: "no-cache, max-age=0, must-revalidate, no-store"
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.end_headers()
+        return None
+
+    def do_GET(self):
+        print('\nREQUEST', self.directory, ':::', self.path)
+
+        # If we are not in SPA_MODE the just serve up the files
+        if not SPA_MODE:
+            return super().do_GET()
+
+        # -------------------------------------------------------
+        # SPA_MODE: We are -both- a file server and an app server
+
+        # File server
+        if self.path.startswith('/_f_/'):
+            self.path = self.path[4:]
+            print('  FILES', self.directory, ':::', self.path)
+            return super().do_GET()
+
+        # Single Page App - path shenanigans
+        url_parts = urllib.parse.urlparse(self.path)
+        request_file_path = Path(url_parts.path.strip("/"))
+        ext = request_file_path.suffix
+        if not request_file_path.is_file() and not pattern.match(ext):
+            self.path = 'index.html'
+
+        self.directory = package_dir + '/static'
+
+        print('   SITE', self.directory, self.path)
+
+        return super().do_GET()
+
+def find_free_port(port):
+    for i in range(port,port+49):
+        s = socket.socket()
+
+        try:
+            s.bind(('', i))
+            s.close()
+            return i
+
+        except:
+            pass
+        finally:
+            s.close()
+
+def run_mini_file_server(maybe_port, cert=None, key=None):
+    port = find_free_port(maybe_port)
+
+    print("\n-----------------------------------------------------------------")
+    print("SimWrapper file server: port", port)
+    if cert and key: print("Using HTTPS with PEM cert/key")
+    print(current_dir)
+
+
+    print("-----------------------------------------------------------------\n")
+    httpd = HTTPServer(('', port), RangeRequestHandler)
+
+    if cert and key: httpd.socket = ssl.wrap_socket(
+        httpd.socket,
+        certfile=cert,
+        keyfile=key,
+        server_side=True
+    )
+
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    httpd.server_close()
+
+
+def serve_entire_website(port):
+    print("\n-----------------------------------------------------------------")
+    print("Start SimWrapper website on PORT:", port)
+
+    # Build the full URL for this site, including the free port number
+    if port == 8050:
+        print("\nBrowse: http://localhost:" + str(port) + "/live")
+        print("    Or: " + "http://" + socket.gethostname() + ":" + str(port) + "/live")
+    else:
+        print("\nTry: http://localhost:" + str(port) + "/" + str(port))
+        print("And: " + "http://" + socket.gethostname() + ":" + str(port) + "/" + str(port))
+
+    print("-----------------------------------------------------------------")
+    print("Serving files and folders in:")
+    print(current_dir)
+
+    print("-----------------------------------------------------------------\n")
+    httpd = HTTPServer(('', port), RangeRequestHandler)
+
+    # SPA_MODE handles the case where we are serving
+    # website internals -and- file contents from one URL.
+    global SPA_MODE
+    SPA_MODE = True
+
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    httpd.server_close()
+
+
+if __name__ == '__main__':
+    run_mini_file_server(8000)
+
