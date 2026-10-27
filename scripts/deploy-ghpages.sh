@@ -28,7 +28,7 @@ echo --- BUILD INDEX.HTML FILES ---
 npm run index
 
 echo --- BUILD SITE ---
-node --max_old_space_size=8192 ./node_modules/vite/bin/vite.js build
+npx vite build
 
 echo --- CREATE GIT COMMIT FOR GH-PAGES ---
 cd dist
@@ -37,4 +37,4 @@ git add . && git commit -m "gh-pages"
 
 echo --- PUSH TO GITHUB ---
 git remote add origin git@github.com:$1.git
-git push --force origin master:gh-pages
+git push --force origin main:gh-pages

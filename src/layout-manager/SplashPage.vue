@@ -175,7 +175,7 @@
 
           .legal.flex1
             h4.section-head SimWrapper
-            p &copy; 2025 Technische Universität Berlin
+            p &copy; 2026 Technische Universität Berlin
 
             h4 Build information
             p Version: &nbsp;
