@@ -25,7 +25,7 @@ npm run index
 
 echo --- BUILD SITE ---
 echo "simwrapper.app" > public/CNAME
-node --max_old_space_size=8192 ./node_modules/vite/bin/vite.js build
+npx vite build
 
 echo --- CREATE GIT COMMIT FOR GH-PAGES ---
 cd dist
