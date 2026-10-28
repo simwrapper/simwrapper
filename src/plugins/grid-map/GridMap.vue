@@ -49,16 +49,16 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw } from 'vue'
 import type { PropType } from 'vue'
 
+import * as Comlink from 'comlink'
 import GUI from 'lil-gui'
 import YAML from 'yaml'
-import colormap from 'colormap'
 
 import { getAvro } from '@/js/avro'
 import globalStore from '@/store'
-import util, { sleep } from '@/js/util'
+import util, { sleep, unreactive } from '@/js/util'
 import { hexToRgb, getColorRampHexCodes, Ramp } from '@/js/ColorsAndWidths'
 
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
@@ -73,6 +73,8 @@ import ClickThroughTimes from '@/components/ClickThroughTimes.vue'
 import TimeSlider from '@/components/TimeSliderV2.vue'
 import MapComponent from './MapComponent.vue'
 import BackgroundLayers from '@/js/BackgroundLayers'
+import GridMapWorker from './GridMap.worker.ts?worker'
+import type { ColorOptions, GridMapTask } from './GridMap.worker'
 
 // interface for each time object inside the mapData Array
 export interface MapData {
@@ -288,12 +290,15 @@ const GridMap = defineComponent({
       selectedTimeData: [] as any[],
       allTimePeriodes: [] as any[],
       csv: {} as any,
-      colors: colormap({
-        colormap: 'Viridis',
-        nshades: 10,
-        format: 'rba',
-        alpha: 1,
-      }).map((c: number[]) => [c[0], c[1], c[2], 255]) as Uint8Array[],
+      // All loading math and coloring happens in this worker, which caches the data.
+      // Comlink remotes must never be stored directly in reactive state (they answer
+      // every property read, which sends Vue's toRaw into infinite recursion), so they
+      // live in this raw holder. colorRequest drops recolors that a newer one superseded.
+      calc: markRaw({
+        worker: null as Worker | null,
+        task: null as Comlink.Remote<GridMapTask> | null,
+        colorRequest: 0,
+      }),
       currentTime: [0, 0] as Number[],
       timeToIndex: new Map<Number, number>(),
       guiConfig: {
@@ -421,85 +426,6 @@ const GridMap = defineComponent({
     toggle3dBuildings() {
       this.show3dBuildings = !this.show3dBuildings
       // this.guiConfig.show3dBuildings = this.show3dBuildings
-    },
-
-    /**
-     * Selects a color based on the given value.
-     * @param {number} value - The value influencing color selection (0-100).
-     * @returns {number[]} - An RGBA color array [R, G, B, A].
-     */
-    pickColor(
-      value: number,
-      from_min: number,
-      from_max: number,
-      to_min: number,
-      to_max: number
-    ): number[] | Uint8Array {
-      if (this.guiConfig['bounds enabled']) {
-        const upper = this.guiConfig['upper bound']
-        const lower = this.guiConfig['lower bound']
-        // 'cut' values which are outside the bounds
-        if (upper !== Infinity && lower !== -Infinity) {
-          // rescale value to 0-100 based on the bounds
-          value = Math.max(Math.min(value, upper), lower)
-          value = ((value - lower) / (upper - lower)) * 100
-        }
-      } else if (!this.valuesIncludeNeg) {
-        // Error handling: If the value is outside the valid range, return a default color.
-        if (Number.isNaN(value) || value < 0 || value > 100) {
-          // console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
-          return [0, 0, 0, 0] // Default color (transparent)
-        }
-      } else {
-        // For negative values, we want to map the value to a color scale where 0 is in the middle
-        let absMax: number
-
-        // Original behavior when bounds are disabled
-        absMax = Math.max(Math.abs(from_min), Math.abs(from_max))
-        const normalizedValue = value / absMax
-        value = (normalizedValue + 1) * 50
-      }
-
-      // Check if the colorRamp is fixed and if the length of the breakpoints array is equal to the length of the fixedColors array minus one.
-      if (
-        this.vizDetails.colorRamp.breakpoints &&
-        this.vizDetails.colorRamp.breakpoints.length ==
-          this.vizDetails.colorRamp.fixedColors.length - 1
-      ) {
-        // If the value is within the range of the colorRamp, return the corresponding color.
-        for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
-          if (
-            value > this.vizDetails.colorRamp.breakpoints[i] &&
-            value <= this.vizDetails.colorRamp.breakpoints[i + 1]
-          ) {
-            return hexToRgb(this.vizDetails.colorRamp.fixedColors[i + 1])
-          }
-        }
-
-        // If the value is below the first breakpoint, return the first color.
-        if (value < this.vizDetails.colorRamp.breakpoints[0]) {
-          return hexToRgb(this.vizDetails.colorRamp.fixedColors[0])
-        }
-
-        // If the value is above the last breakpoint, return the last color.
-        if (
-          value >=
-          this.vizDetails.colorRamp.breakpoints[this.vizDetails.colorRamp.breakpoints.length - 1]
-        ) {
-          return hexToRgb(
-            this.vizDetails.colorRamp.fixedColors[this.vizDetails.colorRamp.fixedColors.length - 1]
-          )
-        }
-        return new Uint8Array([255, 255, 255, 255])
-      } else {
-        // Map 0..100 to equally sized bins across all configured colors.
-        // Using (length - 1) shifts breakpoints upward (e.g. with 2 colors the split is at 100).
-        const n = this.colors.length
-        if (!n) return [0, 0, 0, 0]
-        const clamped = Math.max(0, Math.min(100, value))
-        const index = Math.min(n - 1, Math.floor((clamped / 100) * n))
-        return this.colors[index]
-      }
     },
 
     async solveProjection() {
@@ -706,15 +632,22 @@ const GridMap = defineComponent({
       }
     },
 
-    async loadAndPrepareData() {
+    /**
+     * Load the data file once and hand it to the calculation worker, which keeps it.
+     * Everything after this (column changes, diffs, recoloring) works from that cache.
+     */
+    async loadData() {
+      this.calc.worker = new GridMapWorker()
+      this.calc.task = Comlink.wrap<GridMapTask>(this.calc.worker)
+
       if (this.vizDetails.file.indexOf('.avro') > -1) {
-        return await this.loadAndPrepareAvroData()
+        await this.loadAvroData()
       } else {
-        return await this.loadAndPrepareCSVData()
+        await this.loadCSVData()
       }
     },
 
-    async loadAndPrepareAvroData() {
+    async loadAvroData() {
       const filename = `${this.subfolder}/${this.vizDetails.file}`
       const blob = await this.fileApi.getFileBlob(filename)
       const avro = await getAvro()
@@ -723,135 +656,35 @@ const GridMap = defineComponent({
         const rows = [] as any[]
         avro
           .createBlobDecoder(blob)
-          .on('metadata', (schema: any) => {
-            // console.log(schema)
-          })
-          .on('data', (row: any) => {
-            rows.push(row)
-          })
-          .on('end', () => {
-            resolve(rows)
-          })
+          .on('data', (row: any) => rows.push(row))
+          .on('end', () => resolve(rows))
       })
 
-      // console.log({ records })
-
-      // Store the min and max value to calculate the scale factor
-      let minValue = Number.POSITIVE_INFINITY
-      let maxValue = Number.NEGATIVE_INFINITY
-
       const record = records[0]
-
-      this.allTimes = record.timestamps
-      console.log('ALLTIMES', JSON.stringify(this.allTimes))
-
-      // set initial range
-      const timesSorted = this.allTimes.toSorted((a, b) => (a - b > 0 ? 1 : -1)) // a copy
-      console.log('SORTEDTIMES', JSON.stringify(timesSorted))
-      this.timeRange[0] = timesSorted[0]
-      this.timeRange[1] = timesSorted[timesSorted.length - 1]
-
-      const tableName = Object.keys(record.data)[0]
-      const dataValues: number[] = record.data[tableName]
-
-      // calc scale
-      for (const value of dataValues) {
-        maxValue = Math.max(maxValue, value)
-        minValue = Math.min(minValue, value)
-      }
-      const scaleFactor = maxValue > 0 ? 100 / maxValue : 0
-
-      if (this.vizDetails.unit == undefined) {
-        this.vizDetails.unit = ''
-      }
-
-      const finalData = {
-        mapData: [] as MapData[],
-        scaledFactor: scaleFactor as Number,
-        unit: this.vizDetails.unit,
-      } as CompleteMapData
-
-      const x = record.xCoords
-      const y = record.yCoords
-      const numPoints = x.length * y.length
 
       // Load CRS/projection from Avro file if exists
       if (record.crs) this.vizDetails.projection = record.crs
 
       // User must provide projection
       if (!this.vizDetails.projection) {
-        const msg = 'No coordinate projection. Add "projection: EPSG:xxxx" to config'
-        this.$emit('error', msg)
-        // throw Error(msg)
+        throw Error('No coordinate projection. Add "projection: EPSG:xxxx" to config')
       }
 
-      // Build x/y-coordinates (just once - always the same)
-      const centroid = new Float32Array(numPoints * 2)
-      let offset = 0
-      for (let ix = 0; ix < x.length; ix++) {
-        for (let iy = 0; iy < y.length; iy++) {
-          let wgs84 = [x[ix], y[iy]]
-          wgs84 = Coords.toLngLat(this.vizDetails.projection, wgs84)
-          centroid[offset] = wgs84[0]
-          centroid[offset + 1] = wgs84[1]
-          offset += 2
-        }
-      }
-      // map all times to their index and create a mapData object for each time
-      this.allTimes.forEach((time, index) => {
-        this.timeToIndex.set(time, index)
-
-        finalData.mapData.push({
-          length: numPoints,
-          time: time,
-          centroid,
-          values: new Float32Array(numPoints),
-          opacityValues: new Float32Array(numPoints),
-          colorData: new Uint8Array(numPoints * 3),
-        })
+      const tableName = Object.keys(record.data)[0]
+      await this.calc.task!.setGridData({
+        xCoords: record.xCoords,
+        yCoords: record.yCoords,
+        timestamps: record.timestamps,
+        values: record.data[tableName],
+        projection: this.vizDetails.projection,
       })
-
-      // Sometimes avro files don't have timestamps in low-to-high order (!!)
-      // So we need a lookup for the lookup, to get the times in a sane order.
-      const timemap = {} as any
-      timesSorted.forEach(t => {
-        const index = this.allTimes.indexOf(t)
-        timemap[t] = index
-      })
-
-      // Loop through the data and create the data object for the map
-      for (let timeIndex = 0; timeIndex < this.allTimes.length; timeIndex++) {
-        const seconds = timesSorted[timeIndex]
-        const realIndex = timemap[seconds]
-        console.log('timeIndex', timeIndex, 'seconds', seconds, 'realIndex', realIndex)
-        for (let i = 0; i < numPoints; i++) {
-          const offset = realIndex * numPoints + i
-          const value = scaleFactor * dataValues[offset]
-
-          finalData.mapData[realIndex].values[i] = value
-        }
-      }
-
-      this.allTimes.sort((a, b) => (a - b > 0 ? 1 : -1))
-      this.myState.statusMessage = ''
-
-      return finalData
     },
 
-    async loadAndPrepareCSVData() {
-      this.allTimes = []
-      this.timeToIndex.clear()
-
+    async loadCSVData() {
       const config = { dataset: this.vizDetails.file }
-      let csv = {} as any
+      const csv = await this.myDataManager.getDataset(config, { subfolder: this.subfolder })
 
-      try {
-        csv = await this.myDataManager.getDataset(config, { subfolder: this.subfolder })
-      } catch (e) {
-        this.$emit('error', '' + e) // `Error loading ${this.vizDetails.file}: File missing? CSV Too large?`)
-      }
-
-      // The datamanager doesn't return the comments...
+      // projection can be in a comment line
       if (csv.comments && csv.comments.length) {
         csv.comments.forEach((comment: string) => {
           if (comment.includes('EPSG')) {
@@ -861,210 +694,60 @@ const GridMap = defineComponent({
         })
       }
 
-      // auto detects the valueColumn
-      let vc = this.vizDetails.valueColumn || ''
-      if (!csv.allRows[vc]) {
-        // use all columns except x, y, time
-        const candidates = Object.keys(csv.allRows).filter(k => !['x', 'y', 'time'].includes(k))
-        // optional: use only the first numeric column
-        const numeric = candidates.filter(k =>
-          Array.from(csv.allRows[k].values).every(v => typeof v === 'number')
-        )
-        vc = (numeric.length ? numeric[0] : candidates[0]) || ''
-        this.vizDetails.valueColumn = vc
-        // console.warn('valueColumn not found with automatic selection')
-        // console.log('vc: ', vc)
-      }
-
-      const valuesArr1 = csv.allRows[this.vizDetails.valueColumn].values as Float32Array
-      let valuesArr2: Float32Array | undefined
-      if (this.vizDetails.diff && this.vizDetails.secondValueColumn) {
-        valuesArr2 = csv.allRows[this.vizDetails.secondValueColumn]!.values as Float32Array
-      }
-
-      const timeArr = csv.allRows.time.values as Float32Array
-
-      // Store the min and max value to calculate the scale factor
-
-      this.availableColumns = Object.keys(csv.allRows).filter(k => !['x', 'y', 'time'].includes(k))
-      this.guiConfig.valueColumn = this.vizDetails.valueColumn
-      this.guiConfig.secondValueColumn = this.vizDetails.secondValueColumn || ''
-
-      let minValue = Number.POSITIVE_INFINITY
-      let maxValue = Number.NEGATIVE_INFINITY
-
-      // billy is completely redoing this part that was batshit insane. Just get the mix/max omg!
-      const allTimes = new Set()
-      if (valuesArr2) {
-        // it's probably a diff
-        for (let i = 0; i < valuesArr1.length; i++) {
-          const raw = this.vizDetails.diff ? valuesArr1[i] - valuesArr2[i] : valuesArr1[i]
-          maxValue = Math.max(maxValue, raw)
-          minValue = Math.min(minValue, raw)
-          allTimes.add(timeArr[i])
-        }
-      } else {
-        // just one array, not a diff
-        for (let i = 0; i < valuesArr1.length; i++) {
-          maxValue = Math.max(maxValue, valuesArr1[i])
-          minValue = Math.min(minValue, valuesArr1[i])
-          allTimes.add(timeArr[i])
-        }
-      }
-      this.valuesIncludeNeg = minValue < 0
-      this.allTimes = [...allTimes].sort((n1: any, n2: any) => n1 - n2) as number[]
-
-      this.timeRange[0] = Math.min.apply(Math, this.allTimes)
-      this.timeRange[1] = Math.max.apply(Math, this.allTimes)
-
-      // Count elements per time
-      const numberOfElementsPerTime = Math.ceil(valuesArr1.length / this.allTimes.length)
-
-      // scaling values to color scale of 0 - 100 (if negative)
-      let from_min = minValue
-      let from_max = maxValue
-      let to_min = 0 // as long as this is zero, it doesn't need to be added to maxValue scaling below
-      let to_max = 100
-      if (this.valuesIncludeNeg) {
-        maxValue = ((maxValue - from_min) * to_max) / (from_max - from_min) // formula is: x -> (x - from_min) * (to_max - to_min) / (from_max - from_min) + to_min
-      }
-      this.globalMinValue = from_min
-      this.globalMaxValue = from_max
-      const scaleFactor = maxValue !== 0 ? 100 / maxValue : 0
-
-      const finalData = {
-        mapData: [] as MapData[],
-        scaledFactor: scaleFactor as Number,
-        unit: this.vizDetails.unit || '',
-      } as CompleteMapData
-
-      // this.mapProps.colorDataDigits = 3
-
-      if (this.guiConfig.opacityColumn != 'none') {
-        this.colorDataDigits = 4
-      } else {
-        this.colorDataDigits = 3
-      }
-      // map all times to their index and create a mapData object for each time
-      this.allTimes.forEach((time, index) => {
-        this.timeToIndex.set(time, index)
-
-        finalData.mapData.push({
-          time,
-          values: new Float32Array(numberOfElementsPerTime),
-          opacityValues: new Float32Array(numberOfElementsPerTime),
-          centroid: new Float32Array(numberOfElementsPerTime * 2),
-          colorData: new Uint8Array(numberOfElementsPerTime * this.colorDataDigits),
-          numberOfFilledValues: 0,
-          numberOfFilledCentroids: 0,
-          numberOfFilledColors: 0,
-          length: numberOfElementsPerTime,
-        })
-      })
-
       // User must provide projection
       if (!this.vizDetails.projection) {
-        const msg = 'No coordinate projection. Add "projection: EPSG:xxxx" to config'
-        this.$emit('error', msg)
-        throw Error(msg)
+        throw Error('No coordinate projection. Add "projection: EPSG:xxxx" to config')
       }
 
-      // Loop through the data and create the data object for the map
-      for (let i = 0; i < valuesArr1.length; i++) {
-        // index for the time
-        const index = this.timeToIndex.get(timeArr[i]) as number
-
-        let raw = valuesArr1[i]
-        if (valuesArr2 && this.vizDetails.diff) {
-          raw = raw - valuesArr2[i]
-        }
-
-        const value = scaleFactor * raw
-
-        const colors = this.pickColor(value, from_min, from_max, to_min, to_max)
-
-        // Save index for next position in the array
-        const lastValueIndex = finalData.mapData[index].numberOfFilledValues as number
-        const lastColorIndex = finalData.mapData[index].numberOfFilledColors as number
-        const lastCentroidIndex = finalData.mapData[index].numberOfFilledCentroids as number
-
-        // Save the value
-        finalData.mapData[index].values[lastValueIndex] = value
-
-        // Loop through the colors and add them to the mapData
-
-        if (this.guiConfig.opacityColumn != 'none') {
-          var opacityColArr
-
-          let oc = this.vizDetails.opacityColumn || ''
-          if (!csv.allRows[oc]) {
-            console.error(
-              'column for opacity values not found, defaulting to standard opacity funcitonality with slider.'
-            )
-          } else {
-            opacityColArr = csv.allRows[this.vizDetails.opacityColumn].values as Float32Array
-
-            // get min and max for 0-1 value scaling
-            let minOpacityValue = Number.POSITIVE_INFINITY
-            let maxOpacityValue = Number.NEGATIVE_INFINITY
-            for (let i = 0; i < opacityColArr.length; i++) {
-              if (opacityColArr[i] < minOpacityValue) minOpacityValue = opacityColArr[i]
-              if (opacityColArr[i] > maxOpacityValue) maxOpacityValue = opacityColArr[i]
-            }
-            // Save opacity value
-            finalData.mapData[index].opacityValues[lastValueIndex] =
-              Math.round(
-                ((opacityColArr[i] - minOpacityValue) / (maxOpacityValue - minOpacityValue)) * 100
-              ) / 100
-            if (finalData.mapData[index].opacityValues[lastValueIndex] == 0)
-              finalData.mapData[index].opacityValues[lastValueIndex] = 0.01
-            for (let j = 0; j < 4; j++) {
-              // set 4th value to opacity value
-              if (j == 3) {
-                finalData.mapData[index].colorData[lastColorIndex + j] = Math.round(
-                  finalData.mapData[index].opacityValues[lastValueIndex] * 255
-                )
-              } else {
-                finalData.mapData[index].colorData[lastColorIndex + j] = colors[j]
-              }
-            }
-          }
-        } else {
-          for (let j = 0; j < 3; j++) {
-            finalData.mapData[index].colorData[lastColorIndex + j] = colors[j]
-          }
-        }
-
-        // Convert coordinates
-        let wgs84 = [csv.allRows.x.values[i], csv.allRows.y.values[i]]
-
-        if (this.vizDetails.projection !== 'EPSG:4326') {
-          wgs84 = Coords.toLngLat(this.vizDetails.projection, wgs84)
-        }
-
-        // Add centroids to the mapData
-        finalData.mapData[index].centroid[lastCentroidIndex] = wgs84[0]
-        finalData.mapData[index].centroid[lastCentroidIndex + 1] = wgs84[1]
-
-        // Update the number of values for time array in the mapData
-        finalData.mapData[index].numberOfFilledValues = lastValueIndex + 1
-        finalData.mapData[index].numberOfFilledCentroids = lastCentroidIndex + 2
-        if (this.guiConfig.opacityColumn != 'none') {
-          finalData.mapData[index].numberOfFilledColors = lastColorIndex + 4
-        } else {
-          finalData.mapData[index].numberOfFilledColors = lastColorIndex + 3
-        }
+      const columns = {} as { [name: string]: any }
+      for (const [name, column] of Object.entries(csv.allRows) as [string, any][]) {
+        columns[name] = column.values
       }
 
-      // Clean data (delete numberOfFilledXXXX)
-      Array.from(this.allTimes.keys()).forEach((index: number) => {
-        delete finalData.mapData[index].numberOfFilledValues
-        delete finalData.mapData[index].numberOfFilledCentroids
-        delete finalData.mapData[index].numberOfFilledColors
-      })
+      // the column arrays are shared with the datamanager cache, so they get copied
+      // (not transferred) to the worker. unreactive: Proxies throw DataCloneError.
+      await this.calc.task!.setTableData(
+        unreactive({ columns, projection: this.vizDetails.projection })
+      )
+    },
 
+    /**
+     * Ask the worker for the cell values of the currently selected column(s).
+     * With withColors, colorData comes back filled in, so nothing renders uncolored.
+     */
+    async prepareData(withColors: boolean) {
+      const result = await this.calc.task!.prepare(
+        unreactive({
+          valueColumn: this.vizDetails.valueColumn || '',
+          secondValueColumn: this.vizDetails.secondValueColumn || '',
+          diff: !!this.vizDetails.diff,
+          opacityColumn:
+            this.guiConfig.opacityColumn == 'none' ? '' : this.vizDetails.opacityColumn || '',
+          colorOptions: withColors ? this.buildColorOptions() : undefined,
+        })
+      )
+
+      const data = result.data
+      data.unit = this.vizDetails.unit || ''
+
+      this.availableColumns = result.availableColumns
+      this.vizDetails.valueColumn = result.valueColumn
+      this.guiConfig.valueColumn = result.valueColumn
+      this.guiConfig.secondValueColumn = this.vizDetails.secondValueColumn || ''
+
+      this.valuesIncludeNeg = result.valuesIncludeNeg
+      this.globalMinValue = result.globalMinValue
+      this.globalMaxValue = result.globalMaxValue
+      this.colorDataDigits = result.colorDataDigits
+
+      this.allTimes = result.allTimes
+      this.timeRange[0] = result.allTimes[0]
+      this.timeRange[1] = result.allTimes[result.allTimes.length - 1]
+      this.timeToIndex.clear()
+      data.mapData.forEach((m, index) => this.timeToIndex.set(m.time, index))
+
+      this.data = data
       this.myState.statusMessage = ''
-      return finalData
     },
 
     resolveProjection() {
@@ -1198,7 +881,6 @@ const GridMap = defineComponent({
             this.guiConfig['upper bound'] = Number(value.toFixed(2))
             this.setColors()
           })
-        this.setColors()
       }
     },
 
@@ -1258,12 +940,17 @@ const GridMap = defineComponent({
       return closest
     },
 
+    /** Recalculate from the worker's cached data -- nothing is fetched again */
     async reloadDataAndPreserveSelectedTime() {
       const selectedTimeBeforeReload = this.getCurrentSelectedTime()
-      this.data = await this.loadAndPrepareData()
+      try {
+        await this.prepareData(true)
+      } catch (e) {
+        this.$emit('error', e instanceof Error ? e.message : '' + e)
+        return
+      }
       const selectedTimeAfterReload = this.resolveSelectedTime(selectedTimeBeforeReload)
       this.currentTime = [selectedTimeAfterReload, selectedTimeAfterReload]
-      this.setColors()
     },
 
     async handleOpacityColumnChange(newCol: string) {
@@ -1305,72 +992,45 @@ const GridMap = defineComponent({
       await this.reloadDataAndPreserveSelectedTime()
     },
 
-    setColors() {
-      if (!this.data) return
-
+    /** Color settings from the GUI, in the plain form the worker needs */
+    buildColorOptions(): ColorOptions {
       const rawRamp = this.guiConfig['color ramp'] as string
       // remove the suffix " (div)" if it exists
       const baseRamp = rawRamp.replace(/\s*\(div\)$/, '')
       // give only the shortened name to the getColorRampHexCodes function
       const ramp = { ramp: baseRamp } as Ramp
-      const color = getColorRampHexCodes(ramp, this.guiConfig.steps)
+      const colors = this.hexArrayToRgbArray(getColorRampHexCodes(ramp, this.guiConfig.steps))
+      if (this.guiConfig.flip) colors.reverse()
 
-      // get the type of the scale based on the suffix
-      // const type = rawRamp.endsWith(' (div)') ? 'diverging' : 'sequential'
-      // console.log('Color ramp type:', type)
+      // fixed colors are only used if there is exactly one more color than breakpoints
+      const { breakpoints, fixedColors } = this.vizDetails.colorRamp || {}
+      const isFixed = breakpoints && fixedColors && breakpoints.length == fixedColors.length - 1
 
-      if (color.length) {
-        this.colors = []
+      return {
+        colors,
+        boundsEnabled: this.guiConfig['bounds enabled'],
+        upperBound: this.guiConfig['upper bound'],
+        lowerBound: this.guiConfig['lower bound'],
+        breakpoints: isFixed ? [...breakpoints] : undefined,
+        fixedColors: isFixed ? fixedColors.map((c: string) => hexToRgb(c)) : undefined,
       }
+    },
 
-      this.colors = this.hexArrayToRgbArray(color)
+    async setColors() {
+      if (!this.data || !this.calc.task) return
 
-      // scaling values using global values saved in loadAndPrepareCsvData
-      let from_min = this.globalMinValue
-      let from_max = this.globalMaxValue
-      let to_min = 0
-      let to_max = 100
+      const request = ++this.calc.colorRequest
+      const colorData = await this.calc.task.colorize(this.buildColorOptions())
 
-      if (this.guiConfig.flip) this.colors.reverse()
+      // a newer recolor was requested while this one was running
+      if (request !== this.calc.colorRequest || !this.data) return
 
-      // Recalculating the color values for the colorRamp
-      // i: each timeperiod (e.g.0-24)
-      for (let i = 0; i < this.data.mapData.length; i++) {
-        // j: each element in each time period (e.g.0-82636)
-        for (let j = 0; j < this.data.mapData[i].values.length; j++) {
-          const value = this.data.mapData[i].values[j]
-
-          const colors = this.pickColor(value, from_min, from_max, to_min, to_max)
-          if (colors == undefined) {
-            console.log('bad color: ', i, j, value)
-            break
-          }
-
-          if (this.guiConfig.opacityColumn == 'none') {
-            for (let colorIndex = j * 3; colorIndex <= j * 3 + 2; colorIndex++) {
-              this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 3]
-            }
-          } else {
-            try {
-              for (let colorIndex = j * 4; colorIndex <= j * 4 + 3; colorIndex++) {
-                // set 4th value to opacity value
-                if ((colorIndex + 1) % 4 == 0) {
-                  this.data.mapData[i].colorData[colorIndex] = Math.round(
-                    this.data.mapData[i].opacityValues[j] * 255
-                  )
-                } else {
-                  this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 4]
-                }
-              }
-            } catch (e) {
-              this.$emit('error', '' + e) // `Error loading ${this.vizDetails.file}: File missing? CSV Too large?`)
-            }
-          }
-        }
-      }
-
-      // force Vue to take notice of the change - any prop change will do
-      this.data = { ...this.data }
+      // new objects so Vue (and deck.gl) notice the change
+      const mapData = this.data.mapData.map((m: MapData, i: number) => ({
+        ...m,
+        colorData: colorData[i],
+      }))
+      this.data = { ...this.data, mapData }
     },
 
     hexArrayToRgbArray(hexArray: string[]): any {
@@ -1446,8 +1106,15 @@ const GridMap = defineComponent({
     this.myState.statusMessage = `${this.$t('loading')}`
     await sleep(0)
 
-    this.data = await this.loadAndPrepareData()
-    // this.$emit('error', 'Error loading ' + this.vizDetails.file)
+    try {
+      await this.loadData()
+      // colors come later, once the color bounds are known
+      await this.prepareData(false)
+    } catch (e) {
+      this.myState.statusMessage = ''
+      this.$emit('error', e instanceof Error ? e.message : '' + e)
+      return
+    }
 
     // gets the color scale type from the color ramp name
     const rawRamp = this.guiConfig['color ramp'] as string
@@ -1469,7 +1136,7 @@ const GridMap = defineComponent({
       this.guiController.root.open()
     }
 
-    this.setColors()
+    await this.setColors()
     // this.buildThumbnail()
     this.isLoaded = true
     this.setMapCenter()
@@ -1493,6 +1160,10 @@ const GridMap = defineComponent({
 
     this.data = null
     this.guiController?.destroy()
+
+    this.calc.worker?.terminate()
+    this.calc.worker = null
+    this.calc.task = null
 
     this.$store.commit('setFullScreen', false)
   },

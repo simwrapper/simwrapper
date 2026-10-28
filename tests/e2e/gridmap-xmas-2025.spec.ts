@@ -23,7 +23,15 @@ test('gridmap loads accessibility page', async ({ page }) => {
   expect(colors[1]).toBe(48)
   expect(colors[2]).toBe(97)
 
+  // recoloring happens in a web worker, so wait for the new colors to arrive
+  const colorSum = () =>
+    page.evaluate(() =>
+      // @ts-ignore
+      Array.from(window.__testdata__.mapData[0].colorData as number[]).reduce((a, b) => a + b, 0)
+    )
+
   await page.getByLabel('flip').check()
+  await expect.poll(colorSum).toBe(682615)
   testdata = await page.evaluate(() => window.__testdata__)
   colors = testdata.mapData[0].colorData
   expect(colors).toHaveLength(12768)
@@ -38,9 +46,5 @@ test('gridmap loads accessibility page', async ({ page }) => {
   await page.getByLabel('flip').check()
   const dropdown = await page.getByLabel('1st column')
   await dropdown.selectOption('pt_accessibility')
-  await page.waitForTimeout(1000)
-  testdata = await page.evaluate(() => window.__testdata__)
-  colors = testdata.mapData[0].colorData as any[]
-  sum = colors.reduce((a, b) => a + b, 0)
-  expect(sum).toBe(745388)
+  await expect.poll(colorSum).toBe(745388)
 })
