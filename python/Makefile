@@ -23,7 +23,7 @@ build:
 clean:
 > rm -rf build
 > rm -rf dist
-> rm -rf  simwrapper.egg-info
+> rm -rf simwrapper.egg-info
 > rm -rf simwrapper/static
 .PHONY: clean
 
@@ -35,4 +35,3 @@ docker: build
 > rm -rf .venv dist
 > docker build -t simwrapper/app .
 .PHONY: docker
-
