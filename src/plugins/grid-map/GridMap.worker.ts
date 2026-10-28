@@ -32,6 +32,8 @@ export interface PreparedData {
   globalMinValue: number
   globalMaxValue: number
   colorDataDigits: number
+  /** unscaled [min, max] of each time period, in mapData order */
+  valueRanges: [number, number][]
 }
 
 export interface ColorOptions {
@@ -64,7 +66,7 @@ let _centroids: Float32Array[] = []
 // ----- results of the latest prepare(), used by colorize() ------------------
 let _values: Float32Array[] = []
 let _opacityValues: Float32Array[] = []
-let _colorDataDigits = 3
+let _hasOpacity = false
 let _valuesIncludeNeg = false
 let _globalMinValue = Number.NEGATIVE_INFINITY
 let _globalMaxValue = Number.POSITIVE_INFINITY
@@ -179,18 +181,27 @@ const Task = {
     }
 
     _values = _times.map(() => new Float32Array(_length))
+    const rangeMin = new Float64Array(_times.length).fill(Number.POSITIVE_INFINITY)
+    const rangeMax = new Float64Array(_times.length).fill(Number.NEGATIVE_INFINITY)
     for (let row = 0; row < values1.length; row++) {
       const raw = values2 ? values1[row] - values2[row] : values1[row]
-      _values[_rowTime[row]][_rowSlot[row]] = scaleFactor * raw
+      const ti = _rowTime[row]
+      _values[ti][_rowSlot[row]] = scaleFactor * raw
+      // comparisons, not Math.min/max, so NaN cells are skipped
+      if (raw < rangeMin[ti]) rangeMin[ti] = raw
+      if (raw > rangeMax[ti]) rangeMax[ti] = raw
     }
+    const valueRanges = _times.map((_, i): [number, number] =>
+      rangeMin[i] <= rangeMax[i] ? [rangeMin[i], rangeMax[i]] : [0, 0]
+    )
 
     _opacityValues = _times.map(() => new Float32Array(_length))
-    _colorDataDigits = opts.opacityColumn ? 4 : 3
+    _hasOpacity = !!opts.opacityColumn
     if (opts.opacityColumn) calculateOpacity(opts.opacityColumn)
 
     const colorData = opts.colorOptions
       ? Task.colorize(opts.colorOptions)
-      : _times.map(() => new Uint8Array(_length * _colorDataDigits))
+      : _times.map(() => new Uint8Array(_length * 4))
 
     // send copies: this worker keeps its own values for later colorize() calls
     const centroidCopies = new Map<Float32Array, Float32Array>()
@@ -222,24 +233,27 @@ const Task = {
       valuesIncludeNeg: _valuesIncludeNeg,
       globalMinValue: _globalMinValue,
       globalMaxValue: _globalMaxValue,
-      colorDataDigits: _colorDataDigits,
+      colorDataDigits: 4,
+      valueRanges,
     }
     return Comlink.transfer(result, [...transferables])
   },
 
-  /** Recalculate cell colors for the latest prepare() results. One array per time period */
+  /**
+   * Recalculate cell colors for the latest prepare() results. One RGBA array per time
+   * period: always RGBA, so the threshold shading can make individual cells see-through.
+   */
   colorize(opts: ColorOptions): Uint8Array[] {
-    const digits = _colorDataDigits
     const colorData = _values.map((values, i) => {
-      const colors = new Uint8Array(_length * digits)
+      const colors = new Uint8Array(_length * 4)
       const opacity = _opacityValues[i]
       for (let j = 0; j < values.length; j++) {
         const color = pickColor(values[j], opts)
-        const offset = j * digits
+        const offset = j * 4
         colors[offset] = color[0]
         colors[offset + 1] = color[1]
         colors[offset + 2] = color[2]
-        if (digits === 4) colors[offset + 3] = Math.round(opacity[j] * 255)
+        colors[offset + 3] = _hasOpacity ? Math.round(opacity[j] * 255) : 255
       }
       return colors
     })
@@ -256,9 +270,7 @@ const Task = {
 function pickValueColumn(requested: string) {
   if (_columns[requested]) return requested
   const candidates = Object.keys(_columns)
-  const numeric = candidates.filter(k =>
-    Array.from(_columns[k]).every(v => typeof v === 'number')
-  )
+  const numeric = candidates.filter(k => Array.from(_columns[k]).every(v => typeof v === 'number'))
   return (numeric.length ? numeric[0] : candidates[0]) || ''
 }
 

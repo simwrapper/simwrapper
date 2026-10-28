@@ -119,6 +119,8 @@ interface VizDetail {
   diff?: boolean
   unit: string
   timeSelector: any
+  /** threshold slider direction at startup: gray out cells 'less' or 'greater' than it */
+  thresholdGrayOut?: string
 }
 
 interface GuiConfig {
@@ -139,7 +141,13 @@ interface GuiConfig {
   valueColumn: string
   secondValueColumn: string
   diff: boolean
+  threshold: number
+  /** gray out cells 'less' (at or below) or 'greater' (at or above) than the threshold */
+  thresholdMode: 'less' | 'greater'
 }
+
+/** cells grayed out by the threshold slider get this RGBA color: #80808020 */
+const THRESHOLD_COLOR = [128, 128, 128, 32]
 
 interface StandaloneYAMLconfig {
   title: String
@@ -186,6 +194,10 @@ const i18n = {
       selection: 'Selection',
       areas: 'Areas',
       count: 'Count',
+      threshold: 'Threshold',
+      grayOut: 'Gray out',
+      lessThan: 'less than',
+      greaterThan: 'greater than',
     },
     de: {
       loading: 'Dateien laden...',
@@ -196,6 +208,10 @@ const i18n = {
       selection: 'Ausgewählt',
       areas: 'Orte',
       count: 'Anzahl',
+      threshold: 'Schwelle',
+      grayOut: 'Ausgrauen',
+      lessThan: 'kleiner als',
+      greaterThan: 'größer als',
     },
   },
 }
@@ -299,6 +315,16 @@ const GridMap = defineComponent({
         task: null as Comlink.Remote<GridMapTask> | null,
         colorRequest: 0,
       }),
+      // Threshold shading: the worker's unshaded colors per time period, and the slider.
+      // Only the time period on display is shaded, from a copy of its base colors.
+      shading: markRaw({
+        baseColors: [] as Uint8Array[],
+        controller: null as any,
+      }),
+      /** unscaled [min, max] per time period, from the worker */
+      valueRanges: [] as [number, number][],
+      /** threshold slider range for the time period on display */
+      thresholdRange: [0, 0] as [number, number],
       currentTime: [0, 0] as Number[],
       timeToIndex: new Map<Number, number>(),
       guiConfig: {
@@ -319,6 +345,8 @@ const GridMap = defineComponent({
         valueColumn: '',
         secondValueColumn: '',
         diff: false,
+        threshold: 0,
+        thresholdMode: 'less',
       } as GuiConfig,
       configId: `gui-config-${Math.floor(1e12 * Math.random())}` as string,
       guiController: null as GUI | null,
@@ -358,6 +386,10 @@ const GridMap = defineComponent({
       return this.thumbnailUrl
     },
 
+    currentTimeIndex(): number {
+      return this.timeToIndex.get(this.currentTime[1]) || 0
+    },
+
     mapProps(): MapProps {
       //@ts-ignore
       window.__testdata__ = this.data
@@ -368,7 +400,7 @@ const GridMap = defineComponent({
         coverage: 0.65,
         dark: this.$store.state.isDarkMode,
         data: this.data,
-        currentTimeIndex: this.timeToIndex.get(this.currentTime[1]) || 0,
+        currentTimeIndex: this.currentTimeIndex,
         mapIsIndependent: this.vizDetails.mapIsIndependent || false,
         maxHeight: this.guiConfig.height,
         colorDataDigits: this.colorDataDigits,
@@ -578,6 +610,15 @@ const GridMap = defineComponent({
         })
       }
 
+      const grayOut = configuration.thresholdGrayOut
+      // emit, not setStatus: the store's setStatus is a stub that drops the message
+      if (grayOut !== undefined && grayOut !== 'less' && grayOut !== 'greater') {
+        this.$emit(
+          'error',
+          `thresholdGrayOut must be "less" or "greater", not "${grayOut}". Using "less".`
+        )
+      }
+
       // TODO: Add warnings for color attributes
     },
 
@@ -746,8 +787,116 @@ const GridMap = defineComponent({
       this.timeToIndex.clear()
       data.mapData.forEach((m, index) => this.timeToIndex.set(m.time, index))
 
-      this.data = data
+      this.valueRanges = result.valueRanges
+      this.shading.baseColors = data.mapData.map(m => m.colorData)
+      // markRaw: data is only ever replaced, never changed in place, so deep reactivity
+      // would just be proxy overhead on every threshold slider move
+      this.data = markRaw(data)
       this.myState.statusMessage = ''
+    },
+
+    /**
+     * Point the threshold slider at the time period on display: its title follows the
+     * column choice, its range the unscaled values. With reset (or if the map was fully
+     * colored), it moves to the end that shades nothing.
+     */
+    updateThresholdSlider(reset: boolean) {
+      const slider = this.shading.controller
+      if (!slider) return
+
+      const isDiff = this.guiConfig.diff && !!this.guiConfig.secondValueColumn
+      slider.name(isDiff ? 'Diff' : this.vizDetails.valueColumn)
+
+      const wasOff = this.isThresholdNear(this.thresholdColoredEnd())
+      const [min, max] = this.valueRanges[this.currentTimeIndex] || [0, 0]
+      this.thresholdRange = [min, max]
+
+      const step = (max - min) / 1000 || 1
+      const decimals = Math.min(6, Math.max(0, Math.ceil(-Math.log10(step))))
+      slider.min(min).max(max).step(step, false).decimals(decimals)
+
+      const threshold = this.guiConfig.threshold
+      this.guiConfig.threshold =
+        reset || wasOff ? this.thresholdColoredEnd() : Math.min(max, Math.max(min, threshold))
+      slider.updateDisplay()
+    },
+
+    /** Slider end that shades nothing: the min for "less than", the max for "greater than" */
+    thresholdColoredEnd() {
+      const [min, max] = this.thresholdRange
+      return this.guiConfig.thresholdMode == 'less' ? min : max
+    },
+
+    /** Slider end that shades everything */
+    thresholdGrayEnd() {
+      const [min, max] = this.thresholdRange
+      return this.guiConfig.thresholdMode == 'less' ? max : min
+    },
+
+    /**
+     * The slider snaps to steps, which may not land exactly on the min or max; anything
+     * within half a step of an end counts as all the way there.
+     */
+    isThresholdNear(position: number) {
+      const [min, max] = this.thresholdRange
+      return Math.abs(this.guiConfig.threshold - position) <= (max - min) / 2000
+    },
+
+    /**
+     * Flipping between "less than" and "greater than": a fully colored map stays fully
+     * colored, so the slider jumps to the other end. Any other setting is kept, so the
+     * same limit now grays the other side.
+     */
+    handleThresholdModeChange() {
+      const [min, max] = this.thresholdRange
+      const previousColoredEnd = this.guiConfig.thresholdMode == 'less' ? max : min
+      if (this.isThresholdNear(previousColoredEnd)) {
+        this.guiConfig.threshold = this.thresholdColoredEnd()
+        this.shading.controller?.updateDisplay()
+      }
+      this.applyThreshold()
+    },
+
+    /**
+     * Gray out cells at or below ("less than") or at or above ("greater than") the
+     * threshold, in the time period on display. The colored end of the slider shades
+     * nothing, the far end shades everything. Builds a fresh colorData array from the
+     * unshaded colors, so deck.gl sees new colors (and nothing else) and just re-uploads
+     * them. Every other time period gets its unshaded colors.
+     */
+    applyThreshold() {
+      if (!this.data) return
+
+      const base = this.shading.baseColors
+      const index = this.currentTimeIndex
+      let shaded = base[index]
+
+      if (shaded && !this.isThresholdNear(this.thresholdColoredEnd())) {
+        const values = this.data.mapData[index].values
+        const isLess = this.guiConfig.thresholdMode == 'less'
+        // at the far end, gray everything even if the slider snapped just short of it
+        let limit = this.guiConfig.threshold * this.data.scaledFactor
+        if (this.isThresholdNear(this.thresholdGrayEnd())) {
+          limit = isLess ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY
+        }
+        const [r, g, b, a] = THRESHOLD_COLOR
+        shaded = shaded.slice()
+        for (let i = 0; i < values.length; i++) {
+          if (isLess ? values[i] <= limit : values[i] >= limit) {
+            const offset = i * 4
+            shaded[offset] = r
+            shaded[offset + 1] = g
+            shaded[offset + 2] = b
+            shaded[offset + 3] = a
+          }
+        }
+      }
+
+      const mapData = this.data.mapData.map((m: MapData, i: number) => ({
+        ...m,
+        colorData: i === index ? shaded : base[i],
+      }))
+      this.data = markRaw({ ...this.data, mapData })
     },
 
     resolveProjection() {
@@ -768,7 +917,9 @@ const GridMap = defineComponent({
           this.selectedTimeData.push(this.data.mapData[i].values)
         }
       }
-      this.setColors()
+      // every time period is already colored; only the shading follows the time
+      this.updateThresholdSlider(false)
+      this.applyThreshold()
     },
 
     handleTimeSliderValues(timeValues: any[]) {
@@ -781,6 +932,8 @@ const GridMap = defineComponent({
           this.selectedTimeData.push(this.data[i])
         }
       }
+      this.updateThresholdSlider(false)
+      this.applyThreshold()
     },
 
     setupGui() {
@@ -882,6 +1035,24 @@ const GridMap = defineComponent({
             this.setColors()
           })
       }
+
+      // threshold: which side to gray out, and the limit. Slider min/max are set by
+      // updateThresholdSlider(). The YAML can force the gray-out direction at startup.
+      const grayOut = this.vizDetails.thresholdGrayOut
+      if (grayOut == 'less' || grayOut == 'greater') this.guiConfig.thresholdMode = grayOut
+
+      const threshold = config.addFolder(this.$t('threshold'))
+      this.shading.controller = threshold
+        .add(this.guiConfig, 'threshold', 0, 1)
+        .onChange(() => this.applyThreshold())
+      threshold
+        .add(this.guiConfig, 'thresholdMode', {
+          [this.$t('lessThan')]: 'less',
+          [this.$t('greaterThan')]: 'greater',
+        })
+        .name(this.$t('grayOut'))
+        .onChange(() => this.handleThresholdModeChange())
+      this.updateThresholdSlider(true)
     },
 
     /*
@@ -951,6 +1122,9 @@ const GridMap = defineComponent({
       }
       const selectedTimeAfterReload = this.resolveSelectedTime(selectedTimeBeforeReload)
       this.currentTime = [selectedTimeAfterReload, selectedTimeAfterReload]
+      // different values: start the threshold over
+      this.updateThresholdSlider(true)
+      this.applyThreshold()
     },
 
     async handleOpacityColumnChange(newCol: string) {
@@ -1025,12 +1199,8 @@ const GridMap = defineComponent({
       // a newer recolor was requested while this one was running
       if (request !== this.calc.colorRequest || !this.data) return
 
-      // new objects so Vue (and deck.gl) notice the change
-      const mapData = this.data.mapData.map((m: MapData, i: number) => ({
-        ...m,
-        colorData: colorData[i],
-      }))
-      this.data = { ...this.data, mapData }
+      this.shading.baseColors = colorData
+      this.applyThreshold()
     },
 
     hexArrayToRgbArray(hexArray: string[]): any {

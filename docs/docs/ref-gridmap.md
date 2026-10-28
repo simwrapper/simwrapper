@@ -35,6 +35,8 @@ In addition to the standard dashboard configurations, the following properties a
 
 - **colorRamp/ramp:** *String*. Specifies the colorramp. Possible colorramps are: *Inferno*, *Magma*, *Viridis*, *Greens*, *Reds*, *RdYlGn*, *greenRed*. The default value is *Viridis*.
 
+- **thresholdGrayOut:** *String*, `less` or `greater`. Which cells the Threshold slider in the settings panel grays out: those *less* than (at or below) the slider value, or those *greater* than (at or above) it. The slider always starts at the end that leaves the map fully colored. Can also be changed in the UI. The default value is *less*.
+
 The `.yaml` file could then look like this (Here are both variants of how to define breakpoints. However, only one of the two variants may be used at most):
 
 ```yaml

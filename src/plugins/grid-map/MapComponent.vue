@@ -184,16 +184,20 @@ export default defineComponent({
 
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
+    // markRaw: as a reactive Proxy, maplibre's own render loop (every frame, every pan
+    // and zoom) would read all of its internals through Vue's proxy traps
     //@ts-ignore
-    this.mymap = new maplibregl.Map({
-      center,
-      zoom: this.globalState.viewState.zoom || 9,
-      // without these, the first map 'move' event overwrites the initial YAML bearing/pitch
-      bearing: this.globalState.viewState.bearing || 0,
-      pitch: this.globalState.viewState.pitch || 0,
-      container,
-      style,
-    })
+    this.mymap = markRaw(
+      new maplibregl.Map({
+        center,
+        zoom: this.globalState.viewState.zoom || 9,
+        // without these, the first map 'move' event overwrites the initial YAML bearing/pitch
+        bearing: this.globalState.viewState.bearing || 0,
+        pitch: this.globalState.viewState.pitch || 0,
+        container,
+        style,
+      })
+    )
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
       if (this.show3dBuildings && this.mymap) {
