@@ -1,6 +1,11 @@
 <template lang="pug">
 .grid-map-view(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
+  .main-layout(
+    @mousemove="dividerDragging"
+    @mouseup="dividerDragEnd"
+  )
+    .main-panel
       MapComponent(
         v-if="isLoaded"
         v-bind="mapProps"
@@ -14,9 +19,6 @@
         :is3dBuildings="show3dBuildings"
         :onToggle3dBuildings="toggle3dBuildings"
       )
-
-      .top-right
-        .gui-config(:id="configId")
 
       click-through-times.time-slider-area( v-if="isLoaded && vizDetails.timeSelector && vizDetails.timeSelector == 'discrete'"
         :allTimes="allTimes"
@@ -34,6 +36,15 @@
         p.status-message {{ myState.statusMessage }}
 
       .tooltip(v-if="tooltip" v-html="tooltip.html" :style="tooltip.style")
+
+    .dragger(v-if="!thumbnail"
+      @mousedown="dividerDragStart"
+      @mouseup="dividerDragEnd"
+      @mousemove.stop="dividerDragging"
+    )
+
+    .right-panel(v-if="!thumbnail" :style="{width: `${legendSectionWidth}px`}")
+      .gui-config(:id="configId")
 
 </template>
 
@@ -318,6 +329,9 @@ const GridMap = defineComponent({
       // in single-view mode, in which case we need to create one for ourselves
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
       availableColumns: [] as string[],
+      isDraggingDivider: 0,
+      dragStartWidth: 250,
+      legendSectionWidth: 250,
     }
   },
   computed: {
@@ -379,6 +393,21 @@ const GridMap = defineComponent({
   watch: {},
 
   methods: {
+    dividerDragStart(e: MouseEvent) {
+      this.isDraggingDivider = e.clientX
+      this.dragStartWidth = this.legendSectionWidth
+    },
+
+    dividerDragEnd(e: MouseEvent) {
+      this.isDraggingDivider = 0
+    },
+
+    dividerDragging(e: MouseEvent) {
+      if (!this.isDraggingDivider) return
+      const deltaX = this.isDraggingDivider - e.clientX
+      this.legendSectionWidth = Math.max(0, this.dragStartWidth + deltaX)
+    },
+
     cbTooltip(tip: { html: any; style: any }, object: any) {
       if (!object) {
         this.tooltip = null
@@ -1072,15 +1101,10 @@ const GridMap = defineComponent({
     },
 
     setupGui() {
-      let width = 200
-
-      if (this.mediaQuery.matchMedia) {
-        width = 175
-      }
+      // no fixed width: the gui fills the resizable right panel (see .gui-config css)
       const guiConfig = {
         title: 'Settings',
         injectStyles: true,
-        width: width,
         container: document.getElementById(this.configId) || undefined,
       }
 
@@ -1419,7 +1443,7 @@ const GridMap = defineComponent({
 
     if (this.thumbnail) return
 
-    this.myState.statusMessage = `${this.$i18n.t('loading')}`
+    this.myState.statusMessage = `${this.$t('loading')}`
     await sleep(0)
 
     this.data = await this.loadAndPrepareData()
@@ -1549,16 +1573,49 @@ export default GridMap
   font-weight: bold;
 }
 
-.top-right {
-  background-color: var(--bgPanel2);
-  color: white;
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 5;
-  border-left: 1px solid #66669940;
-  border-bottom: 1px solid #66669940;
-  box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
+.main-layout {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 1fr auto auto;
+  grid-template-rows: 1fr;
+  min-height: 0;
+}
+
+.main-panel {
+  position: relative;
+  background-color: var(--bgBold);
+  overflow: hidden;
+}
+
+.dragger {
+  grid-row: 1 / 2;
+  grid-column: 2 / 3;
+  width: 0.4rem;
+  background-color: var(--bgBold);
+  user-select: none;
+}
+
+.dragger:hover,
+.dragger:active {
+  background-color: var(--sliderThumb);
+  transition: background-color 0.3s ease;
+  transition-delay: 0.1s;
+  cursor: ew-resize;
+}
+
+.right-panel {
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  pointer-events: auto;
+  background-color: var(--bgPanel3);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.gui-config :deep(.lil-gui.root) {
+  width: 100%;
 }
 
 .left-side {

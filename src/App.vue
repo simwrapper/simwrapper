@@ -744,6 +744,11 @@ maplibregl-ctrl-attrib-button {
   height: unset;
 }
 
+// oruga's bulma theme gives every .slider a 1em vertical margin, making lil-gui slider rows tall
+.lil-gui .controller .slider {
+  margin: 0;
+}
+
 .flex-col {
   display: flex;
   flex-direction: column;
