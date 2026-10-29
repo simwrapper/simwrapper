@@ -11,6 +11,7 @@ from simwrapper.cli import cli
 
 
 POPULATION_XML = """<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE population SYSTEM "http://www.matsim.org/files/dtd/population_v6.dtd">
 <population>
   <attributes>
     <attribute name="coordinateReferenceSystem" class="java.lang.String">EPSG:25832</attribute>
@@ -69,7 +70,7 @@ def test_convert_produces_expected_rows_and_columns(population_file, tmp_path):
     # person/plan context carried onto element rows; numeric coercion applied
     assert set(d["person_id"]) == {"1", "2"}
     assert 123.4 in d["plan_score"]
-    assert 42.0 in d["person_age"]  # java.lang.Integer attribute -> numeric
+    assert 42.0 in d["person_attr_age"]  # java.lang.Integer attribute -> numeric
 
 
 def test_crs_projection_adds_lon_lat(population_file, tmp_path):
@@ -112,6 +113,35 @@ def test_parallel_matches_sequential(population_file, tmp_path):
     # each <person> must survive whole (all its activity/leg rows present).
     from pandas.testing import assert_frame_equal
     assert_frame_equal(dp.to_pandas(), ds.to_pandas())
+
+
+def test_dtd_metadata_written(population_file, tmp_path):
+    # The prolog <!DOCTYPE ... SYSTEM "..."> must be recorded as parquet
+    # key/value metadata on both the sequential and parallel paths.
+    for jobs in (1, 2):
+        out = tmp_path / f"plans-{jobs}.parquet"
+        p2p.run(population_file, out, jobs=jobs)
+        meta = pq.read_metadata(out).metadata
+        assert meta is not None, f"no metadata (jobs={jobs})"
+        assert (
+            meta[b"xml_doctype"]
+            == b'<!DOCTYPE population SYSTEM "http://www.matsim.org/files/dtd/population_v6.dtd">'
+        )
+        assert meta[b"xml_doctype_system"] == b"http://www.matsim.org/files/dtd/population_v6.dtd"
+
+
+def test_no_doctype_yields_no_dtd_metadata(tmp_path):
+    src = tmp_path / "no-doctype.xml"
+    src.write_text(
+        POPULATION_XML.replace(
+            '<!DOCTYPE population SYSTEM "http://www.matsim.org/files/dtd/population_v6.dtd">\n', ""
+        )
+    )
+    out = tmp_path / "no-doctype.parquet"
+    p2p.run(src, out)
+    meta = pq.read_metadata(out).metadata or {}
+    assert b"xml_doctype" not in meta
+    assert b"xml_doctype_system" not in meta
 
 
 def test_cli_command_writes_parquet(population_file, tmp_path):

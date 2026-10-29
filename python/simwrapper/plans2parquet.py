@@ -119,7 +119,7 @@ def emit_attrs(elem, prefix: str, out: dict, col_kinds: dict) -> None:
             name = a.get("name")
             if not name:
                 continue
-            col_name = f"{prefix}_{name}"
+            col_name = f"{prefix}_attr_{name}"
             out[col_name] = a.text
             kind = CLASS_KIND.get(a.get("class"))
             if kind:
