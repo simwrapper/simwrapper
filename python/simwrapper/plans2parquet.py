@@ -167,6 +167,20 @@ def population_crs(root) -> str | None:
     return None
 
 
+def dtd_metadata(docinfo) -> dict[bytes, bytes] | None:
+    """Parquet key/value metadata describing the DTD declared in the XML prolog
+    (e.g. <!DOCTYPE population SYSTEM "...population_v6.dtd">). Returns None
+    when the document carries no DOCTYPE declaration."""
+    meta: dict[bytes, bytes] = {}
+    if docinfo.doctype:
+        meta[b"xml_doctype"] = docinfo.doctype.encode("utf-8")
+    if docinfo.system_url:
+        meta[b"xml_doctype_system"] = docinfo.system_url.encode("utf-8")
+    if docinfo.public_id:
+        meta[b"xml_doctype_public"] = docinfo.public_id.encode("utf-8")
+    return meta or None
+
+
 def _build_array(values: list, kind: str | None) -> pa.Array:
     """Convert a column's Python list to a typed Arrow array."""
     if kind == "numeric":
@@ -246,9 +260,12 @@ def merge_chunks(
     parquet_path: Path,
     n_persons: int = 0,
     batch_size: int = 50000,
+    dtd_meta: dict[bytes, bytes] | None = None,
 ) -> int:
     """Stream chunk parquets into the final parquet with a unified schema
-    (union of all chunk columns, in first-seen order). Bounded memory."""
+    (union of all chunk columns, in first-seen order), writing row groups of
+    `batch_size` rows. Bounded memory. `dtd_meta` (if given) is written as
+    file-level key/value metadata."""
     fields: dict[str, pa.Field] = {}
     for p in chunk_paths:
         for f in pq.read_schema(p):
@@ -257,7 +274,7 @@ def merge_chunks(
                 fields[f.name] = f
             elif pa.types.is_integer(prev.type) and pa.types.is_floating(f.type):
                 fields[f.name] = f
-    unified = pa.schema(list(fields.values()))
+    unified = pa.schema(list(fields.values()), metadata=dtd_meta)
 
     # person_id is high-cardinality and the natural point-lookup key, so give it
     # a Bloom filter to let readers skip row groups that can't hold a given id.
@@ -295,15 +312,18 @@ def convert(
     input_path: Path,
     parquet_path: Path,
     crs_override: str | None,
+    row_group_size: int = 50000,
     chunk_persons: int = 20000,
 ) -> int:
     """Stream the input XML, flush every `chunk_persons` persons to a
-    per-chunk parquet file in a temp dir, then merge the chunks into the
-    final parquet. Peak memory ≈ one chunk."""
+    per-chunk parquet file in a temp dir (an internal sizing detail), then
+    merge the chunks into the final parquet with `row_group_size` rows per
+    row group. Peak memory ≈ one chunk."""
     tmp_dir = Path(tempfile.mkdtemp(prefix="plans_chunks_", dir=parquet_path.parent))
     chunk_paths: list[Path] = []
     builder = ColumnBuilder()
     crs: str | None = None
+    dtd_meta: dict[bytes, bytes] | None = None
     n_persons = 0
     log_every = 10000
 
@@ -327,6 +347,9 @@ def convert(
             for _, person in context:
                 if root is None:
                     root = person.getparent()
+                    # Any prolog DOCTYPE/DTD declaration has been parsed by the
+                    # time the first <person> event fires.
+                    dtd_meta = dtd_metadata(root.getroottree().docinfo)
                 if crs is None:
                     # population <attributes> precedes any <person>, so it's
                     # fully parsed by the time we land here.
@@ -352,12 +375,23 @@ def convert(
         )
 
         if not chunk_paths:
-            pq.write_table(pa.table({}), parquet_path, compression="zstd")
+            pq.write_table(_empty_table(dtd_meta), parquet_path, compression="zstd")
             return 0
 
-        return merge_chunks(chunk_paths, parquet_path, n_persons)
+        return merge_chunks(
+            chunk_paths,
+            parquet_path,
+            n_persons,
+            batch_size=row_group_size,
+            dtd_meta=dtd_meta,
+        )
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def _empty_table(dtd_meta: dict[bytes, bytes] | None = None) -> pa.Table:
+    """Zero-row table, optionally carrying the DTD key/value metadata."""
+    return pa.Table.from_batches([], schema=pa.schema([], metadata=dtd_meta))
 
 
 def _read_header(stream, read_size: int = 1 << 20) -> bytes:
@@ -377,18 +411,21 @@ def _read_header(stream, read_size: int = 1 << 20) -> bytes:
             return data[:i]
 
 
-def population_crs_from_header(header: bytes) -> str | None:
-    """Extract the population CRS from the header bytes returned by _read_header.
-    Closes the dangling <population> so the fragment parses, then reuses
-    population_crs()."""
+def population_crs_from_header(
+    header: bytes,
+) -> tuple[str | None, dict[bytes, bytes] | None]:
+    """Extract (population CRS, DTD metadata) from the header bytes returned by
+    _read_header. Closes the dangling <population> so the fragment parses, then
+    reuses population_crs(); the DTD info comes from the prolog's DOCTYPE
+    declaration (docinfo), which lxml records without fetching the DTD."""
     try:
         parser = etree.XMLParser(recover=True)
         root = etree.fromstring(header + b"</population>", parser=parser)
     except etree.XMLSyntaxError:
-        return None
+        return None, None
     if root is None:
-        return None
-    return population_crs(root)
+        return None, None
+    return population_crs(root), dtd_metadata(root.getroottree().docinfo)
 
 
 def iter_person_blocks(stream, chunk_persons: int, read_size: int = 8 << 20):
@@ -485,25 +522,26 @@ def convert_parallel(
     input_path: Path,
     parquet_path: Path,
     crs_override: str | None,
-    chunk_persons: int,
     jobs: int,
+    row_group_size: int = 50000,
+    chunk_persons: int = 20000,
 ) -> int:
     """Parallel variant of convert(): a single sequential reader slices the
     stream into ordered blocks of whole <person> elements dispatched to `jobs`
-    worker processes, then the chunks are merged in block order. Exact person
-    order is preserved and no <person> is ever split across a block boundary."""
+    worker processes, then the chunks are merged in block order into row groups
+    of `row_group_size` rows. Exact person order is preserved and no <person> is
+    ever split across a block boundary."""
     tmp_dir = Path(tempfile.mkdtemp(prefix="plans_chunks_", dir=parquet_path.parent))
     results: list[tuple[int, str, int, int]] = []
     max_inflight = jobs * 2
 
     try:
-        # The CRS lives in the population <attributes> header, ahead of every
-        # <person>, so detect it once up front (unless overridden) and hand it
-        # to the workers.
-        crs = crs_override
-        if crs is None:
-            with open_xml(input_path) as fh:
-                crs = population_crs_from_header(_read_header(fh))
+        # The CRS and the prolog DOCTYPE live in the header, ahead of every
+        # <person>, so read it once up front: hand the CRS to the workers and
+        # the DTD metadata to the final merge.
+        with open_xml(input_path) as fh:
+            file_crs, dtd_meta = population_crs_from_header(_read_header(fh))
+        crs = crs_override or file_crs
         if crs:
             print(f"  detected CRS: {crs}", flush=True)
 
@@ -538,13 +576,19 @@ def convert_parallel(
         print(f"parsed {len(results)} block(s); merging...", flush=True)
 
         if not results:
-            pq.write_table(pa.table({}), parquet_path, compression="zstd")
+            pq.write_table(_empty_table(dtd_meta), parquet_path, compression="zstd")
             return 0
 
         results.sort(key=lambda r: r[0])  # restore exact person order
         chunk_paths = [Path(p) for _, p, _, _ in results]
         n_persons = sum(persons for _, _, _, persons in results)
-        return merge_chunks(chunk_paths, parquet_path, n_persons)
+        return merge_chunks(
+            chunk_paths,
+            parquet_path,
+            n_persons,
+            batch_size=row_group_size,
+            dtd_meta=dtd_meta,
+        )
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
@@ -563,11 +607,12 @@ def run(
     input_path: Path,
     parquet_path: Path | None = None,
     crs: str | None = None,
-    chunk_size: int = 10000,
+    chunk_size: int = 50000,
     jobs: int = 4,
 ) -> Path:
     """Convert one MATSim population XML to parquet, defaulting the output path
-    when not given. Uses the parallel path unless jobs <= 1. Returns the path
+    when not given. `chunk_size` is the number of rows per row group in the
+    output file. Uses the parallel path unless jobs <= 1. Returns the path
     written."""
     input_path = Path(input_path)
     if parquet_path is None:
@@ -575,8 +620,10 @@ def run(
     parquet_path = Path(parquet_path)
 
     if jobs <= 1:
-        n = convert(input_path, parquet_path, crs, chunk_size)
+        n = convert(input_path, parquet_path, crs, row_group_size=chunk_size)
     else:
-        n = convert_parallel(input_path, parquet_path, crs, chunk_size, jobs)
+        n = convert_parallel(
+            input_path, parquet_path, crs, jobs, row_group_size=chunk_size
+        )
     print(f"Wrote {n} rows to {parquet_path}")
     return parquet_path
