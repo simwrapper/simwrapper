@@ -99,10 +99,10 @@ def test_crs_override_beats_file_attribute(population_file, tmp_path):
 def test_parallel_matches_sequential(population_file, tmp_path):
     seq = tmp_path / "seq.parquet"
     par = tmp_path / "par.parquet"
-    p2p.run(population_file, seq, crs="EPSG:25832", chunk_size=20000, jobs=1)
-    # chunk_size=1 with jobs=2 forces each <person> into its own block, split
+    p2p.run(population_file, seq, crs="EPSG:25832", jobs=1)
+    # chunk_persons=1 with jobs=2 forces each <person> into its own block, split
     # across worker processes.
-    p2p.run(population_file, par, crs="EPSG:25832", chunk_size=1, jobs=2)
+    p2p.convert_parallel(population_file, par, "EPSG:25832", jobs=2, chunk_persons=1)
 
     ds = pq.read_table(seq)
     dp = pq.read_table(par)
@@ -113,6 +113,16 @@ def test_parallel_matches_sequential(population_file, tmp_path):
     # each <person> must survive whole (all its activity/leg rows present).
     from pandas.testing import assert_frame_equal
     assert_frame_equal(dp.to_pandas(), ds.to_pandas())
+
+
+def test_chunk_size_sets_output_row_groups(population_file, tmp_path):
+    # chunk_size is rows per row group in the final file: 6 rows split 4+2.
+    for jobs in (1, 2):
+        out = tmp_path / f"rowgroups-{jobs}.parquet"
+        p2p.run(population_file, out, chunk_size=4, jobs=jobs)
+        pf = pq.ParquetFile(out)
+        assert pf.metadata.num_row_groups == 2
+        assert [pf.metadata.row_group(i).num_rows for i in range(2)] == [4, 2]
 
 
 def test_dtd_metadata_written(population_file, tmp_path):
