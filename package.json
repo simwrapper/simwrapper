@@ -9,7 +9,6 @@
   "contributors": [
     "Brendan Lawton <b.lawton@campus.tu-berlin.de>",
     "Friedrich Voelkers <friedrich.k.voelkers@tu-berlin.de>",
-    "Janek Laudan <laudan@vsp.tu-berlin.de>",
     "Johanna Bänsch <j.baensch@tu-berlin.de>"
   ],
   "scripts": {
@@ -192,7 +191,6 @@
     "@vitest/ui": "^4",
     "@vue/language-plugin-pug": "latest",
     "@vue/test-utils": "^2",
-    "deepmerge": "^4.2.2",
     "eslint": "^10.13.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",

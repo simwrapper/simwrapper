@@ -176,7 +176,9 @@ def _build_array(values: list, kind: str | None) -> pa.Array:
     if kind == "int32":
         return pa.array(values, type=pa.int32())
     if kind == "bool":
-        bools = [True if v == "true" else False if v == "false" else None for v in values]
+        bools = [
+            True if v == "true" else False if v == "false" else None for v in values
+        ]
         return pa.array(bools, type=pa.bool_())
     # Default: let pyarrow infer (string, int64 for "step", etc.).
     arr = pa.array(values)
@@ -197,8 +199,16 @@ def finalize_chunk(builder: ColumnBuilder, crs: str | None) -> pa.Table:
     # activity_type_simple after activity_type and activity_lon/lat after
     # activity_y.
     if crs and "activity_x" in arrays and "activity_y" in arrays:
-        xs = arrays["activity_x"].to_numpy(zero_copy_only=False).astype(np.float64, copy=False)
-        ys = arrays["activity_y"].to_numpy(zero_copy_only=False).astype(np.float64, copy=False)
+        xs = (
+            arrays["activity_x"]
+            .to_numpy(zero_copy_only=False)
+            .astype(np.float64, copy=False)
+        )
+        ys = (
+            arrays["activity_y"]
+            .to_numpy(zero_copy_only=False)
+            .astype(np.float64, copy=False)
+        )
         mask = np.isfinite(xs) & np.isfinite(ys)
         lons = np.full(len(xs), np.nan)
         lats = np.full(len(ys), np.nan)
@@ -231,8 +241,12 @@ def finalize_chunk(builder: ColumnBuilder, crs: str | None) -> pa.Table:
     return pa.table(ordered)
 
 
-def merge_chunks(chunk_paths: list[Path], parquet_path: Path,
-                 n_persons: int = 0, batch_size: int = 50000) -> int:
+def merge_chunks(
+    chunk_paths: list[Path],
+    parquet_path: Path,
+    n_persons: int = 0,
+    batch_size: int = 50000,
+) -> int:
     """Stream chunk parquets into the final parquet with a unified schema
     (union of all chunk columns, in first-seen order). Bounded memory."""
     fields: dict[str, pa.Field] = {}
@@ -254,8 +268,9 @@ def merge_chunks(chunk_paths: list[Path], parquet_path: Path,
         bloom_opts = {"person_id": {"ndv": max(n_persons, 1), "fpp": 0.01}}
 
     n_total = 0
-    writer = pq.ParquetWriter(parquet_path, unified, compression="zstd",
-                              bloom_filter_options=bloom_opts)
+    writer = pq.ParquetWriter(
+        parquet_path, unified, compression="zstd", bloom_filter_options=bloom_opts
+    )
     try:
         for p in chunk_paths:
             pf = pq.ParquetFile(p)
@@ -276,8 +291,12 @@ def merge_chunks(chunk_paths: list[Path], parquet_path: Path,
     return n_total
 
 
-def convert(input_path: Path, parquet_path: Path,
-            crs_override: str | None, chunk_persons: int = 20000) -> int:
+def convert(
+    input_path: Path,
+    parquet_path: Path,
+    crs_override: str | None,
+    chunk_persons: int = 20000,
+) -> int:
     """Stream the input XML, flush every `chunk_persons` persons to a
     per-chunk parquet file in a temp dir, then merge the chunks into the
     final parquet. Peak memory ≈ one chunk."""
@@ -295,7 +314,10 @@ def convert(input_path: Path, parquet_path: Path,
         chunk_path = tmp_dir / f"chunk_{len(chunk_paths):06d}.parquet"
         pq.write_table(table, chunk_path, compression="zstd")
         chunk_paths.append(chunk_path)
-        print(f"  flushed chunk {len(chunk_paths)}: {table.num_rows} rows ({n_persons} persons so far)", flush=True)
+        print(
+            f"  flushed chunk {len(chunk_paths)}: {table.num_rows} rows ({n_persons} persons so far)",
+            flush=True,
+        )
         builder.reset()
 
     try:
@@ -324,7 +346,10 @@ def convert(input_path: Path, parquet_path: Path,
                     flush()
             flush()
 
-        print(f"parsed {n_persons} persons total; merging {len(chunk_paths)} chunk(s)...", flush=True)
+        print(
+            f"parsed {n_persons} persons total; merging {len(chunk_paths)} chunk(s)...",
+            flush=True,
+        )
 
         if not chunk_paths:
             pq.write_table(pa.table({}), parquet_path, compression="zstd")
@@ -375,10 +400,10 @@ def iter_person_blocks(stream, chunk_persons: int, read_size: int = 8 << 20):
     bytes scanning -- so this sequential stage stays cheap."""
     MARKER = b"</person>"
     index = 0
-    carry = b""        # bytes past the last </person> (a partial trailing person)
-    buf = b""          # complete persons pending in the current block
-    count = 0          # persons accumulated in buf
-    started = False    # have we passed the prolog / <population> header?
+    carry = b""  # bytes past the last </person> (a partial trailing person)
+    buf = b""  # complete persons pending in the current block
+    count = 0  # persons accumulated in buf
+    started = False  # have we passed the prolog / <population> header?
 
     while True:
         data = stream.read(read_size)
@@ -390,7 +415,7 @@ def iter_person_blocks(stream, chunk_persons: int, read_size: int = 8 << 20):
             if i == -1:
                 # Still inside the header; keep only a tail that could hold a
                 # <person marker split across this read boundary.
-                carry = data[-(len(b"<person") - 1):]
+                carry = data[-(len(b"<person") - 1) :]
                 continue
             data = data[i:]
             started = True
@@ -456,8 +481,13 @@ def _convert_block(index: int, raw: bytes) -> tuple[int, str, int, int]:
     return index, str(chunk_path), table.num_rows, n_persons
 
 
-def convert_parallel(input_path: Path, parquet_path: Path,
-                     crs_override: str | None, chunk_persons: int, jobs: int) -> int:
+def convert_parallel(
+    input_path: Path,
+    parquet_path: Path,
+    crs_override: str | None,
+    chunk_persons: int,
+    jobs: int,
+) -> int:
     """Parallel variant of convert(): a single sequential reader slices the
     stream into ordered blocks of whole <person> elements dispatched to `jobs`
     worker processes, then the chunks are merged in block order. Exact person
@@ -487,20 +517,23 @@ def convert_parallel(input_path: Path, parquet_path: Path,
             index, path, rows, persons = fut.result()
             results.append((index, path, rows, persons))
             n_rows += rows
-            print(f"  wrote chunk {len(results)}: {rows} rows ({n_rows} rows so far)", flush=True)
+            print(
+                f"  wrote chunk {len(results)}: {rows} rows ({n_rows} rows so far)",
+                flush=True,
+            )
 
-        with ProcessPoolExecutor(max_workers=jobs, initializer=_init_worker,
-                                 initargs=(crs, str(tmp_dir))) as ex:
-            with open_xml(input_path) as fh:
-                pending: set = set()
-                for index, raw in iter_person_blocks(fh, chunk_persons):
-                    pending.add(ex.submit(_convert_block, index, raw))
-                    if len(pending) >= max_inflight:
-                        done, pending = wait(pending, return_when=FIRST_COMPLETED)
-                        for fut in done:
-                            collect(fut)
-                for fut in pending:
-                    collect(fut)
+        with ProcessPoolExecutor(
+            max_workers=jobs, initializer=_init_worker, initargs=(crs, str(tmp_dir))
+        ) as ex, open_xml(input_path) as fh:
+            pending: set = set()
+            for index, raw in iter_person_blocks(fh, chunk_persons):
+                pending.add(ex.submit(_convert_block, index, raw))
+                if len(pending) >= max_inflight:
+                    done, pending = wait(pending, return_when=FIRST_COMPLETED)
+                    for fut in done:
+                        collect(fut)
+            for fut in pending:
+                collect(fut)
 
         print(f"parsed {len(results)} block(s); merging...", flush=True)
 
@@ -526,8 +559,13 @@ def default_output_path(input_path: Path) -> Path:
     return input_path.with_name(stem + ".parquet")
 
 
-def run(input_path: Path, parquet_path: Path | None = None,
-        crs: str | None = None, chunk_size: int = 10000, jobs: int = 4) -> Path:
+def run(
+    input_path: Path,
+    parquet_path: Path | None = None,
+    crs: str | None = None,
+    chunk_size: int = 10000,
+    jobs: int = 4,
+) -> Path:
     """Convert one MATSim population XML to parquet, defaulting the output path
     when not given. Uses the parallel path unless jobs <= 1. Returns the path
     written."""
