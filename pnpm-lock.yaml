@@ -649,9 +649,6 @@ importers:
       '@vue/test-utils':
         specifier: ^2
         version: 2.5.1(@vue/compiler-dom@3.5.44)(@vue/server-renderer@3.5.44)(vue@3.5.44(typescript@6.0.3))
-      deepmerge:
-        specifier: ^4.2.2
-        version: 4.3.1
       eslint:
         specifier: ^10.13.0
         version: 10.13.0(supports-color@8.1.1)
@@ -4073,10 +4070,6 @@ packages:
 
   deep-strict-equal@0.2.0:
     resolution: {integrity: sha512-3daSWyvZ/zwJvuMGlzG1O+Ow0YSadGfb3jsh9xoCutv2tWyB9dA4YvR9L9/fSdDZa2dByYQe+TqapSGUrjnkoA==}
-    engines: {node: '>=0.10.0'}
-
-  deepmerge@4.3.1:
-    resolution: {integrity: sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==}
     engines: {node: '>=0.10.0'}
 
   define-data-property@1.1.4:
@@ -12255,8 +12248,6 @@ snapshots:
   deep-strict-equal@0.2.0:
     dependencies:
       core-assert: 0.2.1
-
-  deepmerge@4.3.1: {}
 
   define-data-property@1.1.4:
     dependencies:
