@@ -293,7 +293,8 @@ const SelectLinkAnalysis = defineComponent({
             selectedLinkTraversals: new Object() as any,
             queriedAgents: new Map<number, any>() as any,
 
-            chosenFormat: 'Parquet' as string,
+            chosenFormat: ((typeof window !== 'undefined' && (window as any).__testFormat__) || 'Parquet') as string,
+            loadPromises: markRaw({}) as Record<string, Promise<void> | undefined>,
 
             myMap: new Map<string, number[]>(),
 
@@ -358,6 +359,13 @@ const SelectLinkAnalysis = defineComponent({
         async selectedHour() {
             this.debouncedRefresh?.()
         },
+
+        async chosenFormat(fmt: string) {
+            this.statusText = `Loading ${fmt} data...`
+            await this.ensureFormatLoaded(fmt)
+            this.statusText = ''
+            this.debouncedRefresh?.()
+        },
     },
 
     methods: {
@@ -394,6 +402,21 @@ const SelectLinkAnalysis = defineComponent({
             this.queriedAgents = agentResults || {}
         },
 
+        ensureFormatLoaded(format: string): Promise<void> {
+            if (!this.loadPromises[format]) {
+                const loaders: Record<string, () => Promise<void>> = {
+                    Parquet: () => this.loadParquetData(),
+                    Csv: () => this.loadAndPrepareCSVData(),
+                    Sqlite: () => this.loadSQLiteData(),
+                }
+                this.loadPromises[format] = loaders[format]().catch(e => {
+                    console.error(`[load:${format}] FAILED`, e)
+                    this.loadPromises[format] = undefined // allow retry
+                })
+            }
+            return this.loadPromises[format]!
+        },
+
         async loadAndPrepareData() {
             this.logger = new duckdb.ConsoleLogger()
 
@@ -402,24 +425,14 @@ const SelectLinkAnalysis = defineComponent({
                 getReady: () => ({
                     Parquet: this.parquetDataLoaded === true && !!this.conn,
                     Csv: !!this.connCsv && this.csvDataLoaded === true,
-                    Sqlite: !!this.sqlite3,
+                    Sqlite: !!this.sqliteDb,
                 }),
                 selectLink: async (linkId: any, hour: any, format?: string) =>
                     await this.queryLinksForSelectedLink(linkId, hour, format),
                 getOriginalTraversals: () => this.originalTraversals,
             }
 
-            for (const [name, fn] of [
-                ['parquet', () => this.loadParquetData()],
-                ['sqlite', () => this.loadSQLiteData()],
-                ['csv', () => this.loadAndPrepareCSVData()],
-            ] as const) {
-                try {
-                    await fn()
-                } catch (e) {
-                    console.error(`[load:${name}] FAILED`, e)
-                }
-            }
+            await this.ensureFormatLoaded(this.chosenFormat)
         },
 
         // csv will be loaded as direct path for the moment - will work on incorporating it into dashboard structure after Zwischenpräsi
@@ -432,6 +445,13 @@ const SelectLinkAnalysis = defineComponent({
 
             // @ts-ignore
             await this.connCsv.query(`SET enable_http_metadata_cache = true;`)
+
+            // await this.dbCsv.registerFileURL(`link-traversals-sorted.csv`,
+            //     this.fileApi.cleanURL(this.subfolder + `/link-traversals-sorted.csv`),
+            //     duckdb.DuckDBDataProtocol.HTTP, false)
+            // await this.dbCsv.registerFileURL(`leg-sequences-sorted.csv`,
+            //     this.fileApi.cleanURL(this.subfolder + `/leg-sequences-sorted.csv`),
+            //     duckdb.DuckDBDataProtocol.HTTP, false)
 
             for (let i = 0; i < 35; i++) {
                 const base = this.subfolder + `/hour-partition-csv/hour-${i}`
@@ -471,6 +491,7 @@ const SelectLinkAnalysis = defineComponent({
 
             await this.conn.query(`SELECT * FROM parquet_metadata('agents-sorted.parquet')`)
             // await this.conn.query(`SELECT * FROM parquet_metadata('leg-sequences-sorted.parquet')`)
+            // await this.conn.query(`SELECT * FROM parquet_metadata('link-traversals-sorted.parquet')`)
 
             for (let i = 0; i < 35; i++) {
                 const base = this.subfolder + `/hour-partition-parquet/hour-${i}`
@@ -481,8 +502,25 @@ const SelectLinkAnalysis = defineComponent({
                     this.fileApi.cleanURL(`${base}/leg-sequences-sorted-${i}.parquet`),
                     duckdb.DuckDBDataProtocol.HTTP, false)
 
-                await this.conn.query(`SELECT * FROM parquet_metadata('link-traversals-sorted-${i}.parquet')`)
-                await this.conn.query(`SELECT * FROM parquet_metadata('leg-sequences-sorted-${i}.parquet')`)
+                // const stmt = await this.conn.prepare(`
+                //          WITH sequences AS (
+                //             SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
+                //             FROM 'link-traversals-sorted-${i}.parquet' lt
+                //             INNER JOIN 'leg-sequences-sorted-${i}.parquet' ls
+                //                 ON lt.leg_id = ls.leg_id
+                //             WHERE lt.link_id = ?
+                //             AND lt.hour = ?
+                //         )
+                //         SELECT co_link_id, COUNT(*) AS traversal_count
+                //          FROM sequences
+                //          GROUP BY co_link_id
+                //          ORDER BY traversal_count DESC
+                //     `)
+
+                // const warm_up = await stmt.query('4555235', i)
+
+                // await this.conn.query(`SELECT * FROM parquet_metadata('link-traversals-sorted-${i}.parquet')`)
+                // await this.conn.query(`SELECT * FROM parquet_metadata('leg-sequences-sorted-${i}.parquet')`)
             }
 
             this.parquetDataLoaded = true
@@ -501,6 +539,25 @@ const SelectLinkAnalysis = defineComponent({
             console.log('SQLite WASM loaded, version', this.sqlite3.version.libVersion)
             // @ts-ignore
             window.__sqlite__ = { sqlite3: this.sqlite3, getDb: () => this.sqliteDb }
+
+            await this.switchHourPartitionSqlite(0)
+
+            // const url = this.fileApi.cleanURL(
+            //     this.subfolder + `/sla.sqlite3`
+            // )
+            // const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer())
+
+            // const sqlite3 = this.sqlite3
+            // const p = sqlite3.wasm.allocFromTypedArray(bytes)
+            // const db = new sqlite3.oo1.DB()
+            // db.onclose = { after: () => sqlite3.wasm.dealloc(p) }
+            // const rc = sqlite3.capi.sqlite3_deserialize(
+            //     db.pointer, 'main', p, bytes.length, bytes.length,
+            //     sqlite3.capi.SQLITE_DESERIALIZE_READONLY
+            // )
+            // db.checkRc(rc)
+
+            // this.sqliteDb = markRaw(db)
         },
 
         async switchHourPartitionSqlite(newHour: number) {
@@ -530,190 +587,6 @@ const SelectLinkAnalysis = defineComponent({
             this.sqliteDb = markRaw(db)
             this.currentlyAttachedHourSqlite = newHour
         },
-
-
-
-
-        // async queryLinksForSelectedLink(linkId: number, hour: number, format?: string) {
-        //     hour = this.assertValidHour(hour)
-        //     const useFormat = format ?? this.chosenFormat // allow test harness to override; UI clicks still work as before
-
-        //     try {
-        //         if (this.conn && useFormat === 'Parquet') {
-        //             // await this.switchHourPartition(hour) // drop old hour, register new one
-
-        //             // const stmt = await this.conn.prepare(`
-        //             //     WITH sequences AS (
-        //             //         SELECT UNNEST(string_split(lt.leg_sequence, '|')) AS co_link_id
-        //             //         FROM 'link-traversals-with-sequence-${hour}.parquet' lt
-        //             //         WHERE lt.link_id = ? AND lt.hour = ?
-        //             //     )
-        //             //     SELECT co_link_id, COUNT(*) AS traversal_count
-        //             //     FROM sequences
-        //             //     GROUP BY co_link_id
-        //             //     ORDER BY traversal_count DESC
-        //             // `)
-
-        //             const stmt = await this.conn.prepare(`
-        //                  WITH sequences AS (
-        //                     SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
-        //                     FROM 'link-traversals-${hour}.parquet' lt
-        //                     INNER JOIN 'leg-sequences-sorted-${hour}.parquet' ls
-        //                         ON lt.leg_id = ls.leg_id
-        //                     WHERE lt.link_id = ?
-        //                     AND lt.hour = ?
-        //                 )
-        //                 SELECT co_link_id, COUNT(*) AS traversal_count
-        //                  FROM sequences
-        //                  GROUP BY co_link_id
-        //                  ORDER BY traversal_count DESC
-        //             `)
-
-        //             // const stmt = await this.conn.prepare(`
-        //             //     WITH sequences AS (
-        //             //         SELECT UNNEST(string_split(lt.leg_sequence, '|')) AS co_link_id
-        //             //         FROM 'link-traversals-with-sequence.parquet' lt
-        //             //         WHERE lt.link_id = ? AND lt.hour = ?
-        //             //     )
-        //             //     SELECT co_link_id, COUNT(*) AS traversal_count
-        //             //     FROM sequences
-        //             //     GROUP BY co_link_id
-        //             //     ORDER BY traversal_count DESC
-        //             // `)
-
-        //             // const stmt = await this.conn.prepare(`
-        //             //      WITH sequences AS (
-        //             //         SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
-        //             //         FROM 'link-traversals-sorted.parquet' lt
-        //             //         INNER JOIN 'leg-sequences-sorted.parquet' ls
-        //             //             ON lt.leg_id = ls.leg_id
-        //             //         WHERE lt.link_id = ?
-        //             //         AND lt.hour = ?
-        //             //     )
-        //             //     SELECT co_link_id, COUNT(*) AS traversal_count
-        //             //      FROM sequences
-        //             //      GROUP BY co_link_id
-        //             //      ORDER BY traversal_count DESC
-        //             // `)
-
-
-        //             try {
-        //                 const start = performance.now()
-        //                 const result = await stmt.query(linkId, hour)
-        //                 const queryTime = performance.now() - start
-        //                 this.queryTime = queryTime // keep existing UI binding working
-        //                 const traversals = Object.fromEntries(
-        //                     result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
-        //                 )
-        //                 return { result: traversals, queryTime }
-        //             } finally {
-        //                 await stmt.close()
-        //             }
-        //         }
-
-        //         if (this.connCsv && useFormat === 'Csv') {
-        //             await this.switchHourPartitionCsv(hour)
-
-        //             // const stmt = await this.connCsv.prepare(`
-        //             //      WITH sequences AS (
-        //             //         SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
-        //             //         FROM 'link-traversals-sorted.csv.zst' lt
-        //             //         INNER JOIN 'leg-sequences-sorted.csv.zst' ls
-        //             //             ON lt.leg_id = ls.leg_id
-        //             //         WHERE lt.link_id = ?
-        //             //         AND lt.hour = ?
-        //             //     )
-        //             //     SELECT co_link_id, COUNT(*) AS traversal_count
-        //             //      FROM sequences
-        //             //      GROUP BY co_link_id
-        //             //      ORDER BY traversal_count DESC
-        //             // `)
-
-
-        //             // const stmt = await this.connCsv.prepare(`
-        //             //     WITH sequences AS (
-        //             //         SELECT UNNEST(string_split(lt.leg_sequence, '|')) AS co_link_id
-        //             //         FROM read_csv('link-traversals-with-sequence-${hour}.csv.zst', compression='zstd') lt
-        //             //         WHERE lt.link_id = ? AND lt.hour = ?
-        //             //     )
-        //             //     SELECT co_link_id, COUNT(*) AS traversal_count
-        //             //     FROM sequences
-        //             //     GROUP BY co_link_id
-        //             //     ORDER BY traversal_count DESC
-        //             // `)
-
-        //             const stmt = await this.connCsv.prepare(`
-        //                  WITH sequences AS (
-        //                     SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
-        //                     FROM 'link-traversals-${hour}.csv.zst' lt
-        //                     INNER JOIN 'leg-sequences-sorted-${hour}.csv.zst' ls
-        //                         ON lt.leg_id = ls.leg_id
-        //                     WHERE lt.link_id = ?
-        //                     AND lt.hour = ?
-        //                 )
-        //                 SELECT co_link_id, COUNT(*) AS traversal_count
-        //                  FROM sequences
-        //                  GROUP BY co_link_id
-        //                  ORDER BY traversal_count DESC
-        //             `)
-
-        //             try {
-        //                 const start = performance.now()
-        //                 const result = await stmt.query(linkId, hour)
-        //                 const queryTime = performance.now() - start
-        //                 this.queryTime = queryTime
-        //                 const traversals = Object.fromEntries(
-        //                     result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
-        //                 )
-        //                 return { result: traversals, queryTime }
-        //             } finally {
-        //                 await stmt.close()
-        //             }
-        //         }
-
-        //         if (this.sqlite3 && useFormat === 'Sqlite') {
-
-        //             await this.switchHourPartitionSqlite(hour)
-        //             const start = performance.now()
-        //             const rows = this.sqliteDb.exec({
-        //                 sql: `
-        //     WITH RECURSIVE legs AS (
-        //         SELECT ls.leg_sequence AS seq
-        //         FROM traversals lt
-        //         INNER JOIN sequences ls ON lt.leg_id = ls.leg_id
-        //         WHERE lt.link_id = ? AND lt.hour = ?
-        //     ),
-        //     split(co_link_id, rest) AS (
-        //         SELECT '', seq || '|' FROM legs
-        //         UNION ALL
-        //         SELECT substr(rest, 1, instr(rest, '|') - 1), substr(rest, instr(rest, '|') + 1)
-        //         FROM split WHERE rest <> ''
-        //     )
-        //     SELECT co_link_id, COUNT(*) AS traversal_count
-        //     FROM split
-        //     WHERE co_link_id <> ''
-        //     GROUP BY co_link_id
-        //     ORDER BY traversal_count DESC
-        // `,
-        //                 bind: [String(linkId), hour],
-        //                 rowMode: 'object',
-        //                 returnValue: 'resultRows',
-        //             })
-        //             const queryTime = performance.now() - start
-        //             this.queryTime = queryTime
-        //             const traversals = Object.fromEntries(
-        //                 rows.map((row: any) => [String(row.co_link_id), Number(row.traversal_count)])
-        //             )
-        //             return { result: traversals, queryTime }
-        //         }
-
-        //         console.warn(`No matching connection/format branch for format="${useFormat}"`)
-        //         return { result: {}, queryTime: 0 }
-        //     } catch (e) {
-        //         console.error('Error querying links for selected link:', e)
-        //         return { result: {}, queryTime: 0 }
-        //     }
-        // },
 
         async queryLinksForSelectedLink(linkId: number, hour: number, format?: string) {
             hour = this.assertValidHour(hour)
@@ -746,6 +619,21 @@ const SelectLinkAnalysis = defineComponent({
                          GROUP BY co_link_id
                          ORDER BY traversal_count DESC
                     `)
+
+                    // const stmt = await this.conn.prepare(`
+                    //        WITH sequences AS (
+                    //            SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
+                    //            FROM 'link-traversals-sorted.parquet' lt
+                    //            INNER JOIN 'leg-sequences-sorted.parquet' ls
+                    //                ON lt.leg_id = ls.leg_id
+                    //            WHERE lt.link_id = ?
+                    //            AND lt.hour = ?
+                    //        )
+                    //        SELECT co_link_id, COUNT(*) AS traversal_count
+                    //        FROM sequences
+                    //        GROUP BY co_link_id
+                    //        ORDER BY traversal_count DESC
+                    //    `)
                     try {
                         const result = await stmt.query(linkId, hour)
                         traversals = Object.fromEntries(
@@ -768,6 +656,20 @@ const SelectLinkAnalysis = defineComponent({
                          GROUP BY co_link_id
                          ORDER BY traversal_count DESC
                     `)
+
+                    // const stmt = await this.connCsv.prepare(`WITH sequences AS (
+                    //         SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
+                    //         FROM 'link-traversals-sorted.csv' lt
+                    //         INNER JOIN 'leg-sequences-sorted.csv' ls
+                    //             ON lt.leg_id = ls.leg_id
+                    //         WHERE lt.link_id = ?
+                    //         AND lt.hour = ?
+                    //     )
+                    //     SELECT co_link_id, COUNT(*) AS traversal_count
+                    //      FROM sequences
+                    //      GROUP BY co_link_id
+                    //      ORDER BY traversal_count DESC
+                    // `)
                     try {
                         const result = await stmt.query(linkId, hour)
                         traversals = Object.fromEntries(
@@ -860,42 +762,6 @@ const SelectLinkAnalysis = defineComponent({
                     )
                     return this.originalAgents
                 }
-
-                // if (this.connCsv && useFormat === 'Csv') {
-                //     const stmt = await this.connCsv.prepare(`
-                //         SELECT a.* FROM 'agents-sorted.csv' a INNER JOIN 'link-traversals-${hour}.csv.zst' lt ON a.agent_id = lt.agent_id WHERE lt.link_id = ? AND lt.hour = ?
-                //     `)
-                //     const result = await stmt.query(linkId, hour)
-
-                //     this.originalAgents = Object.fromEntries(
-                //         result.toArray().map((row: any) => {
-                //             const agent = { ...row.toJSON() } as any
-                //             for (const key in agent) {
-                //                 if (typeof agent[key] === 'bigint') agent[key] = Number(agent[key])
-                //             }
-                //             return [`${agent.agent_id}`, agent]
-                //         })
-                //     )
-                //     return this.originalAgents
-                // }
-
-                // if (this.connDb && useFormat === 'Sqlite') {
-                //     const stmt = await this.connDb.prepare(`
-                //         SELECT a.* FROM mydb.agents a INNER JOIN mydb.link_traversals lt ON a.agent_id = lt.agent_id WHERE lt.link_id = ? AND lt.hour = ?
-                //     `)
-                //     const result = await stmt.query(linkId, hour)
-
-                //     this.originalAgents = Object.fromEntries(
-                //         result.toArray().map((row: any) => {
-                //             const agent = { ...row.toJSON() } as any
-                //             for (const key in agent) {
-                //                 if (typeof agent[key] === 'bigint') agent[key] = Number(agent[key])
-                //             }
-                //             return [`${agent.agent_id}`, agent]
-                //         })
-                //     )
-                //     return this.originalAgents
-                // }
             } catch (e) {
                 console.error('Error querying agents for selected link:', e)
                 return {}
