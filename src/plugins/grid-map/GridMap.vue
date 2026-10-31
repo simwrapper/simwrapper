@@ -44,6 +44,14 @@
     )
 
     .right-panel(v-if="!thumbnail" :style="{width: `${legendSectionWidth}px`}")
+      SummaryChart(v-if="isLoaded && legendSectionWidth > 100"
+        :distribution="summary"
+        :column="vizDetails.valueColumn"
+        :secondColumn="guiConfig.diff ? guiConfig.secondValueColumn : ''"
+        :unit="vizDetails.unit"
+        :threshold="guiConfig.threshold"
+        :width="legendSectionWidth - 16"
+      )
       .gui-config(:id="configId")
 
 </template>
@@ -72,9 +80,10 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import ClickThroughTimes from '@/components/ClickThroughTimes.vue'
 import TimeSlider from '@/components/TimeSliderV2.vue'
 import MapComponent from './MapComponent.vue'
+import SummaryChart from './SummaryChart.vue'
 import BackgroundLayers from '@/js/BackgroundLayers'
 import GridMapWorker from './GridMap.worker.ts?worker'
-import type { ColorOptions, GridMapTask } from './GridMap.worker'
+import type { ColorOptions, CumulativeShare, GridMapTask } from './GridMap.worker'
 
 // interface for each time object inside the mapData Array
 export interface MapData {
@@ -121,6 +130,8 @@ interface VizDetail {
   timeSelector: any
   /** threshold slider direction at startup: gray out cells 'less' or 'greater' than it */
   thresholdGrayOut?: string
+  /** summary chart weights cells by this column; default 'population'. If missing, by cell count */
+  populationColumn?: string
 }
 
 interface GuiConfig {
@@ -226,6 +237,7 @@ const GridMap = defineComponent({
     ZoomButtons,
     ClickThroughTimes,
     TimeSlider,
+    SummaryChart,
   },
 
   props: {
@@ -321,6 +333,11 @@ const GridMap = defineComponent({
         baseColors: [] as Uint8Array[],
         controller: null as any,
       }),
+      // Summary chart: cumulative share of population by value, for the time on display.
+      // request drops worker answers that a newer request superseded.
+      summaryChart: markRaw({ request: 0 }),
+      /** markRaw'd: only ever replaced, and Plotly reads it as is */
+      summary: null as CumulativeShare | null,
       /** unscaled [min, max] per time period, from the worker */
       valueRanges: [] as [number, number][],
       /** threshold slider range for the time period on display */
@@ -899,6 +916,21 @@ const GridMap = defineComponent({
       this.data = markRaw({ ...this.data, mapData })
     },
 
+    /** Cumulative distribution of the values on the map, for the time period on display */
+    async updateSummaryChart() {
+      if (!this.calc.task) return
+
+      const request = ++this.summaryChart.request
+      const result = await this.calc.task.cumulativeShare(
+        this.currentTimeIndex,
+        this.vizDetails.populationColumn || 'population'
+      )
+      // a newer time or column was picked while this one was running
+      if (request !== this.summaryChart.request) return
+
+      this.summary = markRaw(result)
+    },
+
     resolveProjection() {
       if (this.vizDetails.projection === 'EPSG:4326') return
 
@@ -920,6 +952,7 @@ const GridMap = defineComponent({
       // every time period is already colored; only the shading follows the time
       this.updateThresholdSlider(false)
       this.applyThreshold()
+      this.updateSummaryChart()
     },
 
     handleTimeSliderValues(timeValues: any[]) {
@@ -934,6 +967,7 @@ const GridMap = defineComponent({
       }
       this.updateThresholdSlider(false)
       this.applyThreshold()
+      this.updateSummaryChart()
     },
 
     setupGui() {
@@ -947,13 +981,16 @@ const GridMap = defineComponent({
       this.guiController = new GUI(guiConfig)
 
       const config = this.guiController // .addFolder('Colors')
-      config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
-      config.add(this.guiConfig, 'opacity', 0, 1, 0.1)
-      config.add(this.guiConfig, 'height', 0, 250, 5)
-      // config
-      //   .add(this.guiConfig, 'show3dBuildings')
-      //   .name('3D buildings')
-      //   .onChange((value: boolean) => (this.show3dBuildings = value))
+
+      // the column choices come first: 1st, Diff and 2nd, then opacity column
+      if (this.availableColumns.length > 0) {
+        config
+          .add(this.guiConfig, 'valueColumn', this.availableColumns)
+          .name('1st column')
+          .onChange((newCol: string) => {
+            this.handleColumnChange(newCol)
+          })
+      }
 
       // Diff checkbox
       config
@@ -967,8 +1004,16 @@ const GridMap = defineComponent({
           this.handleDiffChange(useDiff)
         })
 
+      // Dropdown for the second column, only shown with Diff
+      const secondCtrl = config
+        .add(this.guiConfig, 'secondValueColumn', ['', ...this.availableColumns])
+        .name('2nd column')
+        .onChange((col2: string) => this.handleSecondColumnChange(col2))
+
+      if (this.guiConfig.diff) secondCtrl.show()
+      else secondCtrl.hide()
+
       let availableOpacityColumns = ['none'].concat(this.availableColumns)
-      // Dropdown for the first column
       if (availableOpacityColumns.length > 0) {
         config
           .add(this.guiConfig, 'opacityColumn', availableOpacityColumns)
@@ -978,24 +1023,32 @@ const GridMap = defineComponent({
           })
       }
 
-      // Dropdown for the first column
-      if (this.availableColumns.length > 0) {
-        config
-          .add(this.guiConfig, 'valueColumn', this.availableColumns)
-          .name('1st column')
-          .onChange((newCol: string) => {
-            this.handleColumnChange(newCol)
-          })
-      }
+      // threshold: which side to gray out, and the limit. Slider min/max are set by
+      // updateThresholdSlider(). The YAML can force the gray-out direction at startup.
+      const grayOut = this.vizDetails.thresholdGrayOut
+      if (grayOut == 'less' || grayOut == 'greater') this.guiConfig.thresholdMode = grayOut
 
-      // Dropdown for the second column
-      const secondCtrl = config
-        .add(this.guiConfig, 'secondValueColumn', ['', ...this.availableColumns])
-        .name('2nd column')
-        .onChange((col2: string) => this.handleSecondColumnChange(col2))
+      const threshold = config.addFolder(this.$t('threshold'))
+      this.shading.controller = threshold
+        .add(this.guiConfig, 'threshold', 0, 1)
+        .onChange(() => this.applyThreshold())
+      threshold
+        .add(this.guiConfig, 'thresholdMode', {
+          [this.$t('lessThan')]: 'less',
+          [this.$t('greaterThan')]: 'greater',
+        })
+        .name(this.$t('grayOut'))
+        .onChange(() => this.handleThresholdModeChange())
+      this.updateThresholdSlider(true)
 
-      if (this.guiConfig.diff) secondCtrl.show()
-      else secondCtrl.hide()
+      const view = config.addFolder('View')
+      view.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
+      view.add(this.guiConfig, 'opacity', 0, 1, 0.1)
+      view.add(this.guiConfig, 'height', 0, 250, 5)
+      // config
+      //   .add(this.guiConfig, 'show3dBuildings')
+      //   .name('3D buildings')
+      //   .onChange((value: boolean) => (this.show3dBuildings = value))
 
       // diverging
       if (!this.vizDetails.colorRamp || !this.vizDetails.colorRamp.breakpoints) {
@@ -1035,24 +1088,6 @@ const GridMap = defineComponent({
             this.setColors()
           })
       }
-
-      // threshold: which side to gray out, and the limit. Slider min/max are set by
-      // updateThresholdSlider(). The YAML can force the gray-out direction at startup.
-      const grayOut = this.vizDetails.thresholdGrayOut
-      if (grayOut == 'less' || grayOut == 'greater') this.guiConfig.thresholdMode = grayOut
-
-      const threshold = config.addFolder(this.$t('threshold'))
-      this.shading.controller = threshold
-        .add(this.guiConfig, 'threshold', 0, 1)
-        .onChange(() => this.applyThreshold())
-      threshold
-        .add(this.guiConfig, 'thresholdMode', {
-          [this.$t('lessThan')]: 'less',
-          [this.$t('greaterThan')]: 'greater',
-        })
-        .name(this.$t('grayOut'))
-        .onChange(() => this.handleThresholdModeChange())
-      this.updateThresholdSlider(true)
     },
 
     /*
@@ -1125,6 +1160,7 @@ const GridMap = defineComponent({
       // different values: start the threshold over
       this.updateThresholdSlider(true)
       this.applyThreshold()
+      this.updateSummaryChart()
     },
 
     async handleOpacityColumnChange(newCol: string) {
@@ -1307,6 +1343,7 @@ const GridMap = defineComponent({
     }
 
     await this.setColors()
+    this.updateSummaryChart()
     // this.buildThumbnail()
     this.isLoaded = true
     this.setMapCenter()
@@ -1450,15 +1487,15 @@ export default GridMap
   flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
-  background-color: var(--bgPanel3);
+  background-color: var(--bgBold);
   overflow-x: hidden;
   overflow-y: auto;
+  padding: 0 0.25rem;
 }
 
 .gui-config :deep(.lil-gui.root) {
   width: 100%;
 }
-
 .left-side {
   position: absolute;
   top: 0;

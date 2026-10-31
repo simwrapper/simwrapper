@@ -36,6 +36,15 @@ export interface PreparedData {
   valueRanges: [number, number][]
 }
 
+/** cumulative distribution of the cell values in one time period, sorted by value */
+export interface CumulativeShare {
+  values: Float32Array
+  /** cumulative share 0..1 of the total weight, at or below each value */
+  shares: Float32Array
+  /** false if the weight column was missing and every cell counted equally */
+  weighted: boolean
+}
+
 export interface ColorOptions {
   /** rgb(a) color ramp, already flipped if needed */
   colors: number[][]
@@ -65,6 +74,8 @@ let _centroids: Float32Array[] = []
 
 // ----- results of the latest prepare(), used by colorize() ------------------
 let _values: Float32Array[] = []
+/** unscaled values (diff applied), for the summary chart */
+let _rawValues: Float32Array[] = []
 let _opacityValues: Float32Array[] = []
 let _hasOpacity = false
 let _valuesIncludeNeg = false
@@ -181,12 +192,14 @@ const Task = {
     }
 
     _values = _times.map(() => new Float32Array(_length))
+    _rawValues = _times.map(() => new Float32Array(_length))
     const rangeMin = new Float64Array(_times.length).fill(Number.POSITIVE_INFINITY)
     const rangeMax = new Float64Array(_times.length).fill(Number.NEGATIVE_INFINITY)
     for (let row = 0; row < values1.length; row++) {
       const raw = values2 ? values1[row] - values2[row] : values1[row]
       const ti = _rowTime[row]
       _values[ti][_rowSlot[row]] = scaleFactor * raw
+      _rawValues[ti][_rowSlot[row]] = raw
       // comparisons, not Math.min/max, so NaN cells are skipped
       if (raw < rangeMin[ti]) rangeMin[ti] = raw
       if (raw > rangeMax[ti]) rangeMax[ti] = raw
@@ -237,6 +250,46 @@ const Task = {
       valueRanges,
     }
     return Comlink.transfer(result, [...transferables])
+  },
+
+  /**
+   * Cumulative distribution of the latest prepare() values in one time period, weighted
+   * by weightColumn (e.g. population). Without that column, every cell counts equally.
+   * Cells with no value or no weight are left out.
+   */
+  cumulativeShare(timeIndex: number, weightColumn: string): CumulativeShare {
+    const raw = _rawValues[timeIndex] || new Float32Array(0)
+    const weightValues = _isAvro ? undefined : _columns[weightColumn]
+
+    const weights = new Float64Array(raw.length).fill(weightValues ? 0 : 1)
+    if (weightValues) {
+      for (let row = 0; row < _rowTime.length; row++) {
+        if (_rowTime[row] === timeIndex) weights[_rowSlot[row]] = Number(weightValues[row])
+      }
+    }
+
+    const slots = [] as number[]
+    let total = 0
+    for (let i = 0; i < raw.length; i++) {
+      // comparisons, so NaN values and weights are skipped
+      if (raw[i] === raw[i] && weights[i] > 0 && weights[i] < Infinity) {
+        slots.push(i)
+        total += weights[i]
+      }
+    }
+    slots.sort((a, b) => raw[a] - raw[b])
+
+    const values = new Float32Array(slots.length)
+    const shares = new Float32Array(slots.length)
+    let cumulative = 0
+    slots.forEach((slot, k) => {
+      cumulative += weights[slot]
+      values[k] = raw[slot]
+      shares[k] = cumulative / total
+    })
+
+    const result: CumulativeShare = { values, shares, weighted: !!weightValues }
+    return Comlink.transfer(result, [values.buffer, shares.buffer])
   },
 
   /**
