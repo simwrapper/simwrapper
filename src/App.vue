@@ -719,7 +719,7 @@ maplibregl-ctrl-attrib-button {
 
 // tweak lil-gui configurator panels
 .lil-gui {
-  --background-color: var(--bgPanel); // #00000000;
+  --background-color: var(--bgBold); // var(--bgPanel); // #00000000;
   --title-background-color: var(--bgPanel2);
   --widget-color: var(--bgPanel2); //white; //  #44447780;
   --font-family: $mainFont;
@@ -728,7 +728,7 @@ maplibregl-ctrl-attrib-button {
 }
 
 .lil-gui.root > .title {
-  background-color: var(--bgPanel2); // $appTag; // #564c9d;
+  background-color: var(--bgBold); // var(--bgPanel2); // $appTag; // #564c9d;
   margin-bottom: 0;
   font-size: 13px;
   font-weight: bold;
