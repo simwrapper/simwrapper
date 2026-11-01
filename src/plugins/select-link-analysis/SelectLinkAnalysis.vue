@@ -234,7 +234,6 @@ const SelectLinkAnalysis = defineComponent({
             currentlyAttachedHourSqlite: null as number | null,
             parquetDataLoaded: false as boolean,
             csvDataLoaded: false as boolean,
-            // queryToken: 0 as number,
 
             originalAgents: {} as any,
             originalTraversals: {} as any,
@@ -295,6 +294,7 @@ const SelectLinkAnalysis = defineComponent({
 
             chosenFormat: ((typeof window !== 'undefined' && (window as any).__testFormat__) || 'Parquet') as string,
             loadPromises: markRaw({}) as Record<string, Promise<void> | undefined>,
+            appliedPrefetch: 'none' as string,
 
             myMap: new Map<string, number[]>(),
 
@@ -381,6 +381,44 @@ const SelectLinkAnalysis = defineComponent({
             await this.refreshSelectedLink()
         },
 
+        testFlag(name: string, fallback: string): string {
+            const v = (window as any)[name]
+            return typeof v === 'string' ? v : fallback
+        },
+        isTestRun(): boolean {
+            return !!(window as any).__testFormat__
+        },
+        isPartitioned(): boolean {
+            return this.testFlag('__testPartition__', 'hour') !== 'none'
+        },
+        // name under which the file is registered in DuckDB's virtual file system
+        dataFileName(stem: string, ext: string, hour: number): string {
+            return this.isPartitioned() ? `${stem}-${hour}.${ext}` : `${stem}.${ext}`
+        },
+        // location relative to the backend root
+        dataFilePath(stem: string, ext: string, hour: number): string {
+            return this.isPartitioned()
+                ? `${this.subfolder}/hour-partition-${ext}/hour-${hour}/${stem}-${hour}.${ext}`
+                : `${this.subfolder}/${stem}.${ext}`
+        },
+        dataFiles(ext: 'parquet' | 'csv'): { name: string; url: string }[] {
+            const stems = ['link-traversals-sorted', 'leg-sequences-sorted']
+            const hours = this.isPartitioned() ? Array.from({ length: 35 }, (_, i) => i) : [0]
+            return hours.flatMap(h =>
+                stems.map(stem => ({
+                    name: this.dataFileName(stem, ext, h),
+                    url: this.fileApi.cleanURL(this.dataFilePath(stem, ext, h)),
+                }))
+            )
+        },
+        sqliteUrl(hour: number): string {
+            return this.fileApi.cleanURL(
+                this.isPartitioned()
+                    ? `${this.subfolder}/hour-partition-sqlite/hour-${hour}/sla-${hour}.sqlite3`
+                    : `${this.subfolder}/sla.sqlite3`
+            )
+        },
+
         // Re-run the queries for whatever link is currently selected. Called on a new
         // selection and whenever the hour changes underneath the existing selection.
         async refreshSelectedLink() {
@@ -425,11 +463,15 @@ const SelectLinkAnalysis = defineComponent({
                 getReady: () => ({
                     Parquet: this.parquetDataLoaded === true && !!this.conn,
                     Csv: !!this.connCsv && this.csvDataLoaded === true,
-                    Sqlite: !!this.sqliteDb,
+                    Sqlite: !!this.sqlite3 && (this.isPartitioned() || !!this.sqliteDb),
                 }),
                 selectLink: async (linkId: any, hour: any, format?: string) =>
                     await this.queryLinksForSelectedLink(linkId, hour, format),
                 getOriginalTraversals: () => this.originalTraversals,
+                getConfig: () => ({
+                    partition: this.isPartitioned() ? 'hour' : 'none',
+                    prefetch: this.appliedPrefetch,
+                }),
             }
 
             await this.ensureFormatLoaded(this.chosenFormat)
@@ -445,24 +487,9 @@ const SelectLinkAnalysis = defineComponent({
 
             // @ts-ignore
             await this.connCsv.query(`SET enable_http_metadata_cache = true;`)
-
-            // await this.dbCsv.registerFileURL(`link-traversals-sorted.csv`,
-            //     this.fileApi.cleanURL(this.subfolder + `/link-traversals-sorted.csv`),
-            //     duckdb.DuckDBDataProtocol.HTTP, false)
-            // await this.dbCsv.registerFileURL(`leg-sequences-sorted.csv`,
-            //     this.fileApi.cleanURL(this.subfolder + `/leg-sequences-sorted.csv`),
-            //     duckdb.DuckDBDataProtocol.HTTP, false)
-
-            for (let i = 0; i < 35; i++) {
-                const base = this.subfolder + `/hour-partition-csv/hour-${i}`
-                await this.dbCsv.registerFileURL(`link-traversals-sorted-${i}.csv`,
-                    this.fileApi.cleanURL(`${base}/link-traversals-sorted-${i}.csv`),
-                    duckdb.DuckDBDataProtocol.HTTP, false)
-                await this.dbCsv.registerFileURL(`leg-sequences-sorted-${i}.csv`,
-                    this.fileApi.cleanURL(`${base}/leg-sequences-sorted-${i}.csv`),
-                    duckdb.DuckDBDataProtocol.HTTP, false)
+            for (const f of this.dataFiles('csv')) {
+                await this.dbCsv.registerFileURL(f.name, f.url, duckdb.DuckDBDataProtocol.HTTP, false)
             }
-
             this.csvDataLoaded = true
 
         },
@@ -480,49 +507,20 @@ const SelectLinkAnalysis = defineComponent({
 
             this.conn = await this.db.connect()
             await this.conn.query(`SET enable_http_metadata_cache = true;`)
-            // await this.conn.query(`SET parquet_metadata_cache = true;`)
 
-            // const traversalsUrl = this.fileApi.cleanURL(this.subfolder + '/link-traversals-sorted.parquet')
-            // const legSeqUrl = this.fileApi.cleanURL(this.subfolder + '/leg-sequences-sorted.parquet')
-            const agentsUrl = this.fileApi.cleanURL(this.subfolder + '/agents-sorted.parquet')
-            // await this.db.registerFileURL("link-traversals-sorted.parquet", traversalsUrl, duckdb.DuckDBDataProtocol.HTTP, false)
-            // await this.db.registerFileURL("leg-sequences-sorted.parquet", legSeqUrl, duckdb.DuckDBDataProtocol.HTTP, false)
-            await this.db.registerFileURL("agents-sorted.parquet", agentsUrl, duckdb.DuckDBDataProtocol.HTTP, false)
-
-            await this.conn.query(`SELECT * FROM parquet_metadata('agents-sorted.parquet')`)
-            // await this.conn.query(`SELECT * FROM parquet_metadata('leg-sequences-sorted.parquet')`)
-            // await this.conn.query(`SELECT * FROM parquet_metadata('link-traversals-sorted.parquet')`)
-
-            for (let i = 0; i < 35; i++) {
-                const base = this.subfolder + `/hour-partition-parquet/hour-${i}`
-                await this.db.registerFileURL(`link-traversals-sorted-${i}.parquet`,
-                    this.fileApi.cleanURL(`${base}/link-traversals-sorted-${i}.parquet`),
-                    duckdb.DuckDBDataProtocol.HTTP, false)
-                await this.db.registerFileURL(`leg-sequences-sorted-${i}.parquet`,
-                    this.fileApi.cleanURL(`${base}/leg-sequences-sorted-${i}.parquet`),
-                    duckdb.DuckDBDataProtocol.HTTP, false)
-
-                // const stmt = await this.conn.prepare(`
-                //          WITH sequences AS (
-                //             SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
-                //             FROM 'link-traversals-sorted-${i}.parquet' lt
-                //             INNER JOIN 'leg-sequences-sorted-${i}.parquet' ls
-                //                 ON lt.leg_id = ls.leg_id
-                //             WHERE lt.link_id = ?
-                //             AND lt.hour = ?
-                //         )
-                //         SELECT co_link_id, COUNT(*) AS traversal_count
-                //          FROM sequences
-                //          GROUP BY co_link_id
-                //          ORDER BY traversal_count DESC
-                //     `)
-
-                // const warm_up = await stmt.query('4555235', i)
-
-                // await this.conn.query(`SELECT * FROM parquet_metadata('link-traversals-sorted-${i}.parquet')`)
-                // await this.conn.query(`SELECT * FROM parquet_metadata('leg-sequences-sorted-${i}.parquet')`)
+            // agents are not part of the SLA benchmark: skip them in test runs
+            if (!this.isTestRun()) {
+                const agentsUrl = this.fileApi.cleanURL(this.subfolder + '/agents-sorted.parquet')
+                await this.db.registerFileURL('agents-sorted.parquet', agentsUrl, duckdb.DuckDBDataProtocol.HTTP, false)
+                await this.conn.query(`SELECT * FROM parquet_metadata('agents-sorted.parquet')`)
             }
 
+            const prefetch = this.testFlag('__testPrefetch__', 'none') === 'footers'
+            this.appliedPrefetch = prefetch ? 'footers' : 'none'
+            for (const f of this.dataFiles('parquet')) {
+                await this.db.registerFileURL(f.name, f.url, duckdb.DuckDBDataProtocol.HTTP, false)
+                if (prefetch) await this.conn.query(`SELECT * FROM parquet_metadata('${f.name}')`)
+            }
             this.parquetDataLoaded = true
 
             // for the moment, registering each file doesn't run into memory constraints on Berlin 10 & 1pct.
@@ -534,46 +532,10 @@ const SelectLinkAnalysis = defineComponent({
 
         },
 
-        async loadSQLiteData() {
-            this.sqlite3 = markRaw(await sqlite3InitModule())
-            console.log('SQLite WASM loaded, version', this.sqlite3.version.libVersion)
-            // @ts-ignore
-            window.__sqlite__ = { sqlite3: this.sqlite3, getDb: () => this.sqliteDb }
-
-            await this.switchHourPartitionSqlite(0)
-
-            // const url = this.fileApi.cleanURL(
-            //     this.subfolder + `/sla.sqlite3`
-            // )
-            // const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer())
-
-            // const sqlite3 = this.sqlite3
-            // const p = sqlite3.wasm.allocFromTypedArray(bytes)
-            // const db = new sqlite3.oo1.DB()
-            // db.onclose = { after: () => sqlite3.wasm.dealloc(p) }
-            // const rc = sqlite3.capi.sqlite3_deserialize(
-            //     db.pointer, 'main', p, bytes.length, bytes.length,
-            //     sqlite3.capi.SQLITE_DESERIALIZE_READONLY
-            // )
-            // db.checkRc(rc)
-
-            // this.sqliteDb = markRaw(db)
-        },
-
-        async switchHourPartitionSqlite(newHour: number) {
-            if (this.currentlyAttachedHourSqlite === newHour) return
-
-            if (this.sqliteDb) {
-                this.sqliteDb.close() // the onclose hook below frees the WASM memory
-                this.sqliteDb = null
-                this.currentlyAttachedHourSqlite = null
-            }
-            console.log(`Switching to hour partition ${newHour}: loading SQLite database for that hour`)
-            const url = this.fileApi.cleanURL(
-                this.subfolder + `/hour-partition-sqlite/hour-${newHour}/sla-${newHour}.sqlite3`
-            )
-            const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer())
-
+        async openSqliteFromUrl(url: string) {
+            const resp = await fetch(url)
+            if (!resp.ok) throw new Error(`SQLite fetch failed: ${resp.status} ${url}`)
+            const bytes = new Uint8Array(await resp.arrayBuffer())
             const sqlite3 = this.sqlite3
             const p = sqlite3.wasm.allocFromTypedArray(bytes)
             const db = new sqlite3.oo1.DB()
@@ -583,14 +545,37 @@ const SelectLinkAnalysis = defineComponent({
                 sqlite3.capi.SQLITE_DESERIALIZE_READONLY
             )
             db.checkRc(rc)
+            return markRaw(db)
+        },
 
-            this.sqliteDb = markRaw(db)
+        async loadSQLiteData() {
+            this.sqlite3 = markRaw(await sqlite3InitModule())
+            console.log('SQLite WASM loaded, version', this.sqlite3.version.libVersion)
+            // @ts-ignore
+            window.__sqlite__ = { sqlite3: this.sqlite3, getDb: () => this.sqliteDb }
+
+            // unpartitioned: one database for all hours, fetched now.
+            // partitioned: each hour's database is fetched on demand (switchHourPartitionSqlite)
+            if (!this.isPartitioned()) this.sqliteDb = await this.openSqliteFromUrl(this.sqliteUrl(0))
+        },
+
+        async switchHourPartitionSqlite(newHour: number) {
+            if (!this.isPartitioned()) return
+            if (this.currentlyAttachedHourSqlite === newHour) return
+            if (this.sqliteDb) {
+                this.sqliteDb.close()
+                this.sqliteDb = null
+                this.currentlyAttachedHourSqlite = null
+            }
+            this.sqliteDb = await this.openSqliteFromUrl(this.sqliteUrl(newHour))
             this.currentlyAttachedHourSqlite = newHour
         },
 
         async queryLinksForSelectedLink(linkId: number, hour: number, format?: string) {
             hour = this.assertValidHour(hour)
             const useFormat = format ?? this.chosenFormat
+            const lt = (ext: string) => this.dataFileName('link-traversals-sorted', ext, hour)
+            const ls = (ext: string) => this.dataFileName('leg-sequences-sorted', ext, hour)
 
             try {
                 // ---------- PHASE 1: prep ----------
@@ -605,11 +590,12 @@ const SelectLinkAnalysis = defineComponent({
                 const t1 = performance.now()
 
                 if (this.conn && useFormat === 'Parquet') {
+
                     const stmt = await this.conn.prepare(`
                          WITH sequences AS (
                             SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
-                            FROM 'link-traversals-sorted-${hour}.parquet' lt
-                            INNER JOIN 'leg-sequences-sorted-${hour}.parquet' ls
+                            FROM '${lt('parquet')}' lt
+                            INNER JOIN '${ls('parquet')}' ls
                                 ON lt.leg_id = ls.leg_id
                             WHERE lt.link_id = ?
                             AND lt.hour = ?
@@ -619,21 +605,6 @@ const SelectLinkAnalysis = defineComponent({
                          GROUP BY co_link_id
                          ORDER BY traversal_count DESC
                     `)
-
-                    // const stmt = await this.conn.prepare(`
-                    //        WITH sequences AS (
-                    //            SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
-                    //            FROM 'link-traversals-sorted.parquet' lt
-                    //            INNER JOIN 'leg-sequences-sorted.parquet' ls
-                    //                ON lt.leg_id = ls.leg_id
-                    //            WHERE lt.link_id = ?
-                    //            AND lt.hour = ?
-                    //        )
-                    //        SELECT co_link_id, COUNT(*) AS traversal_count
-                    //        FROM sequences
-                    //        GROUP BY co_link_id
-                    //        ORDER BY traversal_count DESC
-                    //    `)
                     try {
                         const result = await stmt.query(linkId, hour)
                         traversals = Object.fromEntries(
@@ -645,8 +616,8 @@ const SelectLinkAnalysis = defineComponent({
                 } else if (this.connCsv && useFormat === 'Csv') {
                     const stmt = await this.connCsv.prepare(`WITH sequences AS (
                             SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
-                            FROM 'link-traversals-sorted-${hour}.csv' lt
-                            INNER JOIN 'leg-sequences-sorted-${hour}.csv' ls
+                            FROM '${lt('csv')}' lt
+                            INNER JOIN '${ls('csv')}' ls
                                 ON lt.leg_id = ls.leg_id
                             WHERE lt.link_id = ?
                             AND lt.hour = ?
@@ -656,20 +627,6 @@ const SelectLinkAnalysis = defineComponent({
                          GROUP BY co_link_id
                          ORDER BY traversal_count DESC
                     `)
-
-                    // const stmt = await this.connCsv.prepare(`WITH sequences AS (
-                    //         SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
-                    //         FROM 'link-traversals-sorted.csv' lt
-                    //         INNER JOIN 'leg-sequences-sorted.csv' ls
-                    //             ON lt.leg_id = ls.leg_id
-                    //         WHERE lt.link_id = ?
-                    //         AND lt.hour = ?
-                    //     )
-                    //     SELECT co_link_id, COUNT(*) AS traversal_count
-                    //      FROM sequences
-                    //      GROUP BY co_link_id
-                    //      ORDER BY traversal_count DESC
-                    // `)
                     try {
                         const result = await stmt.query(linkId, hour)
                         traversals = Object.fromEntries(
@@ -681,24 +638,24 @@ const SelectLinkAnalysis = defineComponent({
                 } else if (this.sqlite3 && useFormat === 'Sqlite') {
                     const rows = this.sqliteDb.exec({
                         sql: `
-            WITH RECURSIVE legs AS (
-                SELECT ls.leg_sequence AS seq
-                FROM traversals lt
-                INNER JOIN sequences ls ON lt.leg_id = ls.leg_id
-                WHERE lt.link_id = ? AND lt.hour = ?
-            ),
-            split(co_link_id, rest) AS (
-                SELECT '', seq || '|' FROM legs
-                UNION ALL
-                SELECT substr(rest, 1, instr(rest, '|') - 1), substr(rest, instr(rest, '|') + 1)
-                FROM split WHERE rest <> ''
-            )
-            SELECT co_link_id, COUNT(*) AS traversal_count
-            FROM split
-            WHERE co_link_id <> ''
-            GROUP BY co_link_id
-            ORDER BY traversal_count DESC
-        `,
+                            WITH RECURSIVE legs AS (
+                                SELECT ls.leg_sequence AS seq
+                                FROM traversals lt
+                                INNER JOIN sequences ls ON lt.leg_id = ls.leg_id
+                                WHERE lt.link_id = ? AND lt.hour = ?
+                            ),
+                            split(co_link_id, rest) AS (
+                                SELECT '', seq || '|' FROM legs
+                                UNION ALL
+                                SELECT substr(rest, 1, instr(rest, '|') - 1), substr(rest, instr(rest, '|') + 1)
+                                FROM split WHERE rest <> ''
+                            )
+                            SELECT co_link_id, COUNT(*) AS traversal_count
+                            FROM split
+                            WHERE co_link_id <> ''
+                            GROUP BY co_link_id
+                            ORDER BY traversal_count DESC
+                        `,
                         bind: [String(linkId), hour],
                         rowMode: 'object',
                         returnValue: 'resultRows',
