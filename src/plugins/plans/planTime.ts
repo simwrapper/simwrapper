@@ -44,7 +44,10 @@ export function isActiveAt(window: { t0: number; t1: number }, t: number): boole
  * so with t floored, "t1 > t" is "t1 >= t + 1", and the t + 0.5 bound says exactly that
  * while hiding zero-length windows (e.g. pt interactions) and windows ending at t.
  */
-export function activeAtFilter(t: number) {
+export function activeAtFilter(t: number): {
+  filterEnabled: boolean
+  filterRange: [number, number][]
+} {
   const s = Math.floor(t)
   return {
     filterEnabled: t > 0,

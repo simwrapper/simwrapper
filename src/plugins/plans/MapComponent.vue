@@ -19,6 +19,8 @@ import maplibregl from 'maplibre-gl'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { ArcLayer, ScatterplotLayer, IconLayer, TextLayer } from '@deck.gl/layers'
 import { DataFilterExtension, PathStyleExtension } from '@deck.gl/extensions'
+import type { DataFilterExtensionProps } from '@deck.gl/extensions'
+import type { Layer, LayerData } from '@deck.gl/core'
 import PathLayer from '@/layers/PathOffsetLayer'
 import BackgroundLayers from '@/js/BackgroundLayers'
 
@@ -27,6 +29,14 @@ import MapTooltip from './MapTooltip.vue'
 import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
 import { LegModeColor } from './PlansViewer.vue'
 import { OPEN_END, activeAtFilter } from './planTime'
+import {
+  activeRoutes,
+  arcsOfKinds,
+  buildRoutePaths,
+  type ArcSet,
+  type OverviewData,
+  type RoutePaths,
+} from './overviewData'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -34,6 +44,33 @@ const BASE_URL = import.meta.env.BASE_URL
 // slider moves the filter range (a uniform), so dragging or playing never rebuilds data.
 const timeFilterExtension = new DataFilterExtension({ filterSize: 2 })
 const dashExtension = new PathStyleExtension({ dash: true })
+
+// "Show everyone" uses the plan view's colors (see the plan layers below)
+const HOME_COLOR = [24, 255, 255, 255]
+const ACTIVITY_COLOR = [255, 64, 255, 255]
+const ROUTE_DEFAULT_COLOR = [0, 128, 230, 255]
+const ARC_DEFAULT_COLOR = [200, 200, 200, 192]
+
+// Reusable buffers for the road paths under way at the current time, per overview. Outside
+// Vue's reactivity on purpose: rewritten on every slider move, rendered only through deck.gl.
+const routeScratch = new WeakMap<OverviewData, { ids: number[]; paths?: RoutePaths }>()
+
+/** rgba per item from per-kind colors, as deck.gl's own color type (normalized 0-255). */
+function colorsByKind(
+  kinds: string[],
+  kindOf: Uint16Array,
+  colorOf: (kind: string) => number[]
+): Uint8ClampedArray {
+  const table = kinds.map(colorOf)
+  const colors = new Uint8ClampedArray(4 * kindOf.length)
+  for (let i = 0; i < kindOf.length; i++) colors.set(table[kindOf[i]], 4 * i)
+  return colors
+}
+
+const modeColor = (fallback: number[]) => (mode: string) => {
+  const c = LegModeColor[mode] || fallback
+  return c.length === 4 ? c : [...c, 255]
+}
 
 interface Shipment {
   $id: string
@@ -74,6 +111,7 @@ export default defineComponent({
         simplifyTours: boolean
         scaleFactor: number
         shipmentDotsOnTourMap: boolean
+        showWalkTrips?: boolean
       }>,
       required: true,
     },
@@ -83,6 +121,8 @@ export default defineComponent({
     show3dBuildings: { type: Boolean, required: false, default: false },
     // time slider position (seconds): show only what is active then; 0 = no filter
     currentTime: { type: Number, default: 0 },
+    // every selected plan in the file ("Show everyone"), or null
+    overview: { type: Object as PropType<OverviewData | null>, default: null },
   },
 
   data() {
@@ -134,11 +174,181 @@ export default defineComponent({
   },
 
   computed: {
+    // "Show everyone" data that only changes when a new overview loads (or a leg switch is
+    // toggled) -- not when the time slider moves -- so its GPU buffers are uploaded once and
+    // filtered by time on the GPU.
+    overviewActivities(): LayerData<unknown> | null {
+      const ov = this.overview
+      if (!ov) return null
+      const colors = colorsByKind(ov.kinds, ov.activities.kind, k =>
+        k.startsWith('home') ? HOME_COLOR : ACTIVITY_COLOR
+      )
+      return {
+        length: ov.activities.count,
+        attributes: {
+          getPosition: { value: ov.activities.positions, size: 2 },
+          getFillColor: { value: colors, size: 4 },
+          getFilterValue: { value: ov.activities.times, size: 2 },
+        },
+      }
+    },
+
+    // Which kinds (leg modes) of the overview to draw: all but walk when walk trips are off.
+    overviewKindShown(): ((kind: number) => boolean) | null {
+      const ov = this.overview
+      if (!ov) return null
+      const shown = ov.kinds.map(k => this.isModeShown(k))
+      return (kind: number) => shown[kind]
+    },
+
+    overviewLegArcs(): { arcs: LayerData<unknown>; routeArcs: LayerData<unknown> } | null {
+      const ov = this.overview
+      const shown = this.overviewKindShown
+      if (!ov || !shown) return null
+      const asLayerData = (set: ArcSet, fallback: number[]): LayerData<unknown> => {
+        const colors = colorsByKind(ov.kinds, set.kind, modeColor(fallback))
+        return {
+          length: set.count,
+          attributes: {
+            getSourcePosition: { value: set.source, size: 2 },
+            getTargetPosition: { value: set.target, size: 2 },
+            getSourceColor: { value: colors, size: 4 },
+            getTargetColor: { value: colors, size: 4 },
+            getFilterValue: { value: set.times, size: 2 },
+          },
+        }
+      }
+      return {
+        arcs: asLayerData(arcsOfKinds(ov.arcs, shown), ARC_DEFAULT_COLOR),
+        // routed legs as start-to-end arcs, for "simple tours"
+        routeArcs: asLayerData(arcsOfKinds(ov.routes, shown), ROUTE_DEFAULT_COLOR),
+      }
+    },
+
+    // The plan's legs, minus walk legs when walk trips are switched off.
+    shownLegs(): unknown[] {
+      return this.legs.filter(d => this.isModeShown((d as { mode: string }).mode))
+    },
+    shownNonRoutedLegs(): unknown[] {
+      return this.nonRoutedLegs.filter(d => this.isModeShown((d as { mode: string }).mode))
+    },
+
+    // Road paths of the routed legs under way at the slider time, in deck.gl's binary path
+    // format. Rebuilt whenever the slider moves (only these few thousand routes, not all).
+    overviewRoutePaths(): LayerData<unknown> | null {
+      const ov = this.overview
+      if (!ov || this.settings.simplifyTours) return null
+      let scratch = routeScratch.get(ov)
+      if (!scratch) {
+        scratch = { ids: [] }
+        routeScratch.set(ov, scratch)
+      }
+      const shown = this.overviewKindShown
+      const ids = activeRoutes(ov.routes, this.currentTime, scratch.ids)
+      if (shown) {
+        let n = 0
+        for (const r of ids) if (shown(ov.routes.kind[r])) ids[n++] = r
+        ids.length = n
+      }
+      const colorOf = modeColor(ROUTE_DEFAULT_COLOR)
+      const kindColors = ov.kinds.map(colorOf)
+      const paths = buildRoutePaths(ov.routes, ids, ov.linkCoords, k => kindColors[k], scratch.paths)
+      scratch.paths = paths
+      const vertices = paths.startIndices[paths.length]
+      // fresh subarray views each time, so deck.gl sees new data and re-uploads it
+      return {
+        length: paths.length,
+        startIndices: paths.startIndices.subarray(0, paths.length + 1),
+        attributes: {
+          getPath: { value: paths.positions.subarray(0, 2 * vertices), size: 2 },
+          getColor: { value: paths.colors.subarray(0, 4 * vertices), size: 4 },
+        },
+      } as LayerData<unknown>
+    },
+
+    // "Show everyone" layers, styled like the plan layers below: legs without a link route as
+    // arcs between their links, routed legs as road paths (or arcs, for "simple tours"), and
+    // activity dots on top. Unlike a searched plan, everyone is always filtered by time --
+    // even at 00:00 -- since every leg of the day at once would be millions of road segments.
+    overviewLayers(): Layer[] {
+      const activities = this.overviewActivities
+      const legArcs = this.overviewLegArcs
+      if (!activities || !legArcs) return []
+      const timeFilter = { ...activeAtFilter(this.currentTime), filterEnabled: true }
+      const layers: Layer[] = [
+        new ArcLayer<unknown, DataFilterExtensionProps>({
+          id: 'everyone-non-routed-leg-arcs',
+          data: legArcs.arcs,
+          getWidth: 2,
+          getHeight: 0.6,
+          widthMinPixels: 1,
+          widthMaxPixels: 40,
+          widthUnits: 'pixels',
+          opacity: 0.9,
+          pickable: false,
+          extensions: [timeFilterExtension],
+          ...timeFilter,
+        }),
+      ]
+      if (this.settings.simplifyTours) {
+        layers.push(
+          new ArcLayer<unknown, DataFilterExtensionProps>({
+            id: 'everyone-leg-arcs',
+            data: legArcs.routeArcs,
+            getWidth: 2,
+            getHeight: 0.5,
+            widthMinPixels: 2,
+            widthMaxPixels: 40,
+            widthUnits: 'pixels',
+            opacity: 0.9,
+            pickable: false,
+            extensions: [timeFilterExtension],
+            ...timeFilter,
+          })
+        )
+      } else if (this.overviewRoutePaths) {
+        layers.push(
+          new PathLayer({
+            id: 'everyone-routes',
+            data: this.overviewRoutePaths,
+            _pathType: 'open', // binary paths: skip deck.gl's path normalization
+            getWidth: 2,
+            getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
+            opacity: 1,
+            widthMinPixels: 3,
+            widthMaxPixels: 40,
+            widthUnits: 'pixels',
+            jointRounded: true,
+            pickable: false,
+            // PathOffsetLayer's getOffset isn't in deck.gl's PathLayer types
+          } as ConstructorParameters<typeof PathLayer>[0])
+        )
+      }
+      layers.push(
+        new ScatterplotLayer<unknown, DataFilterExtensionProps>({
+          id: 'everyone-activities',
+          data: activities,
+          radiusUnits: 'pixels',
+          getRadius: 4,
+          stroked: false,
+          opacity: 0.9,
+          pickable: false,
+          visible: this.settings.shipmentDotsOnTourMap,
+          extensions: [timeFilterExtension],
+          ...timeFilter,
+        })
+      )
+      return layers
+    },
+
     layers() {
       const allLayers = [] as any[]
 
       const extraLayers = this.bgLayers?.layers()
       if (extraLayers) allLayers.push(...extraLayers.layersBelow)
+
+      // everyone, below the searched plans
+      allLayers.push(...this.overviewLayers)
 
       // spread into each plan layer, alongside its own extensions
       const timeFilter = {
@@ -177,7 +387,7 @@ export default defineComponent({
           //@ts-ignore:
           new ArcLayer({
             id: 'non-routed-leg-arcs',
-            data: this.nonRoutedLegs,
+            data: this.shownNonRoutedLegs,
             getSourcePosition: (d: any) => d.start,
             getTargetPosition: (d: any) => d.end,
             getSourceColor: (d: any) => LegModeColor[d.mode] || [200, 200, 200, 192],
@@ -210,7 +420,7 @@ export default defineComponent({
           //@ts-ignore:
           new ArcLayer({
             id: 'leg-arcs',
-            data: this.legs,
+            data: this.shownLegs,
             getSourcePosition: (d: any) => d.points[0],
             getTargetPosition: (d: any) => d.points[d.points.length - 1],
             getSourceColor: (d: any) => LegModeColor[d.mode] || [0, 128, 230], // d.color,
@@ -240,7 +450,7 @@ export default defineComponent({
           //@ts-ignore:
           new PathLayer({
             id: 'deliveryroutes',
-            data: this.legs,
+            data: this.shownLegs,
             getPath: (d: any) => d.points,
             getColor: (d: any) => LegModeColor[d.mode] || [0, 128, 230], // d.color,
             // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
@@ -515,6 +725,11 @@ export default defineComponent({
   },
 
   methods: {
+    // false for walk legs when the "Walk trips" switch is off
+    isModeShown(mode: string) {
+      return this.settings.showWalkTrips !== false || mode !== 'walk'
+    },
+
     handleMove() {
       if (this.mapIsIndependent) return
       const center = this.mymap?.getCenter() as any

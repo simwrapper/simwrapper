@@ -26,6 +26,7 @@
         :services="vizDetails.services || false"
         :show3dBuildings="show3dBuildings"
         :currentTime="currentTime"
+        :overview="showEveryone ? overview : null"
       )
 
       ZoomButtons(v-if="!thumbnail" corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
@@ -70,6 +71,11 @@
       .filter-plans
           o-switch(v-model="vizSettings.selectedPlansOnly")
             span(v-html="$t('selectedPlansOnly')")
+
+      //- every selected plan in the file, animated by the time slider (needs time columns)
+      .show-everyone(v-if="maxEndTime")
+          o-switch(v-model="showEveryone" :disabled="isLoadingOverview")
+            span {{ $t('showEveryone') }}
 
       .carrier-list.mb1(data-testid="plan-list")
         .carrier(v-for="plan,i in plans" :key="plan.plan_num"
@@ -124,6 +130,8 @@
             span(v-html="$t('Activities')")
           o-switch(v-model="vizSettings.simplifyTours")
             span(v-html="$t('flatten')")
+          o-switch(v-model="vizSettings.showWalkTrips")
+            span {{ $t('walkTrips') }}
 
 </template>
 
@@ -145,6 +153,12 @@ const i18n = {
       scaleSize: 'Widths',
       scaleFactor: 'Width',
       selectedPlansOnly: 'Selected plans (*) only',
+      showEveryone: 'Show everyone',
+      walkTrips: 'Walk trips',
+      unknownLink: '1 unknown link: not found in the network file, so it is left off the map.',
+      unknownLinks: '{count} unknown links: not found in the network file, so they are left off the map.',
+      confirmEveryone:
+        'This file has {rows} rows. Loading everyone may take a while and a lot of memory. Continue?',
       showActivities: 'Show activities',
       search: 'Search',
       searchHint: 'Person_id or pattern*',
@@ -168,10 +182,16 @@ const i18n = {
       service: 'Betrieb',
       show: 'Show',
       Activities: 'Activities',
+      showEveryone: 'Alle anzeigen',
+      walkTrips: 'Fußwege',
+      unknownLink: '1 unbekannter Link: nicht im Netzwerk, daher fehlt er auf der Karte.',
+      unknownLinks: '{count} unbekannte Links: nicht im Netzwerk, daher fehlen sie auf der Karte.',
+      confirmEveryone:
+        'Diese Datei hat {rows} Zeilen. Alle zu laden kann lange dauern und viel Speicher brauchen. Fortfahren?',
     },
   },
 }
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw, toRaw } from 'vue'
 import type { PropType } from 'vue'
 
 import DuckDB from '@/js/duckdb'
@@ -184,6 +204,7 @@ import naturalSort from 'javascript-natural-sort'
 import readBlob from 'read-blob'
 
 import { personSearchFilter } from './personSearch'
+import { OverviewBuilder, linkLookup, type OverviewData } from './overviewData'
 import {
   MAX_END_TIME_KEY,
   OPEN_END,
@@ -260,6 +281,31 @@ interface ActivityLocation {
   ptTo: number[]
 }
 
+// Above this many rows (all plans) "Show everyone" asks first: memory and download scale
+// with it (Leipzig 10%: 10M rows, ~40 MB downloaded, ~0.5 GB transient browser memory).
+const OVERVIEW_CONFIRM_ROWS = 20_000_000
+
+// The columns "Show everyone" needs, for selected plans only: what the plan view draws for a
+// plan (activity coordinates; link routes; start/end links of other legs) plus the time
+// windows. Coalesced so every column arrives without nulls (see OverviewBatch), and the route
+// strings only where they're drawn. `has` = the file's columns: optional ones may be missing.
+const overviewQuery = (url: string, has: Set<string>) => {
+  const col = (name: string, fallback: string) => (has.has(name) ? name : fallback)
+  const routeType = col('route_type', "''")
+  return `
+  SELECT (element = 'leg')::TINYINT AS is_leg,
+         coalesce(${col('activity_lon', 'NULL')}::FLOAT, 'NaN'::FLOAT) AS lon,
+         coalesce(${col('activity_lat', 'NULL')}::FLOAT, 'NaN'::FLOAT) AS lat,
+         coalesce(time_start, -1) AS t0,
+         coalesce(time_end, 1000000000) AS t1,
+         coalesce(${col('leg_mode', 'NULL')}, ${col('activity_type_simple', 'NULL')}, '') AS kind,
+         coalesce(${routeType}, '') AS route_type,
+         CASE WHEN ${routeType} = 'links' THEN coalesce(${col('route_text', "''")}, '') ELSE '' END AS route_text,
+         CASE WHEN ${routeType} = 'links' THEN '' ELSE coalesce(${col('route_start_link', "''")}, '') END AS start_link,
+         CASE WHEN ${routeType} = 'links' THEN '' ELSE coalesce(${col('route_end_link', "''")}, '') END AS end_link
+  FROM '${url.replace(/'/g, "''")}' WHERE plan_selected = 'yes'`
+}
+
 export interface Plan {
   person_id: string
   plan_num: number
@@ -324,6 +370,14 @@ const PlansViewerPlugin = defineComponent({
       sliderHeight: 0,
       sliderResizer: null as ResizeObserver | null,
 
+      // the panel is showing the "unknown links" error (so it can be cleared again)
+      isShowingUnknownLinks: false,
+
+      // "Show everyone": loaded once, on first use; markRaw'd typed arrays
+      showEveryone: false,
+      isLoadingOverview: false,
+      overview: null as OverviewData | null,
+
       // ------
       vizSettings: {
         simplifyTours: false,
@@ -331,6 +385,7 @@ const PlansViewerPlugin = defineComponent({
         shipmentDotsOnTourMap: true,
         scaleFactor: 0, // 0 means don't scale at all
         selectedPlansOnly: false,
+        showWalkTrips: true,
       },
 
       vizDetails: {
@@ -495,6 +550,10 @@ const PlansViewerPlugin = defineComponent({
     searchTerm() {
       this.debounceUpdateSearch()
     },
+
+    showEveryone(on: boolean) {
+      if (on && !this.overview && !this.isLoadingOverview) this.loadOverview()
+    },
   },
 
   methods: {
@@ -538,10 +597,19 @@ const PlansViewerPlugin = defineComponent({
 
       console.log({ linkRoutes, nonLinkRoutes, activities })
 
+      // Links missing from the network are skipped (and reported below) instead of crashing
+      const unknownLinks = new Set<string>()
+      const linkXY = (id: string): number[] | undefined => {
+        const xy = this.links?.[id]
+        if (!xy) unknownLinks.add(id)
+        return xy
+      }
+
       // -------
       // add the routes like a crazy person
       linkRoutes.forEach((route, i) => {
-        const linksOnThisRoute = route.route_text.split(' ')
+        const linksOnThisRoute = (route.route_text || '').split(' ').filter(id => linkXY(id))
+        if (!linksOnThisRoute.length) return
         const tour = {
           tourNumber: i,
           legs: linksOnThisRoute,
@@ -552,13 +620,12 @@ const PlansViewerPlugin = defineComponent({
       })
 
       // Non-routed routes can be shown as arcs, by mode
-      nonLinkRoutes.forEach((leg, i) => {
-        let ptFrom = [this.links[leg.route_start_link][0], this.links[leg.route_start_link][1]]
-        let ptTo = [this.links[leg.route_start_link][2], this.links[leg.route_start_link][3]]
-        const startMidpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
-        ptFrom = [this.links[leg.route_end_link][0], this.links[leg.route_end_link][1]]
-        ptTo = [this.links[leg.route_end_link][2], this.links[leg.route_end_link][3]]
-        const endMidpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+      nonLinkRoutes.forEach(leg => {
+        const start = linkXY(leg.route_start_link)
+        const end = linkXY(leg.route_end_link)
+        if (!start || !end) return
+        const startMidpoint = [0.5 * (start[0] + start[2]), 0.5 * (start[1] + start[3])]
+        const endMidpoint = [0.5 * (end[0] + end[2]), 0.5 * (end[1] + end[3])]
 
         this.nonRoutedLegs.push({
           start: startMidpoint,
@@ -573,11 +640,12 @@ const PlansViewerPlugin = defineComponent({
       const stopActivities = [] as any[]
       activities.forEach((activity, i) => {
         const link = activity.activity_link
-        const ptFrom = [this.links[link][0], this.links[link][1]]
-        const ptTo = [this.links[link][2], this.links[link][3]]
-        // const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
-
         const lnglat = [activity.activity_lon, activity.activity_lat]
+        // the dashed marker along the activity's link; none if the link is unknown
+        const xy = linkXY(link)
+        const ptFrom = xy ? [xy[0], xy[1]] : lnglat
+        const ptTo = xy ? [xy[2], xy[3]] : lnglat
+
         const actType = activity.activity_type // this.$t(activity.$type)
 
         // get details: remove coords, IDs, that we don't need to show the user in UI.
@@ -599,9 +667,24 @@ const PlansViewerPlugin = defineComponent({
         stopActivities.push(act)
       })
       this.stopActivities = stopActivities
+
+      this.reportUnknownLinks(unknownLinks.size)
     },
 
-    async setupDbUrl() {
+    // Show (or clear) the "unknown links" error on the panel.
+    reportUnknownLinks(count: number) {
+      if (count) {
+        const message = count === 1 ? this.$t('unknownLink') : this.$t('unknownLinks', { count })
+        this.$emit('error', `${message}`)
+        this.isShowingUnknownLinks = true
+      } else if (this.isShowingUnknownLinks) {
+        this.$emit('error', '')
+        this.isShowingUnknownLinks = false
+      }
+    },
+
+    // `db`: the DuckDB instance to register a local file with (default: the viewer's own)
+    async setupDbUrl(db?: AsyncDuckDB) {
       // Local files: DuckDB can handle FileHandles from the filesystem but they must be registered.
       // Flask filesystem: URL
       // S3: URL
@@ -623,7 +706,7 @@ const PlansViewerPlugin = defineComponent({
       // console.log({ dir, handle })
 
       // register file handle with DuckDB using filename
-      await this.duck.registerFileHandle(
+      await (db || this.duck).registerFileHandle(
         url,
         file, // the file from the FileSystemFileHandle
         // handle, // the FileSystemFileHandle itself
@@ -631,6 +714,88 @@ const PlansViewerPlugin = defineComponent({
         false
       )
       return url
+    },
+
+    // "Show everyone": stream the few columns needed for every selected plan into compact
+    // typed arrays, once. Uses its own DuckDB instance: DuckDB-wasm's WebAssembly memory
+    // grows while scanning and never shrinks, so terminating the instance afterwards gives
+    // it back (Leipzig 10%: ~350 MB less kept than reusing the viewer's instance).
+    async loadOverview() {
+      this.isLoadingOverview = true
+      let db: AsyncDuckDB | null = null
+      try {
+        const rows = await this.countFileRows()
+        if (rows > OVERVIEW_CONFIRM_ROWS) {
+          const message = `${this.$t('confirmEveryone', { rows: rows.toLocaleString() })}`
+          if (!window.confirm(message)) {
+            this.showEveryone = false
+            return
+          }
+        }
+
+        const columns = await this.fileColumns()
+        // legs are drawn on the road network that the viewer already loaded
+        const network = linkLookup(toRaw(this.links) || {})
+
+        db = await DuckDB.getDuckDB()
+        const url = await this.setupDbUrl(db)
+        const conn = await db.connect()
+        const builder = new OverviewBuilder(network)
+        let reported = 0
+        for await (const batch of await conn.send(overviewQuery(url, columns))) {
+          const text = (name: string) => {
+            const vector = batch.getChild(name)!
+            return (i: number) => vector.get(i) as string
+          }
+          builder.append({
+            numRows: batch.numRows,
+            isLeg: batch.getChild('is_leg')!.toArray(),
+            lon: batch.getChild('lon')!.toArray(),
+            lat: batch.getChild('lat')!.toArray(),
+            t0: batch.getChild('t0')!.toArray(),
+            t1: batch.getChild('t1')!.toArray(),
+            kind: text('kind'),
+            routeType: text('route_type'),
+            startLink: text('start_link'),
+            endLink: text('end_link'),
+            routeText: text('route_text'),
+          })
+          if (builder.rowsRead - reported >= 250_000) {
+            reported = builder.rowsRead
+            this.myState.statusMessage = `${this.$t('showEveryone')}: ${(reported / 1e6).toFixed(2)}M`
+          }
+        }
+        await conn.close()
+        this.overview = markRaw(builder.finish())
+        if (this.overview.unknownLinks) this.reportUnknownLinks(this.overview.unknownLinks)
+      } catch (e) {
+        console.error('Could not load everyone:', e)
+        this.showEveryone = false
+      } finally {
+        db?.terminate()
+        this.isLoadingOverview = false
+        this.myState.statusMessage = ''
+      }
+    },
+
+    // Column names of the file, from the parquet footer only.
+    async fileColumns() {
+      const conn = await this.duck.connect()
+      const url = this.dbUrl.replace(/'/g, "''")
+      const table = await conn.query(`SELECT name FROM parquet_schema('${url}');`)
+      await conn.close()
+      return new Set<string>(table.getChild('name')?.toArray() || [])
+    },
+
+    // Total rows in the file (all plans), from the parquet footer only.
+    async countFileRows() {
+      const conn = await this.duck.connect()
+      const url = this.dbUrl.replace(/'/g, "''")
+      const table = await conn.query(
+        `SELECT sum(num_rows)::BIGINT AS n FROM parquet_file_metadata('${url}');`
+      )
+      await conn.close()
+      return Number(table.getChild('n')?.get(0) ?? 0)
     },
 
     // The slider range is in the file's key/value metadata (written by plans2parquet), so
@@ -1152,7 +1317,9 @@ const PlansViewerPlugin = defineComponent({
       else networkFile = this.yamlConfig?.replace('events.xml', 'network.xml.gz') || 'network.xml'
 
       // does that network file actually exist? If not grab any network file :-)
-      if (files.indexOf(networkFile) == -1) {
+      // (A plans parquet's name has no 'events.xml', so the replace above returns the plans
+      // file itself -- which exists, but isn't a network.)
+      if (files.indexOf(networkFile) == -1 || networkFile === this.yamlConfig) {
         networkFile = files.find(f => f.indexOf('network.xml') > -1) || ''
         if (networkFile) console.log('Guessing that network is in:', networkFile)
       }
@@ -1543,6 +1710,9 @@ export default PlansViewerPlugin
   bottom: 0;
   pointer-events: none;
   min-height: $thumbnailHeight;
+  // keep the viewer's own z-indexes (the side panel's is 20000) inside the viewer, so the
+  // layout's panel error bar is drawn on top of it
+  isolation: isolate;
 }
 
 .container-1 {
@@ -1586,7 +1756,7 @@ h4 {
   flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
-  background-color: var(--bgCream2);
+  background-color: var(--bgMapLand);
   padding: 0.25rem 0.5rem;
   overflow-y: auto;
   z-index: 20000;
@@ -1747,6 +1917,10 @@ input {
   margin: 1rem 0 1rem 0;
 }
 
+.show-everyone {
+  margin: 0 0 1rem 0;
+}
+
 .carrier-list {
   position: relative;
   user-select: none;
@@ -1754,7 +1928,7 @@ input {
   overflow-y: auto;
   overflow-x: hidden;
   cursor: pointer;
-  background-color: var(--bgCream2);
+  background-color: var(--bgBold);
   border: var(--borderFaint);
 }
 
@@ -1832,8 +2006,9 @@ input {
 
 .switches {
   margin-top: 0.5rem;
-  gap: 1rem;
+  gap: 0.5rem 1rem;
   display: flex;
+  flex-wrap: wrap; // the side panel is narrow: let the switches flow onto a second row
   // margin: 0.25rem 0.25rem;
 
   p {

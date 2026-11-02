@@ -9,11 +9,10 @@ import { test, expect, Page } from '@playwright/test'
  * `plans.parquet` (3 people, 4 plans, 16 rows) whose routes are real connected link
  * chains lifted out of `logistics/network.avro`, which is copied in beside it.
  *
- * ⚠️ The network file MUST be named `network.avro`. On the `.parquet` route getVizDetails()
- * derives the network from `yamlConfig.replace('events.xml', 'network.xml.gz')`, which for
- * `plans.parquet` is just `plans.parquet` -- and since that file *does* exist, the
- * "grab any network file" fallback below it never fires and the plugin tries to XML-parse
- * the parquet. `network.avro` is checked first and is the only name that escapes this.
+ * The network is `network.avro` if present, else any file with `network.xml` in its name.
+ * (getVizDetails() used to "derive" the network as `yamlConfig.replace('events.xml', ...)`,
+ * which for `plans.parquet` is the parquet itself -- it then XML-parsed the parquet and
+ * failed with "Could not load network file". It now ignores that self-match.)
  */
 const PLUGIN_ROUTE = 'e2e-tests/plans/plans.parquet'
 
@@ -138,10 +137,10 @@ test('selecting a plan opens its table and redraws', async ({ page }) => {
   await expect(page.locator('.plan-html-table tbody tr')).toHaveCount(5)
   await expect(page.locator(PLANS).first()).toHaveClass(/\bselected\b/)
 
-  // the two bottom switches both drive the deck layers
+  // the three bottom switches (activities, simple tours, walk trips) all drive the deck layers
   const switches = page.locator('.switchbox input')
-  await expect(switches).toHaveCount(2)
-  for (let i = 0; i < 2; i++) {
+  await expect(switches).toHaveCount(3)
+  for (let i = 0; i < 3; i++) {
     await switches.nth(i).click({ force: true })
     await page.waitForTimeout(1500)
   }
