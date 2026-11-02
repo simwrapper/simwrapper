@@ -2,7 +2,9 @@
 
 One row per <activity> or <leg> inside each <plan> (numbered from 1 by `seq`
 within the plan), carrying person, plan, and element context as columns.
-Streams the input so multi-GB files stay bounded in memory.
+Rows are sorted by person_id (each person's rows keep their XML order) so
+person_id lookups can skip row groups via min/max statistics. Streams the
+input and sorts externally, so multi-GB files stay bounded in memory.
 """
 
 from __future__ import annotations
@@ -263,57 +265,182 @@ def finalize_chunk(builder: ColumnBuilder, crs: str | None) -> pa.Table:
         elif name == "activity_y" and lon_arr is not None:
             ordered["activity_lon"] = lon_arr
             ordered["activity_lat"] = lat_arr
-    return pa.table(ordered)
+    return sort_by_person(pa.table(ordered))
 
 
-def merge_chunks(
-    chunk_paths: list[Path],
-    parquet_path: Path,
-    n_persons: int = 0,
-    batch_size: int = 65536,
-    dtd_meta: dict[bytes, bytes] | None = None,
-) -> int:
-    """Stream chunk parquets into the final parquet with a unified schema
-    (union of all chunk columns, in first-seen order), writing row groups of
-    `batch_size` rows. Bounded memory. `dtd_meta` (if given) is written as
-    file-level key/value metadata."""
+# The output is sorted by person_id so readers (DuckDB-WASM over HTTP) can
+# prune row groups for a person_id lookup using the min/max statistics alone.
+SORT_KEY = "person_id"
+# Rows per row group in the temporary sorted chunk files, and per read batch
+# while merging them: bounds merge memory to ~MERGE_FAN_IN of these.
+SORT_RUN_ROWS = 8192
+# Max chunk files merged (open) at once; more chunks are merged in passes.
+MERGE_FAN_IN = 64
+
+
+def sort_by_person(table: pa.Table) -> pa.Table:
+    """Sort rows by person_id. Arrow's sort_indices is stable, so the rows of
+    each person keep their original (XML) order."""
+    if SORT_KEY not in table.column_names or table.num_rows == 0:
+        return table
+    return table.take(pc.sort_indices(table, sort_keys=[(SORT_KEY, "ascending")]))
+
+
+def write_chunk(table: pa.Table, chunk_path: Path) -> None:
+    """Write a sorted temporary chunk, in small row groups so the merge holds
+    only a little of each chunk in memory at a time."""
+    pq.write_table(table, chunk_path, compression="zstd", row_group_size=SORT_RUN_ROWS)
+
+
+def _unified_schema(paths: list[Path], metadata=None) -> pa.Schema:
+    """Union of all chunk columns, in first-seen order. A column that is all
+    null in one chunk takes its type from the others; int widens to float."""
     fields: dict[str, pa.Field] = {}
-    for p in chunk_paths:
+    for p in paths:
         for f in pq.read_schema(p):
             prev = fields.get(f.name)
             if prev is None or (prev.type == pa.null() and f.type != pa.null()):
                 fields[f.name] = f
             elif pa.types.is_integer(prev.type) and pa.types.is_floating(f.type):
                 fields[f.name] = f
-    unified = pa.schema(list(fields.values()), metadata=dtd_meta)
+    return pa.schema(list(fields.values()), metadata=metadata)
 
-    # person_id is high-cardinality and the natural point-lookup key, so give it
-    # a Bloom filter to let readers skip row groups that can't hold a given id.
-    # Size it to the distinct-id count (one per person) rather than pyarrow's
-    # 1M default, which would bloat small files with an oversized bitset.
-    bloom_opts = None
-    if "person_id" in unified.names:
-        bloom_opts = {"person_id": {"ndv": max(n_persons, 1), "fpp": 0.01}}
+
+def _conformed_batches(path: Path, schema: pa.Schema):
+    """Yield path's rows as tables conforming to `schema` (cast, missing
+    columns filled with nulls), SORT_RUN_ROWS at a time."""
+    pf = pq.ParquetFile(path)
+    for batch in pf.iter_batches(batch_size=SORT_RUN_ROWS):
+        arrays = []
+        for field in schema:
+            if field.name in batch.schema.names:
+                col = batch.column(field.name)
+                if col.type != field.type:
+                    col = col.cast(field.type, safe=False)
+                arrays.append(col)
+            else:
+                arrays.append(pa.nulls(batch.num_rows, type=field.type))
+        yield pa.Table.from_arrays(arrays, schema=schema)
+
+
+def _merge_sorted(paths: list[Path], schema: pa.Schema):
+    """K-way merge of chunk files that are each sorted by person_id, yielding
+    sorted tables. Vectorized: each round takes, from every buffer, all rows
+    whose id is below the smallest "last buffered id" among the chunks still
+    being read. No chunk can hold further rows below that cutoff, so every
+    person taken is complete and its rows stay in their original order."""
+    readers = [_conformed_batches(p, schema) for p in paths]
+    k = len(readers)
+    bufs: list[pa.Table | None] = [None] * k
+    done = [False] * k
+
+    def refill(i: int) -> None:
+        nxt = next(readers[i], None)
+        if nxt is None:
+            done[i] = True
+        elif bufs[i] is None or bufs[i].num_rows == 0:
+            bufs[i] = nxt
+        else:
+            bufs[i] = pa.concat_tables([bufs[i], nxt])
+
+    def ids(i: int):
+        return bufs[i].column(SORT_KEY)
+
+    for i in range(k):
+        refill(i)
+
+    while True:
+        # A still-open chunk needs more rows when its buffer is empty or holds
+        # only one id (which may continue into its next batch).
+        for i in range(k):
+            while not done[i] and (
+                bufs[i] is None
+                or bufs[i].num_rows == 0
+                or ids(i)[0].as_py() == ids(i)[-1].as_py()
+            ):
+                refill(i)
+
+        live = [i for i in range(k) if bufs[i] is not None and bufs[i].num_rows]
+        if not live:
+            return
+        open_lasts = [ids(i)[-1].as_py() for i in live if not done[i]]
+        cutoff = min(open_lasts) if open_lasts else None
+
+        pieces = []
+        for i in live:
+            b = bufs[i]
+            if cutoff is None:
+                n = b.num_rows
+            else:
+                n = pc.sum(pc.less(b.column(SORT_KEY), cutoff)).as_py() or 0
+            if n:
+                pieces.append(b.slice(0, n))
+                bufs[i] = b.slice(n)
+        if not pieces:
+            # Impossible for sorted inputs (the chunk setting the cutoff holds a
+            # smaller id); fail loudly rather than spin forever.
+            raise RuntimeError("merge made no progress: a chunk is not sorted by person_id")
+        yield sort_by_person(pa.concat_tables(pieces).combine_chunks())
+
+
+def _merge_to_run(paths: list[Path], schema: pa.Schema, out_path: Path) -> None:
+    """Merge sorted chunk files into one larger sorted chunk file."""
+    writer = pq.ParquetWriter(out_path, schema, compression="zstd")
+    try:
+        for t in _merge_sorted(paths, schema):
+            writer.write_table(t, row_group_size=SORT_RUN_ROWS)
+    finally:
+        writer.close()
+
+
+def merge_chunks(
+    chunk_paths: list[Path],
+    parquet_path: Path,
+    batch_size: int = 65536,
+    dtd_meta: dict[bytes, bytes] | None = None,
+) -> int:
+    """Merge the per-chunk parquets (each already sorted by person_id) into the
+    final parquet, sorted by person_id with each person's rows in their
+    original order. Uses a unified schema (union of all chunk columns, in
+    first-seen order) and writes row groups of exactly `batch_size` rows (the
+    last may be shorter). Bounded memory; more than MERGE_FAN_IN chunks are
+    first merged in passes into larger temporary runs next to the chunks.
+    `dtd_meta` (if given) is written as file-level key/value metadata."""
+    unified = _unified_schema(chunk_paths, metadata=dtd_meta)
+
+    paths = list(chunk_paths)
+    n_pass = 0
+    while len(paths) > MERGE_FAN_IN:
+        n_pass += 1
+        runs = []
+        for j in range(0, len(paths), MERGE_FAN_IN):
+            group = paths[j : j + MERGE_FAN_IN]
+            run_path = paths[0].parent / f"run_{n_pass:02d}_{len(runs):06d}.parquet"
+            _merge_to_run(group, unified, run_path)
+            runs.append(run_path)
+        print(f"  merge pass {n_pass}: {len(paths)} -> {len(runs)} sorted runs", flush=True)
+        paths = runs
 
     n_total = 0
-    writer = pq.ParquetWriter(
-        parquet_path, unified, compression="zstd", bloom_filter_options=bloom_opts
-    )
+    writer = pq.ParquetWriter(parquet_path, unified, compression="zstd")
     try:
-        for p in chunk_paths:
-            pf = pq.ParquetFile(p)
-            for batch in pf.iter_batches(batch_size=batch_size):
-                arrays = []
-                for field in unified:
-                    if field.name in batch.schema.names:
-                        col = batch.column(field.name)
-                        if col.type != field.type:
-                            col = col.cast(field.type, safe=False)
-                        arrays.append(col)
-                    else:
-                        arrays.append(pa.nulls(batch.num_rows, type=field.type))
-                writer.write_batch(pa.RecordBatch.from_arrays(arrays, schema=unified))
-                n_total += batch.num_rows
+        # Re-batch the merged stream so every row group but the last is full.
+        pending: list[pa.Table] = []
+        n_pending = 0
+        for t in _merge_sorted(paths, unified):
+            pending.append(t)
+            n_pending += t.num_rows
+            if n_pending >= batch_size:
+                buf = pa.concat_tables(pending)
+                n_full = (n_pending // batch_size) * batch_size
+                writer.write_table(buf.slice(0, n_full), row_group_size=batch_size)
+                rest = buf.slice(n_full)
+                pending = [rest] if rest.num_rows else []
+                n_pending = rest.num_rows
+                n_total += n_full
+        if n_pending:
+            writer.write_table(pa.concat_tables(pending), row_group_size=batch_size)
+            n_total += n_pending
     finally:
         writer.close()
     return n_total
@@ -327,9 +454,9 @@ def convert(
     chunk_persons: int = 20000,
 ) -> int:
     """Stream the input XML, flush every `chunk_persons` persons to a
-    per-chunk parquet file in a temp dir (an internal sizing detail), then
-    merge the chunks into the final parquet with `row_group_size` rows per
-    row group. Peak memory ≈ one chunk."""
+    per-chunk parquet file (sorted by person_id) in a temp dir (an internal
+    sizing detail), then merge-sort the chunks into the final parquet with
+    `row_group_size` rows per row group. Peak memory ≈ one chunk."""
     tmp_dir = Path(tempfile.mkdtemp(prefix="plans_chunks_", dir=parquet_path.parent))
     chunk_paths: list[Path] = []
     builder = ColumnBuilder()
@@ -343,7 +470,7 @@ def convert(
             return
         table = finalize_chunk(builder, crs)
         chunk_path = tmp_dir / f"chunk_{len(chunk_paths):06d}.parquet"
-        pq.write_table(table, chunk_path, compression="zstd")
+        write_chunk(table, chunk_path)
         chunk_paths.append(chunk_path)
         print(
             f"  flushed chunk {len(chunk_paths)}: {table.num_rows} rows ({n_persons} persons so far)",
@@ -392,7 +519,6 @@ def convert(
         return merge_chunks(
             chunk_paths,
             parquet_path,
-            n_persons,
             batch_size=row_group_size,
             dtd_meta=dtd_meta,
         )
@@ -525,7 +651,7 @@ def _convert_block(index: int, raw: bytes) -> tuple[int, str, int, int]:
         raise RuntimeError(f"block {index} parse failed: {e}") from None
     table = finalize_chunk(builder, _W_CRS)
     chunk_path = _W_TMP / f"chunk_{index:06d}.parquet"
-    pq.write_table(table, chunk_path, compression="zstd")
+    write_chunk(table, chunk_path)
     return index, str(chunk_path), table.num_rows, n_persons
 
 
@@ -539,9 +665,10 @@ def convert_parallel(
 ) -> int:
     """Parallel variant of convert(): a single sequential reader slices the
     stream into ordered blocks of whole <person> elements dispatched to `jobs`
-    worker processes, then the chunks are merged in block order into row groups
-    of `row_group_size` rows. Exact person order is preserved and no <person> is
-    ever split across a block boundary."""
+    worker processes, then the sorted chunks are merge-sorted by person_id into
+    row groups of `row_group_size` rows. No <person> is ever split across a
+    block boundary, and each person's rows keep their XML order; the output is
+    identical to convert()'s."""
     tmp_dir = Path(tempfile.mkdtemp(prefix="plans_chunks_", dir=parquet_path.parent))
     results: list[tuple[int, str, int, int]] = []
     max_inflight = jobs * 2
@@ -590,13 +717,12 @@ def convert_parallel(
             pq.write_table(_empty_table(dtd_meta), parquet_path, compression="zstd")
             return 0
 
-        results.sort(key=lambda r: r[0])  # restore exact person order
+        # Block order, so ties (duplicate person ids) resolve as in convert().
+        results.sort(key=lambda r: r[0])
         chunk_paths = [Path(p) for _, p, _, _ in results]
-        n_persons = sum(persons for _, _, _, persons in results)
         return merge_chunks(
             chunk_paths,
             parquet_path,
-            n_persons,
             batch_size=row_group_size,
             dtd_meta=dtd_meta,
         )

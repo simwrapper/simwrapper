@@ -293,3 +293,95 @@ def test_seq_numbers_elements_within_each_plan(plan_attrs_file, tmp_path):
     assert seqs[("1", 2)] == [(1, "activity"), (2, "leg"), (3, "activity")]
     assert seqs[("2", 1)] == [(1, "activity"), (2, "leg"), (3, "activity")]
     assert seqs[("3", 1)] == [(1, "activity")]
+
+
+def _unsorted_population(n_persons=30, seed=7):
+    """Synthesize a population whose person ids are in no particular order
+    (mixing numeric-looking and textual ids, so string order differs from
+    numeric order), with 1-3 plans of varying length per person. Returns the
+    XML and, per person id, the expected rows in XML order as
+    (plan_num, seq, element, activity_type-or-leg_mode)."""
+    import random
+
+    rnd = random.Random(seed)
+    ids = [str(v) for v in rnd.sample(range(1, 2000), n_persons // 2)]
+    ids += [f"agent_{v}" for v in rnd.sample(range(1, 2000), n_persons - len(ids))]
+    rnd.shuffle(ids)
+
+    xml = [
+        '<?xml version="1.0" encoding="utf-8"?>',
+        "<population>",
+    ]
+    expected: dict[str, list] = {}
+    for pid in ids:
+        rows = expected[pid] = []
+        xml.append(f'  <person id="{pid}">')
+        for plan in range(1, rnd.randint(1, 3) + 1):
+            xml.append(f'    <plan selected="{"yes" if plan == 1 else "no"}">')
+            seq = 0
+            n_acts = rnd.randint(1, 4)
+            for a in range(n_acts):
+                seq += 1
+                act = f"act{pid}-{plan}-{a}"
+                xml.append(f'      <activity type="{act}" x="1.0" y="2.0"/>')
+                rows.append((plan, seq, "activity", act))
+                if a < n_acts - 1:
+                    seq += 1
+                    mode = f"mode{pid}-{plan}-{a}"
+                    xml.append(f'      <leg mode="{mode}"/>')
+                    rows.append((plan, seq, "leg", mode))
+            xml.append("    </plan>")
+        xml.append("  </person>")
+    xml.append("</population>")
+    return "\n".join(xml) + "\n", ids, expected
+
+
+def test_output_sorted_by_person_id_keeping_row_order(tmp_path, monkeypatch):
+    xml, ids, expected = _unsorted_population()
+    assert ids != sorted(ids)  # the input really is unsorted
+    src = tmp_path / "unsorted.xml"
+    src.write_text(xml)
+    n_rows = sum(len(r) for r in expected.values())
+
+    # Tiny merge read batches (so persons straddle batch boundaries) and a fan-in
+    # of 2 (so several merge passes run) exercise the external sort fully.
+    monkeypatch.setattr(p2p, "SORT_RUN_ROWS", 3)
+    monkeypatch.setattr(p2p, "MERGE_FAN_IN", 2)
+
+    seq_out = tmp_path / "seq.parquet"
+    par_out = tmp_path / "par.parquet"
+    p2p.convert(src, seq_out, None, row_group_size=7, chunk_persons=4)
+    p2p.convert_parallel(src, par_out, None, jobs=2, row_group_size=7, chunk_persons=4)
+
+    for out in (seq_out, par_out):
+        d = pq.read_table(out).to_pydict()
+        assert len(d["person_id"]) == n_rows
+
+        # globally sorted, each person's rows contiguous
+        assert d["person_id"] == sorted(d["person_id"])
+
+        # each person's rows exactly as in the XML
+        got: dict[str, list] = {}
+        for pid, plan, seq, el, act, mode in zip(
+            d["person_id"], d["plan_num"], d["seq"], d["element"],
+            d["activity_type"], d["leg_mode"],
+        ):
+            got.setdefault(pid, []).append((plan, seq, el, act if el == "activity" else mode))
+        assert got == expected
+
+        # row groups are exactly row_group_size, except a shorter last one
+        pf = pq.ParquetFile(out)
+        sizes = [pf.metadata.row_group(i).num_rows for i in range(pf.metadata.num_row_groups)]
+        assert all(s == 7 for s in sizes[:-1]) and 0 < sizes[-1] <= 7
+
+        # min/max stats on person_id don't overlap between row groups
+        ci = pf.schema_arrow.names.index("person_id")
+        ranges = [
+            (pf.metadata.row_group(i).column(ci).statistics.min,
+             pf.metadata.row_group(i).column(ci).statistics.max)
+            for i in range(pf.metadata.num_row_groups)
+        ]
+        assert all(ranges[i][1] <= ranges[i + 1][0] for i in range(len(ranges) - 1))
+
+    from pandas.testing import assert_frame_equal
+    assert_frame_equal(pq.read_table(par_out).to_pandas(), pq.read_table(seq_out).to_pandas())
