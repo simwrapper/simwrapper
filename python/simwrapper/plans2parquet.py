@@ -507,7 +507,9 @@ def _merge_sorted(paths: list[Path], schema: pa.Schema):
         if not pieces:
             # Impossible for sorted inputs (the chunk setting the cutoff holds a
             # smaller id); fail loudly rather than spin forever.
-            raise RuntimeError("merge made no progress: a chunk is not sorted by person_id")
+            raise RuntimeError(
+                "merge made no progress: a chunk is not sorted by person_id"
+            )
         yield sort_by_person(pa.concat_tables(pieces).combine_chunks())
 
 
@@ -519,6 +521,56 @@ def _merge_to_run(paths: list[Path], schema: pa.Schema, out_path: Path) -> None:
             writer.write_table(t, row_group_size=SORT_RUN_ROWS)
     finally:
         writer.close()
+
+
+# Rows sampled (from the first sorted chunks) to pick each column's encoding.
+ENCODING_SAMPLE_ROWS = 200_000
+
+
+def choose_dictionary_columns(
+    chunk_paths: list[Path], schema: pa.Schema, row_group_size: int
+) -> list[str]:
+    """Columns to dictionary-encode in the final file. Dictionary encoding
+    shrinks repetitive columns (person_id, mode, element) but roughly doubles
+    high-cardinality numbers (times, coordinates, distances) compared with
+    plain zstd. Rather than guess from cardinality, write a sample of each
+    column both ways and keep the smaller. Columns absent from the sample keep
+    pyarrow's default (dictionary)."""
+    batches = list(_sample_batches(chunk_paths, schema, ENCODING_SAMPLE_ROWS))
+    if not batches:
+        return schema.names
+    sample = pa.concat_tables(batches)
+
+    def encoded_size(column: pa.ChunkedArray, use_dictionary: bool) -> int:
+        buf = io.BytesIO()
+        pq.write_table(
+            pa.table({"c": column}),
+            buf,
+            compression="zstd",
+            use_dictionary=use_dictionary,
+            row_group_size=row_group_size,
+        )
+        return buf.tell()
+
+    chosen = []
+    for name in schema.names:
+        column = sample.column(name)
+        if column.null_count == len(column) or encoded_size(
+            column, True
+        ) <= encoded_size(column, False):
+            chosen.append(name)
+    return chosen
+
+
+def _sample_batches(chunk_paths: list[Path], schema: pa.Schema, n_rows: int):
+    """Up to n_rows from the start of the chunks, conformed to `schema`."""
+    taken = 0
+    for path in chunk_paths:
+        for t in _conformed_batches(path, schema):
+            yield t
+            taken += t.num_rows
+            if taken >= n_rows:
+                return
 
 
 def merge_chunks(
@@ -546,11 +598,17 @@ def merge_chunks(
             run_path = paths[0].parent / f"run_{n_pass:02d}_{len(runs):06d}.parquet"
             _merge_to_run(group, unified, run_path)
             runs.append(run_path)
-        print(f"  merge pass {n_pass}: {len(paths)} -> {len(runs)} sorted runs", flush=True)
+        print(
+            f"  merge pass {n_pass}: {len(paths)} -> {len(runs)} sorted runs",
+            flush=True,
+        )
         paths = runs
 
     n_total = 0
-    writer = pq.ParquetWriter(parquet_path, unified, compression="zstd")
+    dictionary_columns = choose_dictionary_columns(chunk_paths, unified, batch_size)
+    writer = pq.ParquetWriter(
+        parquet_path, unified, compression="zstd", use_dictionary=dictionary_columns
+    )
     try:
         # Re-batch the merged stream so every row group but the last is full.
         pending: list[pa.Table] = []

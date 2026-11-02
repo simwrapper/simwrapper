@@ -555,3 +555,28 @@ def test_no_end_times_means_no_max_end_time_metadata(tmp_path):
     meta = pq.read_metadata(out).metadata or {}
     assert b"plans_max_end_time" not in meta
     assert b"plans_end_time_p995" not in meta
+
+
+def test_choose_dictionary_columns(tmp_path):
+    # Repetitive text compresses best with a dictionary; near-unique numbers
+    # (times, coordinates) are smaller plain. An all-null column keeps the default.
+    # (The choice is measured, not guessed: e.g. sequential ids repeated in runs
+    # can go either way, so they aren't asserted here.)
+    import numpy as np
+    import pyarrow as pa
+
+    rng = np.random.default_rng(0)
+    n = 50_000
+    table = pa.table(
+        {
+            "leg_mode": pa.array(rng.choice(["car", "walk", "bike", "pt"], n)),
+            "time_start": pa.array(rng.integers(0, 100_000, n), type=pa.int32()),
+            "activity_x": pa.array(rng.uniform(700_000, 750_000, n)),
+            "empty": pa.nulls(n, type=pa.string()),
+        }
+    )
+    chunk = tmp_path / "chunk.parquet"
+    pq.write_table(table, chunk)
+    chosen = p2p.choose_dictionary_columns([chunk], table.schema, 65536)
+    assert set(chosen) == {"leg_mode", "empty"}
+
