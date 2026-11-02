@@ -25,11 +25,31 @@
         :projection="vizDetails.projection"
         :services="vizDetails.services || false"
         :show3dBuildings="show3dBuildings"
+        :currentTime="currentTime"
       )
 
       ZoomButtons(v-if="!thumbnail" corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
 
-      PlanTable(v-if="selectedPlans.length" :plans="plans[selectedPlans[0]]" :searchTerm="searchTerm")
+      PlanTable(v-if="selectedPlans.length"
+        :plans="plans[selectedPlans[0]]"
+        :searchTerm="searchTerm"
+        :currentTime="currentTime"
+        :bottomOffset="maxEndTime ? sliderHeight : 0"
+      )
+
+      //- Point-in-time slider: at any time but 00:00:00 the map shows only what each
+      //- person is doing then. Only for files with time columns (plans2parquet metadata).
+      .time-slider-area(v-if="maxEndTime" ref="sliderArea")
+        TimeSlider(
+          :isPointInTime="true"
+          :range="[0, maxEndTime]"
+          :activeTimeExtent="timeFilter"
+          :labels="timeLabels"
+          :isAnimating="isAnimating"
+          @timeExtent="handleTimeSliderValues"
+          @toggleAnimation="toggleAnimation"
+          @drag="stopAnimation"
+        )
 
       .x-status-message(v-if="myState.statusMessage"): h3 {{ myState.statusMessage }}
 
@@ -164,11 +184,20 @@ import naturalSort from 'javascript-natural-sort'
 import readBlob from 'read-blob'
 
 import { personSearchFilter } from './personSearch'
+import {
+  MAX_END_TIME_KEY,
+  OPEN_END,
+  P995_END_TIME_KEY,
+  formatClockTime,
+  sliderEndTime,
+  timeWindow,
+} from './planTime'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendColors from '@/components/LegendColors.vue'
+import TimeSlider from '@/components/TimeSlider.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import {
   gUnzip,
@@ -245,6 +274,9 @@ export interface Plan {
   activity_lon: number
   activity_lat: number
   activity_type: string
+  // [time_start, time_end) in seconds, from plans2parquet; null time_end = open-ended
+  time_start?: number | null
+  time_end?: number | null
 }
 
 const PlansViewerPlugin = defineComponent({
@@ -254,6 +286,7 @@ const PlansViewerPlugin = defineComponent({
     DeckMapComponent,
     LegendColors,
     PlanTable,
+    TimeSlider,
     ZoomButtons,
   },
 
@@ -270,13 +303,26 @@ const PlansViewerPlugin = defineComponent({
     return {
       duck: {} as AsyncDuckDB,
       debounceUpdateSearch: {} as Function,
-      nonRoutedLegs: [] as { start: number[]; end: number[]; mode: string }[],
+      nonRoutedLegs: [] as { start: number[]; end: number[]; mode: string; t0: number; t1: number }[],
       plans: [] as Plan[][],
       selectedPlans: [] as number[],
       isQueryRunning: false,
       linkLayerId: Math.floor(1e12 * Math.random()),
       legModeColors: Object.entries(LegModeColor),
       dbUrl: '',
+
+      // time slider: 0 = no file metadata, so no slider
+      maxEndTime: 0,
+      currentTime: 0,
+      timeFilter: [0, 0] as number[],
+      timeLabels: [formatClockTime(0)] as string[],
+      isAnimating: false,
+      animator: 0,
+      lastFrameTime: 0,
+      // simulated seconds per real second while playing
+      ANIMATE_SPEED: 3600,
+      sliderHeight: 0,
+      sliderResizer: null as ResizeObserver | null,
 
       // ------
       vizSettings: {
@@ -366,6 +412,8 @@ const PlansViewerPlugin = defineComponent({
         color: number[]
         type: string
         mode: string
+        t0: number
+        t1: number
       }[],
 
       selectedCarrier: '',
@@ -494,7 +542,12 @@ const PlansViewerPlugin = defineComponent({
       // add the routes like a crazy person
       linkRoutes.forEach((route, i) => {
         const linksOnThisRoute = route.route_text.split(' ')
-        const tour = { tourNumber: i, legs: linksOnThisRoute, mode: route.leg_mode }
+        const tour = {
+          tourNumber: i,
+          legs: linksOnThisRoute,
+          mode: route.leg_mode,
+          ...timeWindow(route),
+        }
         this.addRouteToMap(tour, { links: tour.legs, shipmentsOnBoard: [], totalSize: 100 }, i)
       })
 
@@ -507,7 +560,12 @@ const PlansViewerPlugin = defineComponent({
         ptTo = [this.links[leg.route_end_link][2], this.links[leg.route_end_link][3]]
         const endMidpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
 
-        this.nonRoutedLegs.push({ start: startMidpoint, end: endMidpoint, mode: leg.leg_mode })
+        this.nonRoutedLegs.push({
+          start: startMidpoint,
+          end: endMidpoint,
+          mode: leg.leg_mode,
+          ...timeWindow(leg),
+        })
       })
 
       // YOLO! Add the activities too!
@@ -536,6 +594,7 @@ const PlansViewerPlugin = defineComponent({
           details,
           ptFrom,
           ptTo,
+          ...timeWindow(activity),
         }
         stopActivities.push(act)
       })
@@ -572,6 +631,86 @@ const PlansViewerPlugin = defineComponent({
         false
       )
       return url
+    },
+
+    // The slider range is in the file's key/value metadata (written by plans2parquet), so
+    // only the parquet footer is read. Older files have no such keys: no slider.
+    async loadTimeRange() {
+      try {
+        const conn = await this.duck.connect()
+        const url = this.dbUrl.replace(/'/g, "''")
+        const table = await conn.query(
+          `SELECT decode(key) AS k, decode(value) AS v FROM parquet_kv_metadata('${url}')
+           WHERE decode(key) IN ('${MAX_END_TIME_KEY}', '${P995_END_TIME_KEY}');`
+        )
+        await conn.close()
+        const keys: string[] = table.getChild('k')?.toArray() || []
+        const values: string[] = table.getChild('v')?.toArray() || []
+        const meta = Object.fromEntries(keys.map((k, i) => [k, values[i]]))
+        this.maxEndTime = sliderEndTime(meta)
+      } catch (e) {
+        console.warn('Could not read plans time range:', e)
+        this.maxEndTime = 0
+      }
+      if (this.maxEndTime) {
+        await this.$nextTick()
+        this.watchSliderHeight()
+        // TimeSlider only picks up labels through a (non-immediate) watcher, so hand it a
+        // new array once it's mounted, or the clock stays blank until the first move
+        this.timeLabels = [formatClockTime(this.currentTime)]
+      }
+    },
+
+    // keep the plan table just above the time slider
+    watchSliderHeight() {
+      const el = this.$refs.sliderArea as HTMLElement | undefined
+      if (!el) return
+      // round up: offsetHeight rounds, which can tuck the table 1px under the slider
+      const measure = () => (this.sliderHeight = Math.ceil(el.getBoundingClientRect().height))
+      measure()
+      this.sliderResizer = new ResizeObserver(measure)
+      this.sliderResizer.observe(el)
+    },
+
+    setTime(t: number) {
+      const time = Math.min(Math.max(t, 0), this.maxEndTime)
+      this.currentTime = time
+      this.timeFilter = [time, time]
+      this.timeLabels = [formatClockTime(time)]
+    },
+
+    // TimeSlider is a range slider: in point-in-time use its two ends move as one, so the
+    // time is whichever end the user moved.
+    handleTimeSliderValues(values: number[]) {
+      const [start, end] = values
+      // tolerance: the slider's position <-> time conversion isn't exact in floating point
+      const moved = Math.abs(start - this.currentTime) > 1e-6 ? start : end
+      if (start === end && Math.abs(moved - this.currentTime) <= 1e-6) return
+      this.setTime(moved)
+    },
+
+    toggleAnimation() {
+      if (this.isAnimating) return this.stopAnimation()
+      if (this.currentTime >= this.maxEndTime) this.setTime(0)
+      this.isAnimating = true
+      this.lastFrameTime = performance.now()
+      this.animator = window.requestAnimationFrame(this.animate)
+    },
+
+    stopAnimation() {
+      this.isAnimating = false
+      if (this.animator) window.cancelAnimationFrame(this.animator)
+      this.animator = 0
+    },
+
+    animate(now: number) {
+      if (!this.isAnimating) return
+      const elapsed = (now - this.lastFrameTime) / 1000
+      this.lastFrameTime = now
+      let t = this.currentTime + elapsed * this.ANIMATE_SPEED
+      if (t > this.maxEndTime) t = 0 // loop
+      this.setTime(t)
+      this.animator = window.requestAnimationFrame(this.animate)
     },
 
     async performQuery(conn: AsyncDuckDBConnection, term: string) {
@@ -871,6 +1010,9 @@ const PlansViewerPlugin = defineComponent({
         color: this.rgb[(3 + tour.tourNumber) % this.rgb.length],
         mode: tour.mode,
         type: 'leg',
+        // time window for the slider filter; legs drawn by other code paths have none
+        t0: tour.t0 ?? 0,
+        t1: tour.t1 ?? OPEN_END,
       })
       // this.shownLegs = [...this.shownLegs]
     },
@@ -1364,10 +1506,13 @@ const PlansViewerPlugin = defineComponent({
     // finally, make sure duckdb is ready
     this.duck = await db
     this.dbUrl = await this.setupDbUrl()
+    await this.loadTimeRange()
   },
 
   beforeUnmount() {
     this.myState.isRunning = false
+    this.stopAnimation()
+    this.sliderResizer?.disconnect()
 
     if (this.fileSystem.handle && this.dbUrl) this.duck.dropFile?.(this.dbUrl)
     this.duck.terminate?.()
@@ -1415,6 +1560,16 @@ export default PlansViewerPlugin
 .main-panel {
   position: relative;
   flex: 1;
+}
+
+.time-slider-area {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  pointer-events: auto;
+  filter: $filterShadow;
 }
 
 h4 {

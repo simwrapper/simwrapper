@@ -18,7 +18,7 @@ import { defineComponent, markRaw, PropType } from 'vue'
 import maplibregl from 'maplibre-gl'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { ArcLayer, ScatterplotLayer, IconLayer, TextLayer } from '@deck.gl/layers'
-import { PathStyleExtension } from '@deck.gl/extensions'
+import { DataFilterExtension, PathStyleExtension } from '@deck.gl/extensions'
 import PathLayer from '@/layers/PathOffsetLayer'
 import BackgroundLayers from '@/js/BackgroundLayers'
 
@@ -26,8 +26,14 @@ import globalStore from '@/store'
 import MapTooltip from './MapTooltip.vue'
 import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
 import { LegModeColor } from './PlansViewer.vue'
+import { OPEN_END, activeAtFilter } from './planTime'
 
 const BASE_URL = import.meta.env.BASE_URL
+
+// Shared by every plan layer: each object carries its [t0, t1) time window, and the time
+// slider moves the filter range (a uniform), so dragging or playing never rebuilds data.
+const timeFilterExtension = new DataFilterExtension({ filterSize: 2 })
+const dashExtension = new PathStyleExtension({ dash: true })
 
 interface Shipment {
   $id: string
@@ -75,6 +81,8 @@ export default defineComponent({
     stopActivities: { type: Array, required: true },
     viewId: { type: Number, required: true },
     show3dBuildings: { type: Boolean, required: false, default: false },
+    // time slider position (seconds): show only what is active then; 0 = no filter
+    currentTime: { type: Number, default: 0 },
   },
 
   data() {
@@ -132,6 +140,12 @@ export default defineComponent({
       const extraLayers = this.bgLayers?.layers()
       if (extraLayers) allLayers.push(...extraLayers.layersBelow)
 
+      // spread into each plan layer, alongside its own extensions
+      const timeFilter = {
+        getFilterValue: (d: { t0?: number; t1?: number }) => [d.t0 ?? 0, d.t1 ?? OPEN_END],
+        ...activeAtFilter(this.currentTime),
+      }
+
       // if (this.activeTab == 'tours') {
       allLayers.push(
         //@ts-ignore:
@@ -153,7 +167,8 @@ export default defineComponent({
           parameters: { depthTest: false },
           getDashArray: [3, 2],
           dashJustified: true,
-          extensions: [new PathStyleExtension({ dash: true })],
+          extensions: [dashExtension, timeFilterExtension],
+          ...timeFilter,
         } as any)
       )
 
@@ -182,6 +197,8 @@ export default defineComponent({
             autoHighlight: true,
             highlightColor: [255, 255, 255], // [64, 255, 64],
             onHover: this.getTooltip,
+            extensions: [timeFilterExtension],
+            ...timeFilter,
             //TODO: ONHOVER
             // onHover: setHoverInfo,
           } as any)
@@ -212,6 +229,8 @@ export default defineComponent({
             autoHighlight: true,
             highlightColor: [255, 255, 255], // [64, 255, 64],
             onHover: this.getTooltip,
+            extensions: [timeFilterExtension],
+            ...timeFilter,
             //TODO: ONHOVER
             // onHover: setHoverInfo,
           } as any)
@@ -241,6 +260,8 @@ export default defineComponent({
             updateTriggers: { getWidth: [this.settings.scaleFactor] },
             transitions: { getWidth: 150 },
             onHover: this.getTooltip,
+            extensions: [timeFilterExtension],
+            ...timeFilter,
             // onHover: setHoverInfo,
           } as any)
         )
@@ -267,6 +288,8 @@ export default defineComponent({
           highlightColor: [255, 255, 255],
           visible: this.settings.shipmentDotsOnTourMap,
           onHover: this.getTooltip,
+          extensions: [timeFilterExtension],
+          ...timeFilter,
         } as any)
       )
 

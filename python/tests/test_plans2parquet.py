@@ -385,3 +385,173 @@ def test_output_sorted_by_person_id_keeping_row_order(tmp_path, monkeypatch):
 
     from pandas.testing import assert_frame_equal
     assert_frame_equal(pq.read_table(par_out).to_pandas(), pq.read_table(seq_out).to_pandas())
+
+
+# Synthesized plans exercising every time-window inference rule. Expected
+# (time_start, time_end) per row are in TIMES_EXPECTED; None = open-ended.
+TIMES_XML = """<?xml version="1.0" encoding="utf-8"?>
+<population>
+  <person id="t1">
+    <plan selected="yes">
+      <activity type="home" x="0" y="0" end_time="07:00:00"/>
+      <leg mode="car" dep_time="07:00:00">
+        <route type="links" trav_time="00:30:00">a b</route>
+      </leg>
+      <activity type="pt interaction" x="1" y="1" max_dur="00:00:00"/>
+      <leg mode="walk" dep_time="07:30:00"/>
+      <activity type="work" x="2" y="2" start_time="08:00:00" end_time="26:30:00"/>
+      <leg mode="bike" dep_time="26:30:00" trav_time="00:15:00"/>
+      <activity type="shop" x="3" y="3" max_dur="01:00:00"/>
+      <leg mode="walk"/>
+      <activity type="leisure" x="4" y="4" end_time="28:00:00"/>
+      <leg mode="car" dep_time="28:00:00">
+        <route type="generic" trav_time="00:10:00"/>
+      </leg>
+      <activity type="home" x="0" y="0"/>
+    </plan>
+  </person>
+  <person id="t3">
+    <plan selected="yes">
+      <activity type="home" x="0" y="0" end_time="08:00:00"/>
+      <leg mode="walk" dep_time="08:00:00"><route type="generic" trav_time="00:00:30"/></leg>
+      <activity type="car interaction" x="0" y="0" max_dur="00:00:00"/>
+      <leg mode="car" dep_time="08:00:00"><route type="links" trav_time="00:02:00">a b</route></leg>
+      <activity type="car interaction" x="1" y="1" max_dur="00:00:00"/>
+      <leg mode="walk" dep_time="08:00:00"><route type="generic" trav_time="00:00:10"/></leg>
+      <activity type="work" x="1" y="1"/>
+    </plan>
+  </person>
+  <person id="t2">
+    <plan selected="yes">
+      <activity type="home" x="0" y="0" end_time="07:50:00.5"/>
+      <leg mode="car" dep_time="07:50:00">
+        <route type="generic" trav_time="00:30:00"/>
+      </leg>
+      <activity type="work" x="1" y="1" end_time="08:10:00"/>
+    </plan>
+  </person>
+</population>
+"""
+
+H = 3600
+TIMES_EXPECTED = {
+    "t1": [
+        (0, 7 * H),  # first activity starts at 0
+        (7 * H, 7 * H + 1800),  # leg: dep_time + route trav_time
+        (7 * H + 1800, 7 * H + 1800),  # max_dur-only activity, starts at leg arrival
+        (7 * H + 1800, 8 * H),  # no travel time: next activity's start_time
+        (8 * H, 26 * H + 1800),  # start_time given; end past 24h
+        (26 * H + 1800, 26 * H + 2700),  # leg trav_time on the <leg> itself
+        (26 * H + 2700, 27 * H + 2700),  # start + max_dur
+        (27 * H + 2700, 28 * H),  # no dep_time, no travel time: next activity's end_time
+        (28 * H, 28 * H),  # activity whose end_time equals its inferred start
+        (28 * H, 28 * H + 600),  # leg with a generic route trav_time
+        (28 * H + 600, None),  # last activity: open-ended
+    ],
+    # MATSim output plans give every leg of a trip the trip's dep_time: the legs
+    # must still run one after another
+    "t3": [
+        (0, 8 * H),
+        (8 * H, 8 * H + 30),
+        (8 * H + 30, 8 * H + 30),
+        (8 * H + 30, 8 * H + 150),  # car starts after the access walk
+        (8 * H + 150, 8 * H + 150),
+        (8 * H + 150, 8 * H + 160),  # egress walk after the car
+        (8 * H + 160, None),
+    ],
+    "t2": [
+        (0, 7 * H + 3000),  # fractional seconds floored
+        (7 * H + 3000, 8 * H + 1200),
+        (8 * H + 1200, 8 * H + 1200),  # arrived after its end_time: clamped to start
+    ],
+}
+
+
+@pytest.fixture
+def times_file(tmp_path):
+    p = tmp_path / "times.xml"
+    p.write_text(TIMES_XML)
+    return p
+
+
+def test_parse_hms():
+    assert p2p.parse_hms("07:44:00") == 7 * H + 44 * 60
+    assert p2p.parse_hms("165:00:58") == 165 * H + 58
+    assert p2p.parse_hms("00:00:01.9") == 1
+    assert p2p.parse_hms("08:30") == 8 * H + 1800
+    assert p2p.parse_hms("90") == 90
+    for bad in (None, "", "undefined", "1:2:3:4", "-Infinity"):
+        assert p2p.parse_hms(bad) is None
+
+
+def test_time_windows_inferred(times_file, tmp_path):
+    for jobs in (1, 2):
+        out = tmp_path / f"times-{jobs}.parquet"
+        if jobs == 1:
+            p2p.run(times_file, out, jobs=1)
+        else:
+            p2p.convert_parallel(times_file, out, None, jobs=2, chunk_persons=1)
+        table = pq.read_table(out)
+        assert str(table.schema.field("time_start").type) == "int32"
+        assert str(table.schema.field("time_end").type) == "int32"
+        got: dict = {}
+        for r in _rows(table):
+            got.setdefault(r["person_id"], []).append((r["time_start"], r["time_end"]))
+        assert got == TIMES_EXPECTED, f"jobs={jobs}"
+
+
+def test_max_end_time_metadata(times_file, tmp_path):
+    # Latest activity_end_time given in the XML (28:00:00), not any inferred time.
+    # With only 6 end times, the 99.5th percentile is the max too.
+    for jobs in (1, 2):
+        out = tmp_path / f"meta-{jobs}.parquet"
+        p2p.run(times_file, out, jobs=jobs)
+        meta = pq.read_metadata(out).metadata
+        assert meta[b"plans_max_end_time"] == str(28 * H).encode()
+        assert meta[b"plans_end_time_p995"] == str(28 * H).encode()
+
+
+def test_p995_end_time_ignores_outliers(tmp_path):
+    # 400 persons ending work at 17:00, 2 outliers at 100h and 200h: the max is the
+    # outlier, the 99.5th percentile (rank 400 of 402) is 17:00. Same in parallel.
+    persons = [("p%03d" % i, "17:00:00") for i in range(400)]
+    persons += [("x1", "100:00:00"), ("x2", "200:00:00")]
+    xml = "<population>" + "".join(
+        f'<person id="{pid}"><plan selected="yes">'
+        f'<activity type="work" x="0" y="0" end_time="{end}"/></plan></person>'
+        for pid, end in persons
+    ) + "</population>"
+    src = tmp_path / "outliers.xml"
+    src.write_text(xml)
+    for jobs in (1, 2):
+        out = tmp_path / f"outliers-{jobs}.parquet"
+        if jobs == 1:
+            p2p.run(src, out, jobs=1)
+        else:
+            p2p.convert_parallel(src, out, None, jobs=2, chunk_persons=50)
+        meta = pq.read_metadata(out).metadata
+        assert meta[b"plans_max_end_time"] == str(200 * H).encode()
+        assert meta[b"plans_end_time_p995"] == str(17 * H).encode()
+
+
+def test_count_percentile():
+    from collections import Counter
+
+    counts = Counter(range(1, 1001))  # 1..1000, once each
+    assert p2p.count_percentile(counts, 0.995) == 995
+    assert p2p.count_percentile(counts, 1.0) == 1000
+    assert p2p.count_percentile(Counter({5: 3}), 0.995) == 5
+    assert p2p.count_percentile(Counter(), 0.995) is None
+
+
+def test_no_end_times_means_no_max_end_time_metadata(tmp_path):
+    src = tmp_path / "no-end.xml"
+    src.write_text(
+        '<population><person id="1"><plan selected="yes">'
+        '<activity type="home" x="0" y="0"/></plan></person></population>'
+    )
+    out = tmp_path / "no-end.parquet"
+    p2p.run(src, out)
+    meta = pq.read_metadata(out).metadata or {}
+    assert b"plans_max_end_time" not in meta
+    assert b"plans_end_time_p995" not in meta

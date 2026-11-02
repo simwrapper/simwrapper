@@ -10,6 +10,8 @@ input and sorts externally, so multi-GB files stay bounded in memory.
 from __future__ import annotations
 
 import io
+import math
+from collections import Counter
 import shutil
 import tempfile
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
@@ -71,13 +73,17 @@ class ColumnBuilder:
     lists is much faster than wrapping a list-of-dicts in a DataFrame and
     converting that to Arrow."""
 
-    __slots__ = ("cols", "n", "col_kinds")
+    __slots__ = ("cols", "n", "col_kinds", "end_time_counts")
 
     def __init__(self) -> None:
         self.cols: dict[str, list] = {}
         self.n = 0
         # col_name -> "numeric" | "bool"; persists across chunks.
         self.col_kinds: dict[str, str] = {}
+        # Counts of each activity_end_time given in the XML (seconds -> n);
+        # persists across chunks. Its max and 99.5th percentile go into the file
+        # metadata, as the time slider's range.
+        self.end_time_counts: Counter = Counter()
 
     def fill_row(self, fill: dict) -> None:
         n = self.n
@@ -129,6 +135,86 @@ def emit_attrs(elem, prefix: str, out: dict, col_kinds: dict) -> None:
         break  # only one <attributes> block per element
 
 
+def parse_hms(value) -> int | None:
+    """MATSim time string ("H:MM:SS", hours may exceed 24, optional fractional
+    seconds; or plain seconds) -> whole seconds. None if missing/unparseable."""
+    if not value:
+        return None
+    parts = value.split(":")
+    try:
+        if len(parts) == 3:
+            secs = int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
+        elif len(parts) == 2:
+            secs = int(parts[0]) * 3600 + int(parts[1]) * 60
+        elif len(parts) == 1:
+            secs = float(parts[0])
+        else:
+            return None
+    except ValueError:
+        return None
+    if not math.isfinite(secs):
+        return None
+    return math.floor(secs)
+
+
+def later(a: int | None, b: int | None) -> int | None:
+    """The later of two optional times (None = unknown)."""
+    if a is None:
+        return b
+    if b is None:
+        return a
+    return a if a > b else b
+
+
+def assign_plan_times(rows: list[dict], end_time_counts: Counter | None = None) -> None:
+    """Fill time_start/time_end (seconds) on one plan's rows, in plan order, so
+    each row is "active" during [time_start, time_end). A null time_end means
+    open-ended (the day's last activity). Each activity_end_time given in the
+    plan (not inferred) is tallied in `end_time_counts`, if passed.
+
+    activity: start = start_time, else the previous element's end, else 0;
+              end = end_time, else start + max_dur, else null.
+    leg:      start = dep_time, else the previous element's end;
+              end = start + travel time (route trav_time, else leg trav_time),
+              else the next activity's start_time, else its end_time, else start.
+    Elements are sequential, so nothing starts before the previous element
+    ends: MATSim output plans give every leg of a multi-leg trip the trip's
+    departure time, and agents can arrive after an activity's planned
+    end_time. An end before its start is likewise clamped to the start."""
+    prev_end: int | None = 0
+    for i, r in enumerate(rows):
+        if r["element"] == "activity":
+            start = later(parse_hms(r.get("activity_start_time")), prev_end)
+            end = parse_hms(r.get("activity_end_time"))
+            if end is not None and end_time_counts is not None:
+                end_time_counts[end] += 1
+            if end is None:
+                dur = parse_hms(r.get("activity_max_dur"))
+                end = start + dur if dur is not None and start is not None else None
+        else:
+            start = later(parse_hms(r.get("leg_dep_time")), prev_end)
+            trav = parse_hms(r.get("route_trav_time"))
+            if trav is None:
+                trav = parse_hms(r.get("leg_trav_time"))
+            if trav is not None and start is not None:
+                end = start + trav
+            else:
+                end = None
+                for nxt in rows[i + 1 :]:
+                    if nxt["element"] == "activity":
+                        end = parse_hms(nxt.get("activity_start_time"))
+                        if end is None:
+                            end = parse_hms(nxt.get("activity_end_time"))
+                        break
+                if end is None:
+                    end = start
+        if end is not None and start is not None and end < start:
+            end = start
+        r["time_start"] = start
+        r["time_end"] = end
+        prev_end = end
+
+
 def emit_person(person, builder: ColumnBuilder) -> None:
     """Push one row per <activity>/<leg> child of each <plan> into builder."""
     person_d: dict = {}
@@ -137,6 +223,8 @@ def emit_person(person, builder: ColumnBuilder) -> None:
     # int32 so JavaScript consumers read it as a normal number, not a BigInt.
     col_kinds["plan_num"] = "int32"
     col_kinds["seq"] = "int32"
+    col_kinds["time_start"] = "int32"
+    col_kinds["time_end"] = "int32"
     plan_num = 0
     for plan in person:
         if plan.tag != "plan":
@@ -145,6 +233,7 @@ def emit_person(person, builder: ColumnBuilder) -> None:
         plan_d: dict = {}
         emit_attrs(plan, "plan", plan_d, col_kinds)
         seq = 0
+        plan_rows: list[dict] = []
         for child in plan:
             tag = child.tag
             if tag != "activity" and tag != "leg":
@@ -156,6 +245,9 @@ def emit_person(person, builder: ColumnBuilder) -> None:
                 "plan_num": plan_num,
                 "seq": seq,
                 "element": tag,
+                # filled by assign_plan_times(); placed here for column order
+                "time_start": None,
+                "time_end": None,
             }
             emit_attrs(child, tag, row, col_kinds)
             if tag == "leg":
@@ -165,6 +257,9 @@ def emit_person(person, builder: ColumnBuilder) -> None:
                         if sub.text and sub.text.strip():
                             row["route_text"] = sub.text.strip()
                         break
+            plan_rows.append(row)
+        assign_plan_times(plan_rows, builder.end_time_counts)
+        for row in plan_rows:
             builder.fill_row(row)
 
 
@@ -189,6 +284,39 @@ def dtd_metadata(docinfo) -> dict[bytes, bytes] | None:
         meta[b"xml_doctype_system"] = docinfo.system_url.encode("utf-8")
     if docinfo.public_id:
         meta[b"xml_doctype_public"] = docinfo.public_id.encode("utf-8")
+    return meta or None
+
+
+MAX_END_TIME_KEY = b"plans_max_end_time"
+P995_END_TIME_KEY = b"plans_end_time_p995"
+
+
+def count_percentile(counts: Counter, q: float) -> int | None:
+    """Nearest-rank q-quantile (0 < q <= 1) of values tallied in `counts`."""
+    n = sum(counts.values())
+    if n == 0:
+        return None
+    rank = max(1, math.ceil(q * n))
+    seen = 0
+    for value in sorted(counts):
+        seen += counts[value]
+        if seen >= rank:
+            return value
+    return max(counts)
+
+
+def file_metadata(
+    dtd_meta: dict[bytes, bytes] | None, end_time_counts: Counter
+) -> dict[bytes, bytes] | None:
+    """File-level key/value metadata: the DTD info plus the latest and the
+    99.5th-percentile activity_end_time (seconds, decimal strings). Viewers
+    use them as the time slider's range without scanning the file; the
+    percentile keeps a few outlier agents from stretching the slider."""
+    meta = dict(dtd_meta or {})
+    if end_time_counts:
+        meta[MAX_END_TIME_KEY] = str(max(end_time_counts)).encode("ascii")
+        p995 = count_percentile(end_time_counts, 0.995)
+        meta[P995_END_TIME_KEY] = str(p995).encode("ascii")
     return meta or None
 
 
@@ -397,7 +525,7 @@ def merge_chunks(
     chunk_paths: list[Path],
     parquet_path: Path,
     batch_size: int = 65536,
-    dtd_meta: dict[bytes, bytes] | None = None,
+    metadata: dict[bytes, bytes] | None = None,
 ) -> int:
     """Merge the per-chunk parquets (each already sorted by person_id) into the
     final parquet, sorted by person_id with each person's rows in their
@@ -405,8 +533,8 @@ def merge_chunks(
     first-seen order) and writes row groups of exactly `batch_size` rows (the
     last may be shorter). Bounded memory; more than MERGE_FAN_IN chunks are
     first merged in passes into larger temporary runs next to the chunks.
-    `dtd_meta` (if given) is written as file-level key/value metadata."""
-    unified = _unified_schema(chunk_paths, metadata=dtd_meta)
+    `metadata` (if given) is written as file-level key/value metadata."""
+    unified = _unified_schema(chunk_paths, metadata=metadata)
 
     paths = list(chunk_paths)
     n_pass = 0
@@ -511,24 +639,29 @@ def convert(
             f"parsed {n_persons} persons total; merging {len(chunk_paths)} chunk(s)...",
             flush=True,
         )
+        end_time_counts = builder.end_time_counts
 
         if not chunk_paths:
-            pq.write_table(_empty_table(dtd_meta), parquet_path, compression="zstd")
+            pq.write_table(
+                _empty_table(file_metadata(dtd_meta, end_time_counts)),
+                parquet_path,
+                compression="zstd",
+            )
             return 0
 
         return merge_chunks(
             chunk_paths,
             parquet_path,
             batch_size=row_group_size,
-            dtd_meta=dtd_meta,
+            metadata=file_metadata(dtd_meta, end_time_counts),
         )
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
-def _empty_table(dtd_meta: dict[bytes, bytes] | None = None) -> pa.Table:
-    """Zero-row table, optionally carrying the DTD key/value metadata."""
-    return pa.Table.from_batches([], schema=pa.schema([], metadata=dtd_meta))
+def _empty_table(metadata: dict[bytes, bytes] | None = None) -> pa.Table:
+    """Zero-row table, optionally carrying file key/value metadata."""
+    return pa.Table.from_batches([], schema=pa.schema([], metadata=metadata))
 
 
 def _read_header(stream, read_size: int = 1 << 20) -> bytes:
@@ -628,9 +761,9 @@ def _init_worker(crs: str | None, tmp_dir: str) -> None:
     _W_TMP = Path(tmp_dir)
 
 
-def _convert_block(index: int, raw: bytes) -> tuple[int, str, int, int]:
+def _convert_block(index: int, raw: bytes) -> tuple[int, str, int, int, Counter]:
     """Worker: parse one raw block of whole <person> elements into a per-block
-    parquet chunk. Returns (index, path, num_rows, num_persons)."""
+    parquet chunk. Returns (index, path, num_rows, num_persons, end_time_counts)."""
     builder = ColumnBuilder()
     doc = b"<population>\n" + raw + b"</population>"
     n_persons = 0
@@ -652,7 +785,7 @@ def _convert_block(index: int, raw: bytes) -> tuple[int, str, int, int]:
     table = finalize_chunk(builder, _W_CRS)
     chunk_path = _W_TMP / f"chunk_{index:06d}.parquet"
     write_chunk(table, chunk_path)
-    return index, str(chunk_path), table.num_rows, n_persons
+    return index, str(chunk_path), table.num_rows, n_persons, builder.end_time_counts
 
 
 def convert_parallel(
@@ -670,7 +803,7 @@ def convert_parallel(
     block boundary, and each person's rows keep their XML order; the output is
     identical to convert()'s."""
     tmp_dir = Path(tempfile.mkdtemp(prefix="plans_chunks_", dir=parquet_path.parent))
-    results: list[tuple[int, str, int, int]] = []
+    results: list[tuple[int, str, int, int, Counter]] = []
     max_inflight = jobs * 2
 
     try:
@@ -690,8 +823,8 @@ def convert_parallel(
             # the parent as the result lands (completion order, not index order)
             # to keep output from interleaving across worker processes.
             nonlocal n_rows
-            index, path, rows, persons = fut.result()
-            results.append((index, path, rows, persons))
+            index, path, rows, persons, block_counts = fut.result()
+            results.append((index, path, rows, persons, block_counts))
             n_rows += rows
             print(
                 f"  wrote chunk {len(results)}: {rows} rows ({n_rows} rows so far)",
@@ -712,19 +845,26 @@ def convert_parallel(
                 collect(fut)
 
         print(f"parsed {len(results)} block(s); merging...", flush=True)
+        end_time_counts: Counter = Counter()
+        for r in results:
+            end_time_counts.update(r[4])
 
         if not results:
-            pq.write_table(_empty_table(dtd_meta), parquet_path, compression="zstd")
+            pq.write_table(
+                _empty_table(file_metadata(dtd_meta, end_time_counts)),
+                parquet_path,
+                compression="zstd",
+            )
             return 0
 
         # Block order, so ties (duplicate person ids) resolve as in convert().
         results.sort(key=lambda r: r[0])
-        chunk_paths = [Path(p) for _, p, _, _ in results]
+        chunk_paths = [Path(r[1]) for r in results]
         return merge_chunks(
             chunk_paths,
             parquet_path,
             batch_size=row_group_size,
-            dtd_meta=dtd_meta,
+            metadata=file_metadata(dtd_meta, end_time_counts),
         )
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)

@@ -1,6 +1,7 @@
 <template lang="pug">
 .plan-table(
   oncontextmenu="return false"
+  :style="{bottom: `${bottomOffset}px`}"
 )
 
   //- Two header rows, offset and interleaved so legs are legible
@@ -14,7 +15,9 @@
         th.header1 n
         th.header1(v-for="act in headersAct" colspan="2" :key="act") {{ act }}
     tbody
-      tr(v-for="row,i in plans" :key="i" :class="i%2 ? 'is-leg': 'is-act'")
+      tr(v-for="row,i in plans" :key="i"
+        :class="[i%2 ? 'is-leg': 'is-act', {'is-active': isActive(row)}]"
+      )
         td.xcellvalue {{ i+1 }}
         td.xcellvalue(v-for="col in interleavedColumns" :key="col"
         ) {{ `${row[col] || ''}`.replaceAll(' ', '&nbsp;') }}
@@ -39,6 +42,7 @@ import type { PropType } from 'vue'
 
 import globalStore from '@/store'
 import type { Plan } from './PlansViewer.vue'
+import { isActiveAt, timeWindow } from './planTime'
 
 const PlanTable = defineComponent({
   name: 'PlanTable',
@@ -48,6 +52,10 @@ const PlanTable = defineComponent({
   props: {
     plans: { required: true, type: Array as PropType<Plan[]> },
     searchTerm: String,
+    // time slider position (seconds); 0 = no time filter, so nothing is highlighted
+    currentTime: { type: Number, default: 0 },
+    // px to keep clear at the bottom of the map, e.g. for the time slider
+    bottomOffset: { type: Number, default: 0 },
   },
 
   data() {
@@ -89,6 +97,10 @@ const PlanTable = defineComponent({
   },
 
   methods: {
+    isActive(row: Plan) {
+      return this.currentTime > 0 && isActiveAt(timeWindow(row), this.currentTime)
+    },
+
     calcHeadersAct() {
       if (!this.plans.length) return []
       const actCols = Object.keys(this.plans[0]).filter(col => col.startsWith('activity_'))
@@ -203,6 +215,11 @@ th {
 .is-leg .xcellvalue {
   color: $appTag;
   font-weight: bold;
+}
+
+// the activity/leg the person is at when the time slider is at currentTime
+.is-active {
+  background: rgba(255, 196, 0, 0.35);
 }
 
 thead {
