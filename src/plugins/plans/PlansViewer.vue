@@ -162,6 +162,8 @@ import type {
 import colorMap from 'colormap'
 import naturalSort from 'javascript-natural-sort'
 import readBlob from 'read-blob'
+
+import { personSearchFilter } from './personSearch'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
@@ -573,33 +575,12 @@ const PlansViewerPlugin = defineComponent({
     },
 
     async performQuery(conn: AsyncDuckDBConnection, term: string) {
-      // chrome fs doesn't handle IN very well, use glob
-      if (this.fileSystem.handle) {
-        const fcn = /.\?|.\*/.test(term) ? 'GLOB' : '='
-        const stmt = await conn.prepare(`SELECT * FROM '${this.dbUrl}' WHERE person_id ${fcn} ?;`)
-        const table = await stmt.query(term)
-        return table
-      }
-
-      // wildcards need glob
-      if (/.\?|.\*/.test(term)) {
-        const stmt = await conn.prepare(
-          `SELECT DISTINCT person_id FROM '${this.dbUrl}' WHERE person_id GLOB ?;`
-        )
-        let table = await stmt.query(term)
-        const personIDs: string[] = table.getChild('person_id')?.toArray() || []
-
-        if (personIDs.length) {
-          const inList = personIDs.map(v => `'${v.replace(/'/g, "''")}'`).join(', ')
-          const q = `SELECT * FROM '${this.dbUrl}' WHERE person_id IN (${inList});`
-          table = await conn.query(q)
-        }
-        return table
-      }
-
-      // no wildcards: direct search is faster and less network
-      const stmt = await conn.prepare(`SELECT * FROM '${this.dbUrl}' WHERE person_id = ?;`)
-      const table = await stmt.query(term)
+      // One query for exact ids and wildcard patterns alike. For a pattern like 'p524*' the
+      // filter adds a person_id range on its literal prefix, so DuckDB only reads the row
+      // groups (of the person_id-sorted parquet) that can hold matches, not the whole file.
+      const { where, params } = personSearchFilter(term)
+      const stmt = await conn.prepare(`SELECT * FROM '${this.dbUrl}' WHERE ${where};`)
+      const table = await stmt.query(...params)
       return table
     },
 
