@@ -136,8 +136,8 @@ def run(config, port, debug):
 @click.option(
     "--chunk-size",
     type=int,
-    default=50000,
-    help="Rows per row group in the output Parquet file (default 50000).",
+    default=65536,
+    help="Rows per row group in the output Parquet file (default 65536).",
 )
 @click.option(
     "-j",

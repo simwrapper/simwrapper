@@ -1,8 +1,8 @@
 """Flatten a MATSim population XML (population_v6.dtd) into a single Parquet.
 
-One row per <activity> or <leg> inside each <plan>, carrying person, plan,
-and element context as columns. Streams the input so multi-GB files stay
-bounded in memory.
+One row per <activity> or <leg> inside each <plan> (numbered from 1 by `seq`
+within the plan), carrying person, plan, and element context as columns.
+Streams the input so multi-GB files stay bounded in memory.
 """
 
 from __future__ import annotations
@@ -134,6 +134,7 @@ def emit_person(person, builder: ColumnBuilder) -> None:
     col_kinds = builder.col_kinds
     # int32 so JavaScript consumers read it as a normal number, not a BigInt.
     col_kinds["plan_num"] = "int32"
+    col_kinds["seq"] = "int32"
     plan_num = 0
     for plan in person:
         if plan.tag != "plan":
@@ -141,11 +142,19 @@ def emit_person(person, builder: ColumnBuilder) -> None:
         plan_num += 1
         plan_d: dict = {}
         emit_attrs(plan, "plan", plan_d, col_kinds)
+        seq = 0
         for child in plan:
             tag = child.tag
             if tag != "activity" and tag != "leg":
                 continue
-            row = {**person_d, **plan_d, "plan_num": plan_num, "element": tag}
+            seq += 1
+            row = {
+                **person_d,
+                **plan_d,
+                "plan_num": plan_num,
+                "seq": seq,
+                "element": tag,
+            }
             emit_attrs(child, tag, row, col_kinds)
             if tag == "leg":
                 for sub in child:
@@ -230,8 +239,10 @@ def finalize_chunk(builder: ColumnBuilder, crs: str | None) -> pa.Table:
             lon_v, lat_v = get_transformer(crs).transform(xs[mask], ys[mask])
             lons[mask] = lon_v
             lats[mask] = lat_v
-        lon_arr = pa.array(lons)
-        lat_arr = pa.array(lats)
+        # Rows without coordinates (legs, or activities lacking x/y) are null,
+        # not NaN, matching activity_x/activity_y.
+        lon_arr = pa.array(lons, mask=~mask)
+        lat_arr = pa.array(lats, mask=~mask)
     else:
         lon_arr = lat_arr = None
 
@@ -259,7 +270,7 @@ def merge_chunks(
     chunk_paths: list[Path],
     parquet_path: Path,
     n_persons: int = 0,
-    batch_size: int = 50000,
+    batch_size: int = 65536,
     dtd_meta: dict[bytes, bytes] | None = None,
 ) -> int:
     """Stream chunk parquets into the final parquet with a unified schema
@@ -312,7 +323,7 @@ def convert(
     input_path: Path,
     parquet_path: Path,
     crs_override: str | None,
-    row_group_size: int = 50000,
+    row_group_size: int = 65536,
     chunk_persons: int = 20000,
 ) -> int:
     """Stream the input XML, flush every `chunk_persons` persons to a
@@ -523,7 +534,7 @@ def convert_parallel(
     parquet_path: Path,
     crs_override: str | None,
     jobs: int,
-    row_group_size: int = 50000,
+    row_group_size: int = 65536,
     chunk_persons: int = 20000,
 ) -> int:
     """Parallel variant of convert(): a single sequential reader slices the
@@ -603,11 +614,28 @@ def default_output_path(input_path: Path) -> Path:
     return input_path.with_name(stem + ".parquet")
 
 
+def row_group_summary(parquet_path: Path) -> str:
+    """One-line description of the file's row groups: how many there are and
+    the rows in each, with the (possibly shorter) last group noted separately."""
+    md = pq.read_metadata(parquet_path)
+    n = md.num_row_groups
+    if n == 0:
+        return "  0 row groups"
+    if n == 1:
+        return f"  1 row group of {md.row_group(0).num_rows} rows"
+    first = md.row_group(0).num_rows
+    last = md.row_group(n - 1).num_rows
+    line = f"  {n} row groups of {first} rows"
+    if last != first:
+        line += f" (last has {last})"
+    return line
+
+
 def run(
     input_path: Path,
     parquet_path: Path | None = None,
     crs: str | None = None,
-    chunk_size: int = 50000,
+    chunk_size: int = 65536,
     jobs: int = 4,
 ) -> Path:
     """Convert one MATSim population XML to parquet, defaulting the output path
@@ -626,4 +654,5 @@ def run(
             input_path, parquet_path, crs, jobs, row_group_size=chunk_size
         )
     print(f"Wrote {n} rows to {parquet_path}")
+    print(row_group_summary(parquet_path))
     return parquet_path
