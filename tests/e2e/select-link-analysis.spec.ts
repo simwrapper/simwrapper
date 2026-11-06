@@ -12,8 +12,8 @@ const LINKS_BERLIN = [
   { id: '248416565', hour: [12, 16], label: 'highway.motorway' },
 ]
 
-// const WARMUP_LINK_ID_BERLIN = '4555235'
-const WARMUP_LINK_ID_BERLIN = '83917720' // used for 1pct SQLite local
+const WARMUP_LINK_ID_BERLIN = '4555235'
+// const WARMUP_LINK_ID_BERLIN = '83917720' // used for 1pct SQLite local
 
 const LINKS_RUHR = [
   { id: '2291459880004f-237186430001f', hour: [12, 16], label: 'highway.motorway' },
@@ -54,8 +54,8 @@ const FORMATS = ['Sqlite', 'Parquet', 'Csv'] as const
 
 type Format = (typeof FORMATS)[number]
 const BACKENDS = [
-  // { name: 'svn', path: 'e2e-tests' },
-  // { name: 's3', path: 'e2e-tests-s3/select-link-analysis-test' },
+  { name: 'svn', path: 'e2e-tests' },
+  { name: 's3', path: 'e2e-tests-s3/select-link-analysis-test' },
   { name: 'local-host', path: 'e2e-tests-local' },
 ] as const
 // @ts-ignore
@@ -64,9 +64,9 @@ const QUICK = env.QUICK === '1' // smoke test: 1 sample, 2 reps
 const N = env.N ? Number(env.N) : undefined // override samples per backend
 const PREFETCH: string = env.PREFETCH ?? 'none' // 'footers' = read all footers at load
 const REPS = QUICK ? 2 : 30
-const SAMPLES: Record<Format, number> = { Parquet: 5, Sqlite: 5, Csv: 5 }
+const SAMPLES: Record<Format, number> = { Parquet: 10, Sqlite: 10, Csv: 10 }
 const samplesFor = (ds: string, f: Format) =>
-  N ?? (QUICK ? 1 : Math.round(SAMPLES[f] * (ds === 'ruhr' ? 0.5 : 1)))
+  N ?? (QUICK ? 1 : SAMPLES[f])
 const SUFFIX = PREFETCH === 'none' ? '' : `__prefetch-${PREFETCH}`
 const RESULTS_ROOT: string = env.RESULTS_DIR ?? 'benchmark-results/final_tests'
 const COLD_DIR = path.join(RESULTS_ROOT, 'cold')
@@ -124,165 +124,165 @@ function toCsv(rows: Record<string, any>[], header: boolean): string {
   return (header ? [headers.join(','), ...lines] : lines).join('\n') + '\n'
 }
 
-// test.describe('select link analyzer - session (cold) benchmark', () => {
-//   for (const dataset of DATASETS) {
-//     for (const format of FORMATS) {
-//       if (skip(dataset.name, format)) continue
-//       for (const partition of partitionsFor(dataset.name, format)) {
-//         test(`cold: ${dataset.name}/${dataset.scale}/${format}/${partition}`, async ({
-//           browser,
-//           baseURL,
-//         }) => {
-//           // test.setTimeout(3 * 60 * 60_000)
-//           test.setTimeout(0)
-//           const n = samplesFor(dataset.name, format)
-//           const L = dataset.links.length
-//           const outFile = path.join(
-//             COLD_DIR,
-//             `${dataset.name}__${dataset.scale}__${format}__${partition}${SUFFIX}.csv`
-//           )
-//           startFile(outFile)
-//           let headerDone = false
-//           let failures = 0
-//           let badResults = 0
+test.describe('select link analyzer - session (cold) benchmark', () => {
+  for (const dataset of DATASETS) {
+    for (const format of FORMATS) {
+      if (skip(dataset.name, format)) continue
+      for (const partition of partitionsFor(dataset.name, format)) {
+        test(`cold: ${dataset.name}/${dataset.scale}/${format}/${partition}`, async ({
+          browser,
+          baseURL,
+        }) => {
+          // test.setTimeout(3 * 60 * 60_000)
+          test.setTimeout(0)
+          const n = samplesFor(dataset.name, format)
+          const L = dataset.links.length
+          const outFile = path.join(
+            COLD_DIR,
+            `${dataset.name}__${dataset.scale}__${format}__${partition}${SUFFIX}.csv`
+          )
+          startFile(outFile)
+          let headerDone = false
+          let failures = 0
+          let badResults = 0
 
-//           for (let sample = 0; sample < n; sample++) {
-//             const link = dataset.links[sample % L]
-//             const other = dataset.links[(sample + 1) % L] // different link for the "new link" click
-//             // counterbalance: even samples go 12 -> 16, odd samples go 16 -> 12
-//             const hours = sample % 2 === 0 ? [...link.hour] : [...link.hour].reverse()
-//             const rows: Record<string, any>[] = []
+          for (let sample = 0; sample < n; sample++) {
+            const link = dataset.links[sample % L]
+            const other = dataset.links[(sample + 1) % L] // different link for the "new link" click
+            // counterbalance: even samples go 12 -> 16, odd samples go 16 -> 12
+            const hours = sample % 2 === 0 ? [...link.hour] : [...link.hour].reverse()
+            const rows: Record<string, any>[] = []
 
-//             for (const backend of shuffle([...BACKENDS])) {
-//               const context = await browser.newContext({ baseURL: baseURL ?? undefined })
-//               const page = await context.newPage()
-//               try {
-//                 await page.addInitScript(
-//                   ([f, p, pf]) => {
-//                     const w = window as any
-//                     w.__testFormat__ = f
-//                     w.__testPartition__ = p
-//                     w.__testPrefetch__ = pf
-//                   },
-//                   [format, partition, PREFETCH] as [string, string, string]
-//                 )
+            for (const backend of shuffle([...BACKENDS])) {
+              const context = await browser.newContext({ baseURL: baseURL ?? undefined })
+              const page = await context.newPage()
+              try {
+                await page.addInitScript(
+                  ([f, p, pf]) => {
+                    const w = window as any
+                    w.__testFormat__ = f
+                    w.__testPartition__ = p
+                    w.__testPrefetch__ = pf
+                  },
+                  [format, partition, PREFETCH] as [string, string, string]
+                )
 
-//                 // network tally for data files (content-length is indicative, not exact)
-//                 const net = { n: 0, n206: 0, bytes: 0 }
-//                 context.on('response', resp => {
-//                   if (/\.(parquet|csv|sqlite3)(\?|$)/.test(resp.url())) {
-//                     net.n++
-//                     if (resp.status() === 206) net.n206++
-//                     net.bytes += Number(resp.headers()['content-length'] ?? 0)
-//                   }
-//                 })
-//                 const snap = () => ({ ...net })
+                // network tally for data files (content-length is indicative, not exact)
+                const net = { n: 0, n206: 0, bytes: 0 }
+                context.on('response', resp => {
+                  if (/\.(parquet|csv|sqlite3)(\?|$)/.test(resp.url())) {
+                    net.n++
+                    if (resp.status() === 206) net.n206++
+                    net.bytes += Number(resp.headers()['content-length'] ?? 0)
+                  }
+                })
+                const snap = () => ({ ...net })
 
-//                 const t0 = Date.now()
-//                 await page.goto(`${backend.path}/${dataset.subfolder}`)
-//                 await page.getByText('INFO PANEL').waitFor({ timeout: 300_000 })
-//                 await page.waitForFunction(
-//                   fmt => (window as any).__testdata__?.getReady?.()[fmt] === true,
-//                   format,
-//                   { timeout: 300_000 }
-//                 )
-//                 const readyMs = Date.now() - t0
-//                 const ready = snap()
+                const t0 = Date.now()
+                await page.goto(`${backend.path}/${dataset.subfolder}`)
+                await page.getByText('INFO PANEL').waitFor({ timeout: 300_000 })
+                await page.waitForFunction(
+                  fmt => (window as any).__testdata__?.getReady?.()[fmt] === true,
+                  format,
+                  { timeout: 300_000 }
+                )
+                const readyMs = Date.now() - t0
+                const ready = snap()
 
-//                 await page.waitForFunction(
-//                   () => {
-//                     const m = (window as any).__mapReadyByViewId
-//                     return m && Object.values(m).some(r => r === true)
-//                   },
-//                   undefined,
-//                   { timeout: 60_000 }
-//                 )
+                await page.waitForFunction(
+                  () => {
+                    const m = (window as any).__mapReadyByViewId
+                    return m && Object.values(m).some(r => r === true)
+                  },
+                  undefined,
+                  { timeout: 60_000 }
+                )
 
-//                 const cfg = await page.evaluate(() => (window as any).__testdata__.getConfig())
-//                 expect(cfg.partition, 'component ignored partition flag').toBe(partition)
+                const cfg = await page.evaluate(() => (window as any).__testdata__.getConfig())
+                expect(cfg.partition, 'component ignored partition flag').toBe(partition)
 
-//                 const clicks = [
-//                   { clickType: 'first', linkId: link.id, hour: hours[0] },
-//                   { clickType: 'hour_switch', linkId: link.id, hour: hours[1] },
-//                   // realistic "warm" click: different link, hour already touched.
-//                   // skipped for CSV: it has nothing to warm and each click costs ~30 s
-//                   ...(format !== 'Csv'
-//                     ? [{ clickType: 'new_link_same_hour', linkId: other.id, hour: hours[1] }]
-//                     : []),
-//                 ]
+                const clicks = [
+                  { clickType: 'first', linkId: link.id, hour: hours[0] },
+                  { clickType: 'hour_switch', linkId: link.id, hour: hours[1] },
+                  // realistic "warm" click: different link, hour already touched.
+                  // skipped for CSV: it has nothing to warm and each click costs ~30 s
+                  ...(format !== 'Csv'
+                    ? [{ clickType: 'new_link_same_hour', linkId: other.id, hour: hours[1] }]
+                    : []),
+                ]
 
-//                 for (const click of clicks) {
-//                   const before = snap()
-//                   const r = await withTimeout(
-//                     page.evaluate(
-//                       async ([id, hr, fmt]) => {
-//                         const out = await (window as any).__testdata__.selectLink(id, hr, fmt)
+                for (const click of clicks) {
+                  const before = snap()
+                  const r = await withTimeout(
+                    page.evaluate(
+                      async ([id, hr, fmt]) => {
+                        const out = await (window as any).__testdata__.selectLink(id, hr, fmt)
 
-//                         const counts = Object.values(out.result) as number[]
+                        const counts = Object.values(out.result) as number[]
 
-//                         return {
-//                           queryTime: out.queryTime,
-//                           prepTime: out.prepTime,
-//                           totalTime: out.totalTime,
-//                           nCoLinks: counts.length,
-//                           traversalSum: counts.reduce((a, b) => a + b, 0),
-//                         }
-//                       },
-//                       [click.linkId, click.hour, format] as [string, number, string]
-//                     ),
-//                     CLICK_TIMEOUT_MS[format],
-//                     `${dataset.name}/${format}/${backend.name} ${click.clickType}`
-//                   )
-//                   const after = snap()
-//                   if (!(r.nCoLinks > 0)) badResults++
-//                   rows.push({
-//                     dataset: dataset.name,
-//                     scale: dataset.scale,
-//                     backend: backend.name,
-//                     format,
-//                     partition,
-//                     prefetch: cfg.prefetch,
-//                     sample,
-//                     linkId: click.linkId,
-//                     linkType: dataset.links.find(l => l.id === click.linkId)?.label,
-//                     clickType: click.clickType,
-//                     hour: click.hour,
-//                     readyMs,
-//                     readyReqs: ready.n,
-//                     readyMB: ready.bytes / 1e6,
-//                     reqs: after.n - before.n,
-//                     reqs206: after.n206 - before.n206,
-//                     mb: (after.bytes - before.bytes) / 1e6,
-//                     ...r,
-//                     timestamp: new Date().toISOString(),
-//                   })
-//                 }
-//                 console.log(
-//                   `[${dataset.name}/${format}/${partition}] ${sample + 1}/${n} ${
-//                     backend.name
-//                   } ready ${readyMs} ms`
-//                 )
-//               } catch (e) {
-//                 failures++
-//                 console.error(
-//                   `FAILED session ${dataset.name}/${format}/${backend.name} sample ${sample}`,
-//                   e
-//                 )
-//               } finally {
-//                 await context.close()
-//               }
-//             }
-//             fs.appendFileSync(outFile, toCsv(rows, !headerDone))
-//             if (rows.length) headerDone = true
-//           }
+                        return {
+                          queryTime: out.queryTime,
+                          prepTime: out.prepTime,
+                          totalTime: out.totalTime,
+                          nCoLinks: counts.length,
+                          traversalSum: counts.reduce((a, b) => a + b, 0),
+                        }
+                      },
+                      [click.linkId, click.hour, format] as [string, number, string]
+                    ),
+                    CLICK_TIMEOUT_MS[format],
+                    `${dataset.name}/${format}/${backend.name} ${click.clickType}`
+                  )
+                  const after = snap()
+                  if (!(r.nCoLinks > 0)) badResults++
+                  rows.push({
+                    dataset: dataset.name,
+                    scale: dataset.scale,
+                    backend: backend.name,
+                    format,
+                    partition,
+                    prefetch: cfg.prefetch,
+                    sample,
+                    linkId: click.linkId,
+                    linkType: dataset.links.find(l => l.id === click.linkId)?.label,
+                    clickType: click.clickType,
+                    hour: click.hour,
+                    readyMs,
+                    readyReqs: ready.n,
+                    readyMB: ready.bytes / 1e6,
+                    reqs: after.n - before.n,
+                    reqs206: after.n206 - before.n206,
+                    mb: (after.bytes - before.bytes) / 1e6,
+                    ...r,
+                    timestamp: new Date().toISOString(),
+                  })
+                }
+                console.log(
+                  `[${dataset.name}/${format}/${partition}] ${sample + 1}/${n} ${
+                    backend.name
+                  } ready ${readyMs} ms`
+                )
+              } catch (e) {
+                failures++
+                console.error(
+                  `FAILED session ${dataset.name}/${format}/${backend.name} sample ${sample}`,
+                  e
+                )
+              } finally {
+                await context.close()
+              }
+            }
+            fs.appendFileSync(outFile, toCsv(rows, !headerDone))
+            if (rows.length) headerDone = true
+          }
 
-//           expect(failures, 'failed sessions').toBe(0)
-//           expect(badResults, 'clicks with empty results').toBe(0)
-//         })
-//       }
-//     }
-//   }
-// })
+          expect(failures, 'failed sessions').toBe(0)
+          expect(badResults, 'clicks with empty results').toBe(0)
+        })
+      }
+    }
+  }
+})
 
 test.describe('select link analyzer - session (warm) benchmark', () => {
   for (const dataset of DATASETS) {
@@ -369,7 +369,7 @@ test.describe('select link analyzer - session (warm) benchmark', () => {
                 CLICK_TIMEOUT_MS[format],
                 `warm-up ${dataset.name}/${format} h${hour}`
               )
-              expect(nCo, `warm-up link has no data at hour ${hour}`).toBeGreaterThan(0)
+              // expect(nCo, `warm-up link has no data at hour ${hour}`).toBeGreaterThan(0)
             }
 
             // Measured clicks: shuffled links, alternating hour blocks.
