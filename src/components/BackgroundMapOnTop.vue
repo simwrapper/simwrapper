@@ -4,7 +4,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw } from 'vue'
 import maplibregl, { MapMouseEvent, PositionOptions } from 'maplibre-gl'
 
 import globalStore from '@/store'
@@ -54,11 +54,15 @@ const Component = defineComponent({
     setupMap() {
       const styles = globalStore.state.mapStyles
       try {
-        this.mymap = new maplibregl.Map({
-          container: this.mapId,
-          style: this.isDarkMode ? styles.transparentDark : styles.transparentLight,
-          logoPosition: 'top-left',
-        })
+        // markRaw: nothing needs the maplibre Map to be reactive, and running all of
+        // maplibre's internals through Vue proxies is slow and fragile.
+        this.mymap = markRaw(
+          new maplibregl.Map({
+            container: this.mapId,
+            style: this.isDarkMode ? styles.transparentDark : styles.transparentLight,
+            logoPosition: 'top-left',
+          })
+        )
 
         // make sure it starts up aligned with main map
         const { jump, initial, startup, ...viewState } = this.globalState.viewState

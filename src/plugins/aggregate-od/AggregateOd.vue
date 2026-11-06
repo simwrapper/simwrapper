@@ -93,7 +93,7 @@ const i18n = {
   },
 }
 
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw } from 'vue'
 import type { PropType } from 'vue'
 import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
@@ -510,12 +510,16 @@ const Component = defineComponent({
         const style = `${BASE_URL}map-styles/${
           this.globalState.isDarkMode ? 'dark' : 'positron'
         }.json`
+        // markRaw: nothing needs the maplibre Map to be reactive, and running all of
+        // maplibre's internals through Vue proxies is slow and fragile.
         //@ts-ignore
-        this.mymap = new maplibregl.Map({
-          container: this.mapId,
-          style,
-          ...camera,
-        })
+        this.mymap = markRaw(
+          new maplibregl.Map({
+            container: this.mapId,
+            style,
+            ...camera,
+          })
+        )
       } catch (e) {
         console.error('HUH?')
         return

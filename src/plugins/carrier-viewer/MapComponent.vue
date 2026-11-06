@@ -443,16 +443,21 @@ export default defineComponent({
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
     const zoom = (this.globalState.viewState.zoom || 8) as number
+    // markRaw: the deck overlay added to this map stores the deck instance on it, so a
+    // reactive map makes deck.gl run through Vue proxies -- slow, and it breaks deck's
+    // internal identity (===) checks.
     //@ts-ignore
-    this.mymap = new maplibregl.Map({
-      center,
-      zoom,
-      // without these, the first map 'move' event overwrites the initial YAML bearing/pitch
-      bearing: this.globalState.viewState.bearing || 0,
-      pitch: this.globalState.viewState.pitch || 0,
-      container,
-      style,
-    })
+    this.mymap = markRaw(
+      new maplibregl.Map({
+        center,
+        zoom,
+        // without these, the first map 'move' event overwrites the initial YAML bearing/pitch
+        bearing: this.globalState.viewState.bearing || 0,
+        pitch: this.globalState.viewState.pitch || 0,
+        container,
+        style,
+      })
+    )
     this.mymap.on('style.load', () => {
       if (this.show3dBuildings && this.mymap) {
         enable3DBuildings(this.mymap)

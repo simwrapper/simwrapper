@@ -138,12 +138,17 @@ export default defineComponent({
     }.json` as any
     const container = `map-${this.viewId}`
     const view = this.globalState.viewState
-    //@ts-ignore
-    this.mymap = new maplibregl.Map({
-      container,
-      style,
-      ...view,
-    })
+    // markRaw: the deck overlay added to this map stores the deck instance on it, so a
+    // reactive map makes deck.gl run through Vue proxies -- slow, and it breaks deck's
+    // internal identity (===) checks.
+    this.mymap = markRaw(
+      //@ts-ignore -- viewState carries extra keys that MapOptions doesn't declare
+      new maplibregl.Map({
+        container,
+        style,
+        ...view,
+      })
+    )
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
       if (this.show3dBuildings && this.mymap) {

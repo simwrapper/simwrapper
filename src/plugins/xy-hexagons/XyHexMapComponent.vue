@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, markRaw, PropType } from 'vue'
 import { ArcLayer } from '@deck.gl/layers'
 import { HexagonLayer } from '@deck.gl/aggregation-layers'
 import { MapboxOverlay } from '@deck.gl/mapbox'
@@ -211,12 +211,17 @@ export default defineComponent({
     const style = `${BASE_URL}map-styles/${this.dark ? 'dark' : 'positron'}.json`
     const container = `map-${this.viewId}`
     const view = this.globalState.viewState
-    //@ts-ignore
-    this.mymap = new maplibregl.Map({
-      container,
-      style,
-      ...view,
-    })
+    // markRaw: the deck overlay added to this map stores the deck instance on it, so a
+    // reactive map makes deck.gl run through Vue proxies -- slow, and it breaks deck's
+    // internal identity (===) checks.
+    this.mymap = markRaw(
+      //@ts-ignore -- viewState carries extra keys that MapOptions doesn't declare
+      new maplibregl.Map({
+        container,
+        style,
+        ...view,
+      })
+    )
 
     //@ts-ignore
     this.mymap.on('style.load', () => {
@@ -224,11 +229,15 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = new MapboxOverlay({
-        interleaved: true,
-        layers: this.layers,
-        onClick: this.handleClick,
-      })
+      // markRaw: deck.gl freezes each layer's props; reading them back through a reactive
+      // overlay's Vue proxy violates the proxy invariant and throws during layer matching.
+      this.deckOverlay = markRaw(
+        new MapboxOverlay({
+          interleaved: true,
+          layers: this.layers,
+          onClick: this.handleClick,
+        })
+      )
       this.mymap?.addControl(this.deckOverlay)
     })
 

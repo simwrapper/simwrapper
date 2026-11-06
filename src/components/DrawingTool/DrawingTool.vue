@@ -42,7 +42,7 @@ const i18n = {
     de: {},
   },
 }
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw } from 'vue'
 import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers'
 import ShapeWriter from '@simwrapper/shp-write'
 import { TranslateResult } from 'vue-i18n'
@@ -63,7 +63,8 @@ export default defineComponent({
       isDark: globalStore.state.isDarkMode,
       points,
       showShapeDrawer: false,
-      layerManager: new LayerManager(),
+      // markRaw: holds a deck.gl Deck + maplibre Map; keep them out of Vue's proxies
+      layerManager: markRaw(new LayerManager()),
       mapID: `map-id-${Math.floor(1e12 * Math.random())}`,
       polygons: [
         {

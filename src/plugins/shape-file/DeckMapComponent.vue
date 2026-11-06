@@ -450,17 +450,22 @@ export default defineComponent({
       return
     }
 
+    // markRaw: the deck overlay added to this map stores the deck instance on it, so a
+    // reactive map makes deck.gl run through Vue proxies -- slow, and it breaks deck's
+    // internal identity (===) checks.
     //@ts-ignore
-    this.mymap = new maplibregl.Map({
-      container,
-      style,
-      center,
-      zoom,
-      // without these, the first map 'move' event overwrites the initial YAML bearing/pitch
-      bearing: bearing || 0,
-      pitch: pitch || 0,
-      canvasContextAttributes: { preserveDrawingBuffer: true },
-    })
+    this.mymap = markRaw(
+      new maplibregl.Map({
+        container,
+        style,
+        center,
+        zoom,
+        // without these, the first map 'move' event overwrites the initial YAML bearing/pitch
+        bearing: bearing || 0,
+        pitch: pitch || 0,
+        canvasContextAttributes: { preserveDrawingBuffer: true },
+      })
+    )
 
     this.mymap.on('move', this.handleMove)
     this.mymap.on('style.load', () => {
