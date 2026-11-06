@@ -315,11 +315,16 @@ export default defineComponent({
 
       // MAIN GEOJSON LAYER
       if (this.lineLayers.hasPolygons) {
+        const isExtruded = !!this.fillHeights
         finalLayers.push(
           new GeojsonOffsetLayer({
-            id: 'geoJsonOffsetLayer',
+            // Separate ids for 2D vs 3D: toggling `extruded` on an existing layer makes
+            // deck.gl rebuild its polygon models in place, and a running getFillColor
+            // transition then scrambles the per-vertex color buffer (smeared gradients
+            // within each polygon). A new id builds a fresh layer instead.
+            id: isExtruded ? 'geoJsonOffsetLayer-3d' : 'geoJsonOffsetLayer',
             // extruded: draw on top, or the 2D map layers paint over the 3D columns
-            beforeId: this.isAtlantis || this.fillHeights ? undefined : 'water',
+            beforeId: this.isAtlantis || isExtruded ? undefined : 'water',
             data: this.features,
             // function callbacks: --------------
             getLineWidth: this.cbLineWidth, // 0, // no borders
@@ -328,7 +333,7 @@ export default defineComponent({
             getPointRadius: this.cbPointRadius,
             getElevation: this.cbFillHeight,
             // settings: ------------------------
-            extruded: !!this.fillHeights,
+            extruded: isExtruded,
             highlightedObjectIndex:
               this.highlightedLinkIndex == -1 ? null : this.highlightedLinkIndex,
             autoHighlight: true,
