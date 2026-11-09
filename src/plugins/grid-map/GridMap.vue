@@ -348,9 +348,14 @@ const GridMap = defineComponent({
       }),
       // Threshold shading: the worker's unshaded colors per time period, and the slider.
       // Only the time period on display is shaded, from a copy of its base colors.
+      // off: the user left the slider at the end that grays nothing, so it follows that
+      // end as the values change. Otherwise their limit stays put.
+      // isDifference: whether the slider's values were a diff, the last time it was set up.
       shading: markRaw({
         baseColors: [] as Uint8Array[],
         controller: null as any,
+        off: true,
+        isDifference: false,
       }),
       // Summary chart: cumulative share of population by value, for the time on display.
       // request drops worker answers that a newer request superseded.
@@ -949,24 +954,28 @@ const GridMap = defineComponent({
 
     /**
      * Point the threshold slider at the time period on display: its title follows the
-     * column choice, its range the unscaled values. With reset (or if the map was fully
-     * colored), it moves to the end that shades nothing.
+     * column choice, its range the unscaled values. The user's limit stays exactly where
+     * it is -- across times and dataColumns button changes -- even outside the new range:
+     * the slider then sits at that end, and its number box shows the real value.
+     * It moves to the end that shades nothing with reset, if it was already there, or if
+     * the values switch between plain values and a diff (a limit for one means nothing
+     * for the other).
      */
     updateThresholdSlider(reset: boolean) {
       const slider = this.shading.controller
       if (!slider) return
 
+      let isDifference: boolean
       if (this.dataColumns.length) {
-        const title = this.compareTitle
-          ? `${this.valueTitle} − ${this.compareTitle}`
-          : this.valueTitle
-        slider.name(title)
+        isDifference = !!this.compareTitle
+        slider.name(isDifference ? `${this.valueTitle} − ${this.compareTitle}` : this.valueTitle)
       } else {
-        const isDiff = this.guiConfig.diff && !!this.guiConfig.secondValueColumn
-        slider.name(isDiff ? 'Diff' : this.vizDetails.valueColumn)
+        isDifference = this.guiConfig.diff && !!this.guiConfig.secondValueColumn
+        slider.name(isDifference ? 'Diff' : this.vizDetails.valueColumn)
       }
+      const kindChanged = isDifference !== this.shading.isDifference
+      this.shading.isDifference = isDifference
 
-      const wasOff = this.isThresholdNear(this.thresholdColoredEnd())
       const [min, max] = this.valueRanges[this.currentTimeIndex] || [0, 0]
       this.thresholdRange = [min, max]
 
@@ -974,10 +983,17 @@ const GridMap = defineComponent({
       const decimals = Math.min(6, Math.max(0, Math.ceil(-Math.log10(step))))
       slider.min(min).max(max).step(step, false).decimals(decimals)
 
-      const threshold = this.guiConfig.threshold
-      this.guiConfig.threshold =
-        reset || wasOff ? this.thresholdColoredEnd() : Math.min(max, Math.max(min, threshold))
+      if (reset || kindChanged || this.shading.off) {
+        this.guiConfig.threshold = this.thresholdColoredEnd()
+        this.shading.off = true
+      }
       slider.updateDisplay()
+    },
+
+    /** The user moved the slider: remember whether they left it at the end that grays nothing */
+    handleThresholdChange() {
+      this.shading.off = this.isThresholdNear(this.thresholdColoredEnd())
+      this.applyThreshold()
     },
 
     /** Slider end that shades nothing: the min for "less than", the max for "greater than" */
@@ -1013,6 +1029,7 @@ const GridMap = defineComponent({
         this.guiConfig.threshold = this.thresholdColoredEnd()
         this.shading.controller?.updateDisplay()
       }
+      this.shading.off = this.isThresholdNear(this.thresholdColoredEnd())
       this.applyThreshold()
     },
 
@@ -1180,7 +1197,7 @@ const GridMap = defineComponent({
       const threshold = config.addFolder(this.$t('threshold'))
       this.shading.controller = threshold
         .add(this.guiConfig, 'threshold', 0, 1)
-        .onChange(() => this.applyThreshold())
+        .onChange(() => this.handleThresholdChange())
       threshold
         .add(this.guiConfig, 'thresholdMode', {
           [this.$t('lessThan')]: 'less',
@@ -1274,7 +1291,8 @@ const GridMap = defineComponent({
           // keep dataColumns order, whatever the click order
           this.columnPicks[set] = this.dataColumns.map(d => d.label).filter(l => picks.has(l))
           showState()
-          this.reloadDataAndPreserveSelectedTime()
+          // same units, whatever the combination: the threshold stays where it is
+          this.reloadDataAndPreserveSelectedTime(false)
         })
         widget.appendChild(button)
       }
@@ -1339,8 +1357,12 @@ const GridMap = defineComponent({
       return closest
     },
 
-    /** Recalculate from the worker's cached data -- nothing is fetched again */
-    async reloadDataAndPreserveSelectedTime() {
+    /**
+     * Recalculate from the worker's cached data -- nothing is fetched again.
+     * resetThreshold: the values may be something else entirely (another column), so
+     * the threshold starts over.
+     */
+    async reloadDataAndPreserveSelectedTime(resetThreshold: boolean) {
       const selectedTimeBeforeReload = this.getCurrentSelectedTime()
       try {
         await this.prepareData(true)
@@ -1350,20 +1372,20 @@ const GridMap = defineComponent({
       }
       const selectedTimeAfterReload = this.resolveSelectedTime(selectedTimeBeforeReload)
       this.currentTime = [selectedTimeAfterReload, selectedTimeAfterReload]
-      // different values: start the threshold over
-      this.updateThresholdSlider(true)
+      this.updateThresholdSlider(resetThreshold)
       this.applyThreshold()
       this.updateSummaryChart()
     },
 
     async handleOpacityColumnChange(newCol: string) {
       this.vizDetails.opacityColumn = newCol
-      await this.reloadDataAndPreserveSelectedTime()
+      // the values don't change, so neither does the threshold
+      await this.reloadDataAndPreserveSelectedTime(false)
     },
 
     async handleColumnChange(newCol: string) {
       this.vizDetails.valueColumn = newCol
-      await this.reloadDataAndPreserveSelectedTime()
+      await this.reloadDataAndPreserveSelectedTime(true)
     },
 
     /**
@@ -1372,8 +1394,9 @@ const GridMap = defineComponent({
     async handleDiffChange(useDiff: boolean) {
       this.vizDetails.diff = useDiff
 
-      // reload data while keeping the currently selected time slot
-      await this.reloadDataAndPreserveSelectedTime()
+      // reload data while keeping the currently selected time slot. The threshold starts
+      // over only if this actually switches between plain values and a diff
+      await this.reloadDataAndPreserveSelectedTime(false)
     },
 
     windowResize() {
@@ -1392,7 +1415,7 @@ const GridMap = defineComponent({
       this.vizDetails.secondValueColumn = col2
 
       // reload data while keeping the currently selected time slot
-      await this.reloadDataAndPreserveSelectedTime()
+      await this.reloadDataAndPreserveSelectedTime(true)
     },
 
     /** Color settings from the GUI, in the plain form the worker needs */
