@@ -32,9 +32,6 @@
         @timeExtent="handleTimeSliderValues"
       )
 
-      .message(v-if="myState.statusMessage")
-        p.status-message {{ myState.statusMessage }}
-
       .tooltip(v-if="tooltip" v-html="tooltip.html" :style="tooltip.style")
 
     .dragger(v-if="!thumbnail"
@@ -46,13 +43,17 @@
     .right-panel(v-if="!thumbnail" :style="{width: `${legendSectionWidth}px`}")
       SummaryChart(v-if="isLoaded && legendSectionWidth > 100"
         :distribution="summary"
-        :column="vizDetails.valueColumn"
-        :secondColumn="guiConfig.diff ? guiConfig.secondValueColumn : ''"
+        :column="valueTitle"
+        :secondColumn="compareTitle"
         :unit="vizDetails.unit"
         :threshold="guiConfig.threshold"
         :width="legendSectionWidth - 16"
       )
       .gui-config(:id="configId")
+
+    .message(v-if="myState.statusMessage")
+        p.status-message {{ myState.statusMessage }}
+
 
 </template>
 
@@ -96,12 +97,22 @@ export interface MapData {
   numberOfFilledValues?: Number
   numberOfFilledCentroids?: Number
   length: Number
+  /** dataColumns mode: unscaled values of each column in columnLabels, per cell */
+  columnValues?: Float32Array[]
 }
 
 export interface CompleteMapData {
   mapData: MapData[]
   scaledFactor: Number
   unit: String
+  /** dataColumns mode: labels of the columns whose values the tooltip lists */
+  columnLabels?: string[]
+}
+
+/** one toggle button of the YAML dataColumns section */
+interface DataColumn {
+  label: string
+  column: string
 }
 
 interface VizDetail {
@@ -123,9 +134,13 @@ interface VizDetail {
   mapIsIndependent?: boolean
   breakpoints?: string
   opacityColumn: string
+  /** with dataColumns: the label (or list of labels) of the buttons that start out on */
   valueColumn: string
+  /** with dataColumns: the label(s) of the Compare-to buttons that start out on */
   secondValueColumn?: string
   diff?: boolean
+  /** toggle buttons in place of the column dropdowns; cells show the max of those on */
+  dataColumns?: DataColumn[]
   unit: string
   timeSelector: any
   /** threshold slider direction at startup: gray out cells 'less' or 'greater' than it */
@@ -209,6 +224,8 @@ const i18n = {
       grayOut: 'Gray out',
       lessThan: 'less than',
       greaterThan: 'greater than',
+      dataColumns: 'Data columns',
+      compareTo: 'Compare to',
     },
     de: {
       loading: 'Dateien laden...',
@@ -223,6 +240,8 @@ const i18n = {
       grayOut: 'Ausgrauen',
       lessThan: 'kleiner als',
       greaterThan: 'größer als',
+      dataColumns: 'Datenspalten',
+      compareTo: 'Vergleichen mit',
     },
   },
 }
@@ -379,9 +398,13 @@ const GridMap = defineComponent({
       // in single-view mode, in which case we need to create one for ourselves
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
       availableColumns: [] as string[],
+      /** the YAML dataColumns that passed validation; empty means the column dropdowns */
+      dataColumns: [] as DataColumn[],
+      /** labels of the dataColumns buttons that are on, in dataColumns order */
+      columnPicks: { data: [] as string[], compare: [] as string[] },
       isDraggingDivider: 0,
       dragStartWidth: 250,
-      legendSectionWidth: 250,
+      legendSectionWidth: 300,
     }
   },
   computed: {
@@ -430,6 +453,19 @@ const GridMap = defineComponent({
         show3dBuildings: this.show3dBuildings,
       }
     },
+    /** what the cells show (or the first half of a diff), for chart and slider titles */
+    valueTitle(): string {
+      if (!this.dataColumns.length) return this.vizDetails.valueColumn
+      return maxTitle(this.columnPicks.data)
+    },
+
+    /** with a diff, what gets subtracted; otherwise empty */
+    compareTitle(): string {
+      if (!this.guiConfig.diff) return ''
+      if (!this.dataColumns.length) return this.guiConfig.secondValueColumn
+      return maxTitle(this.columnPicks.compare)
+    },
+
     textColor(): any {
       const lightmode = {
         text: '#3498db',
@@ -728,6 +764,10 @@ const GridMap = defineComponent({
         throw Error('No coordinate projection. Add "projection: EPSG:xxxx" to config')
       }
 
+      if (this.yamlSettings().dataColumns) {
+        this.$emit('error', 'dataColumns only works with CSV files; it is ignored for Avro')
+      }
+
       const tableName = Object.keys(record.data)[0]
       await this.calc.task!.setGridData({
         xCoords: record.xCoords,
@@ -764,9 +804,100 @@ const GridMap = defineComponent({
 
       // the column arrays are shared with the datamanager cache, so they get copied
       // (not transferred) to the worker. unreactive: Proxies throw DataCloneError.
-      await this.calc.task!.setTableData(
+      const valueColumns = await this.calc.task!.setTableData(
         unreactive({ columns, projection: this.vizDetails.projection })
       )
+      this.setupDataColumns(valueColumns)
+    },
+
+    /** The YAML as written, without the defaults that vizDetails fills in */
+    yamlSettings(): any {
+      return this.config || this.standaloneYAMLconfig || {}
+    },
+
+    /**
+     * dataColumns mode: check the YAML entries against the data, and turn on the buttons
+     * that valueColumn / secondValueColumn name. Bad entries are dropped with a warning;
+     * if none are left, the column dropdowns are used instead.
+     */
+    setupDataColumns(available: string[]) {
+      const entries = this.yamlSettings().dataColumns
+      if (entries === undefined || entries === null) return
+
+      if (!Array.isArray(entries)) {
+        this.$emit('error', 'dataColumns must be a list of entries with a "label" and a "column"')
+        return
+      }
+
+      const valid = [] as DataColumn[]
+      entries.forEach((entry: any, i: number) => {
+        const label = entry?.label
+        const column = entry?.column
+        if (label == null || label === '' || column == null || column === '') {
+          this.$emit('error', `dataColumns entry ${i + 1} needs both a "label" and a "column"`)
+          return
+        }
+        if (!available.includes(String(column))) {
+          this.$emit(
+            'error',
+            `dataColumns: column "${column}" (${label}) is not in ${this.vizDetails.file}`
+          )
+          return
+        }
+        if (valid.some(v => v.label === String(label))) {
+          this.$emit('error', `dataColumns: label "${label}" is used more than once`)
+          return
+        }
+        valid.push({ label: String(label), column: String(column) })
+      })
+
+      if (!valid.length) {
+        this.$emit('error', 'dataColumns has no usable entries; showing column dropdowns instead')
+        return
+      }
+
+      this.dataColumns = valid
+      const yaml = this.yamlSettings()
+      const first = this.labelsFor(yaml.valueColumn, 'valueColumn')
+      this.columnPicks.data = first.length ? first : [valid[0].label]
+      this.columnPicks.compare = this.labelsFor(yaml.secondValueColumn, 'secondValueColumn')
+    },
+
+    /**
+     * The dataColumns labels that a YAML setting names: one label or a list of them.
+     * A column name works too. Anything else is warned about and skipped.
+     */
+    labelsFor(setting: any, settingName: string): string[] {
+      if (setting === undefined || setting === null || setting === '') return []
+      const names = (Array.isArray(setting) ? setting : [setting]).map(String)
+
+      const picked = new Set<string>()
+      for (const name of names) {
+        const match =
+          this.dataColumns.find(d => d.label === name) ||
+          this.dataColumns.find(d => d.column === name)
+        if (match) picked.add(match.label)
+        else this.$emit('error', `${settingName}: "${name}" is not one of the dataColumns labels`)
+      }
+      return this.dataColumns.filter(d => picked.has(d.label)).map(d => d.label)
+    },
+
+    /** CSV column names of the dataColumns buttons that are on */
+    pickedColumns(labels: string[]): string[] {
+      return this.dataColumns.filter(d => labels.includes(d.label)).map(d => d.column)
+    },
+
+    /** dataColumns mode: the column choices for the worker */
+    dataColumnOptions() {
+      if (!this.dataColumns.length) return {}
+
+      const { data, compare } = this.columnPicks
+      const shown = this.guiConfig.diff ? [...data, ...compare] : data
+      return {
+        valueColumns: this.pickedColumns(data),
+        secondValueColumns: this.pickedColumns(compare),
+        tooltipColumns: this.dataColumns.filter(d => shown.includes(d.label)),
+      }
     },
 
     /**
@@ -782,6 +913,7 @@ const GridMap = defineComponent({
           opacityColumn:
             this.guiConfig.opacityColumn == 'none' ? '' : this.vizDetails.opacityColumn || '',
           colorOptions: withColors ? this.buildColorOptions() : undefined,
+          ...this.dataColumnOptions(),
         })
       )
 
@@ -789,9 +921,12 @@ const GridMap = defineComponent({
       data.unit = this.vizDetails.unit || ''
 
       this.availableColumns = result.availableColumns
-      this.vizDetails.valueColumn = result.valueColumn
-      this.guiConfig.valueColumn = result.valueColumn
-      this.guiConfig.secondValueColumn = this.vizDetails.secondValueColumn || ''
+      // in dataColumns mode the worker picks no single column; valueColumn stays the label
+      if (!this.dataColumns.length) {
+        this.vizDetails.valueColumn = result.valueColumn
+        this.guiConfig.valueColumn = result.valueColumn
+        this.guiConfig.secondValueColumn = this.vizDetails.secondValueColumn || ''
+      }
 
       this.valuesIncludeNeg = result.valuesIncludeNeg
       this.globalMinValue = result.globalMinValue
@@ -821,8 +956,15 @@ const GridMap = defineComponent({
       const slider = this.shading.controller
       if (!slider) return
 
-      const isDiff = this.guiConfig.diff && !!this.guiConfig.secondValueColumn
-      slider.name(isDiff ? 'Diff' : this.vizDetails.valueColumn)
+      if (this.dataColumns.length) {
+        const title = this.compareTitle
+          ? `${this.valueTitle} − ${this.compareTitle}`
+          : this.valueTitle
+        slider.name(title)
+      } else {
+        const isDiff = this.guiConfig.diff && !!this.guiConfig.secondValueColumn
+        slider.name(isDiff ? 'Diff' : this.vizDetails.valueColumn)
+      }
 
       const wasOff = this.isThresholdNear(this.thresholdColoredEnd())
       const [min, max] = this.valueRanges[this.currentTimeIndex] || [0, 0]
@@ -978,12 +1120,16 @@ const GridMap = defineComponent({
         container: document.getElementById(this.configId) || undefined,
       }
 
-      this.guiController = new GUI(guiConfig)
+      const config = new GUI(guiConfig)
+      this.guiController = config
 
-      const config = this.guiController // .addFolder('Colors')
+      // the column choices come first: 1st, Diff and 2nd, then opacity column.
+      // With dataColumns, rows of toggle buttons stand in for the 1st and 2nd dropdowns.
+      const useButtons = this.dataColumns.length > 0
 
-      // the column choices come first: 1st, Diff and 2nd, then opacity column
-      if (this.availableColumns.length > 0) {
+      if (useButtons) {
+        this.addColumnButtons(config, this.$t('dataColumns'), 'data')
+      } else if (this.availableColumns.length > 0) {
         config
           .add(this.guiConfig, 'valueColumn', this.availableColumns)
           .name('1st column')
@@ -992,26 +1138,29 @@ const GridMap = defineComponent({
           })
       }
 
+      // the second column choice, only shown with Diff
+      let showSecond: (show: boolean) => void
+      if (useButtons) {
+        const compareRow = this.addColumnButtons(config, this.$t('compareTo'), 'compare')
+        showSecond = show => (compareRow.style.display = show ? '' : 'none')
+      } else {
+        const secondCtrl = config
+          .add(this.guiConfig, 'secondValueColumn', ['', ...this.availableColumns])
+          .name('2nd column')
+          .onChange((col2: string) => this.handleSecondColumnChange(col2))
+        showSecond = show => (show ? secondCtrl.show() : secondCtrl.hide())
+      }
+      showSecond(this.guiConfig.diff)
+
       // Diff checkbox
       config
         .add(this.guiConfig, 'diff')
         .name('Diff')
         .onChange((useDiff: boolean) => {
-          // toggle the visibility of the second column dropdown
-          if (useDiff) secondCtrl.show()
-          else secondCtrl.hide()
-
+          // the second column choice is only shown with Diff
+          showSecond(useDiff)
           this.handleDiffChange(useDiff)
         })
-
-      // Dropdown for the second column, only shown with Diff
-      const secondCtrl = config
-        .add(this.guiConfig, 'secondValueColumn', ['', ...this.availableColumns])
-        .name('2nd column')
-        .onChange((col2: string) => this.handleSecondColumnChange(col2))
-
-      if (this.guiConfig.diff) secondCtrl.show()
-      else secondCtrl.hide()
 
       let availableOpacityColumns = ['none'].concat(this.availableColumns)
       if (availableOpacityColumns.length > 0) {
@@ -1088,6 +1237,50 @@ const GridMap = defineComponent({
             this.setColors()
           })
       }
+    },
+
+    /**
+     * A row of toggle buttons, one per dataColumns entry, added to the gui like any other
+     * controller. Clicking one turns that column on or off for its set and recalculates.
+     */
+    addColumnButtons(gui: GUI, title: string, set: 'data' | 'compare'): HTMLElement {
+      const row = document.createElement('div')
+      row.classList.add('controller', 'column-buttons')
+
+      const name = document.createElement('div')
+      name.classList.add('name')
+      name.textContent = title
+      row.appendChild(name)
+
+      const widget = document.createElement('div')
+      widget.classList.add('widget')
+      row.appendChild(widget)
+
+      for (const { label, column } of this.dataColumns) {
+        const button = document.createElement('button')
+        button.textContent = label
+        button.title = column
+        const showState = () => {
+          const on = this.columnPicks[set].includes(label)
+          button.classList.toggle('on', on)
+          button.setAttribute('aria-pressed', String(on))
+        }
+        showState()
+
+        button.addEventListener('click', () => {
+          const picks = new Set(this.columnPicks[set])
+          if (picks.has(label)) picks.delete(label)
+          else picks.add(label)
+          // keep dataColumns order, whatever the click order
+          this.columnPicks[set] = this.dataColumns.map(d => d.label).filter(l => picks.has(l))
+          showState()
+          this.reloadDataAndPreserveSelectedTime()
+        })
+        widget.appendChild(button)
+      }
+
+      gui.$children.appendChild(row)
+      return row
     },
 
     /*
@@ -1376,6 +1569,11 @@ const GridMap = defineComponent({
   },
 })
 
+/** "Car", or "max(Car, PT)" for several labels; empty if none */
+function maxTitle(labels: string[]) {
+  return labels.length > 1 ? `max(${labels.join(', ')})` : labels[0] || ''
+}
+
 export default GridMap
 </script>
 
@@ -1413,7 +1611,7 @@ export default GridMap
   flex-direction: row;
   pointer-events: none;
   margin: auto auto 0 0;
-  padding: 0.5rem 1.5rem;
+  // padding: 0.5rem 1.5rem;
 
   a {
     color: white;
@@ -1434,10 +1632,10 @@ export default GridMap
 .status-message {
   background-color: var(--bgPanel);
   width: 100%;
-  margin: auto 1rem;
+  margin: auto 0;
   text-align: center;
   padding: 2rem;
-  border-radius: 8px;
+  // border-radius: 8px;
   font-size: 1.5rem;
   line-height: 1.5rem;
   font-weight: bold;
@@ -1495,6 +1693,32 @@ export default GridMap
 
 .gui-config :deep(.lil-gui.root) {
   width: 100%;
+}
+
+// dataColumns toggle buttons: title on its own line, buttons wrapping below it
+.gui-config :deep(.controller.column-buttons) {
+  flex-direction: column;
+  align-items: stretch;
+
+  .widget {
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+
+  button {
+    width: auto;
+    flex: 1 0 auto;
+    padding: 0 0.5rem;
+    opacity: 0.7;
+  }
+
+  button.on {
+    opacity: 1;
+    background: var(--link);
+    border-color: var(--link);
+    color: var(--bgBold);
+    font-weight: bold;
+  }
 }
 .left-side {
   position: absolute;

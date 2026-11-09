@@ -17,6 +17,15 @@ export interface PrepareOptions {
   valueColumn: string
   secondValueColumn?: string
   diff?: boolean
+  /**
+   * dataColumns mode: if given (even empty), each cell gets the max of these columns,
+   * and valueColumn/secondValueColumn are ignored. No columns means no values: a blank map
+   */
+  valueColumns?: string[]
+  /** dataColumns mode, with diff: subtract the max of these columns. Empty: no diff */
+  secondValueColumns?: string[]
+  /** dataColumns mode: per-cell values of these columns go along, for the tooltip */
+  tooltipColumns?: { label: string; column: string }[]
   /** empty string means no opacity column */
   opacityColumn?: string
   /** if given, colorData is filled in; otherwise it is left blank */
@@ -116,6 +125,8 @@ const Task = {
       _centroids[ti][slot * 2] = wgs84[0]
       _centroids[ti][slot * 2 + 1] = wgs84[1]
     }
+
+    return Object.keys(_columns)
   },
 
   /**
@@ -158,21 +169,18 @@ const Task = {
 
   /** Calculate scaled cell values for the chosen column(s), from the cached data */
   prepare(opts: PrepareOptions): PreparedData {
-    const valueColumn = _isAvro ? 'value' : pickValueColumn(opts.valueColumn)
-    const values1 = _columns[valueColumn]
-    if (!values1) throw Error('No value column found')
+    const { rowValues, valueColumn } = calculateRowValues(opts)
 
-    const values2 =
-      !_isAvro && opts.diff && opts.secondValueColumn ? _columns[opts.secondValueColumn] : undefined
-
-    // global min/max, for scaling
+    // global min/max, for scaling. Comparisons, not Math.min/max, so NaN cells are skipped
     let minValue = Number.POSITIVE_INFINITY
     let maxValue = Number.NEGATIVE_INFINITY
-    for (let i = 0; i < values1.length; i++) {
-      const raw = values2 ? values1[i] - values2[i] : values1[i]
-      maxValue = Math.max(maxValue, raw)
-      minValue = Math.min(minValue, raw)
+    for (let i = 0; i < rowValues.length; i++) {
+      const raw = rowValues[i]
+      if (raw > maxValue) maxValue = raw
+      if (raw < minValue) minValue = raw
     }
+    // no values at all (e.g. no data columns selected): keep the bounds finite
+    if (minValue > maxValue) minValue = maxValue = 0
 
     let scaleFactor: number
     if (_isAvro) {
@@ -195,8 +203,8 @@ const Task = {
     _rawValues = _times.map(() => new Float32Array(_length))
     const rangeMin = new Float64Array(_times.length).fill(Number.POSITIVE_INFINITY)
     const rangeMax = new Float64Array(_times.length).fill(Number.NEGATIVE_INFINITY)
-    for (let row = 0; row < values1.length; row++) {
-      const raw = values2 ? values1[row] - values2[row] : values1[row]
+    for (let row = 0; row < rowValues.length; row++) {
+      const raw = rowValues[row]
       const ti = _rowTime[row]
       _values[ti][_rowSlot[row]] = scaleFactor * raw
       _rawValues[ti][_rowSlot[row]] = raw
@@ -211,6 +219,11 @@ const Task = {
     _opacityValues = _times.map(() => new Float32Array(_length))
     _hasOpacity = !!opts.opacityColumn
     if (opts.opacityColumn) calculateOpacity(opts.opacityColumn)
+
+    const tooltipColumns = (_isAvro ? [] : opts.tooltipColumns || []).filter(
+      c => _columns[c.column]
+    )
+    const columnValues = tooltipColumns.map(c => cellValues(_columns[c.column]))
 
     const colorData = opts.colorOptions
       ? Task.colorize(opts.colorOptions)
@@ -228,6 +241,7 @@ const Task = {
         opacityValues: _opacityValues[i].slice(),
         centroid: centroidCopies.get(c) as Float32Array,
         colorData: colorData[i],
+        columnValues: tooltipColumns.length ? columnValues.map(v => v[i]) : undefined,
       }
     })
 
@@ -236,10 +250,16 @@ const Task = {
       for (const a of [m.values, m.opacityValues, m.centroid, m.colorData]) {
         transferables.add(a.buffer as ArrayBuffer)
       }
+      for (const a of m.columnValues || []) transferables.add(a.buffer as ArrayBuffer)
     }
 
     const result: PreparedData = {
-      data: { mapData, scaledFactor: scaleFactor, unit: '' },
+      data: {
+        mapData,
+        scaledFactor: scaleFactor,
+        unit: '',
+        columnLabels: tooltipColumns.length ? tooltipColumns.map(c => c.label) : undefined,
+      },
       valueColumn,
       availableColumns: _isAvro ? [] : Object.keys(_columns),
       allTimes: [..._times].sort((a, b) => a - b),
@@ -306,7 +326,9 @@ const Task = {
         colors[offset] = color[0]
         colors[offset + 1] = color[1]
         colors[offset + 2] = color[2]
-        colors[offset + 3] = _hasOpacity ? Math.round(opacity[j] * 255) : 255
+        // a cell with no color (e.g. no value) stays see-through, whatever its opacity
+        if (color[3] === 0) colors[offset + 3] = 0
+        else colors[offset + 3] = _hasOpacity ? Math.round(opacity[j] * 255) : 255
       }
       return colors
     })
@@ -318,6 +340,60 @@ const Task = {
 }
 
 // ----- helpers ----------------------------------------------------------
+
+/**
+ * Unscaled value of every input row. dataColumns mode: the max of the valueColumns,
+ * minus the max of the secondValueColumns with a diff. Otherwise valueColumn, minus
+ * secondValueColumn with a diff.
+ */
+function calculateRowValues(opts: PrepareOptions) {
+  if (!_isAvro && opts.valueColumns) {
+    const columns1 = opts.valueColumns.map(c => _columns[c]).filter(Boolean)
+    const columns2 = opts.diff
+      ? (opts.secondValueColumns || []).map(c => _columns[c]).filter(Boolean)
+      : []
+
+    const rowValues = new Float64Array(_rowTime.length)
+    for (let row = 0; row < rowValues.length; row++) {
+      const max1 = maxOfColumns(columns1, row)
+      rowValues[row] = columns2.length ? max1 - maxOfColumns(columns2, row) : max1
+    }
+    return { rowValues, valueColumn: '' }
+  }
+
+  const valueColumn = _isAvro ? 'value' : pickValueColumn(opts.valueColumn)
+  const values1 = _columns[valueColumn]
+  if (!values1) throw Error('No value column found')
+
+  const values2 =
+    !_isAvro && opts.diff && opts.secondValueColumn ? _columns[opts.secondValueColumn] : undefined
+
+  const rowValues = new Float64Array(values1.length)
+  for (let row = 0; row < values1.length; row++) {
+    rowValues[row] = values2 ? values1[row] - values2[row] : values1[row]
+  }
+  return { rowValues, valueColumn }
+}
+
+/** Largest value in this row across the columns, skipping missing ones. NaN if none */
+function maxOfColumns(columns: Column[], row: number) {
+  let max = NaN
+  for (const column of columns) {
+    const v = column[row]
+    // the first real number, or anything larger. NaN, null and strings are skipped
+    if (typeof v === 'number' && v === v && !(v <= max)) max = v
+  }
+  return max
+}
+
+/** One column's values, binned into cells per time period */
+function cellValues(column: Column) {
+  const values = _times.map(() => new Float32Array(_length).fill(NaN))
+  for (let row = 0; row < _rowTime.length; row++) {
+    values[_rowTime[row]][_rowSlot[row]] = column[row]
+  }
+  return values
+}
 
 /** Use the requested column if it exists; otherwise the first numeric one */
 function pickValueColumn(requested: string) {
@@ -357,6 +433,9 @@ function calculateOpacity(columnName: string) {
  * @returns An RGBA color array [R, G, B, A].
  */
 function pickColor(value: number, opts: ColorOptions): ArrayLike<number> {
+  // no value (e.g. no data columns selected): no color
+  if (value !== value) return TRANSPARENT
+
   if (opts.boundsEnabled) {
     const upper = opts.upperBound
     const lower = opts.lowerBound
