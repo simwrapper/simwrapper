@@ -52,6 +52,11 @@ export interface CumulativeShare {
   shares: Float32Array
   /** false if the weight column was missing and every cell counted equally */
   weighted: boolean
+  /**
+   * With a diff: the same distribution for each side of it -- the value (or max of the
+   * data columns), then what is subtracted (or max of the compare-to columns).
+   */
+  sides?: { values: Float32Array; shares: Float32Array }[]
 }
 
 export interface ColorOptions {
@@ -85,6 +90,8 @@ let _centroids: Float32Array[] = []
 let _values: Float32Array[] = []
 /** unscaled values (diff applied), for the summary chart */
 let _rawValues: Float32Array[] = []
+/** with a diff: unscaled values of each side of it, per time period. Otherwise empty */
+let _sideValues: Float32Array[][] = []
 let _opacityValues: Float32Array[] = []
 let _hasOpacity = false
 let _valuesIncludeNeg = false
@@ -169,7 +176,7 @@ const Task = {
 
   /** Calculate scaled cell values for the chosen column(s), from the cached data */
   prepare(opts: PrepareOptions): PreparedData {
-    const { rowValues, valueColumn } = calculateRowValues(opts)
+    const { rowValues, sides, valueColumn } = calculateRowValues(opts)
 
     // global min/max, for scaling. Comparisons, not Math.min/max, so NaN cells are skipped
     let minValue = Number.POSITIVE_INFINITY
@@ -201,6 +208,11 @@ const Task = {
 
     _values = _times.map(() => new Float32Array(_length))
     _rawValues = _times.map(() => new Float32Array(_length))
+    _sideValues = sides.map(side => {
+      const binned = _times.map(() => new Float32Array(_length))
+      for (let row = 0; row < side.length; row++) binned[_rowTime[row]][_rowSlot[row]] = side[row]
+      return binned
+    })
     const rangeMin = new Float64Array(_times.length).fill(Number.POSITIVE_INFINITY)
     const rangeMax = new Float64Array(_times.length).fill(Number.NEGATIVE_INFINITY)
     for (let row = 0; row < rowValues.length; row++) {
@@ -288,28 +300,19 @@ const Task = {
       }
     }
 
-    const slots = [] as number[]
-    let total = 0
-    for (let i = 0; i < raw.length; i++) {
-      // comparisons, so NaN values and weights are skipped
-      if (raw[i] === raw[i] && weights[i] > 0 && weights[i] < Infinity) {
-        slots.push(i)
-        total += weights[i]
-      }
+    const { values, shares } = cumulativeDistribution(raw, weights)
+    const sides = _sideValues.map(side => cumulativeDistribution(side[timeIndex], weights))
+
+    const result: CumulativeShare = {
+      values,
+      shares,
+      weighted: !!weightValues,
+      sides: sides.length ? sides : undefined,
     }
-    slots.sort((a, b) => raw[a] - raw[b])
-
-    const values = new Float32Array(slots.length)
-    const shares = new Float32Array(slots.length)
-    let cumulative = 0
-    slots.forEach((slot, k) => {
-      cumulative += weights[slot]
-      values[k] = raw[slot]
-      shares[k] = cumulative / total
-    })
-
-    const result: CumulativeShare = { values, shares, weighted: !!weightValues }
-    return Comlink.transfer(result, [values.buffer, shares.buffer])
+    const buffers = [values, shares, ...sides.flatMap(d => [d.values, d.shares])].map(
+      a => a.buffer as ArrayBuffer
+    )
+    return Comlink.transfer(result, buffers)
   },
 
   /**
@@ -342,6 +345,33 @@ const Task = {
 // ----- helpers ----------------------------------------------------------
 
 /**
+ * Cell values sorted, each with the cumulative share 0..1 of the total weight at or
+ * below it. Cells with no value or no weight are left out.
+ */
+function cumulativeDistribution(raw: Float32Array, weights: Float64Array) {
+  const slots = [] as number[]
+  let total = 0
+  for (let i = 0; i < raw.length; i++) {
+    // comparisons, so NaN values and weights are skipped
+    if (raw[i] === raw[i] && weights[i] > 0 && weights[i] < Infinity) {
+      slots.push(i)
+      total += weights[i]
+    }
+  }
+  slots.sort((a, b) => raw[a] - raw[b])
+
+  const values = new Float32Array(slots.length)
+  const shares = new Float32Array(slots.length)
+  let cumulative = 0
+  slots.forEach((slot, k) => {
+    cumulative += weights[slot]
+    values[k] = raw[slot]
+    shares[k] = cumulative / total
+  })
+  return { values, shares }
+}
+
+/**
  * Unscaled value of every input row. dataColumns mode: the max of the valueColumns,
  * minus the max of the secondValueColumns with a diff. Otherwise valueColumn, minus
  * secondValueColumn with a diff.
@@ -354,11 +384,20 @@ function calculateRowValues(opts: PrepareOptions) {
       : []
 
     const rowValues = new Float64Array(_rowTime.length)
+    const side1 = columns2.length ? new Float64Array(rowValues.length) : undefined
+    const side2 = columns2.length ? new Float64Array(rowValues.length) : undefined
     for (let row = 0; row < rowValues.length; row++) {
       const max1 = maxOfColumns(columns1, row)
-      rowValues[row] = columns2.length ? max1 - maxOfColumns(columns2, row) : max1
+      if (side1 && side2) {
+        const max2 = maxOfColumns(columns2, row)
+        side1[row] = max1
+        side2[row] = max2
+        rowValues[row] = max1 - max2
+      } else {
+        rowValues[row] = max1
+      }
     }
-    return { rowValues, valueColumn: '' }
+    return { rowValues, sides: side1 && side2 ? [side1, side2] : [], valueColumn: '' }
   }
 
   const valueColumn = _isAvro ? 'value' : pickValueColumn(opts.valueColumn)
@@ -372,7 +411,9 @@ function calculateRowValues(opts: PrepareOptions) {
   for (let row = 0; row < values1.length; row++) {
     rowValues[row] = values2 ? values1[row] - values2[row] : values1[row]
   }
-  return { rowValues, valueColumn }
+  // with a diff, each side is just its column
+  const sides = values2 ? [Float64Array.from(values1), Float64Array.from(values2)] : []
+  return { rowValues, sides, valueColumn }
 }
 
 /** Largest value in this row across the columns, skipping missing ones. NaN if none */

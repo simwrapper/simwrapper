@@ -2,6 +2,11 @@
 .summary-chart
   .summary-title {{ weighted ? $t('populationChartTitle') : $t('cellChartTitle') }}
   VuePlotly(:data="traces" :layout="layout" :options="options")
+  //- with a diff: which line is which. Below the chart, wrapping in the narrow panel
+  .summary-legend(v-if="series.length > 1")
+    .legend-item(v-for="s in series" :key="s.key")
+      span.legend-swatch(:style="{background: s.color}")
+      span.legend-label {{ s.label }}
 </template>
 
 <script lang="ts">
@@ -19,22 +24,48 @@ import type { CumulativeShare } from './GridMap.worker'
 /** the threshold slider's position is marked with a vertical line in this color */
 const THRESHOLD_LINE_COLOR = '#f5c400'
 
+/**
+ * Line colors: the value, or with a diff its two sides. Categorical slots 1-2 (blue,
+ * orange), stepped separately for each theme's panel background and checked for
+ * color-blind separation.
+ */
+const LINE_COLORS = {
+  light: ['#2a78d6', '#eb6834'],
+  dark: ['#3987e5', '#d95926'],
+}
+
 const i18n = {
   messages: {
     en: {
       populationShare: 'Share of population',
       cellShare: 'Share of cells',
+      value: 'Value',
       populationChartTitle: 'Cumulative % of population attaining accessibility level',
       cellChartTitle: 'Cumulative % of cells attaining accessibility level',
     },
     de: {
       populationShare: 'Bevölkerungsanteil',
       cellShare: 'Anteil der Zellen',
+      value: 'Wert',
       populationChartTitle:
         'Kumulierter Anteil (%) der Bevölkerung, der das Erreichbarkeitsniveau erreicht',
       cellChartTitle: 'Kumulierter Anteil (%) der Zellen, die das Erreichbarkeitsniveau erreichen',
     },
   },
+}
+
+/** one line on the chart */
+interface ChartSeries {
+  key: string
+  label: string
+  color: string
+  values: Float32Array
+  shares: Float32Array
+}
+
+/** just the plotted arrays of a distribution */
+function pick(d: { values: Float32Array; shares: Float32Array }) {
+  return { values: d.values, shares: d.shares }
 }
 
 export default defineComponent({
@@ -68,33 +99,62 @@ export default defineComponent({
       return this.distribution?.weighted ?? true
     },
 
+    /**
+     * One line, or with a diff its two sides: the data columns and what they are compared
+     * to. The sides only come along when the worker has a diff to split.
+     */
+    series(): ChartSeries[] {
+      const d = this.distribution
+      if (!d) return []
+
+      const colors = LINE_COLORS[this.$store.state.isDarkMode ? 'dark' : 'light']
+      const sides = this.secondColumn ? d.sides || [] : []
+      if (sides.length < 2) {
+        return [{ key: 'value', label: this.column, color: colors[0], ...pick(d) }]
+      }
+      return [
+        { key: 'data', label: this.column, color: colors[0], ...pick(sides[0]) },
+        { key: 'compare', label: this.secondColumn, color: colors[1], ...pick(sides[1]) },
+      ]
+    },
+
     traces(): any[] {
-      if (!this.distribution) return []
-      return markRaw([
-        {
-          x: this.distribution.values,
-          y: this.distribution.shares,
+      const several = this.series.length > 1
+      return markRaw(
+        this.series.map(s => ({
+          x: s.values,
+          y: s.shares,
+          name: s.label,
           type: 'scatter',
           mode: 'lines',
-          line: { shape: 'hv', color: '#3498db', width: 2 },
-          hovertemplate: '%{x:.3~g}<br>%{y:.1%}<extra></extra>',
-        },
-      ])
+          line: { shape: 'hv', color: s.color, width: 2 },
+          // with several lines, plotly's side box names the line under the cursor
+          hovertemplate: '%{x:.3~g}<br>%{y:.1%}' + (several ? '' : '<extra></extra>'),
+        }))
+      )
     },
 
     layout(): any {
-      // the panel is narrow: two lines for a diff
-      const column = this.secondColumn ? `${this.column} −<br>${this.secondColumn}` : this.column
+      // with several lines the legend names them, so the axis is just values.
+      // Otherwise the panel is narrow: two lines for a diff
+      let column = this.column
+      if (this.series.length > 1) column = `${this.$t('value')}`
+      else if (this.secondColumn) column = `${this.column} −<br>${this.secondColumn}`
       const unit = this.unit ? ` (${this.unit})` : ''
       const isDark = this.$store.state.isDarkMode
       const gridcolor = isDark ? '#444444' : '#e4e4e4'
       const zerolinecolor = isDark ? '#777777' : '#aaaaaa'
 
       // fixed to the data: a threshold line outside it would otherwise stretch the axis.
-      // values are sorted, so the ends are the min and max
-      const values = this.distribution?.values || []
-      const min = values.length ? values[0] : 0
-      const max = values.length ? values[values.length - 1] : 0
+      // values are sorted, so each line's ends are its min and max
+      let min = Number.POSITIVE_INFINITY
+      let max = Number.NEGATIVE_INFINITY
+      for (const { values } of this.series) {
+        if (!values.length) continue
+        min = Math.min(min, values[0])
+        max = Math.max(max, values[values.length - 1])
+      }
+      if (min > max) min = max = 0
       const pad = (max - min) * 0.02
 
       return {
@@ -102,18 +162,23 @@ export default defineComponent({
         height: 220,
         // room above the plot so the 100% label isn't clipped
         margin: { t: 16, b: 0, l: 0, r: 8, pad: 2 },
-        shapes: [
-          {
-            type: 'line',
-            xref: 'x',
-            yref: 'paper',
-            x0: this.threshold,
-            x1: this.threshold,
-            y0: 0,
-            y1: 1,
-            line: { color: THRESHOLD_LINE_COLOR, width: 2 },
-          },
-        ],
+        // the threshold is in the units of what the map shows. With a diff the lines are
+        // its two sides, not the difference, so the threshold has no place on this axis
+        shapes:
+          this.series.length > 1
+            ? []
+            : [
+                {
+                  type: 'line',
+                  xref: 'x',
+                  yref: 'paper',
+                  x0: this.threshold,
+                  x1: this.threshold,
+                  y0: 0,
+                  y1: 1,
+                  line: { color: THRESHOLD_LINE_COLOR, width: 2 },
+                },
+              ],
         paper_bgcolor: 'rgba(0,0,0,0)',
         plot_bgcolor: 'rgba(0,0,0,0)',
         font: {
@@ -154,6 +219,30 @@ export default defineComponent({
 .summary-chart {
   flex: 0 0 auto;
   padding: 0.5rem 0rem;
+}
+
+.summary-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.15rem 0.75rem;
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+// a short stroke, like the lines it names
+.legend-swatch {
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  flex-shrink: 0;
 }
 
 .summary-title {
