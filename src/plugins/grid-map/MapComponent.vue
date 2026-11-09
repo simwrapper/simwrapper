@@ -30,6 +30,9 @@ type Tooltip = {
   style: TooltipStyle
 } | null
 
+/** all-zero cell heights, shared while the cell count stays the same */
+let flatElevations = new Float32Array(0)
+
 export default defineComponent({
   name: 'MyDeckComponent',
   props: {
@@ -106,6 +109,17 @@ export default defineComponent({
   },
 
   computed: {
+    /** cell heights: the values, or all zero (flat) if any are negative */
+    elevations(): Float32Array {
+      const values = this.data.mapData[this.currentTimeIndex].values
+      if (!this.negativeValues) return values
+      // cached: a new array on every recolor would make deck.gl re-upload it each time
+      if (flatElevations.length !== values.length) {
+        flatElevations = new Float32Array(values.length)
+      }
+      return flatElevations
+    },
+
     rowData() {
       return this.data
     },
@@ -136,9 +150,10 @@ export default defineComponent({
                 normalized: true,
               },
               // doesn't allow elevation to work if negative values are present. Will think of a better solution for this. - Brendan 15.05.2025
-              getElevation: this.negativeValues
-                ? { value: null }
-                : { value: this.data.mapData[this.currentTimeIndex].values, size: 1 },
+              // Always a real buffer, never { value: null }: deck.gl ignores a null buffer
+              // and keeps drawing with the previous one -- which, after a blank map (all
+              // NaN), hides every cell.
+              getElevation: { value: this.elevations, size: 1 },
             },
           } as any,
           autoHighlight: true,
@@ -184,9 +199,11 @@ export default defineComponent({
 
     const container = `map-${this.viewId}`
     const center = this.globalState.viewState.center as [number, number]
-    // markRaw: the deck overlay added to this map stores the deck instance on it, so a
-    // reactive map makes deck.gl run through Vue proxies -- slow, and it breaks deck's
-    // internal identity (===) checks.
+    // markRaw: as a reactive Proxy, maplibre's own render loop (every frame, every pan
+    // and zoom) would read all of its internals through Vue's proxy traps. Also, the
+    // deck overlay added to this map stores the deck instance on it, so a reactive map
+    // makes deck.gl run through Vue proxies -- slow, and it breaks deck's internal
+    // identity (===) checks.
     //@ts-ignore
     this.mymap = markRaw(
       new maplibregl.Map({
@@ -250,8 +267,22 @@ export default defineComponent({
       const latDisplay = Number.isFinite(lat) ? lat.toFixed(4) : ''
       const lngDisplay = Number.isFinite(lng) ? lng.toFixed(4) : ''
 
-      const tooltipHtml = `<b>${roundedValue} ${unit}</b><br/>${latDisplay} / ${lngDisplay}<br/>
-    `
+      // dataColumns mode: the value of every selected column in this cell
+      const labels = this.data.columnLabels || []
+      const columnValues = this.data.mapData[this.currentTimeIndex].columnValues || []
+      const columnLines = labels
+        .map((label: string, i: number) => {
+          const v = columnValues[i]?.[object.index]
+          const shown = Number.isFinite(v) ? Number(v.toFixed(6)) : '–'
+          return `<tr><td>${label}&nbsp;</td><td style="text-align:right">${shown}</td></tr>`
+        })
+        .join('')
+      const columnDatas = `<table style="margin:0px 0 !important;padding:0px 0">${columnLines}</table>`
+      const tooltipHtml =
+        `<b>${roundedValue} ${unit}</b><br>${columnDatas}` +
+        `<hr style="margin: 4px 0;height:1px;background-color:#80808080"/>` +
+        `${lngDisplay} / ${latDisplay}<br/>`
+
       this.tooltipStyle.display = 'block'
       this.tooltipStyle.top = `${12 + Math.floor(object.y)}px`
       this.tooltipStyle.left = `${12 + Math.floor(object.x)}px`
@@ -308,5 +339,6 @@ export default defineComponent({
   z-index: 2;
   pointer-events: none;
   filter: $filterShadow;
+  font-size: 0.9rem;
 }
 </style>

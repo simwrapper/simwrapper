@@ -1,6 +1,11 @@
 <template lang="pug">
 .grid-map-view(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
+  .main-layout(
+    @mousemove="dividerDragging"
+    @mouseup="dividerDragEnd"
+  )
+    .main-panel
       MapComponent(
         v-if="isLoaded"
         v-bind="mapProps"
@@ -15,9 +20,6 @@
         :onToggle3dBuildings="toggle3dBuildings"
       )
 
-      .top-right
-        .gui-config(:id="configId")
-
       click-through-times.time-slider-area( v-if="isLoaded && vizDetails.timeSelector && vizDetails.timeSelector == 'discrete'"
         :allTimes="allTimes"
         :range="timeRange"
@@ -30,24 +32,42 @@
         @timeExtent="handleTimeSliderValues"
       )
 
-      .message(v-if="myState.statusMessage")
+      .tooltip(v-if="tooltip" v-html="tooltip.html" :style="tooltip.style")
+
+    .dragger(v-if="!thumbnail"
+      @mousedown="dividerDragStart"
+      @mouseup="dividerDragEnd"
+      @mousemove.stop="dividerDragging"
+    )
+
+    .right-panel(v-if="!thumbnail" :style="{width: `${legendSectionWidth}px`}")
+      SummaryChart(v-if="isLoaded && legendSectionWidth > 100"
+        :distribution="summary"
+        :column="valueTitle"
+        :secondColumn="compareTitle"
+        :unit="vizDetails.unit"
+        :threshold="guiConfig.threshold"
+        :width="legendSectionWidth - 16"
+      )
+      .gui-config(:id="configId")
+
+    .message(v-if="myState.statusMessage")
         p.status-message {{ myState.statusMessage }}
 
-      .tooltip(v-if="tooltip" v-html="tooltip.html" :style="tooltip.style")
 
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, markRaw } from 'vue'
 import type { PropType } from 'vue'
 
+import * as Comlink from 'comlink'
 import GUI from 'lil-gui'
 import YAML from 'yaml'
-import colormap from 'colormap'
 
 import { getAvro } from '@/js/avro'
 import globalStore from '@/store'
-import util, { sleep } from '@/js/util'
+import util, { sleep, unreactive } from '@/js/util'
 import { hexToRgb, getColorRampHexCodes, Ramp } from '@/js/ColorsAndWidths'
 
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
@@ -61,7 +81,10 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import ClickThroughTimes from '@/components/ClickThroughTimes.vue'
 import TimeSlider from '@/components/TimeSliderV2.vue'
 import MapComponent from './MapComponent.vue'
+import SummaryChart from './SummaryChart.vue'
 import BackgroundLayers from '@/js/BackgroundLayers'
+import GridMapWorker from './GridMap.worker.ts?worker'
+import type { ColorOptions, CumulativeShare, GridMapTask } from './GridMap.worker'
 
 // interface for each time object inside the mapData Array
 export interface MapData {
@@ -74,12 +97,22 @@ export interface MapData {
   numberOfFilledValues?: Number
   numberOfFilledCentroids?: Number
   length: Number
+  /** dataColumns mode: unscaled values of each column in columnLabels, per cell */
+  columnValues?: Float32Array[]
 }
 
 export interface CompleteMapData {
   mapData: MapData[]
   scaledFactor: Number
   unit: String
+  /** dataColumns mode: labels of the columns whose values the tooltip lists */
+  columnLabels?: string[]
+}
+
+/** one toggle button of the YAML dataColumns section */
+interface DataColumn {
+  label: string
+  column: string
 }
 
 interface VizDetail {
@@ -101,11 +134,19 @@ interface VizDetail {
   mapIsIndependent?: boolean
   breakpoints?: string
   opacityColumn: string
+  /** with dataColumns: the label (or list of labels) of the buttons that start out on */
   valueColumn: string
+  /** with dataColumns: the label(s) of the Compare-to buttons that start out on */
   secondValueColumn?: string
   diff?: boolean
+  /** toggle buttons in place of the column dropdowns; cells show the max of those on */
+  dataColumns?: DataColumn[]
   unit: string
   timeSelector: any
+  /** threshold slider direction at startup: gray out cells 'less' or 'greater' than it */
+  thresholdGrayOut?: string
+  /** summary chart weights cells by this column; default 'population'. If missing, by cell count */
+  populationColumn?: string
 }
 
 interface GuiConfig {
@@ -126,7 +167,13 @@ interface GuiConfig {
   valueColumn: string
   secondValueColumn: string
   diff: boolean
+  threshold: number
+  /** gray out cells 'less' (at or below) or 'greater' (at or above) than the threshold */
+  thresholdMode: 'less' | 'greater'
 }
+
+/** cells grayed out by the threshold slider get this RGBA color: #80808020 */
+const THRESHOLD_COLOR = [128, 128, 128, 32]
 
 interface StandaloneYAMLconfig {
   title: String
@@ -173,6 +220,12 @@ const i18n = {
       selection: 'Selection',
       areas: 'Areas',
       count: 'Count',
+      threshold: 'Threshold',
+      grayOut: 'Gray out',
+      lessThan: 'less than',
+      greaterThan: 'greater than',
+      dataColumns: 'Data columns',
+      compareTo: 'Compare to',
     },
     de: {
       loading: 'Dateien laden...',
@@ -183,6 +236,12 @@ const i18n = {
       selection: 'Ausgewählt',
       areas: 'Orte',
       count: 'Anzahl',
+      threshold: 'Schwelle',
+      grayOut: 'Ausgrauen',
+      lessThan: 'kleiner als',
+      greaterThan: 'größer als',
+      dataColumns: 'Datenspalten',
+      compareTo: 'Vergleichen mit',
     },
   },
 }
@@ -197,6 +256,7 @@ const GridMap = defineComponent({
     ZoomButtons,
     ClickThroughTimes,
     TimeSlider,
+    SummaryChart,
   },
 
   props: {
@@ -277,12 +337,30 @@ const GridMap = defineComponent({
       selectedTimeData: [] as any[],
       allTimePeriodes: [] as any[],
       csv: {} as any,
-      colors: colormap({
-        colormap: 'Viridis',
-        nshades: 10,
-        format: 'rba',
-        alpha: 1,
-      }).map((c: number[]) => [c[0], c[1], c[2], 255]) as Uint8Array[],
+      // All loading math and coloring happens in this worker, which caches the data.
+      // Comlink remotes must never be stored directly in reactive state (they answer
+      // every property read, which sends Vue's toRaw into infinite recursion), so they
+      // live in this raw holder. colorRequest drops recolors that a newer one superseded.
+      calc: markRaw({
+        worker: null as Worker | null,
+        task: null as Comlink.Remote<GridMapTask> | null,
+        colorRequest: 0,
+      }),
+      // Threshold shading: the worker's unshaded colors per time period, and the slider.
+      // Only the time period on display is shaded, from a copy of its base colors.
+      shading: markRaw({
+        baseColors: [] as Uint8Array[],
+        controller: null as any,
+      }),
+      // Summary chart: cumulative share of population by value, for the time on display.
+      // request drops worker answers that a newer request superseded.
+      summaryChart: markRaw({ request: 0 }),
+      /** markRaw'd: only ever replaced, and Plotly reads it as is */
+      summary: null as CumulativeShare | null,
+      /** unscaled [min, max] per time period, from the worker */
+      valueRanges: [] as [number, number][],
+      /** threshold slider range for the time period on display */
+      thresholdRange: [0, 0] as [number, number],
       currentTime: [0, 0] as Number[],
       timeToIndex: new Map<Number, number>(),
       guiConfig: {
@@ -303,6 +381,8 @@ const GridMap = defineComponent({
         valueColumn: '',
         secondValueColumn: '',
         diff: false,
+        threshold: 0,
+        thresholdMode: 'less',
       } as GuiConfig,
       configId: `gui-config-${Math.floor(1e12 * Math.random())}` as string,
       guiController: null as GUI | null,
@@ -318,6 +398,13 @@ const GridMap = defineComponent({
       // in single-view mode, in which case we need to create one for ourselves
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
       availableColumns: [] as string[],
+      /** the YAML dataColumns that passed validation; empty means the column dropdowns */
+      dataColumns: [] as DataColumn[],
+      /** labels of the dataColumns buttons that are on, in dataColumns order */
+      columnPicks: { data: [] as string[], compare: [] as string[] },
+      isDraggingDivider: 0,
+      dragStartWidth: 250,
+      legendSectionWidth: 300,
     }
   },
   computed: {
@@ -339,6 +426,10 @@ const GridMap = defineComponent({
       return this.thumbnailUrl
     },
 
+    currentTimeIndex(): number {
+      return this.timeToIndex.get(this.currentTime[1]) || 0
+    },
+
     mapProps(): MapProps {
       //@ts-ignore
       window.__testdata__ = this.data
@@ -349,7 +440,7 @@ const GridMap = defineComponent({
         coverage: 0.65,
         dark: this.$store.state.isDarkMode,
         data: this.data,
-        currentTimeIndex: this.timeToIndex.get(this.currentTime[1]) || 0,
+        currentTimeIndex: this.currentTimeIndex,
         mapIsIndependent: this.vizDetails.mapIsIndependent || false,
         maxHeight: this.guiConfig.height,
         colorDataDigits: this.colorDataDigits,
@@ -362,6 +453,19 @@ const GridMap = defineComponent({
         show3dBuildings: this.show3dBuildings,
       }
     },
+    /** what the cells show (or the first half of a diff), for chart and slider titles */
+    valueTitle(): string {
+      if (!this.dataColumns.length) return this.vizDetails.valueColumn
+      return maxTitle(this.columnPicks.data)
+    },
+
+    /** with a diff, what gets subtracted; otherwise empty */
+    compareTitle(): string {
+      if (!this.guiConfig.diff) return ''
+      if (!this.dataColumns.length) return this.guiConfig.secondValueColumn
+      return maxTitle(this.columnPicks.compare)
+    },
+
     textColor(): any {
       const lightmode = {
         text: '#3498db',
@@ -379,6 +483,21 @@ const GridMap = defineComponent({
   watch: {},
 
   methods: {
+    dividerDragStart(e: MouseEvent) {
+      this.isDraggingDivider = e.clientX
+      this.dragStartWidth = this.legendSectionWidth
+    },
+
+    dividerDragEnd(e: MouseEvent) {
+      this.isDraggingDivider = 0
+    },
+
+    dividerDragging(e: MouseEvent) {
+      if (!this.isDraggingDivider) return
+      const deltaX = this.isDraggingDivider - e.clientX
+      this.legendSectionWidth = Math.max(0, this.dragStartWidth + deltaX)
+    },
+
     cbTooltip(tip: { html: any; style: any }, object: any) {
       if (!object) {
         this.tooltip = null
@@ -392,85 +511,6 @@ const GridMap = defineComponent({
     toggle3dBuildings() {
       this.show3dBuildings = !this.show3dBuildings
       // this.guiConfig.show3dBuildings = this.show3dBuildings
-    },
-
-    /**
-     * Selects a color based on the given value.
-     * @param {number} value - The value influencing color selection (0-100).
-     * @returns {number[]} - An RGBA color array [R, G, B, A].
-     */
-    pickColor(
-      value: number,
-      from_min: number,
-      from_max: number,
-      to_min: number,
-      to_max: number
-    ): number[] | Uint8Array {
-      if (this.guiConfig['bounds enabled']) {
-        const upper = this.guiConfig['upper bound']
-        const lower = this.guiConfig['lower bound']
-        // 'cut' values which are outside the bounds
-        if (upper !== Infinity && lower !== -Infinity) {
-          // rescale value to 0-100 based on the bounds
-          value = Math.max(Math.min(value, upper), lower)
-          value = ((value - lower) / (upper - lower)) * 100
-        }
-      } else if (!this.valuesIncludeNeg) {
-        // Error handling: If the value is outside the valid range, return a default color.
-        if (Number.isNaN(value) || value < 0 || value > 100) {
-          // console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
-          return [0, 0, 0, 0] // Default color (transparent)
-        }
-      } else {
-        // For negative values, we want to map the value to a color scale where 0 is in the middle
-        let absMax: number
-
-        // Original behavior when bounds are disabled
-        absMax = Math.max(Math.abs(from_min), Math.abs(from_max))
-        const normalizedValue = value / absMax
-        value = (normalizedValue + 1) * 50
-      }
-
-      // Check if the colorRamp is fixed and if the length of the breakpoints array is equal to the length of the fixedColors array minus one.
-      if (
-        this.vizDetails.colorRamp.breakpoints &&
-        this.vizDetails.colorRamp.breakpoints.length ==
-          this.vizDetails.colorRamp.fixedColors.length - 1
-      ) {
-        // If the value is within the range of the colorRamp, return the corresponding color.
-        for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
-          if (
-            value > this.vizDetails.colorRamp.breakpoints[i] &&
-            value <= this.vizDetails.colorRamp.breakpoints[i + 1]
-          ) {
-            return hexToRgb(this.vizDetails.colorRamp.fixedColors[i + 1])
-          }
-        }
-
-        // If the value is below the first breakpoint, return the first color.
-        if (value < this.vizDetails.colorRamp.breakpoints[0]) {
-          return hexToRgb(this.vizDetails.colorRamp.fixedColors[0])
-        }
-
-        // If the value is above the last breakpoint, return the last color.
-        if (
-          value >=
-          this.vizDetails.colorRamp.breakpoints[this.vizDetails.colorRamp.breakpoints.length - 1]
-        ) {
-          return hexToRgb(
-            this.vizDetails.colorRamp.fixedColors[this.vizDetails.colorRamp.fixedColors.length - 1]
-          )
-        }
-        return new Uint8Array([255, 255, 255, 255])
-      } else {
-        // Map 0..100 to equally sized bins across all configured colors.
-        // Using (length - 1) shifts breakpoints upward (e.g. with 2 colors the split is at 100).
-        const n = this.colors.length
-        if (!n) return [0, 0, 0, 0]
-        const clamped = Math.max(0, Math.min(100, value))
-        const index = Math.min(n - 1, Math.floor((clamped / 100) * n))
-        return this.colors[index]
-      }
     },
 
     async solveProjection() {
@@ -623,6 +663,15 @@ const GridMap = defineComponent({
         })
       }
 
+      const grayOut = configuration.thresholdGrayOut
+      // emit, not setStatus: the store's setStatus is a stub that drops the message
+      if (grayOut !== undefined && grayOut !== 'less' && grayOut !== 'greater') {
+        this.$emit(
+          'error',
+          `thresholdGrayOut must be "less" or "greater", not "${grayOut}". Using "less".`
+        )
+      }
+
       // TODO: Add warnings for color attributes
     },
 
@@ -677,15 +726,22 @@ const GridMap = defineComponent({
       }
     },
 
-    async loadAndPrepareData() {
+    /**
+     * Load the data file once and hand it to the calculation worker, which keeps it.
+     * Everything after this (column changes, diffs, recoloring) works from that cache.
+     */
+    async loadData() {
+      this.calc.worker = new GridMapWorker()
+      this.calc.task = Comlink.wrap<GridMapTask>(this.calc.worker)
+
       if (this.vizDetails.file.indexOf('.avro') > -1) {
-        return await this.loadAndPrepareAvroData()
+        await this.loadAvroData()
       } else {
-        return await this.loadAndPrepareCSVData()
+        await this.loadCSVData()
       }
     },
 
-    async loadAndPrepareAvroData() {
+    async loadAvroData() {
       const filename = `${this.subfolder}/${this.vizDetails.file}`
       const blob = await this.fileApi.getFileBlob(filename)
       const avro = await getAvro()
@@ -694,135 +750,39 @@ const GridMap = defineComponent({
         const rows = [] as any[]
         avro
           .createBlobDecoder(blob)
-          .on('metadata', (schema: any) => {
-            // console.log(schema)
-          })
-          .on('data', (row: any) => {
-            rows.push(row)
-          })
-          .on('end', () => {
-            resolve(rows)
-          })
+          .on('data', (row: any) => rows.push(row))
+          .on('end', () => resolve(rows))
       })
 
-      // console.log({ records })
-
-      // Store the min and max value to calculate the scale factor
-      let minValue = Number.POSITIVE_INFINITY
-      let maxValue = Number.NEGATIVE_INFINITY
-
       const record = records[0]
-
-      this.allTimes = record.timestamps
-      console.log('ALLTIMES', JSON.stringify(this.allTimes))
-
-      // set initial range
-      const timesSorted = this.allTimes.toSorted((a, b) => (a - b > 0 ? 1 : -1)) // a copy
-      console.log('SORTEDTIMES', JSON.stringify(timesSorted))
-      this.timeRange[0] = timesSorted[0]
-      this.timeRange[1] = timesSorted[timesSorted.length - 1]
-
-      const tableName = Object.keys(record.data)[0]
-      const dataValues: number[] = record.data[tableName]
-
-      // calc scale
-      for (const value of dataValues) {
-        maxValue = Math.max(maxValue, value)
-        minValue = Math.min(minValue, value)
-      }
-      const scaleFactor = maxValue > 0 ? 100 / maxValue : 0
-
-      if (this.vizDetails.unit == undefined) {
-        this.vizDetails.unit = ''
-      }
-
-      const finalData = {
-        mapData: [] as MapData[],
-        scaledFactor: scaleFactor as Number,
-        unit: this.vizDetails.unit,
-      } as CompleteMapData
-
-      const x = record.xCoords
-      const y = record.yCoords
-      const numPoints = x.length * y.length
 
       // Load CRS/projection from Avro file if exists
       if (record.crs) this.vizDetails.projection = record.crs
 
       // User must provide projection
       if (!this.vizDetails.projection) {
-        const msg = 'No coordinate projection. Add "projection: EPSG:xxxx" to config'
-        this.$emit('error', msg)
-        // throw Error(msg)
+        throw Error('No coordinate projection. Add "projection: EPSG:xxxx" to config')
       }
 
-      // Build x/y-coordinates (just once - always the same)
-      const centroid = new Float32Array(numPoints * 2)
-      let offset = 0
-      for (let ix = 0; ix < x.length; ix++) {
-        for (let iy = 0; iy < y.length; iy++) {
-          let wgs84 = [x[ix], y[iy]]
-          wgs84 = Coords.toLngLat(this.vizDetails.projection, wgs84)
-          centroid[offset] = wgs84[0]
-          centroid[offset + 1] = wgs84[1]
-          offset += 2
-        }
+      if (this.yamlSettings().dataColumns) {
+        this.$emit('error', 'dataColumns only works with CSV files; it is ignored for Avro')
       }
-      // map all times to their index and create a mapData object for each time
-      this.allTimes.forEach((time, index) => {
-        this.timeToIndex.set(time, index)
 
-        finalData.mapData.push({
-          length: numPoints,
-          time: time,
-          centroid,
-          values: new Float32Array(numPoints),
-          opacityValues: new Float32Array(numPoints),
-          colorData: new Uint8Array(numPoints * 3),
-        })
+      const tableName = Object.keys(record.data)[0]
+      await this.calc.task!.setGridData({
+        xCoords: record.xCoords,
+        yCoords: record.yCoords,
+        timestamps: record.timestamps,
+        values: record.data[tableName],
+        projection: this.vizDetails.projection,
       })
-
-      // Sometimes avro files don't have timestamps in low-to-high order (!!)
-      // So we need a lookup for the lookup, to get the times in a sane order.
-      const timemap = {} as any
-      timesSorted.forEach(t => {
-        const index = this.allTimes.indexOf(t)
-        timemap[t] = index
-      })
-
-      // Loop through the data and create the data object for the map
-      for (let timeIndex = 0; timeIndex < this.allTimes.length; timeIndex++) {
-        const seconds = timesSorted[timeIndex]
-        const realIndex = timemap[seconds]
-        console.log('timeIndex', timeIndex, 'seconds', seconds, 'realIndex', realIndex)
-        for (let i = 0; i < numPoints; i++) {
-          const offset = realIndex * numPoints + i
-          const value = scaleFactor * dataValues[offset]
-
-          finalData.mapData[realIndex].values[i] = value
-        }
-      }
-
-      this.allTimes.sort((a, b) => (a - b > 0 ? 1 : -1))
-      this.myState.statusMessage = ''
-
-      return finalData
     },
 
-    async loadAndPrepareCSVData() {
-      this.allTimes = []
-      this.timeToIndex.clear()
-
+    async loadCSVData() {
       const config = { dataset: this.vizDetails.file }
-      let csv = {} as any
+      const csv = await this.myDataManager.getDataset(config, { subfolder: this.subfolder })
 
-      try {
-        csv = await this.myDataManager.getDataset(config, { subfolder: this.subfolder })
-      } catch (e) {
-        this.$emit('error', '' + e) // `Error loading ${this.vizDetails.file}: File missing? CSV Too large?`)
-      }
-
-      // The datamanager doesn't return the comments...
+      // projection can be in a comment line
       if (csv.comments && csv.comments.length) {
         csv.comments.forEach((comment: string) => {
           if (comment.includes('EPSG')) {
@@ -832,210 +792,285 @@ const GridMap = defineComponent({
         })
       }
 
-      // auto detects the valueColumn
-      let vc = this.vizDetails.valueColumn || ''
-      if (!csv.allRows[vc]) {
-        // use all columns except x, y, time
-        const candidates = Object.keys(csv.allRows).filter(k => !['x', 'y', 'time'].includes(k))
-        // optional: use only the first numeric column
-        const numeric = candidates.filter(k =>
-          Array.from(csv.allRows[k].values).every(v => typeof v === 'number')
-        )
-        vc = (numeric.length ? numeric[0] : candidates[0]) || ''
-        this.vizDetails.valueColumn = vc
-        // console.warn('valueColumn not found with automatic selection')
-        // console.log('vc: ', vc)
-      }
-
-      const valuesArr1 = csv.allRows[this.vizDetails.valueColumn].values as Float32Array
-      let valuesArr2: Float32Array | undefined
-      if (this.vizDetails.diff && this.vizDetails.secondValueColumn) {
-        valuesArr2 = csv.allRows[this.vizDetails.secondValueColumn]!.values as Float32Array
-      }
-
-      const timeArr = csv.allRows.time.values as Float32Array
-
-      // Store the min and max value to calculate the scale factor
-
-      this.availableColumns = Object.keys(csv.allRows).filter(k => !['x', 'y', 'time'].includes(k))
-      this.guiConfig.valueColumn = this.vizDetails.valueColumn
-      this.guiConfig.secondValueColumn = this.vizDetails.secondValueColumn || ''
-
-      let minValue = Number.POSITIVE_INFINITY
-      let maxValue = Number.NEGATIVE_INFINITY
-
-      // billy is completely redoing this part that was batshit insane. Just get the mix/max omg!
-      const allTimes = new Set()
-      if (valuesArr2) {
-        // it's probably a diff
-        for (let i = 0; i < valuesArr1.length; i++) {
-          const raw = this.vizDetails.diff ? valuesArr1[i] - valuesArr2[i] : valuesArr1[i]
-          maxValue = Math.max(maxValue, raw)
-          minValue = Math.min(minValue, raw)
-          allTimes.add(timeArr[i])
-        }
-      } else {
-        // just one array, not a diff
-        for (let i = 0; i < valuesArr1.length; i++) {
-          maxValue = Math.max(maxValue, valuesArr1[i])
-          minValue = Math.min(minValue, valuesArr1[i])
-          allTimes.add(timeArr[i])
-        }
-      }
-      this.valuesIncludeNeg = minValue < 0
-      this.allTimes = [...allTimes].sort((n1: any, n2: any) => n1 - n2) as number[]
-
-      this.timeRange[0] = Math.min.apply(Math, this.allTimes)
-      this.timeRange[1] = Math.max.apply(Math, this.allTimes)
-
-      // Count elements per time
-      const numberOfElementsPerTime = Math.ceil(valuesArr1.length / this.allTimes.length)
-
-      // scaling values to color scale of 0 - 100 (if negative)
-      let from_min = minValue
-      let from_max = maxValue
-      let to_min = 0 // as long as this is zero, it doesn't need to be added to maxValue scaling below
-      let to_max = 100
-      if (this.valuesIncludeNeg) {
-        maxValue = ((maxValue - from_min) * to_max) / (from_max - from_min) // formula is: x -> (x - from_min) * (to_max - to_min) / (from_max - from_min) + to_min
-      }
-      this.globalMinValue = from_min
-      this.globalMaxValue = from_max
-      const scaleFactor = maxValue !== 0 ? 100 / maxValue : 0
-
-      const finalData = {
-        mapData: [] as MapData[],
-        scaledFactor: scaleFactor as Number,
-        unit: this.vizDetails.unit || '',
-      } as CompleteMapData
-
-      // this.mapProps.colorDataDigits = 3
-
-      if (this.guiConfig.opacityColumn != 'none') {
-        this.colorDataDigits = 4
-      } else {
-        this.colorDataDigits = 3
-      }
-      // map all times to their index and create a mapData object for each time
-      this.allTimes.forEach((time, index) => {
-        this.timeToIndex.set(time, index)
-
-        finalData.mapData.push({
-          time,
-          values: new Float32Array(numberOfElementsPerTime),
-          opacityValues: new Float32Array(numberOfElementsPerTime),
-          centroid: new Float32Array(numberOfElementsPerTime * 2),
-          colorData: new Uint8Array(numberOfElementsPerTime * this.colorDataDigits),
-          numberOfFilledValues: 0,
-          numberOfFilledCentroids: 0,
-          numberOfFilledColors: 0,
-          length: numberOfElementsPerTime,
-        })
-      })
-
       // User must provide projection
       if (!this.vizDetails.projection) {
-        const msg = 'No coordinate projection. Add "projection: EPSG:xxxx" to config'
-        this.$emit('error', msg)
-        throw Error(msg)
+        throw Error('No coordinate projection. Add "projection: EPSG:xxxx" to config')
       }
 
-      // Loop through the data and create the data object for the map
-      for (let i = 0; i < valuesArr1.length; i++) {
-        // index for the time
-        const index = this.timeToIndex.get(timeArr[i]) as number
-
-        let raw = valuesArr1[i]
-        if (valuesArr2 && this.vizDetails.diff) {
-          raw = raw - valuesArr2[i]
-        }
-
-        const value = scaleFactor * raw
-
-        const colors = this.pickColor(value, from_min, from_max, to_min, to_max)
-
-        // Save index for next position in the array
-        const lastValueIndex = finalData.mapData[index].numberOfFilledValues as number
-        const lastColorIndex = finalData.mapData[index].numberOfFilledColors as number
-        const lastCentroidIndex = finalData.mapData[index].numberOfFilledCentroids as number
-
-        // Save the value
-        finalData.mapData[index].values[lastValueIndex] = value
-
-        // Loop through the colors and add them to the mapData
-
-        if (this.guiConfig.opacityColumn != 'none') {
-          var opacityColArr
-
-          let oc = this.vizDetails.opacityColumn || ''
-          if (!csv.allRows[oc]) {
-            console.error(
-              'column for opacity values not found, defaulting to standard opacity funcitonality with slider.'
-            )
-          } else {
-            opacityColArr = csv.allRows[this.vizDetails.opacityColumn].values as Float32Array
-
-            // get min and max for 0-1 value scaling
-            let minOpacityValue = Number.POSITIVE_INFINITY
-            let maxOpacityValue = Number.NEGATIVE_INFINITY
-            for (let i = 0; i < opacityColArr.length; i++) {
-              if (opacityColArr[i] < minOpacityValue) minOpacityValue = opacityColArr[i]
-              if (opacityColArr[i] > maxOpacityValue) maxOpacityValue = opacityColArr[i]
-            }
-            // Save opacity value
-            finalData.mapData[index].opacityValues[lastValueIndex] =
-              Math.round(
-                ((opacityColArr[i] - minOpacityValue) / (maxOpacityValue - minOpacityValue)) * 100
-              ) / 100
-            if (finalData.mapData[index].opacityValues[lastValueIndex] == 0)
-              finalData.mapData[index].opacityValues[lastValueIndex] = 0.01
-            for (let j = 0; j < 4; j++) {
-              // set 4th value to opacity value
-              if (j == 3) {
-                finalData.mapData[index].colorData[lastColorIndex + j] = Math.round(
-                  finalData.mapData[index].opacityValues[lastValueIndex] * 255
-                )
-              } else {
-                finalData.mapData[index].colorData[lastColorIndex + j] = colors[j]
-              }
-            }
-          }
-        } else {
-          for (let j = 0; j < 3; j++) {
-            finalData.mapData[index].colorData[lastColorIndex + j] = colors[j]
-          }
-        }
-
-        // Convert coordinates
-        let wgs84 = [csv.allRows.x.values[i], csv.allRows.y.values[i]]
-
-        if (this.vizDetails.projection !== 'EPSG:4326') {
-          wgs84 = Coords.toLngLat(this.vizDetails.projection, wgs84)
-        }
-
-        // Add centroids to the mapData
-        finalData.mapData[index].centroid[lastCentroidIndex] = wgs84[0]
-        finalData.mapData[index].centroid[lastCentroidIndex + 1] = wgs84[1]
-
-        // Update the number of values for time array in the mapData
-        finalData.mapData[index].numberOfFilledValues = lastValueIndex + 1
-        finalData.mapData[index].numberOfFilledCentroids = lastCentroidIndex + 2
-        if (this.guiConfig.opacityColumn != 'none') {
-          finalData.mapData[index].numberOfFilledColors = lastColorIndex + 4
-        } else {
-          finalData.mapData[index].numberOfFilledColors = lastColorIndex + 3
-        }
+      const columns = {} as { [name: string]: any }
+      for (const [name, column] of Object.entries(csv.allRows) as [string, any][]) {
+        columns[name] = column.values
       }
 
-      // Clean data (delete numberOfFilledXXXX)
-      Array.from(this.allTimes.keys()).forEach((index: number) => {
-        delete finalData.mapData[index].numberOfFilledValues
-        delete finalData.mapData[index].numberOfFilledCentroids
-        delete finalData.mapData[index].numberOfFilledColors
+      // the column arrays are shared with the datamanager cache, so they get copied
+      // (not transferred) to the worker. unreactive: Proxies throw DataCloneError.
+      const valueColumns = await this.calc.task!.setTableData(
+        unreactive({ columns, projection: this.vizDetails.projection })
+      )
+      this.setupDataColumns(valueColumns)
+    },
+
+    /** The YAML as written, without the defaults that vizDetails fills in */
+    yamlSettings(): any {
+      return this.config || this.standaloneYAMLconfig || {}
+    },
+
+    /**
+     * dataColumns mode: check the YAML entries against the data, and turn on the buttons
+     * that valueColumn / secondValueColumn name. Bad entries are dropped with a warning;
+     * if none are left, the column dropdowns are used instead.
+     */
+    setupDataColumns(available: string[]) {
+      const entries = this.yamlSettings().dataColumns
+      if (entries === undefined || entries === null) return
+
+      if (!Array.isArray(entries)) {
+        this.$emit('error', 'dataColumns must be a list of entries with a "label" and a "column"')
+        return
+      }
+
+      const valid = [] as DataColumn[]
+      entries.forEach((entry: any, i: number) => {
+        const label = entry?.label
+        const column = entry?.column
+        if (label == null || label === '' || column == null || column === '') {
+          this.$emit('error', `dataColumns entry ${i + 1} needs both a "label" and a "column"`)
+          return
+        }
+        if (!available.includes(String(column))) {
+          this.$emit(
+            'error',
+            `dataColumns: column "${column}" (${label}) is not in ${this.vizDetails.file}`
+          )
+          return
+        }
+        if (valid.some(v => v.label === String(label))) {
+          this.$emit('error', `dataColumns: label "${label}" is used more than once`)
+          return
+        }
+        valid.push({ label: String(label), column: String(column) })
       })
 
+      if (!valid.length) {
+        this.$emit('error', 'dataColumns has no usable entries; showing column dropdowns instead')
+        return
+      }
+
+      this.dataColumns = valid
+      const yaml = this.yamlSettings()
+      const first = this.labelsFor(yaml.valueColumn, 'valueColumn')
+      this.columnPicks.data = first.length ? first : [valid[0].label]
+      this.columnPicks.compare = this.labelsFor(yaml.secondValueColumn, 'secondValueColumn')
+    },
+
+    /**
+     * The dataColumns labels that a YAML setting names: one label or a list of them.
+     * A column name works too. Anything else is warned about and skipped.
+     */
+    labelsFor(setting: any, settingName: string): string[] {
+      if (setting === undefined || setting === null || setting === '') return []
+      const names = (Array.isArray(setting) ? setting : [setting]).map(String)
+
+      const picked = new Set<string>()
+      for (const name of names) {
+        const match =
+          this.dataColumns.find(d => d.label === name) ||
+          this.dataColumns.find(d => d.column === name)
+        if (match) picked.add(match.label)
+        else this.$emit('error', `${settingName}: "${name}" is not one of the dataColumns labels`)
+      }
+      return this.dataColumns.filter(d => picked.has(d.label)).map(d => d.label)
+    },
+
+    /** CSV column names of the dataColumns buttons that are on */
+    pickedColumns(labels: string[]): string[] {
+      return this.dataColumns.filter(d => labels.includes(d.label)).map(d => d.column)
+    },
+
+    /** dataColumns mode: the column choices for the worker */
+    dataColumnOptions() {
+      if (!this.dataColumns.length) return {}
+
+      const { data, compare } = this.columnPicks
+      const shown = this.guiConfig.diff ? [...data, ...compare] : data
+      return {
+        valueColumns: this.pickedColumns(data),
+        secondValueColumns: this.pickedColumns(compare),
+        tooltipColumns: this.dataColumns.filter(d => shown.includes(d.label)),
+      }
+    },
+
+    /**
+     * Ask the worker for the cell values of the currently selected column(s).
+     * With withColors, colorData comes back filled in, so nothing renders uncolored.
+     */
+    async prepareData(withColors: boolean) {
+      const result = await this.calc.task!.prepare(
+        unreactive({
+          valueColumn: this.vizDetails.valueColumn || '',
+          secondValueColumn: this.vizDetails.secondValueColumn || '',
+          diff: !!this.vizDetails.diff,
+          opacityColumn:
+            this.guiConfig.opacityColumn == 'none' ? '' : this.vizDetails.opacityColumn || '',
+          colorOptions: withColors ? this.buildColorOptions() : undefined,
+          ...this.dataColumnOptions(),
+        })
+      )
+
+      const data = result.data
+      data.unit = this.vizDetails.unit || ''
+
+      this.availableColumns = result.availableColumns
+      // in dataColumns mode the worker picks no single column; valueColumn stays the label
+      if (!this.dataColumns.length) {
+        this.vizDetails.valueColumn = result.valueColumn
+        this.guiConfig.valueColumn = result.valueColumn
+        this.guiConfig.secondValueColumn = this.vizDetails.secondValueColumn || ''
+      }
+
+      this.valuesIncludeNeg = result.valuesIncludeNeg
+      this.globalMinValue = result.globalMinValue
+      this.globalMaxValue = result.globalMaxValue
+      this.colorDataDigits = result.colorDataDigits
+
+      this.allTimes = result.allTimes
+      this.timeRange[0] = result.allTimes[0]
+      this.timeRange[1] = result.allTimes[result.allTimes.length - 1]
+      this.timeToIndex.clear()
+      data.mapData.forEach((m, index) => this.timeToIndex.set(m.time, index))
+
+      this.valueRanges = result.valueRanges
+      this.shading.baseColors = data.mapData.map(m => m.colorData)
+      // markRaw: data is only ever replaced, never changed in place, so deep reactivity
+      // would just be proxy overhead on every threshold slider move
+      this.data = markRaw(data)
       this.myState.statusMessage = ''
-      return finalData
+    },
+
+    /**
+     * Point the threshold slider at the time period on display: its title follows the
+     * column choice, its range the unscaled values. With reset (or if the map was fully
+     * colored), it moves to the end that shades nothing.
+     */
+    updateThresholdSlider(reset: boolean) {
+      const slider = this.shading.controller
+      if (!slider) return
+
+      if (this.dataColumns.length) {
+        const title = this.compareTitle
+          ? `${this.valueTitle} − ${this.compareTitle}`
+          : this.valueTitle
+        slider.name(title)
+      } else {
+        const isDiff = this.guiConfig.diff && !!this.guiConfig.secondValueColumn
+        slider.name(isDiff ? 'Diff' : this.vizDetails.valueColumn)
+      }
+
+      const wasOff = this.isThresholdNear(this.thresholdColoredEnd())
+      const [min, max] = this.valueRanges[this.currentTimeIndex] || [0, 0]
+      this.thresholdRange = [min, max]
+
+      const step = (max - min) / 1000 || 1
+      const decimals = Math.min(6, Math.max(0, Math.ceil(-Math.log10(step))))
+      slider.min(min).max(max).step(step, false).decimals(decimals)
+
+      const threshold = this.guiConfig.threshold
+      this.guiConfig.threshold =
+        reset || wasOff ? this.thresholdColoredEnd() : Math.min(max, Math.max(min, threshold))
+      slider.updateDisplay()
+    },
+
+    /** Slider end that shades nothing: the min for "less than", the max for "greater than" */
+    thresholdColoredEnd() {
+      const [min, max] = this.thresholdRange
+      return this.guiConfig.thresholdMode == 'less' ? min : max
+    },
+
+    /** Slider end that shades everything */
+    thresholdGrayEnd() {
+      const [min, max] = this.thresholdRange
+      return this.guiConfig.thresholdMode == 'less' ? max : min
+    },
+
+    /**
+     * The slider snaps to steps, which may not land exactly on the min or max; anything
+     * within half a step of an end counts as all the way there.
+     */
+    isThresholdNear(position: number) {
+      const [min, max] = this.thresholdRange
+      return Math.abs(this.guiConfig.threshold - position) <= (max - min) / 2000
+    },
+
+    /**
+     * Flipping between "less than" and "greater than": a fully colored map stays fully
+     * colored, so the slider jumps to the other end. Any other setting is kept, so the
+     * same limit now grays the other side.
+     */
+    handleThresholdModeChange() {
+      const [min, max] = this.thresholdRange
+      const previousColoredEnd = this.guiConfig.thresholdMode == 'less' ? max : min
+      if (this.isThresholdNear(previousColoredEnd)) {
+        this.guiConfig.threshold = this.thresholdColoredEnd()
+        this.shading.controller?.updateDisplay()
+      }
+      this.applyThreshold()
+    },
+
+    /**
+     * Gray out cells at or below ("less than") or at or above ("greater than") the
+     * threshold, in the time period on display. The colored end of the slider shades
+     * nothing, the far end shades everything. Builds a fresh colorData array from the
+     * unshaded colors, so deck.gl sees new colors (and nothing else) and just re-uploads
+     * them. Every other time period gets its unshaded colors.
+     */
+    applyThreshold() {
+      if (!this.data) return
+
+      const base = this.shading.baseColors
+      const index = this.currentTimeIndex
+      let shaded = base[index]
+
+      if (shaded && !this.isThresholdNear(this.thresholdColoredEnd())) {
+        const values = this.data.mapData[index].values
+        const isLess = this.guiConfig.thresholdMode == 'less'
+        // at the far end, gray everything even if the slider snapped just short of it
+        let limit = this.guiConfig.threshold * this.data.scaledFactor
+        if (this.isThresholdNear(this.thresholdGrayEnd())) {
+          limit = isLess ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY
+        }
+        const [r, g, b, a] = THRESHOLD_COLOR
+        shaded = shaded.slice()
+        for (let i = 0; i < values.length; i++) {
+          if (isLess ? values[i] <= limit : values[i] >= limit) {
+            const offset = i * 4
+            shaded[offset] = r
+            shaded[offset + 1] = g
+            shaded[offset + 2] = b
+            shaded[offset + 3] = a
+          }
+        }
+      }
+
+      const mapData = this.data.mapData.map((m: MapData, i: number) => ({
+        ...m,
+        colorData: i === index ? shaded : base[i],
+      }))
+      this.data = markRaw({ ...this.data, mapData })
+    },
+
+    /** Cumulative distribution of the values on the map, for the time period on display */
+    async updateSummaryChart() {
+      if (!this.calc.task) return
+
+      const request = ++this.summaryChart.request
+      const result = await this.calc.task.cumulativeShare(
+        this.currentTimeIndex,
+        this.vizDetails.populationColumn || 'population'
+      )
+      // a newer time or column was picked while this one was running
+      if (request !== this.summaryChart.request) return
+
+      this.summary = markRaw(result)
     },
 
     resolveProjection() {
@@ -1056,7 +1091,10 @@ const GridMap = defineComponent({
           this.selectedTimeData.push(this.data.mapData[i].values)
         }
       }
-      this.setColors()
+      // every time period is already colored; only the shading follows the time
+      this.updateThresholdSlider(false)
+      this.applyThreshold()
+      this.updateSummaryChart()
     },
 
     handleTimeSliderValues(timeValues: any[]) {
@@ -1069,46 +1107,62 @@ const GridMap = defineComponent({
           this.selectedTimeData.push(this.data[i])
         }
       }
+      this.updateThresholdSlider(false)
+      this.applyThreshold()
+      this.updateSummaryChart()
     },
 
     setupGui() {
-      let width = 200
-
-      if (this.mediaQuery.matchMedia) {
-        width = 175
-      }
+      // no fixed width: the gui fills the resizable right panel (see .gui-config css)
       const guiConfig = {
         title: 'Settings',
         injectStyles: true,
-        width: width,
         container: document.getElementById(this.configId) || undefined,
       }
 
-      this.guiController = new GUI(guiConfig)
+      const config = new GUI(guiConfig)
+      this.guiController = config
 
-      const config = this.guiController // .addFolder('Colors')
-      config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
-      config.add(this.guiConfig, 'opacity', 0, 1, 0.1)
-      config.add(this.guiConfig, 'height', 0, 250, 5)
-      // config
-      //   .add(this.guiConfig, 'show3dBuildings')
-      //   .name('3D buildings')
-      //   .onChange((value: boolean) => (this.show3dBuildings = value))
+      // the column choices come first: 1st, Diff and 2nd, then opacity column.
+      // With dataColumns, rows of toggle buttons stand in for the 1st and 2nd dropdowns.
+      const useButtons = this.dataColumns.length > 0
+
+      if (useButtons) {
+        this.addColumnButtons(config, this.$t('dataColumns'), 'data')
+      } else if (this.availableColumns.length > 0) {
+        config
+          .add(this.guiConfig, 'valueColumn', this.availableColumns)
+          .name('1st column')
+          .onChange((newCol: string) => {
+            this.handleColumnChange(newCol)
+          })
+      }
+
+      // the second column choice, only shown with Diff
+      let showSecond: (show: boolean) => void
+      if (useButtons) {
+        const compareRow = this.addColumnButtons(config, this.$t('compareTo'), 'compare')
+        showSecond = show => (compareRow.style.display = show ? '' : 'none')
+      } else {
+        const secondCtrl = config
+          .add(this.guiConfig, 'secondValueColumn', ['', ...this.availableColumns])
+          .name('2nd column')
+          .onChange((col2: string) => this.handleSecondColumnChange(col2))
+        showSecond = show => (show ? secondCtrl.show() : secondCtrl.hide())
+      }
+      showSecond(this.guiConfig.diff)
 
       // Diff checkbox
       config
         .add(this.guiConfig, 'diff')
         .name('Diff')
         .onChange((useDiff: boolean) => {
-          // toggle the visibility of the second column dropdown
-          if (useDiff) secondCtrl.show()
-          else secondCtrl.hide()
-
+          // the second column choice is only shown with Diff
+          showSecond(useDiff)
           this.handleDiffChange(useDiff)
         })
 
       let availableOpacityColumns = ['none'].concat(this.availableColumns)
-      // Dropdown for the first column
       if (availableOpacityColumns.length > 0) {
         config
           .add(this.guiConfig, 'opacityColumn', availableOpacityColumns)
@@ -1118,24 +1172,32 @@ const GridMap = defineComponent({
           })
       }
 
-      // Dropdown for the first column
-      if (this.availableColumns.length > 0) {
-        config
-          .add(this.guiConfig, 'valueColumn', this.availableColumns)
-          .name('1st column')
-          .onChange((newCol: string) => {
-            this.handleColumnChange(newCol)
-          })
-      }
+      // threshold: which side to gray out, and the limit. Slider min/max are set by
+      // updateThresholdSlider(). The YAML can force the gray-out direction at startup.
+      const grayOut = this.vizDetails.thresholdGrayOut
+      if (grayOut == 'less' || grayOut == 'greater') this.guiConfig.thresholdMode = grayOut
 
-      // Dropdown for the second column
-      const secondCtrl = config
-        .add(this.guiConfig, 'secondValueColumn', ['', ...this.availableColumns])
-        .name('2nd column')
-        .onChange((col2: string) => this.handleSecondColumnChange(col2))
+      const threshold = config.addFolder(this.$t('threshold'))
+      this.shading.controller = threshold
+        .add(this.guiConfig, 'threshold', 0, 1)
+        .onChange(() => this.applyThreshold())
+      threshold
+        .add(this.guiConfig, 'thresholdMode', {
+          [this.$t('lessThan')]: 'less',
+          [this.$t('greaterThan')]: 'greater',
+        })
+        .name(this.$t('grayOut'))
+        .onChange(() => this.handleThresholdModeChange())
+      this.updateThresholdSlider(true)
 
-      if (this.guiConfig.diff) secondCtrl.show()
-      else secondCtrl.hide()
+      const view = config.addFolder('View')
+      view.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
+      view.add(this.guiConfig, 'opacity', 0, 1, 0.1)
+      view.add(this.guiConfig, 'height', 0, 250, 5)
+      // config
+      //   .add(this.guiConfig, 'show3dBuildings')
+      //   .name('3D buildings')
+      //   .onChange((value: boolean) => (this.show3dBuildings = value))
 
       // diverging
       if (!this.vizDetails.colorRamp || !this.vizDetails.colorRamp.breakpoints) {
@@ -1174,8 +1236,51 @@ const GridMap = defineComponent({
             this.guiConfig['upper bound'] = Number(value.toFixed(2))
             this.setColors()
           })
-        this.setColors()
       }
+    },
+
+    /**
+     * A row of toggle buttons, one per dataColumns entry, added to the gui like any other
+     * controller. Clicking one turns that column on or off for its set and recalculates.
+     */
+    addColumnButtons(gui: GUI, title: string, set: 'data' | 'compare'): HTMLElement {
+      const row = document.createElement('div')
+      row.classList.add('controller', 'column-buttons')
+
+      const name = document.createElement('div')
+      name.classList.add('name')
+      name.textContent = title
+      row.appendChild(name)
+
+      const widget = document.createElement('div')
+      widget.classList.add('widget')
+      row.appendChild(widget)
+
+      for (const { label, column } of this.dataColumns) {
+        const button = document.createElement('button')
+        button.textContent = label
+        button.title = column
+        const showState = () => {
+          const on = this.columnPicks[set].includes(label)
+          button.classList.toggle('on', on)
+          button.setAttribute('aria-pressed', String(on))
+        }
+        showState()
+
+        button.addEventListener('click', () => {
+          const picks = new Set(this.columnPicks[set])
+          if (picks.has(label)) picks.delete(label)
+          else picks.add(label)
+          // keep dataColumns order, whatever the click order
+          this.columnPicks[set] = this.dataColumns.map(d => d.label).filter(l => picks.has(l))
+          showState()
+          this.reloadDataAndPreserveSelectedTime()
+        })
+        widget.appendChild(button)
+      }
+
+      gui.$children.appendChild(row)
+      return row
     },
 
     /*
@@ -1234,12 +1339,21 @@ const GridMap = defineComponent({
       return closest
     },
 
+    /** Recalculate from the worker's cached data -- nothing is fetched again */
     async reloadDataAndPreserveSelectedTime() {
       const selectedTimeBeforeReload = this.getCurrentSelectedTime()
-      this.data = await this.loadAndPrepareData()
+      try {
+        await this.prepareData(true)
+      } catch (e) {
+        this.$emit('error', e instanceof Error ? e.message : '' + e)
+        return
+      }
       const selectedTimeAfterReload = this.resolveSelectedTime(selectedTimeBeforeReload)
       this.currentTime = [selectedTimeAfterReload, selectedTimeAfterReload]
-      this.setColors()
+      // different values: start the threshold over
+      this.updateThresholdSlider(true)
+      this.applyThreshold()
+      this.updateSummaryChart()
     },
 
     async handleOpacityColumnChange(newCol: string) {
@@ -1281,72 +1395,41 @@ const GridMap = defineComponent({
       await this.reloadDataAndPreserveSelectedTime()
     },
 
-    setColors() {
-      if (!this.data) return
-
+    /** Color settings from the GUI, in the plain form the worker needs */
+    buildColorOptions(): ColorOptions {
       const rawRamp = this.guiConfig['color ramp'] as string
       // remove the suffix " (div)" if it exists
       const baseRamp = rawRamp.replace(/\s*\(div\)$/, '')
       // give only the shortened name to the getColorRampHexCodes function
       const ramp = { ramp: baseRamp } as Ramp
-      const color = getColorRampHexCodes(ramp, this.guiConfig.steps)
+      const colors = this.hexArrayToRgbArray(getColorRampHexCodes(ramp, this.guiConfig.steps))
+      if (this.guiConfig.flip) colors.reverse()
 
-      // get the type of the scale based on the suffix
-      // const type = rawRamp.endsWith(' (div)') ? 'diverging' : 'sequential'
-      // console.log('Color ramp type:', type)
+      // fixed colors are only used if there is exactly one more color than breakpoints
+      const { breakpoints, fixedColors } = this.vizDetails.colorRamp || {}
+      const isFixed = breakpoints && fixedColors && breakpoints.length == fixedColors.length - 1
 
-      if (color.length) {
-        this.colors = []
+      return {
+        colors,
+        boundsEnabled: this.guiConfig['bounds enabled'],
+        upperBound: this.guiConfig['upper bound'],
+        lowerBound: this.guiConfig['lower bound'],
+        breakpoints: isFixed ? [...breakpoints] : undefined,
+        fixedColors: isFixed ? fixedColors.map((c: string) => hexToRgb(c)) : undefined,
       }
+    },
 
-      this.colors = this.hexArrayToRgbArray(color)
+    async setColors() {
+      if (!this.data || !this.calc.task) return
 
-      // scaling values using global values saved in loadAndPrepareCsvData
-      let from_min = this.globalMinValue
-      let from_max = this.globalMaxValue
-      let to_min = 0
-      let to_max = 100
+      const request = ++this.calc.colorRequest
+      const colorData = await this.calc.task.colorize(this.buildColorOptions())
 
-      if (this.guiConfig.flip) this.colors.reverse()
+      // a newer recolor was requested while this one was running
+      if (request !== this.calc.colorRequest || !this.data) return
 
-      // Recalculating the color values for the colorRamp
-      // i: each timeperiod (e.g.0-24)
-      for (let i = 0; i < this.data.mapData.length; i++) {
-        // j: each element in each time period (e.g.0-82636)
-        for (let j = 0; j < this.data.mapData[i].values.length; j++) {
-          const value = this.data.mapData[i].values[j]
-
-          const colors = this.pickColor(value, from_min, from_max, to_min, to_max)
-          if (colors == undefined) {
-            console.log('bad color: ', i, j, value)
-            break
-          }
-
-          if (this.guiConfig.opacityColumn == 'none') {
-            for (let colorIndex = j * 3; colorIndex <= j * 3 + 2; colorIndex++) {
-              this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 3]
-            }
-          } else {
-            try {
-              for (let colorIndex = j * 4; colorIndex <= j * 4 + 3; colorIndex++) {
-                // set 4th value to opacity value
-                if ((colorIndex + 1) % 4 == 0) {
-                  this.data.mapData[i].colorData[colorIndex] = Math.round(
-                    this.data.mapData[i].opacityValues[j] * 255
-                  )
-                } else {
-                  this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 4]
-                }
-              }
-            } catch (e) {
-              this.$emit('error', '' + e) // `Error loading ${this.vizDetails.file}: File missing? CSV Too large?`)
-            }
-          }
-        }
-      }
-
-      // force Vue to take notice of the change - any prop change will do
-      this.data = { ...this.data }
+      this.shading.baseColors = colorData
+      this.applyThreshold()
     },
 
     hexArrayToRgbArray(hexArray: string[]): any {
@@ -1419,11 +1502,18 @@ const GridMap = defineComponent({
 
     if (this.thumbnail) return
 
-    this.myState.statusMessage = `${this.$i18n.t('loading')}`
+    this.myState.statusMessage = `${this.$t('loading')}`
     await sleep(0)
 
-    this.data = await this.loadAndPrepareData()
-    // this.$emit('error', 'Error loading ' + this.vizDetails.file)
+    try {
+      await this.loadData()
+      // colors come later, once the color bounds are known
+      await this.prepareData(false)
+    } catch (e) {
+      this.myState.statusMessage = ''
+      this.$emit('error', e instanceof Error ? e.message : '' + e)
+      return
+    }
 
     // gets the color scale type from the color ramp name
     const rawRamp = this.guiConfig['color ramp'] as string
@@ -1445,7 +1535,8 @@ const GridMap = defineComponent({
       this.guiController.root.open()
     }
 
-    this.setColors()
+    await this.setColors()
+    this.updateSummaryChart()
     // this.buildThumbnail()
     this.isLoaded = true
     this.setMapCenter()
@@ -1470,9 +1561,18 @@ const GridMap = defineComponent({
     this.data = null
     this.guiController?.destroy()
 
+    this.calc.worker?.terminate()
+    this.calc.worker = null
+    this.calc.task = null
+
     this.$store.commit('setFullScreen', false)
   },
 })
+
+/** "Car", or "max(Car, PT)" for several labels; empty if none */
+function maxTitle(labels: string[]) {
+  return labels.length > 1 ? `max(${labels.join(', ')})` : labels[0] || ''
+}
 
 export default GridMap
 </script>
@@ -1511,7 +1611,7 @@ export default GridMap
   flex-direction: row;
   pointer-events: none;
   margin: auto auto 0 0;
-  padding: 0.5rem 1.5rem;
+  // padding: 0.5rem 1.5rem;
 
   a {
     color: white;
@@ -1532,10 +1632,10 @@ export default GridMap
 .status-message {
   background-color: var(--bgPanel);
   width: 100%;
-  margin: auto 1rem;
+  margin: auto 0;
   text-align: center;
   padding: 2rem;
-  border-radius: 8px;
+  // border-radius: 8px;
   font-size: 1.5rem;
   line-height: 1.5rem;
   font-weight: bold;
@@ -1549,18 +1649,77 @@ export default GridMap
   font-weight: bold;
 }
 
-.top-right {
-  background-color: var(--bgPanel2);
-  color: white;
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 5;
-  border-left: 1px solid #66669940;
-  border-bottom: 1px solid #66669940;
-  box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
+.main-layout {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 1fr auto auto;
+  grid-template-rows: 1fr;
+  min-height: 0;
 }
 
+.main-panel {
+  position: relative;
+  background-color: var(--bgBold);
+  overflow: hidden;
+}
+
+.dragger {
+  grid-row: 1 / 2;
+  grid-column: 2 / 3;
+  width: 0.4rem;
+  background-color: var(--bgBold);
+  user-select: none;
+}
+
+.dragger:hover,
+.dragger:active {
+  background-color: var(--sliderThumb);
+  transition: background-color 0.3s ease;
+  transition-delay: 0.1s;
+  cursor: ew-resize;
+}
+
+.right-panel {
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  pointer-events: auto;
+  background-color: var(--bgBold);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 0.25rem;
+}
+
+.gui-config :deep(.lil-gui.root) {
+  width: 100%;
+}
+
+// dataColumns toggle buttons: title on its own line, buttons wrapping below it
+.gui-config :deep(.controller.column-buttons) {
+  flex-direction: column;
+  align-items: stretch;
+
+  .widget {
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+
+  button {
+    width: auto;
+    flex: 1 0 auto;
+    padding: 0 0.5rem;
+    opacity: 0.7;
+  }
+
+  button.on {
+    opacity: 1;
+    background: var(--link);
+    border-color: var(--link);
+    color: var(--bgBold);
+    font-weight: bold;
+  }
+}
 .left-side {
   position: absolute;
   top: 0;
