@@ -20,30 +20,34 @@
         :show3dBuildings="show3dBuildings"
         :currentTime="currentTime"
         :overview="showEveryone ? overview : null"
+        :highlightRow="highlightRow"
       )
 
       ZoomButtons(v-if="!thumbnail" corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
 
-      PlanTable(v-if="selectedPlans.length"
-        :plans="plans[selectedPlans[0]]"
-        :searchTerm="searchTerm"
-        :currentTime="currentTime"
-        :bottomOffset="maxEndTime ? sliderHeight : 0"
-      )
+      .bottom-section.flex-col
 
-      //- Point-in-time slider: at any time but 00:00:00 the map shows only what each
-      //- person is doing then. Only for files with time columns (plans2parquet metadata).
-      .time-slider-area(v-if="maxEndTime" ref="sliderArea")
-        TimeSlider(
-          :isPointInTime="true"
-          :range="[0, maxEndTime]"
-          :activeTimeExtent="timeFilter"
-          :labels="timeLabels"
-          :isAnimating="isAnimating"
-          @timeExtent="handleTimeSliderValues"
-          @toggleAnimation="toggleAnimation"
-          @drag="stopAnimation"
+        .time-slider-area(v-if="maxEndTime" ref="sliderArea")
+          TimeSlider(
+            :isPointInTime="true"
+            :range="[0, maxEndTime]"
+            :activeTimeExtent="timeFilter"
+            :labels="timeLabels"
+            :isAnimating="isAnimating"
+            @timeExtent="handleTimeSliderValues"
+            @toggleAnimation="toggleAnimation"
+            @drag="stopAnimation"
+          )
+
+        PlanTable(v-if="selectedPlans.length"
+          :plans="plans[selectedPlans[0]]"
+          :searchTerm="searchTerm"
+          :currentTime="currentTime"
+          :lockedRow="lockedRow"
+          @hover-row="hoveredRow = $event"
+          @click-row="toggleLockedRow"
         )
+
 
       .x-status-message(v-if="myState.statusMessage"): h3 {{ myState.statusMessage }}
 
@@ -214,6 +218,7 @@ interface VizDetails {
 }
 
 // An activity stop drawn on the map: its position plus the dashed marker along its link.
+// `row` is the plan-table row it came from, so table hover/click can find it again.
 interface ActivityStop {
   type: string
   midpoint: number[]
@@ -221,6 +226,7 @@ interface ActivityStop {
   ptTo: number[]
   t0: number
   t1: number
+  row?: Plan
 }
 
 // A leg drawn on the map: polyline points, its mode (colors the line) and time window.
@@ -230,6 +236,7 @@ interface DrawnLeg {
   type: string
   t0: number
   t1: number
+  row?: Plan
 }
 
 // Above this many rows (all plans) "Show everyone" asks first: memory and download scale
@@ -316,9 +323,14 @@ const PlansViewerPlugin = defineComponent({
         mode: string
         t0: number
         t1: number
+        row?: Plan
       }[],
       plans: [] as Plan[][],
       selectedPlans: [] as number[],
+      // the plan-table row whose map geometry is highlighted: hovered (transient) or
+      // clicked (locked until clicked again or the map's empty space is clicked)
+      hoveredRow: null as Plan | null,
+      lockedRow: null as Plan | null,
       isQueryRunning: false,
       linkLayerId: Math.floor(1e12 * Math.random()),
       legModeColors: Object.entries(LegModeColor),
@@ -334,8 +346,6 @@ const PlansViewerPlugin = defineComponent({
       lastFrameTime: 0,
       // simulated seconds per real second while playing
       ANIMATE_SPEED: 3600,
-      sliderHeight: 0,
-      sliderResizer: null as ResizeObserver | null,
 
       // the panel is showing the "unknown links" error (so it can be cleared again)
       isShowingUnknownLinks: false,
@@ -417,6 +427,11 @@ const PlansViewerPlugin = defineComponent({
     urlThumbnail(): string {
       return this.thumbnailUrl
     },
+
+    // hover wins while the mouse is over a row; otherwise the locked (clicked) row stays lit
+    highlightRow(): Plan | null {
+      return this.hoveredRow ?? this.lockedRow
+    },
   },
 
   watch: {
@@ -481,7 +496,6 @@ const PlansViewerPlugin = defineComponent({
 
   beforeUnmount() {
     this.stopAnimation()
-    this.sliderResizer?.disconnect()
 
     if (this.fileSystem.handle && this.dbUrl) this.duck.dropFile?.(this.dbUrl)
     this.duck.terminate?.()
@@ -495,6 +509,10 @@ const PlansViewerPlugin = defineComponent({
       } else {
         this.selectedPlans = [i]
       }
+
+      // a different plan is drawn now: the old highlight (and its lock) no longer applies
+      this.hoveredRow = null
+      this.lockedRow = null
 
       let plans = [] as Plan[]
 
@@ -541,7 +559,7 @@ const PlansViewerPlugin = defineComponent({
       linkRoutes.forEach(route => {
         const linksOnThisRoute = (route.route_text || '').split(' ').filter(id => linkXY(id))
         if (!linksOnThisRoute.length) return
-        this.addRouteToMap(route.leg_mode, timeWindow(route), linksOnThisRoute)
+        this.addRouteToMap(route.leg_mode, timeWindow(route), linksOnThisRoute, route)
       })
 
       // Non-routed routes can be shown as arcs, by mode
@@ -557,6 +575,7 @@ const PlansViewerPlugin = defineComponent({
           end: endMidpoint,
           mode: leg.leg_mode,
           ...timeWindow(leg),
+          row: leg,
         })
       })
 
@@ -577,6 +596,7 @@ const PlansViewerPlugin = defineComponent({
           ptFrom,
           ptTo,
           ...timeWindow(activity),
+          row: activity,
         })
       })
       this.stopActivities = stopActivities
@@ -734,22 +754,10 @@ const PlansViewerPlugin = defineComponent({
       }
       if (this.maxEndTime) {
         await this.$nextTick()
-        this.watchSliderHeight()
         // TimeSlider only picks up labels through a (non-immediate) watcher, so hand it a
         // new array once it's mounted, or the clock stays blank until the first move
         this.timeLabels = [formatClockTime(this.currentTime)]
       }
-    },
-
-    // keep the plan table just above the time slider
-    watchSliderHeight() {
-      const el = this.$refs.sliderArea as HTMLElement | undefined
-      if (!el) return
-      // round up: offsetHeight rounds, which can tuck the table 1px under the slider
-      const measure = () => (this.sliderHeight = Math.ceil(el.getBoundingClientRect().height))
-      measure()
-      this.sliderResizer = new ResizeObserver(measure)
-      this.sliderResizer.observe(el)
     },
 
     setTime(t: number) {
@@ -793,6 +801,11 @@ const PlansViewerPlugin = defineComponent({
       this.animator = window.requestAnimationFrame(this.animate)
     },
 
+    // clicking a row again releases its highlight
+    toggleLockedRow(row: Plan) {
+      this.lockedRow = this.lockedRow === row ? null : row
+    },
+
     async performQuery(conn: AsyncDuckDBConnection, term: string) {
       // One query for exact ids and wildcard patterns alike. For a pattern like 'p524*' the
       // filter adds a person_id range on its literal prefix, so DuckDB only reads the row
@@ -826,6 +839,9 @@ const PlansViewerPlugin = defineComponent({
       this.plans = plans
 
       this.selectedPlans = []
+      // the rows are new objects now: whatever was hovered or locked is gone with them
+      this.hoveredRow = null
+      this.lockedRow = null
 
       this.drawThePlans(shownRows)
       this.isQueryRunning = false
@@ -847,7 +863,12 @@ const PlansViewerPlugin = defineComponent({
     },
 
     // Draw a chain of network links as one leg polyline.
-    addRouteToMap(mode: string, timeWin: { t0: number; t1: number }, linkIds: string[]) {
+    addRouteToMap(
+      mode: string,
+      timeWin: { t0: number; t1: number },
+      linkIds: string[],
+      row?: Plan
+    ) {
       if (!this.links) return
       // starting point from xy:[0,1]
       const points = [[this.links[linkIds[0]][0], this.links[linkIds[0]][1]]]
@@ -872,6 +893,8 @@ const PlansViewerPlugin = defineComponent({
         // time window for the slider filter
         t0: timeWin.t0,
         t1: timeWin.t1,
+        // the plan-table row, so hovering or locking it can find this leg again
+        row,
       })
     },
 
@@ -1011,6 +1034,8 @@ const PlansViewerPlugin = defineComponent({
 
     handleClick(object: unknown) {
       console.log('CLICK!', object)
+      // clicking empty map space releases the locked row's highlight
+      if (!object) this.lockedRow = null
     },
 
     async loadNetwork() {
@@ -1097,14 +1122,15 @@ export default PlansViewerPlugin
   flex: 1;
 }
 
-.time-slider-area {
+.bottom-section {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  right: 0.5rem;
   z-index: 6;
   pointer-events: auto;
-  filter: $filterShadow;
+  max-height: 40%;
+  gap: 0.4em;
 }
 
 h4 {

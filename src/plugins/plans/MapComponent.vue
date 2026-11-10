@@ -16,7 +16,7 @@
 import { defineComponent, markRaw, PropType } from 'vue'
 import maplibregl from 'maplibre-gl'
 import { MapboxOverlay } from '@deck.gl/mapbox'
-import { ArcLayer, ScatterplotLayer } from '@deck.gl/layers'
+import { ArcLayer, PathLayer as SolidPathLayer, ScatterplotLayer } from '@deck.gl/layers'
 import { DataFilterExtension, PathStyleExtension } from '@deck.gl/extensions'
 import type { DataFilterExtensionProps } from '@deck.gl/extensions'
 import type { Layer, LayerData } from '@deck.gl/core'
@@ -26,7 +26,7 @@ import BackgroundLayers from '@/js/BackgroundLayers'
 import globalStore from '@/store'
 import MapTooltip from './MapTooltip.vue'
 import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
-import { LegModeColor } from './PlansViewer.vue'
+import { LegModeColor, type Plan } from './PlansViewer.vue'
 import { OPEN_END, activeAtFilter } from './planTime'
 import {
   activeRoutes,
@@ -71,16 +71,22 @@ const modeColor = (fallback: number[]) => (mode: string) => {
   return c.length === 4 ? c : [...c, 255]
 }
 
+// The three shapes a plan row can own on the map. PlansViewer tags every drawn geometry with
+// the row it came from, and the highlight finds it back through `row`.
+type HlLeg = { points: number[][]; row?: Plan }
+type HlArc = { start: number[]; end: number[]; row?: Plan }
+type HlActivity = { midpoint: number[]; ptFrom: number[]; ptTo: number[]; row?: Plan }
+
 export default defineComponent({
   name: 'MyDeckComponent',
   components: { MapTooltip },
   props: {
-    bgLayers: { type: Object as PropType<BackgroundLayers> },
+    bgLayers: { type: Object as PropType<BackgroundLayers>, required: true },
     dark: { type: Boolean, required: true },
     legs: { type: Array, required: true },
     nonRoutedLegs: { type: Array, required: true },
     mapIsIndependent: { type: Boolean },
-    onClick: { type: Function },
+    onClick: { type: Function, required: true },
     settings: {
       type: Object as PropType<{
         simplifyTours: boolean
@@ -97,6 +103,8 @@ export default defineComponent({
     currentTime: { type: Number, default: 0 },
     // every selected plan in the file ("Show everyone"), or null
     overview: { type: Object as PropType<OverviewData | null>, default: null },
+    // the plan-table row being hovered or locked: its leg / activity is drawn bright white
+    highlightRow: { type: Object as PropType<Plan | null>, default: null },
   },
 
   data() {
@@ -286,6 +294,117 @@ export default defineComponent({
       return layers
     },
 
+    // The map geometry drawn for the hovered/locked table row, found by row identity (each
+    // drawn leg / activity keeps the plan row it came from). Undefined if that row is not
+    // on the map (unknown links, walk legs switched off...).
+    highlightGeometry(): { leg?: HlLeg; arc?: HlArc; activity?: HlActivity } {
+      const row = this.highlightRow
+      if (!row) return {}
+      return {
+        leg: (this.shownLegs as HlLeg[]).find(d => d.row === row),
+        arc: (this.shownNonRoutedLegs as HlArc[]).find(d => d.row === row),
+        activity: (this.stopActivities as HlActivity[]).find(d => d.row === row),
+      }
+    },
+
+    // The highlighted leg or activity, redrawn on top of the plan layers in white: a thick
+    // glow line/circle plus a thinner solid core. Not pickable, not time-filtered -- moving
+    // the mouse over a row always shows where it is, even when the slider hides it.
+    highlightLayers(): Layer[] {
+      const HL_GLOW = [255, 255, 255, 192]
+      const HL_CORE = this.globalState.isDarkMode ? [255, 255, 255, 255] : [83, 181, 137, 255]
+
+      const { leg, arc, activity } = this.highlightGeometry
+      const layers: Layer[] = []
+
+      // one white polyline: a wide soft glow underneath a solid core, both in pixels
+      const addPath = (id: string, paths: number[][][]) => {
+        for (const [color, width] of [
+          [HL_GLOW, 14],
+          [HL_CORE, 8],
+        ] as [number[], number][]) {
+          layers.push(
+            new SolidPathLayer({
+              id: `${id}-${width}`,
+              data: paths,
+              getPath: (d: number[][]) => d,
+              getColor: () => color,
+              widthUnits: 'pixels',
+              widthMinPixels: width,
+              widthMaxPixels: 400,
+              jointRounded: true,
+              capRounded: true,
+              shadowEnabled: false,
+              opacity: 1,
+              pickable: false,
+              parameters: { depthTest: false },
+              // SolidPathLayer's propTypes dislike our plain arrays of lonlats
+            } as unknown as ConstructorParameters<typeof SolidPathLayer>[0])
+          )
+        }
+      }
+
+      const addArc = (id: string, ends: number[][]) => {
+        for (const [color, width] of [
+          [HL_GLOW, 24],
+          [HL_CORE, 10],
+        ] as [number[], number][]) {
+          layers.push(
+            new ArcLayer({
+              id: `${id}-${width}`,
+              data: [ends],
+              getSourcePosition: (d: number[][]) => d[0],
+              getTargetPosition: (d: number[][]) => d[1],
+              getSourceColor: () => color,
+              getTargetColor: () => color,
+              getWidth: width,
+              widthUnits: 'pixels',
+              widthMinPixels: width,
+              widthMaxPixels: 400,
+              numSegments: 13,
+              getHeight: 0.6,
+              opacity: 1,
+              pickable: false,
+              parameters: { depthTest: false },
+            } as unknown as ConstructorParameters<typeof ArcLayer>[0])
+          )
+        }
+      }
+
+      if (leg) {
+        // "Simple tours" draws legs as arcs, so highlight the same shape
+        if (this.settings.simplifyTours)
+          addArc('highlight-leg', [leg.points[0], leg.points[leg.points.length - 1]])
+        else addPath('highlight-leg', [leg.points])
+      }
+      if (arc) addArc('highlight-arc', [arc.start, arc.end])
+
+      if (activity) {
+        addPath('highlight-activity-link', [[activity.ptFrom, activity.ptTo]])
+        for (const [color, radius] of [
+          [HL_GLOW, 14],
+          [HL_CORE, 8],
+        ] as [number[], number][]) {
+          layers.push(
+            new ScatterplotLayer({
+              id: `highlight-activity-${radius}`,
+              data: [activity],
+              getPosition: (d: HlActivity) => d.midpoint,
+              getFillColor: () => color,
+              radiusUnits: 'pixels',
+              getRadius: radius,
+              stroked: false,
+              opacity: 1,
+              pickable: false,
+              parameters: { depthTest: false },
+            } as unknown as ConstructorParameters<typeof ScatterplotLayer>[0])
+          )
+        }
+      }
+
+      return layers
+    },
+
     layers() {
       const allLayers = [] as any[]
 
@@ -317,7 +436,7 @@ export default defineComponent({
           pickable: false,
           autoHighlight: false,
           highlightColor: [255, 255, 255],
-          parameters: { depthTest: false },
+          parameters: {},
           getDashArray: [3, 2],
           dashJustified: true,
           extensions: [dashExtension, timeFilterExtension],
@@ -374,7 +493,7 @@ export default defineComponent({
             widthUnits: 'pixels',
             // widthScale: widthScale,
             opacity: 0.9,
-            numSegments: 5,
+            numSegments: 7,
             parameters: { depthTest: false },
             updateTriggers: { getWidth: [this.settings.scaleFactor] },
             transitions: { getWidth: 150 },
@@ -444,6 +563,9 @@ export default defineComponent({
           ...timeFilter,
         })
       )
+
+      // the row hovered or locked in the plan table, above every plan layer
+      allLayers.push(...this.highlightLayers)
 
       // ON-TOP layers
       if (extraLayers) allLayers.push(...extraLayers.layersOnTop)

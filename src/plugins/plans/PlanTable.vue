@@ -16,7 +16,10 @@
         th.header2(v-for="leg,i in headersLeg" :key="leg" :colspan="i < headersAct.length-1 ? '2': '1'" ) {{ leg }}
     tbody
       tr(v-for="row,i in plans" :key="i"
-        :class="[i%2 ? 'is-leg': 'is-act', {'is-active': isActive(row)}]"
+        :class="[i%2 ? 'is-leg': 'is-act', {'is-active': isActive(row), 'is-locked': row === lockedRow}]"
+        @mouseenter="$emit('hover-row', row)"
+        @mouseleave="$emit('hover-row', null)"
+        @click="$emit('click-row', row)"
       )
         td.xcellvalue {{ i+1 }}
         td.xcellvalue(v-for="col in interleavedColumns" :key="col"
@@ -55,7 +58,11 @@ const PlanTable = defineComponent({
     currentTime: { type: Number, default: 0 },
     // px to keep clear at the bottom of the map, e.g. for the time slider
     bottomOffset: { type: Number, default: 0 },
+    // the row whose map highlight is locked (clicked), to mark it in the table too
+    lockedRow: { type: Object as PropType<Plan | null>, default: null },
   },
+
+  emits: ['hover-row', 'click-row'],
 
   data() {
     return {
@@ -158,16 +165,9 @@ export default PlanTable
 }
 
 .plan-table {
-  position: absolute;
-  bottom: 0rem;
-  left: 0;
-  right: 0px;
-  // margin: 0.5rem 0.5rem 1rem 0.5rem;
-  max-height: 35%;
-  // pointer-events: none;
   font-size: 0.9rem;
   overflow: auto;
-  border: var(--borderThin);
+  // border: var(--borderThin);
   filter: drop-shadow(0px 3px 5px #00000033);
   z-index: 5;
 }
@@ -202,7 +202,7 @@ th {
 }
 
 .is-act {
-  background: var(--bgCream);
+  background: var(--bgMapLand);
 }
 
 .is-leg .xcellvalue {
@@ -213,6 +213,20 @@ th {
 // the activity/leg the person is at when the time slider is at currentTime
 .is-active {
   background: rgba(255, 196, 0, 0.35);
+}
+
+// rows highlight their leg/activity on the map: hover lights it, click locks it
+tbody tr {
+  cursor: pointer;
+}
+
+tbody tr:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+// more specific than `tbody tr:hover`, so a locked row keeps its stronger wash when hovered
+tbody tr.is-locked {
+  background: rgba(255, 255, 255, 0.45);
 }
 
 thead {
