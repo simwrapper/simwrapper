@@ -21,6 +21,7 @@
         :currentTime="currentTime"
         :overview="showEveryone ? overview : null"
         :highlightRow="highlightRow"
+        @hover-row="handleMapHover"
       )
 
       ZoomButtons(v-if="!thumbnail" corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
@@ -44,6 +45,7 @@
           :searchTerm="searchTerm"
           :currentTime="currentTime"
           :lockedRow="lockedRow"
+          :mapHoveredRow="mapHoveredRow"
           @hover-row="hoveredRow = $event"
           @click-row="toggleLockedRow"
         )
@@ -331,6 +333,9 @@ const PlansViewerPlugin = defineComponent({
       // clicked (locked until clicked again or the map's empty space is clicked)
       hoveredRow: null as Plan | null,
       lockedRow: null as Plan | null,
+      // the row hovered on the map (a leg/activity under the mouse), so the table can
+      // highlight it back. Only rows shown in the table count; everything else stays null.
+      mapHoveredRow: null as Plan | null,
       isQueryRunning: false,
       linkLayerId: Math.floor(1e12 * Math.random()),
       legModeColors: Object.entries(LegModeColor),
@@ -513,6 +518,7 @@ const PlansViewerPlugin = defineComponent({
       // a different plan is drawn now: the old highlight (and its lock) no longer applies
       this.hoveredRow = null
       this.lockedRow = null
+      this.mapHoveredRow = null
 
       let plans = [] as Plan[]
 
@@ -806,6 +812,13 @@ const PlansViewerPlugin = defineComponent({
       this.lockedRow = this.lockedRow === row ? null : row
     },
 
+    // Hovering a leg/activity on the map lights up its row in the table -- but only while
+    // the table is up and the object belongs to a row it shows; otherwise nothing happens.
+    handleMapHover(row: Plan | null) {
+      const shown = this.selectedPlans.length ? this.plans[this.selectedPlans[0]] : null
+      this.mapHoveredRow = row && shown && shown.indexOf(row) > -1 ? row : null
+    },
+
     async performQuery(conn: AsyncDuckDBConnection, term: string) {
       // One query for exact ids and wildcard patterns alike. For a pattern like 'p524*' the
       // filter adds a person_id range on its literal prefix, so DuckDB only reads the row
@@ -842,6 +855,7 @@ const PlansViewerPlugin = defineComponent({
       // the rows are new objects now: whatever was hovered or locked is gone with them
       this.hoveredRow = null
       this.lockedRow = null
+      this.mapHoveredRow = null
 
       this.drawThePlans(shownRows)
       this.isQueryRunning = false

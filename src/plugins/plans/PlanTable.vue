@@ -14,9 +14,9 @@
         th.header2 &nbsp;
         th.header2 &nbsp;
         th.header2(v-for="leg,i in headersLeg" :key="leg" :colspan="i < headersAct.length-1 ? '2': '1'" ) {{ leg }}
-    tbody
+    tbody(ref="rows")
       tr(v-for="row,i in plans" :key="i"
-        :class="[i%2 ? 'is-leg': 'is-act', {'is-active': isActive(row), 'is-locked': row === lockedRow}]"
+        :class="[i%2 ? 'is-leg': 'is-act', {'is-active': isActive(row), 'is-locked': row === lockedRow, 'is-map-hover': row === mapHoveredRow}]"
         @mouseenter="$emit('hover-row', row)"
         @mouseleave="$emit('hover-row', null)"
         @click="$emit('click-row', row)"
@@ -60,6 +60,8 @@ const PlanTable = defineComponent({
     bottomOffset: { type: Number, default: 0 },
     // the row whose map highlight is locked (clicked), to mark it in the table too
     lockedRow: { type: Object as PropType<Plan | null>, default: null },
+    // the row whose leg/activity the mouse is over on the map: light it up and keep it in view
+    mapHoveredRow: { type: Object as PropType<Plan | null>, default: null },
   },
 
   emits: ['hover-row', 'click-row'],
@@ -94,6 +96,17 @@ const PlanTable = defineComponent({
     // 'globalState.isDarkMode'() {
     //   // this.updateLegendColors()
     // },
+
+    // the map asked for a row: nothing to do if it isn't one of ours (or the mouse left)
+    mapHoveredRow(row: Plan | null) {
+      const i = row ? this.plans.indexOf(row) : -1
+      if (i < 0) return
+      this.$nextTick(() => {
+        const el = (this.$refs.rows as HTMLElement | undefined)?.children[i]
+        // 'nearest': only scrolls when the row isn't fully visible, then just far enough
+        el?.scrollIntoView({ block: 'nearest' })
+      })
+    },
   },
 
   mounted() {
@@ -227,6 +240,16 @@ tbody tr:hover {
 // more specific than `tbody tr:hover`, so a locked row keeps its stronger wash when hovered
 tbody tr.is-locked {
   background: rgba(255, 255, 255, 0.45);
+}
+
+// the row hovered on the map: bluer than the white lock, so both stay readable together
+tbody tr.is-map-hover {
+  background: rgba(80, 170, 255, 0.5);
+}
+
+// keep room for the sticky two-row header when scrollIntoView aligns a row to the top
+tbody tr {
+  scroll-margin-top: 2.5rem;
 }
 
 thead {

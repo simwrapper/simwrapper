@@ -107,6 +107,9 @@ export default defineComponent({
     highlightRow: { type: Object as PropType<Plan | null>, default: null },
   },
 
+  // the plan-table row under the mouse on the map (null when nothing hoverable is)
+  emits: ['hover-row'],
+
   data() {
     return {
       mymap: null as maplibregl.Map | null,
@@ -691,6 +694,9 @@ export default defineComponent({
 
     getTooltip(tip: { x: number; y: number; object: any }) {
       const { x, y, object } = tip
+
+      // the plan-table row behind this leg/activity, so the table can light it up (null clears)
+      this.$emit('hover-row', object?.row ?? null)
 
       if (!object) {
         this.tooltipCoord.display = 'none'
