@@ -9,21 +9,14 @@
     .main-panel
 
       DeckMapComponent.anim(
-        activeTab="tours"
         :bgLayers="backgroundLayers"
-        :shipments="shownShipments"
-        :depots="shownDepots"
         :legs="shownLegs"
         :nonRoutedLegs="nonRoutedLegs"
         :stopActivities="stopActivities"
         :dark="globalState.isDarkMode"
-        :center="vizDetails.center"
         :viewId="linkLayerId"
         :settings="vizSettings"
-        :numSelectedTours="selectedTours.length"
         :onClick="handleClick"
-        :projection="vizDetails.projection"
-        :services="vizDetails.services || false"
         :show3dBuildings="show3dBuildings"
         :currentTime="currentTime"
         :overview="showEveryone ? overview : null"
@@ -78,7 +71,7 @@
             span {{ $t('showEveryone') }}
 
       .carrier-list.mb1(data-testid="plan-list")
-        .carrier(v-for="plan,i in plans" :key="plan.plan_num"
+        .carrier(v-for="plan,i in plans" :key="plan[0].plan_num"
                  :class="{selected: selectedPlans.indexOf(i) > -1 }"
                  @click="handleSelectPlan(i)")
           .carrier-title {{ `${plan[0].person_id}&nbsp;/&nbsp;${plan[0].plan_num}&nbsp;&nbsp;${plan[0].plan_selected=='yes' ? '(*)':''}` }}
@@ -92,36 +85,6 @@
         .mode-color(v-for="c in legModeColors" :key="c[0]")
           .flex-row
             span(:style="{color: `rgb(${c[1][0]},${c[1][1]},${c[1][2]})`}") ───&nbsp;{{ c[0]}}
-
-      //- ⚠️ DEAD UI, inherited from carrier-viewer: `selectedCarrier` starts '' and is only
-      //- ever cleared, never assigned -- the code that would set it is commented out. Ported
-      //- rather than deleted so it compiles and would work if it is ever wired back up.
-      //- Oruga has no radio-button (button-group) control; a plain button group with the
-      //- active one highlighted gives the same behavior as Buefy's.
-      .detail-buttons.buttons.has-addons(v-if="selectedCarrier")
-
-        o-button(size="small" :variant="activeTab=='shipments' ? 'warning' : ''" @click="activeTab='shipments'")
-          span {{ $t('jobs') }}
-        o-button(size="small" :variant="activeTab=='tours' ? 'warning' : ''" @click="activeTab='tours'")
-          span {{ $t('tours') }}
-        o-button(size="small" :variant="activeTab=='vehicles' ? 'warning' : ''" @click="activeTab='vehicles'")
-          span {{ $t('vehicles') }}
-        o-button(v-if="services.length" size="small" :variant="activeTab=='services' ? 'warning' : ''" @click="activeTab='services'")
-          span {{ $t('services') }}
-
-        .shipments(v-if="activeTab=='shipments' && !vizDetails.services")
-            span {{ $t('jobs')}}: {{ shipments.length}}
-            .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
-                @click="handleSelectShipment(shipment)"
-                :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"
-            ) {{ `${shipment.$id}: ${shipment.$from}-${shipment.$to}` }}
-        .shipments(v-if="activeTab=='shipments' && vizDetails.services")
-            span {{ $t('jobs')}}: {{ shipments.length}}
-            .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
-                @click="handleSelectShipment(shipment)"
-                :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"
-            ) {{ `${shipment.$id}` }}
-
 
       .switchbox
         p.speed-label(:style="{margin: '1rem 0 0 0'}") {{ $t('show') }}
@@ -200,15 +163,12 @@ import type {
   AsyncDuckDB,
   AsyncDuckDBConnection,
 } from '~/@duckdb/duckdb-wasm/dist/types/src/targets/duckdb.js'
-import colorMap from 'colormap'
 import naturalSort from 'javascript-natural-sort'
-import readBlob from 'read-blob'
 
 import { personSearchFilter } from './personSearch'
 import { OverviewBuilder, linkLookup, type OverviewData } from './overviewData'
 import {
   MAX_END_TIME_KEY,
-  OPEN_END,
   P995_END_TIME_KEY,
   formatClockTime,
   sliderEndTime,
@@ -218,43 +178,15 @@ import YAML from 'yaml'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import LegendColors from '@/components/LegendColors.vue'
 import TimeSlider from '@/components/TimeSlider.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import {
-  gUnzip,
-  parseXML,
-  findMatchingGlobInFiles,
-  arrayBufferToBase64,
-  sleep,
-  debounce,
-  unreactive,
-} from '@/js/util'
+import { sleep, debounce } from '@/js/util'
 import DashboardDataManager from '@/js/DashboardDataManager'
-import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 import DeckMapComponent from './MapComponent.vue'
 import PlanTable from './PlanTable.vue'
 import BackgroundLayers from '@/js/BackgroundLayers'
 
-import {
-  FileSystem,
-  LegendItem,
-  LegendItemType,
-  FileSystemConfig,
-  VisualizationPlugin,
-  LIGHT_MODE,
-  DARK_MODE,
-  REACT_VIEW_HANDLES,
-  MAP_STYLES_OFFLINE,
-  ColorScheme,
-} from '@/Globals'
-
-interface NetworkLinks {
-  source: Float32Array
-  dest: Float32Array
-  linkId: any[]
-  projection: String
-}
+import { FileSystemConfig, REACT_VIEW_HANDLES } from '@/Globals'
 
 export const LegModeColor = {
   bike: [0, 225, 50, 255],
@@ -268,18 +200,36 @@ export const LegModeColor = {
 
 naturalSort.insensitive = true
 
-// An ActivityLocation is a link on which activities occur.
-// A location can have multiple visits on a tour!
-// Visits can have multiple pickups/dropoffs.
-interface ActivityLocation {
-  link: string
+// The viz YAML / dashboard config, plus the fields this viewer reads from it.
+interface VizDetails {
+  network?: string
+  carriers?: string
+  projection?: string
+  title?: string
+  description?: string
+  thumbnail?: string
+  buildings3d?: boolean
+  show3dBuildings?: boolean
+  center?: number[] | string | null
+}
+
+// An activity stop drawn on the map: its position plus the dashed marker along its link.
+interface ActivityStop {
+  type: string
   midpoint: number[]
-  visits: any[]
-  label: string
-  tour: any
-  details?: any
   ptFrom: number[]
   ptTo: number[]
+  t0: number
+  t1: number
+}
+
+// A leg drawn on the map: polyline points, its mode (colors the line) and time window.
+interface DrawnLeg {
+  points: number[][]
+  mode: string
+  type: string
+  t0: number
+  t1: number
 }
 
 // Above this many rows (all plans) "Show everyone" asks first: memory and download scale
@@ -340,7 +290,6 @@ const PlansViewerPlugin = defineComponent({
   i18n,
   components: {
     DeckMapComponent,
-    LegendColors,
     PlanTable,
     TimeSlider,
     ZoomButtons,
@@ -349,16 +298,18 @@ const PlansViewerPlugin = defineComponent({
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
-    yamlConfig: String,
-    config: Object as any,
-    thumbnail: Boolean,
-    datamanager: { type: Object as PropType<DashboardDataManager> },
+    yamlConfig: { type: String, default: undefined },
+    config: { type: Object as PropType<VizDetails>, default: undefined },
+    thumbnail: { type: Boolean, default: false },
+    datamanager: { type: Object as PropType<DashboardDataManager>, default: undefined },
   },
+
+  emits: ['error', 'title'],
 
   data() {
     return {
       duck: {} as AsyncDuckDB,
-      debounceUpdateSearch: {} as Function,
+      debounceUpdateSearch: {} as () => void,
       nonRoutedLegs: [] as {
         start: number[]
         end: number[]
@@ -397,7 +348,6 @@ const PlansViewerPlugin = defineComponent({
       // ------
       vizSettings: {
         simplifyTours: false,
-        scaleShipmentSizes: true,
         shipmentDotsOnTourMap: true,
         scaleFactor: 0, // 0 means don't scale at all
         selectedPlansOnly: false,
@@ -411,19 +361,14 @@ const PlansViewerPlugin = defineComponent({
         title: '',
         description: '',
         thumbnail: '',
-        services: false,
-        center: null as any,
-      },
+        center: null,
+      } as VizDetails,
 
       show3dBuildings: false,
 
       myState: {
         statusMessage: '',
-        isRunning: false,
         subfolder: '',
-        yamlConfig: '',
-        thumbnail: true,
-        data: [] as any[],
       },
 
       isDraggingDivider: 0,
@@ -435,82 +380,22 @@ const PlansViewerPlugin = defineComponent({
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
 
       searchTerm: '',
-      searchEnabled: false,
 
       backgroundLayers: null as BackgroundLayers | null,
 
       globalState: globalStore.state,
-      isLoaded: true,
-      showHelp: false,
-      activeTab: 'tours',
 
-      speedStops: [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10],
-      speed: 1,
+      // link-id -> [startLon, startLat, endLon, endLat], built by loadNetwork()
+      links: null as { [id: string]: number[] } | null,
 
-      legendBits: [] as any[],
+      stopActivities: [] as ActivityStop[],
 
-      links: null as any,
-
-      toggleTours: true,
-      toggleVehicles: true,
-      toggleShipments: true,
-      toggleServices: true,
-
-      detailContent: '',
-
-      data: null as any,
-
-      carriers: [] as any[],
-      vehicles: [] as any[],
-      shipments: [] as any[],
-      shipmentLookup: {} as any, // keyed on $id
-      services: [] as any[],
-      stopActivities: [] as any[],
-      tours: [] as any[],
-
-      shownShipments: [] as any[],
-      shipmentIdsInTour: [] as any[],
-
-      depots: [] as any,
-      shownDepots: [] as any,
-
-      shownLegs: [] as {
-        count: number
-        shipmentsOnBoard: string[]
-        totalSize: number
-        points: number[][]
-        tour: any
-        color: number[]
-        type: string
-        mode: string
-        t0: number
-        t1: number
-      }[],
-
-      selectedCarrier: '',
-      selectedTours: [] as any[],
-      selectedPlan: null as any,
-      selectedPlanIndex: null as any,
-      selectedShipment: null as any,
+      shownLegs: [] as DrawnLeg[],
 
       // NB no trailing ';' -- this string is bound via :style, and Vue 3 warns
       // "Unexpected semicolon at the end of 'background' style value" on every render,
       // dragging two [intlify] deprecation warnings with it. See trap #8.
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat",
-
-      vehicleLookup: [] as string[],
-      vehicleLookupString: {} as { [id: string]: number },
-
-      // always pick the same "random" colors
-      rgb: colorMap({
-        colormap: 'phase',
-        nshades: 9,
-        format: 'rba',
-      })
-        .map((a: any) => a.slice(0, 3))
-        .reverse(),
-
-      dropdownIsActive: false,
     }
   },
   computed: {
@@ -532,20 +417,6 @@ const PlansViewerPlugin = defineComponent({
     urlThumbnail(): string {
       return this.thumbnailUrl
     },
-
-    textColor(): any {
-      const lightmode = {
-        text: '#3498db',
-        bg: '#eeeef480',
-      }
-
-      const darkmode = {
-        text: 'white',
-        bg: '#181518aa',
-      }
-
-      return this.globalState.isDarkMode ? darkmode : lightmode
-    },
   },
 
   watch: {
@@ -557,10 +428,6 @@ const PlansViewerPlugin = defineComponent({
     '$store.state.viewState'() {
       if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
       REACT_VIEW_HANDLES[this.linkLayerId]()
-    },
-
-    'globalState.isDarkMode'() {
-      this.updateLegendColors()
     },
 
     searchTerm() {
@@ -577,7 +444,6 @@ const PlansViewerPlugin = defineComponent({
 
     this.debounceUpdateSearch = debounce(this.updateSearch, 500)
 
-    this.myState.thumbnail = this.thumbnail
     this.myState.subfolder = this.subfolder
 
     if (!this.yamlConfig) this.buildRouteFromUrl()
@@ -585,12 +451,9 @@ const PlansViewerPlugin = defineComponent({
 
     if (this.thumbnail) return
 
-    this.showHelp = false
-    this.updateLegendColors()
-
     this.myState.statusMessage = 'Loading network...'
     await sleep(0) // update UI
-    this.links = await this.loadNetwork()
+    this.links = (await this.loadNetwork()) ?? null
     this.setMapCenter()
 
     // this.myState.statusMessage = 'Loading plans...'
@@ -598,12 +461,6 @@ const PlansViewerPlugin = defineComponent({
 
     this.myState.statusMessage = ''
     await sleep(0) // update UI
-
-    // // Select the first carrier if the carriers are loaded
-    // if (this.carriers.length) this.handleSelectCarrier(this.carriers[0])
-
-    // // Select the first tour if the tours are loaded
-    // if (this.tours.length) this.handleSelectTour(this.tours[0])
 
     // background layers
     try {
@@ -613,7 +470,7 @@ const PlansViewerPlugin = defineComponent({
         subfolder: this.subfolder,
       })
       await this.backgroundLayers.initialLoad()
-    } catch (e) {
+    } catch {
       this.$emit('error', 'Error loading background layers')
     }
     // finally, make sure duckdb is ready
@@ -623,7 +480,6 @@ const PlansViewerPlugin = defineComponent({
   },
 
   beforeUnmount() {
-    this.myState.isRunning = false
     this.stopAnimation()
     this.sliderResizer?.disconnect()
 
@@ -682,16 +538,10 @@ const PlansViewerPlugin = defineComponent({
 
       // -------
       // add the routes like a crazy person
-      linkRoutes.forEach((route, i) => {
+      linkRoutes.forEach(route => {
         const linksOnThisRoute = (route.route_text || '').split(' ').filter(id => linkXY(id))
         if (!linksOnThisRoute.length) return
-        const tour = {
-          tourNumber: i,
-          legs: linksOnThisRoute,
-          mode: route.leg_mode,
-          ...timeWindow(route),
-        }
-        this.addRouteToMap(tour, { links: tour.legs, shipmentsOnBoard: [], totalSize: 100 }, i)
+        this.addRouteToMap(route.leg_mode, timeWindow(route), linksOnThisRoute)
       })
 
       // Non-routed routes can be shown as arcs, by mode
@@ -712,8 +562,8 @@ const PlansViewerPlugin = defineComponent({
 
       // YOLO! Add the activities too!
       // TODO: split out activities per PLAN, not one big list
-      const stopActivities = [] as any[]
-      activities.forEach((activity, i) => {
+      const stopActivities = [] as ActivityStop[]
+      activities.forEach(activity => {
         const link = activity.activity_link
         const lnglat = [activity.activity_lon, activity.activity_lat]
         // the dashed marker along the activity's link; none if the link is unknown
@@ -721,25 +571,13 @@ const PlansViewerPlugin = defineComponent({
         const ptFrom = xy ? [xy[0], xy[1]] : lnglat
         const ptTo = xy ? [xy[2], xy[3]] : lnglat
 
-        const actType = activity.activity_type // this.$t(activity.$type)
-
-        // get details: remove coords, IDs, that we don't need to show the user in UI.
-        const { from, fromX, fromY, to, toX, toY, id, ...details } = activity as any
-
-        const act = {
-          id: '', //  shipment.$id,
-          type: actType,
-          count: i + 1,
-          link,
+        stopActivities.push({
+          type: activity.activity_type,
           midpoint: lnglat,
-          label: '',
-          tour: activity,
-          details,
           ptFrom,
           ptTo,
           ...timeWindow(activity),
-        }
-        stopActivities.push(act)
+        })
       })
       this.stopActivities = stopActivities
 
@@ -970,27 +808,26 @@ const PlansViewerPlugin = defineComponent({
 
       this.isQueryRunning = true
 
-      // let's search for persons
-      let rows = [] as any[]
-
       const dbconn = await this.duck.connect()
       const table = await this.performQuery(dbconn, this.searchTerm)
       dbconn.close()
 
-      rows = table.toArray().map(r => r.toJSON())
+      // let's search for persons
+      const rows = table.toArray().map(r => r.toJSON()) as Plan[]
 
       // selected="yes" ?
-      if (this.vizSettings.selectedPlansOnly) rows = rows.filter(r => r.plan_selected == 'yes')
+      const shownRows = this.vizSettings.selectedPlansOnly
+        ? rows.filter(r => r.plan_selected == 'yes')
+        : rows
 
-      const plans: any[] = Object.values(
-        Object.groupBy(rows, row => `${row.person_id}/${row.plan_num}`)
-      )
+      const grouped = Object.groupBy(shownRows, row => `${row.person_id}/${row.plan_num}`)
+      const plans = Object.values(grouped).filter((p): p is Plan[] => !!p)
       plans.sort((a, b) => naturalSort(a[0].person_id, b[0].person_id))
       this.plans = plans
 
       this.selectedPlans = []
 
-      this.drawThePlans(rows)
+      this.drawThePlans(shownRows)
       this.isQueryRunning = false
     },
 
@@ -999,7 +836,7 @@ const PlansViewerPlugin = defineComponent({
       this.dragStartWidth = this.legendSectionWidth
     },
 
-    dividerDragEnd(e: MouseEvent) {
+    dividerDragEnd() {
       this.isDraggingDivider = 0
     },
 
@@ -1009,228 +846,13 @@ const PlansViewerPlugin = defineComponent({
       this.legendSectionWidth = Math.max(0, this.dragStartWidth + deltaX)
     },
 
-    handleSelectShipment(shipment: any) {
-      // console.log({ shipment })
-
-      if (this.selectedShipment === shipment) {
-        this.selectedShipment = null
-        this.shownShipments = []
-
-        // if everything is deselected, reset view
-        if (!this.selectedTours.length || this.selectedShipment == null) {
-          const carrier = this.carriers.filter(c => c.$id == this.selectedCarrier)
-          this.selectedCarrier = ''
-          // this.handleSelectCarrier(carrier[0])
-        }
-
-        return
-      }
-
-      this.shownShipments = this.shipments.filter(s => s.$id === shipment.$id)
-      this.selectedShipment = shipment
-    },
-
-    processActivitiesInTour(activity: any): {
-      shipmentIdsInTour: any[]
-      stopActivities: ActivityLocation[]
-    } {
-      let stopCount = 0
-
-      // link ID is the lookup key for activity locations.
-      // BUT, since link-IDs are often numbers, we must always
-      // prepend an "L" to the link-id so that the key order
-      // is stable and based on insertion order.
-      const locations: { [link: string]: ActivityLocation } = {}
-
-      // for (const activity of tour.plan) {
-      //   if (!activity.$shipmentId && !activity.$serviceId) continue
-
-      //   var shipment
-      //   if (activity.$serviceId) {
-      //     shipmentIdsInTour.push(activity.$serviceId)
-      //     shipment = this.shipmentLookup[activity.$serviceId]
-      //   } else {
-      //     shipmentIdsInTour.push(activity.$shipmentId)
-      //     shipment = this.shipmentLookup[activity.$shipmentId]
-      //   }
-
-      //   if (!shipment) continue
-
-      const link = activity.activity_link
-      const ptFrom = [this.links[link][0], this.links[link][1]]
-      const ptTo = [this.links[link][2], this.links[link][3]]
-      const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
-
-      const lnglat = [activity.activity_lon, activity.activity_lat]
-      const actType = activity.activity_type // this.$t(activity.$type)
-
-      // get details: remove coords, IDs, that we don't need to show the user in UI.
-      const { from, fromX, fromY, to, toX, toY, id, ...details } = activity
-
-      const act = {
-        id: '', //  shipment.$id,
-        type: actType,
-        count: stopCount++,
-        link,
-        midpoint: lnglat,
-        label: '',
-        tour: activity,
-        details,
-        ptFrom,
-        ptTo,
-      }
-
-      // // where to store it? same or new location?
-      // if (link == prevLocation) {
-      //   // same loc as last activity
-      //   locations[`L${link}`].visits[locations[`L${link}`].visits.length - 1][
-      //     activity.$type
-      //   ].push(act)
-      // } else if (`L${link}` in locations) {
-      //   // previously-visited location. Start a new visit!
-      //   const visit = { pickup: [], delivery: [], service: [] } as any
-      //   visit[activity.$type].push(act) // so gets saved in either pickup[] or delivery[]
-      //   locations[`L${link}`].visits.push(visit)
-      // } else {
-      // never been here before
-      // const visit = { pickup: [], delivery: [], service: [] } as any
-      // visit[activity.activity_type].push(act)
-      locations[`L${link}`] = {
-        link,
-        midpoint: lnglat,
-        label: '',
-        tour: activity,
-        details,
-        ptFrom,
-        ptTo,
-        visits: [], // visit],
-      }
-      // }
-      // prevLocation = link
-      // }
-
-      // convert to an array, insertion order is stable value order
-      const stopActivities = Object.values(locations)
-
-      // set stop labels: use count for all but the first one
-      for (let sCount = 0; sCount < stopActivities.length; sCount++) {
-        stopActivities[sCount].label = `${sCount}`
-      }
-      stopActivities[0].label = 'Depot'
-
-      console.log({ stopActivities })
-      // console.log({ shipmentIdsInTour, stopActivities })
-      return { shipmentIdsInTour: [], stopActivities }
-    },
-
-    setupDepots() {
-      const depots: { [link: string]: any } = {}
-
-      this.vehicles.forEach((v: any) => {
-        const linkId = v.$depotLinkId
-        let depotLink = this.links[linkId]
-
-        if (!depotLink) return
-
-        if (!depots[linkId]) {
-          depots[linkId] = {
-            type: 'depot',
-            link: v.$depotLinkId,
-            midpoint: [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])],
-            coords: this.links[v.$depotLinkId],
-            vehicles: {} as any,
-          }
-        }
-        depots[linkId].vehicles[v.$id] = v
-      })
-
-      this.depots = Object.values(depots)
-      this.shownDepots = this.depots.slice(0)
-    },
-
-    // -----------------------------------------------------------------------
-    selectAllTours() {
-      this.selectedTours = []
-      this.shownLegs = []
-      this.stopActivities = []
-      this.shownDepots = []
-      this.shownShipments = this.shipments.slice(0)
-
-      for (const tour of this.tours) {
-        //  all legs
-        tour.legs.forEach((leg: any, count_route: number) =>
-          this.addRouteToMap(tour, leg, count_route++)
-        )
-
-        // all activities
-        const z = this.processActivitiesInTour(tour)
-        this.stopActivities = this.stopActivities.concat(z.stopActivities)
-
-        // all depots
-        this.setupDepots()
-      }
-    },
-
-    async handleSelectTour(tour: any) {
-      // add the legs from the shipmentLookup if the tour has no route data
-      if (!tour.legs.length) {
-        console.log('No Route.')
-        for (let i = 0; i < tour.plan.length; i++) {
-          if (tour.plan[i].$shipmentId) {
-            const shipmentId = tour.plan[i].$shipmentId
-            const linksArray = [
-              this.shipmentLookup[shipmentId].$from,
-              this.shipmentLookup[shipmentId].$to,
-            ]
-            tour.legs.push({ links: linksArray })
-          }
-        }
-        this.vizSettings.simplifyTours = true
-      }
-
-      //this unselects tour if user clicks an already-selected tour again
-      if (this.selectedTours.includes(tour)) {
-        this.selectedTours = this.selectedTours.filter((element: any) => element !== tour)
-        this.shownLegs = this.shownLegs.filter(leg => leg.tour !== tour)
-        this.stopActivities = this.stopActivities.filter(stop => stop.tour !== tour)
-
-        // if everything is deselected, EVERYTHING is selected! :-O
-        if (!this.selectedTours.length) this.selectAllTours()
-        return
-      }
-
-      // if this is the first selected tour, remove everything else first
-      if (!this.selectedTours.length) {
-        this.selectedTours = []
-        this.shownLegs = []
-        this.stopActivities = []
-        this.shownDepots = []
-      }
-
-      this.selectedTours.push(tour)
-
-      const { shipmentIdsInTour, stopActivities } = this.processActivitiesInTour(tour)
-      this.shipmentIdsInTour = shipmentIdsInTour
-
-      // Add all legs from all routes of this tour to the map
-      let count_route = 0
-      for (const leg of tour.legs) {
-        this.addRouteToMap(tour, leg, count_route++)
-      }
-
-      // add stop activity locations at the very end
-      this.stopActivities = this.stopActivities.concat(stopActivities)
-    },
-
-    addRouteToMap(
-      tour: any,
-      leg: { links: any[]; shipmentsOnBoard: string[]; totalSize: number },
-      count_route: number
-    ) {
+    // Draw a chain of network links as one leg polyline.
+    addRouteToMap(mode: string, timeWin: { t0: number; t1: number }, linkIds: string[]) {
+      if (!this.links) return
       // starting point from xy:[0,1]
-      const points = [[this.links[leg.links[0]][0], this.links[leg.links[0]][1]]]
+      const points = [[this.links[linkIds[0]][0], this.links[linkIds[0]][1]]]
 
-      for (const link of leg.links) {
+      for (const link of linkIds) {
         const lastPoint = points[points.length - 1]
         const fromXY = [this.links[link][0], this.links[link][1]]
 
@@ -1244,90 +866,13 @@ const PlansViewerPlugin = defineComponent({
       }
 
       this.shownLegs.push({
-        tour,
-        shipmentsOnBoard: leg.shipmentsOnBoard,
-        totalSize: leg.totalSize,
-        count: count_route,
         points,
-        color: this.rgb[(3 + tour.tourNumber) % this.rgb.length],
-        mode: tour.mode,
+        mode,
         type: 'leg',
-        // time window for the slider filter; legs drawn by other code paths have none
-        t0: tour.t0 ?? 0,
-        t1: tour.t1 ?? OPEN_END,
+        // time window for the slider filter
+        t0: timeWin.t0,
+        t1: timeWin.t1,
       })
-      // this.shownLegs = [...this.shownLegs]
-    },
-
-    // handleSelectCarrier(carrier: any) {
-    //   this.dropdownIsActive = false
-
-    //   if (!this.links) return
-
-    //   const id = carrier.$id
-
-    //   this.vehicles = []
-    //   this.shipments = []
-    //   this.services = []
-    //   this.tours = []
-    //   this.plans = []
-    //   this.shownShipments = []
-    //   this.shownDepots = []
-    //   this.selectedShipment = null
-    //   this.shipmentIdsInTour = []
-    //   this.stopActivities = []
-    //   this.shownLegs = []
-
-    //   // unselect carrier
-    //   if (this.selectedCarrier === id) {
-    //     this.selectedCarrier = ''
-    //     return
-    //   }
-
-    //   this.selectedCarrier = id
-
-    //   // vehicles
-    //   let vehicles = carrier.capabilities.vehicles.vehicle || []
-    //   this.vehicles = vehicles.sort((a: any, b: any) => naturalSort(a, b))
-
-    //   // depots
-    //   this.setupDepots()
-
-    //   if (carrier.services?.service?.length)
-    //     this.services = carrier.services.service.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-
-    //   // select all everything
-    //   this.shownShipments = this.shipments
-    //   this.selectAllTours()
-    // },
-
-    getAllPlans(carrier: any) {
-      // Add plan to plans[] if there is no plans-tag and only one plan
-      if (carrier.plan != undefined) {
-        this.plans.push(carrier.plan)
-        this.selectedPlan = carrier.plan
-        return
-      }
-
-      if (carrier.plans != undefined) {
-        // Add plan to plans[] if a plans-tag has only one child
-        if (carrier.plans.plan.length == undefined) {
-          this.plans.push(carrier.plans.plan)
-          this.selectedPlan = carrier.plans.plan
-          return
-        }
-
-        // Add plans to plans[] if a plans-tag exists and the plans-tag has multiple childs
-        this.plans = carrier.plans.plan
-
-        for (let i = 0; i < carrier.plans.plan.length; i++) {
-          if (carrier.plans.plan[i].selected == 'true') {
-            this.selectedPlan = carrier.plans.plan[i]
-            break
-          }
-          this.selectedPlan = carrier.plans.plan[i]
-        }
-      }
     },
 
     // this happens if viz is the full page, not a thumbnail on a project page
@@ -1338,13 +883,11 @@ const PlansViewerPlugin = defineComponent({
         return
       }
 
-      // subfolder and config file
-      const sep = 1 + params.pathMatch.lastIndexOf('/')
-      const subfolder = params.pathMatch.substring(0, sep)
-      const config = params.pathMatch.substring(sep)
+      // subfolder containing the file
+      const pathMatch = params.pathMatch as string
+      const sep = 1 + pathMatch.lastIndexOf('/')
 
-      this.myState.subfolder = subfolder
-      this.myState.yamlConfig = config
+      this.myState.subfolder = pathMatch.substring(0, sep)
     },
 
     async getVizDetails() {
@@ -1374,7 +917,7 @@ const PlansViewerPlugin = defineComponent({
         } catch (e) {
           console.log('failed' + e)
           // maybe it failed because password?
-          const err = e as any
+          const err = e as { status?: number }
           if (this.fileSystem.needPassword && err.status === 401) {
             globalStore.commit('requestLogin', this.fileSystem.slug)
           } else {
@@ -1404,13 +947,12 @@ const PlansViewerPlugin = defineComponent({
       const t = '' + this.$t('plansExplorer')
       this.vizDetails = {
         network: networkFile,
-        carriers: this.yamlConfig as any,
+        carriers: this.yamlConfig,
         title: t,
         description: '',
         center: this.vizDetails.center,
         projection: '',
         thumbnail: '',
-        services: false,
       }
       this.sync3dBuildingsSetting()
 
@@ -1418,9 +960,7 @@ const PlansViewerPlugin = defineComponent({
     },
 
     sync3dBuildingsSetting() {
-      this.show3dBuildings = !!(
-        (this.vizDetails as any).buildings3d ?? (this.vizDetails as any).show3dBuildings
-      )
+      this.show3dBuildings = !!(this.vizDetails.buildings3d ?? this.vizDetails.show3dBuildings)
     },
 
     toggle3dBuildings() {
@@ -1432,23 +972,25 @@ const PlansViewerPlugin = defineComponent({
       let longitude = 0
       let latitude = 0
 
-      if (this.vizDetails.center) {
-        if (typeof this.vizDetails.center == 'string') {
-          this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
-        }
-        longitude = this.vizDetails.center[0]
-        latitude = this.vizDetails.center[1]
-      } else if (!this.vizDetails.center) {
-        this.data = Object.entries(this.links)
+      let center = this.vizDetails.center
+      if (typeof center == 'string') {
+        center = center.split(',').map(Number)
+        this.vizDetails.center = center
+      }
+      if (center) {
+        longitude = center[0]
+        latitude = center[1]
+      } else {
+        const links = Object.entries(this.links ?? {})
 
-        if (!this.data.length) return
+        if (!links.length) return
 
-        const numLinks = this.data.length / 2
+        const numLinks = links.length / 2
 
         const gap = 4096
         for (let i = 0; i < numLinks; i += gap) {
-          longitude += this.data[i * 2][1][0]
-          latitude += this.data[i * 2 + 1][1][1]
+          longitude += links[i * 2][1][0]
+          latitude += links[i * 2 + 1][1][1]
           samples++
         }
 
@@ -1467,86 +1009,14 @@ const PlansViewerPlugin = defineComponent({
       }
     },
 
-    async buildThumbnail() {
-      if (this.thumbnail && this.vizDetails.thumbnail) {
-        try {
-          const blob = await this.fileApi.getFileBlob(
-            this.myState.subfolder + '/' + this.vizDetails.thumbnail
-          )
-          const buffer = await readBlob.arraybuffer(blob)
-          const base64 = arrayBufferToBase64(buffer)
-          if (base64)
-            this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
-        } catch (e) {
-          console.error(e)
-        }
-      }
-    },
-
-    handleClick(object: any) {
+    handleClick(object: unknown) {
       console.log('CLICK!', object)
-      return
-      if (!object) this.clickedEmptyMap()
-      if (object?.type == 'depot') this.clickedDepot(object)
-      if (object?.type == 'leg') this.clickedLeg(object)
-    },
-
-    clickedDepot(object: any) {
-      const vehiclesAtThisDepot = Object.values(object.vehicles).map((v: any) => v.$id)
-      // console.log({ vehiclesAtThisDepot })
-      this.selectedTours = []
-      this.shownShipments = []
-
-      for (const tour of this.tours) {
-        if (vehiclesAtThisDepot.includes(tour.vehicleId)) {
-          this.handleSelectTour(tour)
-          // ^^ has side-effect: shipmentsInTour now has the list of shipmentIds
-          // We can use this to filter the shipments
-          this.shipmentIdsInTour.forEach(id => {
-            this.shownShipments.push(this.shipmentLookup[id])
-          })
-        }
-      }
-    },
-
-    clickedLeg(object: any) {
-      if (object?.tour) this.handleSelectTour(object?.tour)
-    },
-
-    clickedEmptyMap() {
-      // this.selectAllTours()
-    },
-
-    updateLegendColors() {},
-
-    async loadCarriers() {
-      // this.myState.statusMessage = '' + this.$i18n.t('message.tours')
-
-      const carriersXML = await this.loadFileOrGzippedFile(this.vizDetails.carriers)
-      if (!carriersXML) return []
-
-      const root: any = await parseXML(carriersXML, {
-        // these elements should always be arrays, even if there's just one element:
-        alwaysArray: [
-          'carriers.carrier',
-          'carriers.carrier.capabilities.vehicles.vehicle',
-          'carriers.carrier.plan.tour',
-          'carriers.carrier.shipments.shipment',
-          'carriers.carrier.services.service',
-        ],
-      })
-
-      // sort by '$id' attribute
-      const carrierList = root.carriers.carrier.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-      // console.log(carrierList)
-
-      return carrierList
     },
 
     async loadNetwork() {
       this.myState.statusMessage = 'Loading network...'
 
-      let networkFile = this.vizDetails.network
+      const networkFile = this.vizDetails.network ?? ''
 
       try {
         // try loading this network file
@@ -1574,133 +1044,10 @@ const PlansViewerPlugin = defineComponent({
         // return { network }
         // console.log( links )
         return links
-      } catch (e) {
+      } catch {
         this.$emit('error', 'Could not load network file', networkFile)
       }
     },
-
-    async fetchNetwork(path: string, vizDetails: any) {
-      return new Promise<NetworkLinks>((resolve, reject) => {
-        const thread = new RoadNetworkLoader()
-        try {
-          // unreactive(): fileSystem comes out of $store.state.svnProjects and vizDetails
-          // out of data(), so both are reactive Proxies -- which structuredClone cannot
-          // clone. See unreactive() in @/js/util, and trap #1 in VUE3-MIGRATION.md.
-          // (NB this method is currently unreachable -- see the note on loadNetwork.)
-          thread.postMessage(
-            unreactive({
-              filePath: path,
-              fileSystem: this.fileSystem,
-              vizDetails,
-            })
-          )
-
-          thread.onmessage = e => {
-            // perhaps network has no CRS and we need to ask user
-            if (e.data.promptUserForCRS) {
-              let crs =
-                prompt('Enter the coordinate reference system, e.g. EPSG:25832') || 'EPSG:31468'
-
-              if (Number.isFinite(parseInt(crs))) crs = `EPSG:${crs}`
-
-              thread.postMessage({ crs })
-              return
-            }
-
-            if (e.data.status) {
-              this.myState.statusMessage = '' + e.data.status
-              return
-            }
-
-            // normal exit
-            thread.terminate()
-
-            if (e.data.error) {
-              console.error(e.data.error)
-              globalStore.commit('error', e.data.error)
-              this.myState.statusMessage = e.data.error
-              reject(e.data.error)
-            }
-            resolve(e.data.links)
-          }
-        } catch (err) {
-          thread.terminate()
-          console.error(err)
-          reject(err)
-        }
-      })
-    },
-
-    toggleLoaded(loaded: boolean) {
-      this.isLoaded = loaded
-    },
-
-    rotateColors() {
-      localStorage.setItem(
-        'plugin/agent-animation/colorscheme',
-        this.globalState.isDarkMode ? ColorScheme.DarkMode : ColorScheme.LightMode
-      )
-    },
-
-    async loadFileOrGzippedFile(name: string) {
-      let filepath = `${this.subfolder}/${name}`
-
-      try {
-        // figure out which file to load with *? wildcards
-        if (filepath.indexOf('*') > -1 || filepath.indexOf('?') > -1) {
-          const zDataset = filepath.substring(1 + filepath.lastIndexOf('/'))
-          const zSubfolder = filepath.substring(0, filepath.lastIndexOf('/'))
-
-          // fetch list of files in this folder
-          const { files } = await this.fileApi.getDirectory(zSubfolder)
-          const matchingFiles = findMatchingGlobInFiles(files, zDataset)
-          if (matchingFiles.length == 0) throw Error(`No files matched "${zDataset}"`)
-          if (matchingFiles.length > 1)
-            throw Error(`More than one file matched "${zDataset}": ${matchingFiles}`)
-          filepath = `${zSubfolder}/${matchingFiles[0]}`
-        }
-
-        let content = ''
-
-        if (filepath.endsWith('xml') || filepath.endsWith('gz') || filepath.endsWith('zst')) {
-          const blob = await this.fileApi.getFileBlob(filepath)
-          const buffer = await blob.arrayBuffer()
-          // recursively gunzip until it can gunzip no more:
-          const unzipped = await gUnzip(buffer)
-          const text = new TextDecoder('utf-8').decode(unzipped)
-          return text
-        }
-      } catch (e) {
-        // oh no
-      }
-
-      const error = `Error loading ${filepath}`
-      globalStore.commit('error', error)
-      this.myState.statusMessage = error
-      return ''
-    },
-
-    selectDropdown() {
-      this.dropdownIsActive = !this.dropdownIsActive
-    },
-
-    // selectPlan(plan: any) {
-    //   // Set all plans to unselected
-    //   for (let i = 0; i < this.plans.length; i++) {
-    //     this.plans[i].$selected = 'false'
-    //   }
-
-    //   // Select new plan
-    //   plan.$selected = 'true'
-
-    //   this.selectedPlanIndex = this.plans.indexOf(plan)
-
-    //   // Unselect all tours
-    //   this.selectedTours = []
-
-    //   this.selectDropdown()
-    //   this.selectedPlan = plan
-    // },
   },
 })
 

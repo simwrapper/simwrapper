@@ -6,18 +6,17 @@
 
 <script lang="ts">
 // -------------------------------------------------------------
-// Tour viz has several layers, top to bottom:
+// Plan viz has several layers, top to bottom:
 //
-// - shipments (arc layer, orig->destination)
 // - destination text on top of circles
 // - destination circles
-// - delivery legs (path layer, each leg is its own path)
+// - legs (path layer, each leg is its own path)
 // - shipment link (dashed line on stopActivity link itself)
 
 import { defineComponent, markRaw, PropType } from 'vue'
 import maplibregl from 'maplibre-gl'
 import { MapboxOverlay } from '@deck.gl/mapbox'
-import { ArcLayer, ScatterplotLayer, IconLayer, TextLayer } from '@deck.gl/layers'
+import { ArcLayer, ScatterplotLayer } from '@deck.gl/layers'
 import { DataFilterExtension, PathStyleExtension } from '@deck.gl/extensions'
 import type { DataFilterExtensionProps } from '@deck.gl/extensions'
 import type { Layer, LayerData } from '@deck.gl/core'
@@ -72,34 +71,16 @@ const modeColor = (fallback: number[]) => (mode: string) => {
   return c.length === 4 ? c : [...c, 255]
 }
 
-interface Shipment {
-  $id: string
-  fromX: number
-  fromY: number
-  toX: number
-  toY: number
-}
-
-interface ShipmentDetails {
-  type: string
-  coord: number[]
-  shipmentIds: string[]
-}
-
 export default defineComponent({
   name: 'MyDeckComponent',
   components: { MapTooltip },
   props: {
-    activeTab: { type: String, required: true },
     bgLayers: { type: Object as PropType<BackgroundLayers> },
     dark: { type: Boolean, required: true },
-    depots: { type: Array as PropType<{ link: string; midpoint: number[]; coords: number[] }[]> },
     legs: { type: Array, required: true },
     nonRoutedLegs: { type: Array, required: true },
     mapIsIndependent: { type: Boolean },
-    numSelectedTours: { type: Number, required: true },
     onClick: { type: Function },
-    services: { type: Boolean, required: true },
     settings: {
       type: Object as PropType<{
         simplifyTours: boolean
@@ -109,7 +90,6 @@ export default defineComponent({
       }>,
       required: true,
     },
-    shipments: { type: Array as PropType<Shipment[]>, required: true },
     stopActivities: { type: Array, required: true },
     viewId: { type: Number, required: true },
     show3dBuildings: { type: Boolean, required: false, default: false },
@@ -321,7 +301,6 @@ export default defineComponent({
         ...activeAtFilter(this.currentTime),
       }
 
-      // if (this.activeTab == 'tours') {
       allLayers.push(
         new PathLayer({
           id: 'shipmentLocationDashedLine',
@@ -451,7 +430,7 @@ export default defineComponent({
           getLineWidth: 0.5,
           stroked: false,
           getPosition: (d: any, i: number) => [...d.midpoint, (i + 1) * 4],
-          getRadius: 4, // (d: any) => (d.label == 'Depot' ? 11 : this.numSelectedTours !== 1 ? 4 : 11),
+          getRadius: 4,
           radiusUnits: 'pixels',
           lineWidthUnits: 'pixels',
           opacity: 0.9,
@@ -471,33 +450,6 @@ export default defineComponent({
 
       // all done! Phew
       return allLayers
-    },
-
-    pickupsAndDeliveries() {
-      const pickups: { [xy: string]: ShipmentDetails } = {}
-      const deliveries: { [xy: string]: ShipmentDetails } = {}
-
-      this.shipments.forEach(shipment => {
-        let xy = `${shipment.fromX}-${shipment.fromY}`
-        if (!pickups[xy])
-          pickups[xy] = { type: 'pickup', shipmentIds: [], coord: [shipment.fromX, shipment.fromY] }
-        pickups[xy].shipmentIds.push(shipment.$id)
-
-        xy = `${shipment.toX}-${shipment.toY}`
-        if (!deliveries[xy])
-          deliveries[xy] = {
-            type: 'delivery',
-            shipmentIds: [],
-            coord: [shipment.toX, shipment.toY],
-          }
-        deliveries[xy].shipmentIds.push(shipment.$id)
-      })
-
-      return {
-        type: 'activity',
-        pickups: Object.values(pickups),
-        deliveries: Object.values(deliveries),
-      }
     },
 
     widthScale() {

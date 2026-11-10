@@ -8,12 +8,12 @@
   table.plan-html-table
     thead
       tr
+        th.header1 n
+        th.header1(v-for="act in headersAct" colspan="2" :key="act") {{ act }}
+      tr
         th.header2 &nbsp;
         th.header2 &nbsp;
         th.header2(v-for="leg,i in headersLeg" :key="leg" :colspan="i < headersAct.length-1 ? '2': '1'" ) {{ leg }}
-      tr
-        th.header1 n
-        th.header1(v-for="act in headersAct" colspan="2" :key="act") {{ act }}
     tbody
       tr(v-for="row,i in plans" :key="i"
         :class="[i%2 ? 'is-leg': 'is-act', {'is-active': isActive(row)}]"
@@ -51,7 +51,6 @@ const PlanTable = defineComponent({
 
   props: {
     plans: { required: true, type: Array as PropType<Plan[]> },
-    searchTerm: String,
     // time slider position (seconds); 0 = no time filter, so nothing is highlighted
     currentTime: { type: Number, default: 0 },
     // px to keep clear at the bottom of the map, e.g. for the time slider
@@ -69,7 +68,7 @@ const PlanTable = defineComponent({
   },
 
   computed: {
-    textColor(): any {
+    textColor() {
       const lightmode = {
         text: '#3498db',
         bg: '#eeeef480',
@@ -85,15 +84,17 @@ const PlanTable = defineComponent({
   },
 
   watch: {
-    'globalState.isDarkMode'() {
-      // this.updateLegendColors()
-    },
-    searchTerm() {
-      // this.debounceUpdateSearch()
-    },
-    // plans() {
-    //   // console.log(1000, this.interleavedColumns)
+    // 'globalState.isDarkMode'() {
+    //   // this.updateLegendColors()
     // },
+  },
+
+  mounted() {
+    // hi
+    this.headersAct = this.calcHeadersAct()
+    this.headersLeg = this.calcHeadersLeg()
+    this.interleavedColumns = this.zip(this.headersAct, this.headersLeg)
+    // console.log('INTERLE', this.interleavedColumns)
   },
 
   methods: {
@@ -135,14 +136,6 @@ const PlanTable = defineComponent({
       }
       return out
     },
-  },
-
-  mounted() {
-    // hi
-    this.headersAct = this.calcHeadersAct()
-    this.headersLeg = this.calcHeadersLeg()
-    this.interleavedColumns = this.zip(this.headersAct, this.headersLeg)
-    // console.log('INTERLE', this.interleavedColumns)
   },
 })
 
