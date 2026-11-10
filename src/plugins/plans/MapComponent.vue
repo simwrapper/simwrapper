@@ -86,12 +86,6 @@ interface ShipmentDetails {
   shipmentIds: string[]
 }
 
-const ActivityColor = {
-  pickup: [0, 150, 255],
-  delivery: [240, 0, 60],
-  service: [255, 64, 255],
-}
-
 export default defineComponent({
   name: 'MyDeckComponent',
   components: { MapTooltip },
@@ -130,47 +124,9 @@ export default defineComponent({
       mymap: null as maplibregl.Map | null,
       deckOverlay: null as InstanceType<typeof MapboxOverlay> | null,
       globalState: globalStore.state,
-      tip: null as any,
-      tooltipCoord: { top: 0, left: 0, display: 'block' } as any,
+      tip: null,
+      tooltipCoord: { top: 0, left: 0, display: 'block' },
     }
-  },
-
-  watch: {
-    layers() {
-      this.deckOverlay?.setProps({
-        layers: this.layers,
-      })
-    },
-
-    dark() {
-      const style = `${BASE_URL}map-styles/${
-        this.globalState.isDarkMode ? 'dark' : 'positron'
-      }.json`
-      this.mymap?.setStyle(style)
-    },
-
-    show3dBuildings() {
-      if (!this.mymap) return
-      if (this.show3dBuildings) enable3DBuildings(this.mymap)
-      else disable3DBuildings(this.mymap)
-    },
-
-    'globalState.viewState'() {
-      if (this.mapIsIndependent) return
-      const incoming = this.globalState.viewState as any
-      const center = this.mymap?.getCenter() as any
-      if (
-        incoming.longitude !== center.lng ||
-        incoming.latitude !== center.lat ||
-        incoming.zoom !== this.mymap?.getZoom() ||
-        incoming.pitch !== this.mymap?.getPitch() ||
-        incoming.bearing !== this.mymap?.getBearing()
-      ) {
-        this.mymap?.jumpTo(
-          Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
-        )
-      }
-    },
   },
 
   computed: {
@@ -252,7 +208,13 @@ export default defineComponent({
       }
       const colorOf = modeColor(ROUTE_DEFAULT_COLOR)
       const kindColors = ov.kinds.map(colorOf)
-      const paths = buildRoutePaths(ov.routes, ids, ov.linkCoords, k => kindColors[k], scratch.paths)
+      const paths = buildRoutePaths(
+        ov.routes,
+        ids,
+        ov.linkCoords,
+        k => kindColors[k],
+        scratch.paths
+      )
       scratch.paths = paths
       const vertices = paths.startIndices[paths.length]
       // fresh subarray views each time, so deck.gl sees new data and re-uploads it
@@ -275,12 +237,14 @@ export default defineComponent({
       const legArcs = this.overviewLegArcs
       if (!activities || !legArcs) return []
       const timeFilter = { ...activeAtFilter(this.currentTime), filterEnabled: true }
+      console.log('legArcs.arcs', legArcs.arcs)
       const layers: Layer[] = [
         new ArcLayer<unknown, DataFilterExtensionProps>({
           id: 'everyone-non-routed-leg-arcs',
           data: legArcs.arcs,
           getWidth: 2,
           getHeight: 0.6,
+          numSegments: 13, // legArcs.arcs.length < 32768 ? 13 : 6,
           widthMinPixels: 1,
           widthMaxPixels: 40,
           widthUnits: 'pixels',
@@ -296,6 +260,7 @@ export default defineComponent({
             id: 'everyone-leg-arcs',
             data: legArcs.routeArcs,
             getWidth: 2,
+            numSegments: 5,
             getHeight: 0.5,
             widthMinPixels: 2,
             widthMaxPixels: 40,
@@ -358,7 +323,6 @@ export default defineComponent({
 
       // if (this.activeTab == 'tours') {
       allLayers.push(
-        //@ts-ignore:
         new PathLayer({
           id: 'shipmentLocationDashedLine',
           data: this.stopActivities,
@@ -379,12 +343,11 @@ export default defineComponent({
           dashJustified: true,
           extensions: [dashExtension, timeFilterExtension],
           ...timeFilter,
-        } as any)
+        })
       )
 
       if (this.nonRoutedLegs.length) {
         allLayers.push(
-          //@ts-ignore:
           new ArcLayer({
             id: 'non-routed-leg-arcs',
             data: this.shownNonRoutedLegs,
@@ -398,6 +361,7 @@ export default defineComponent({
             widthMinPixels: 1,
             widthMaxPixels: 40,
             widthUnits: 'pixels',
+            numSegments: 8,
             // widthScale: widthScale,
             opacity: 0.9,
             parameters: { depthTest: false },
@@ -411,13 +375,12 @@ export default defineComponent({
             ...timeFilter,
             //TODO: ONHOVER
             // onHover: setHoverInfo,
-          } as any)
+          })
         )
       }
 
       if (this.settings.simplifyTours) {
         allLayers.push(
-          //@ts-ignore:
           new ArcLayer({
             id: 'leg-arcs',
             data: this.shownLegs,
@@ -432,6 +395,7 @@ export default defineComponent({
             widthUnits: 'pixels',
             // widthScale: widthScale,
             opacity: 0.9,
+            numSegments: 5,
             parameters: { depthTest: false },
             updateTriggers: { getWidth: [this.settings.scaleFactor] },
             transitions: { getWidth: 150 },
@@ -447,7 +411,6 @@ export default defineComponent({
         )
       } else {
         allLayers.push(
-          //@ts-ignore:
           new PathLayer({
             id: 'deliveryroutes',
             data: this.shownLegs,
@@ -465,6 +428,7 @@ export default defineComponent({
             shadowEnabled: false,
             pickable: true,
             autoHighlight: true,
+            numSegments: 5,
             highlightColor: [255, 255, 255], // [64, 255, 64],
             parameters: { depthTest: false },
             updateTriggers: { getWidth: [this.settings.scaleFactor] },
@@ -479,7 +443,6 @@ export default defineComponent({
 
       // destination labels
       allLayers.push(
-        //@ts-ignore
         new ScatterplotLayer({
           id: 'activity-locations',
           data: this.stopActivities,
@@ -500,139 +463,8 @@ export default defineComponent({
           onHover: this.getTooltip,
           extensions: [timeFilterExtension],
           ...timeFilter,
-        } as any)
+        })
       )
-
-      // }
-
-      // // shipment panel
-      // if (this.activeTab == 'shipments') {
-      //   allLayers.push(
-      //     //@ts-ignore:
-      //     new ScatterplotLayer({
-      //       id: 'deliveries',
-      //       data: this.pickupsAndDeliveries.deliveries,
-      //       getPosition: (d: any) => d.coord,
-      //       getFillColor: ActivityColor.delivery,
-      //       getRadius: 3,
-      //       opacity: 0.9,
-      //       parameters: { depthTest: false },
-      //       pickable: true,
-      //       radiusUnits: 'pixels',
-      //       onHover: this.getTooltip,
-      //       // onHover: setHoverInfo,
-      //     } as any)
-      //   )
-      //   allLayers.push(
-      //     //@ts-ignore:
-      //     new ScatterplotLayer({
-      //       id: 'pickups',
-      //       data: this.stopActivities,
-      //       getPosition: (d: any) => d.midpoint,
-      //       getFillColor: [255, 255, 255], // ActivityColor.pickup,
-      //       getRadius: 5,
-      //       opacity: 1,
-      //       parameters: { depthTest: false },
-      //       pickable: true,
-      //       radiusUnits: 'pixels',
-      //       onHover: this.getTooltip,
-      //       // onHover: setHoverInfo,
-      //     } as any)
-      //   )
-
-      //   const opacity = this.shipments.length > 1 ? 32 : 255
-
-      //   if (this.services) {
-      //     allLayers.push(
-      //       //@ts-ignore:
-      //       new ScatterplotLayer({
-      //         id: 'services',
-      //         data: this.shipments,
-      //         getPosition: (d: any) => [d.toX, d.toY],
-      //         getColor: [240, 0, 60, 224],
-      //         getRadius: 4,
-      //         opacity: 0.9,
-      //         parameters: { depthTest: false },
-      //         pickable: true,
-      //         radiusUnits: 'pixels',
-      //         onHover: this.getTooltip,
-      //         // onHover: setHoverInfo,
-      //       } as any)
-      //     )
-      //   } else {
-      //     allLayers.push(
-      //       //@ts-ignore:
-      //       new ArcLayer({
-      //         id: 'shipments',
-      //         data: this.shipments,
-      //         getSourcePosition: (d: any) => [d.fromX, d.fromY],
-      //         getTargetPosition: (d: any) => [d.toX, d.toY],
-      //         getSourceColor: [0, 228, 255, opacity],
-      //         getTargetColor: [240, 0, 60, 224],
-      //         // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
-      //         getWidth: 1 + ((this.settings.scaleFactor - 0) * (50 - 1)) / (100 - 0),
-      //         widthUnits: 'pixels',
-      //         getHeight: 0.5,
-      //         opacity: 0.9,
-      //         parameters: { depthTest: false },
-      //         // widthScale: widthScale,
-      //         widthMinPixels: 1,
-      //         widthMaxPixels: 50,
-      //         updateTriggers: { getWidth: [this.settings.scaleFactor] },
-      //         transitions: { getWidth: 200 },
-      //         onHover: this.getTooltip,
-      //       } as any)
-      //     )
-      //   }
-      // }
-
-      // if (this.activeTab == 'services') {
-      //   if (this.services) {
-      //     allLayers.push(
-      //       //@ts-ignore:
-      //       new ScatterplotLayer({
-      //         id: 'services',
-      //         data: this.shipments,
-      //         getPosition: (d: any) => [d.toX, d.toY],
-      //         getColor: [240, 0, 60, 224],
-      //         getRadius: 4,
-      //         opacity: 0.9,
-      //         parameters: { depthTest: false },
-      //         pickable: true,
-      //         radiusUnits: 'pixels',
-      //         onHover: this.getTooltip,
-      //         // onHover: setHoverInfo,
-      //       } as any)
-      //     )
-      //   }
-      // }
-
-      // // DEPOTS ------
-      // allLayers.push(
-      //   //@ts-ignore:
-      //   new TextLayer({
-      //     id: 'depots',
-      //     data: this.depots,
-      //     background: true,
-      //     backgroundPadding: [3, 2, 3, 1],
-      //     getColor: [255, 255, 255],
-      //     getBackgroundColor: [0, 150, 240],
-      //     getPosition: (d: any) => d.midpoint,
-      //     getText: (d: any) => 'Depot',
-      //     getTextAnchor: 'middle',
-      //     getAlignmentBaseline: 'center',
-      //     getSize: 11,
-      //     opacity: 1,
-      //     noAlloc: false,
-      //     billboard: true,
-      //     sizeScale: 1,
-      //     pickable: true,
-      //     autoHighlight: true,
-      //     highlightColor: [255, 255, 255],
-      //     onHover: this.getTooltip,
-      //     // onHover: setHoverInfo,
-      //   } as any)
-      // )
 
       // ON-TOP layers
       if (extraLayers) allLayers.push(...extraLayers.layersOnTop)
@@ -674,6 +506,44 @@ export default defineComponent({
       let scaleFactor = this.settings.scaleFactor
       let scale = scaleFactor == 0 ? 1e-6 : 1 / Math.pow(2, (100 - scaleFactor) / 5 - 6.0)
       return scale
+    },
+  },
+
+  watch: {
+    layers() {
+      this.deckOverlay?.setProps({
+        layers: this.layers,
+      })
+    },
+
+    dark() {
+      const style = `${BASE_URL}map-styles/${
+        this.globalState.isDarkMode ? 'dark' : 'positron'
+      }.json`
+      this.mymap?.setStyle(style)
+    },
+
+    show3dBuildings() {
+      if (!this.mymap) return
+      if (this.show3dBuildings) enable3DBuildings(this.mymap)
+      else disable3DBuildings(this.mymap)
+    },
+
+    'globalState.viewState'() {
+      if (this.mapIsIndependent) return
+      const incoming = this.globalState.viewState as any
+      const center = this.mymap?.getCenter() as any
+      if (
+        incoming.longitude !== center.lng ||
+        incoming.latitude !== center.lat ||
+        incoming.zoom !== this.mymap?.getZoom() ||
+        incoming.pitch !== this.mymap?.getPitch() ||
+        incoming.bearing !== this.mymap?.getBearing()
+      ) {
+        this.mymap?.jumpTo(
+          Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
+        )
+      }
     },
   },
 

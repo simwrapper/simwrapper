@@ -156,7 +156,8 @@ const i18n = {
       showEveryone: 'Show everyone',
       walkTrips: 'Walk trips',
       unknownLink: '1 unknown link: not found in the network file, so it is left off the map.',
-      unknownLinks: '{count} unknown links: not found in the network file, so they are left off the map.',
+      unknownLinks:
+        '{count} unknown links: not found in the network file, so they are left off the map.',
       confirmEveryone:
         'This file has {rows} rows. Loading everyone may take a while and a lot of memory. Continue?',
       showActivities: 'Show activities',
@@ -300,9 +301,18 @@ const overviewQuery = (url: string, has: Set<string>) => {
          coalesce(time_end, 1000000000) AS t1,
          coalesce(${col('leg_mode', 'NULL')}, ${col('activity_type_simple', 'NULL')}, '') AS kind,
          coalesce(${routeType}, '') AS route_type,
-         CASE WHEN ${routeType} = 'links' THEN coalesce(${col('route_text', "''")}, '') ELSE '' END AS route_text,
-         CASE WHEN ${routeType} = 'links' THEN '' ELSE coalesce(${col('route_start_link', "''")}, '') END AS start_link,
-         CASE WHEN ${routeType} = 'links' THEN '' ELSE coalesce(${col('route_end_link', "''")}, '') END AS end_link
+         CASE WHEN ${routeType} = 'links' THEN coalesce(${col(
+    'route_text',
+    "''"
+  )}, '') ELSE '' END AS route_text,
+         CASE WHEN ${routeType} = 'links' THEN '' ELSE coalesce(${col(
+    'route_start_link',
+    "''"
+  )}, '') END AS start_link,
+         CASE WHEN ${routeType} = 'links' THEN '' ELSE coalesce(${col(
+    'route_end_link',
+    "''"
+  )}, '') END AS end_link
   FROM '${url.replace(/'/g, "''")}' WHERE plan_selected = 'yes'`
 }
 
@@ -349,7 +359,13 @@ const PlansViewerPlugin = defineComponent({
     return {
       duck: {} as AsyncDuckDB,
       debounceUpdateSearch: {} as Function,
-      nonRoutedLegs: [] as { start: number[]; end: number[]; mode: string; t0: number; t1: number }[],
+      nonRoutedLegs: [] as {
+        start: number[]
+        end: number[]
+        mode: string
+        t0: number
+        t1: number
+      }[],
       plans: [] as Plan[][],
       selectedPlans: [] as number[],
       isQueryRunning: false,
@@ -554,6 +570,65 @@ const PlansViewerPlugin = defineComponent({
     showEveryone(on: boolean) {
       if (on && !this.overview && !this.isLoadingOverview) this.loadOverview()
     },
+  },
+
+  async mounted() {
+    const db = DuckDB.getDuckDB()
+
+    this.debounceUpdateSearch = debounce(this.updateSearch, 500)
+
+    this.myState.thumbnail = this.thumbnail
+    this.myState.subfolder = this.subfolder
+
+    if (!this.yamlConfig) this.buildRouteFromUrl()
+    await this.getVizDetails()
+
+    if (this.thumbnail) return
+
+    this.showHelp = false
+    this.updateLegendColors()
+
+    this.myState.statusMessage = 'Loading network...'
+    await sleep(0) // update UI
+    this.links = await this.loadNetwork()
+    this.setMapCenter()
+
+    // this.myState.statusMessage = 'Loading plans...'
+    // this.plans = await this.loadPlans()
+
+    this.myState.statusMessage = ''
+    await sleep(0) // update UI
+
+    // // Select the first carrier if the carriers are loaded
+    // if (this.carriers.length) this.handleSelectCarrier(this.carriers[0])
+
+    // // Select the first tour if the tours are loaded
+    // if (this.tours.length) this.handleSelectTour(this.tours[0])
+
+    // background layers
+    try {
+      this.backgroundLayers = new BackgroundLayers({
+        vizDetails: this.vizDetails,
+        fileApi: this.fileApi,
+        subfolder: this.subfolder,
+      })
+      await this.backgroundLayers.initialLoad()
+    } catch (e) {
+      this.$emit('error', 'Error loading background layers')
+    }
+    // finally, make sure duckdb is ready
+    this.duck = await db
+    this.dbUrl = await this.setupDbUrl()
+    await this.loadTimeRange()
+  },
+
+  beforeUnmount() {
+    this.myState.isRunning = false
+    this.stopAnimation()
+    this.sliderResizer?.disconnect()
+
+    if (this.fileSystem.handle && this.dbUrl) this.duck.dropFile?.(this.dbUrl)
+    this.duck.terminate?.()
   },
 
   methods: {
@@ -762,7 +837,9 @@ const PlansViewerPlugin = defineComponent({
           })
           if (builder.rowsRead - reported >= 250_000) {
             reported = builder.rowsRead
-            this.myState.statusMessage = `${this.$t('showEveryone')}: ${(reported / 1e6).toFixed(2)}M`
+            this.myState.statusMessage = `${this.$t('showEveryone')}: ${(reported / 1e6).toFixed(
+              2
+            )}M`
           }
         }
         await conn.close()
@@ -1625,65 +1702,6 @@ const PlansViewerPlugin = defineComponent({
     //   this.selectedPlan = plan
     // },
   },
-
-  async mounted() {
-    const db = DuckDB.getDuckDB()
-
-    this.debounceUpdateSearch = debounce(this.updateSearch, 500)
-
-    this.myState.thumbnail = this.thumbnail
-    this.myState.subfolder = this.subfolder
-
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
-
-    if (this.thumbnail) return
-
-    this.showHelp = false
-    this.updateLegendColors()
-
-    this.myState.statusMessage = 'Loading network...'
-    await sleep(0) // update UI
-    this.links = await this.loadNetwork()
-    this.setMapCenter()
-
-    // this.myState.statusMessage = 'Loading plans...'
-    // this.plans = await this.loadPlans()
-
-    this.myState.statusMessage = ''
-    await sleep(0) // update UI
-
-    // // Select the first carrier if the carriers are loaded
-    // if (this.carriers.length) this.handleSelectCarrier(this.carriers[0])
-
-    // // Select the first tour if the tours are loaded
-    // if (this.tours.length) this.handleSelectTour(this.tours[0])
-
-    // background layers
-    try {
-      this.backgroundLayers = new BackgroundLayers({
-        vizDetails: this.vizDetails,
-        fileApi: this.fileApi,
-        subfolder: this.subfolder,
-      })
-      await this.backgroundLayers.initialLoad()
-    } catch (e) {
-      this.$emit('error', 'Error loading background layers')
-    }
-    // finally, make sure duckdb is ready
-    this.duck = await db
-    this.dbUrl = await this.setupDbUrl()
-    await this.loadTimeRange()
-  },
-
-  beforeUnmount() {
-    this.myState.isRunning = false
-    this.stopAnimation()
-    this.sliderResizer?.disconnect()
-
-    if (this.fileSystem.handle && this.dbUrl) this.duck.dropFile?.(this.dbUrl)
-    this.duck.terminate?.()
-  },
 })
 
 export default PlansViewerPlugin
@@ -2040,15 +2058,15 @@ input {
   pointer-events: none;
 
   h3 {
-    user-select: none;
-    border-radius: 5px;
-    opacity: 0.9;
-    border: 1px solid var(--bgCream2);
-    color: var(--link);
-    text-align: center;
-    padding: 2rem 2rem;
     background-color: var(--bgBold);
-    margin: auto 2rem;
+    // border: 1px solid var(--bgCream2);
+    color: var(--link);
+    margin: auto 0px;
+    opacity: 0.95;
+    padding: 2rem 2rem;
+    text-align: center;
+    user-select: none;
+    filter: drop-shadow(0px 3px 5px #00000020);
   }
 }
 
