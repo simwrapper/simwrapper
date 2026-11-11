@@ -41,7 +41,7 @@ The following configuration options are available when embedding the transit vie
 **demand:** (optional) path to the passenger volumes file. This file can be automatically generated from the MATSim PT module. Default value is `analysis/pt/pt_pax_volumes.csv.gz` and the viewer will look in that path if nothing is specified for `demand`.
 
 **network:** The MATSim network file that matches the transit schedule. The following network formats are supported. If no network is specified in a YAML config, these files are searched for in the folder containing the transit schedule:
-- Avro: `*network.avro` file using the new MATSim Avro network format. Avro network files are smaller and load faster than XML. If your simulation doesn't create this automatically, you can generate it using this Python script: [create-avro-network.py](https://github.com/simwrapper/simwrapper/raw/refs/heads/master/scripts/create-avro-network.py)
+- Avro: `*network.avro` file using the new MATSim Avro network format. Avro network files are smaller and load faster than XML. If your simulation doesn't create this automatically, you can generate it using this Python script: [create-avro-network.py](https://github.com/simwrapper/simwrapper/raw/refs/heads/main/scripts/create-avro-network.py)
 - XML: standard `*network.xml.gz` MATSim output network
 - GeoJSON: Network files converted to GeoJSON also work.
 

@@ -34,4 +34,4 @@ git add . && git commit -m "gh-pages"
 
 echo --- PUSH TO GITHUB ---
 git remote add origin git@github.com:$1.git
-git push --force origin master:gh-pages
+git push --force origin HEAD:gh-pages

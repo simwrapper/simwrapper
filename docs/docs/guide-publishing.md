@@ -100,7 +100,7 @@ cd dist
 git init .
 git add . && git commit -m "gh-pages"
 git remote add origin git@github.com:username/reponame.git # Put your username/reponame here
-git push --force origin master:gh-pages
+git push --force origin HEAD:gh-pages
 ```
 
 Be sure to enable GitHub pages for your repo, and point it to the `gh-pages` branch.

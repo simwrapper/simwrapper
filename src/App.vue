@@ -138,7 +138,7 @@ export default defineComponent({
      * Set Mapbox styles to be blank if we cannot reach the internet
      */
     setOnlineOrOfflineMode() {
-      const url = 'https://raw.githubusercontent.com/simwrapper/simwrapper/master/package.json'
+      const url = 'https://raw.githubusercontent.com/simwrapper/simwrapper/main/package.json'
       fetch(url)
         .then(response => {
           console.log('online!!')

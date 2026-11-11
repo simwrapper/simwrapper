@@ -7,16 +7,16 @@ This README details build instructions for the platform, intended for developers
 - SimWrapper is available for use by anyone at https://simwrapper.app
 - DOCUMENTATION available at: https://docs.simwrapper.app/docs
 - VSP/TU-Berlin also has a departmental SimWrapper site at <https://vsp.berlin/simwrapper>
-- There is also a companion Python project which embeds this platform, so that end-users can install and run SimWrapper locally with a single command: `uv tool install simwrapper`.  See https://pypi.org/simwrapper for details!
+- There is also a companion Python project which embeds this platform, so that end-users can install and run SimWrapper locally with a single command: `uv tool install simwrapper`. See https://pypi.org/simwrapper for details!
 
 ## Project prerequisites
 
 The site uses Node and pnpm, and was mostly developed using VS Code. Install NodeJS, pnpm, and VS Code first:
 
-1) NodeJS is the JavaScript engine available at https://nodejs.org. Use an LTS v22 or above.
-2) pnpm is a node "package manager" which manages project library dependencies, and is faster and more space-efficient than raw npm. Install from https://pnpm.io
-3) You don't have to use VS Code but it is free and feature-rich: https://code.visualstudio.com
- 
+1. NodeJS is the JavaScript engine available at https://nodejs.org. Use an LTS v22 or above.
+2. pnpm is a node "package manager" which manages project library dependencies, and is faster and more space-efficient than raw npm. Install from https://pnpm.io
+3. You don't have to use VS Code but it is free and feature-rich: https://code.visualstudio.com
+
 The following VS Code plugins are used:
 
 - **Vue (Official)** to support .vue files natively. SimWrapper is a Vue single page application
@@ -33,7 +33,7 @@ You will need to know this tech in order to hack on this project:
 - [TypeScript](https://typescriptlang.org) - typesafe JavaScript
 - [Vue](https://vuejs.org) - the glue that connects UI elements to code. Similar to React but lightweight and awesome
   - We have finished migrating to Vue 3.x!! Woohoo. The code uses the Vue 3 **Option API**, not the Composition API. So if you are learning Vue from the [Vue tutorial](https://vuejs.org/guide/introduction.html), be sure to set the slider to `Options` so the examples look the same!
-- [Pug](https://pugjs.org) - the template language used in Vue files. Pug uses Python-style indentation instead of open/close XML tags, which makes it far easier to read than bare HTML. You don't have to write your own Pug templates; you can use plain HTML, but almost all of our `.vue` files use Pug so you will need to know how to read it. 
+- [Pug](https://pugjs.org) - the template language used in Vue files. Pug uses Python-style indentation instead of open/close XML tags, which makes it far easier to read than bare HTML. You don't have to write your own Pug templates; you can use plain HTML, but almost all of our `.vue` files use Pug so you will need to know how to read it.
   - We have a [PUG.md](docs/PUG.md) doc which should explain enough so you can read and understand Pug
     templates.
 
@@ -52,6 +52,7 @@ pnpm i
 ```
 pnpm dev
 ```
+
 This runs a local server with hot reload for testing, usually listens on http://localhost:5173
 
 ### Compiles and minifies for production
@@ -59,6 +60,7 @@ This runs a local server with hot reload for testing, usually listens on http://
 ```
 pnpm build
 ```
+
 This builds the entire site into the `dist` folder, ready for uploading to any static web server
 
 ### Run tests
@@ -66,14 +68,16 @@ This builds the entire site into the `dist` folder, ready for uploading to any s
 ```
 pnpm test
 ```
+
 This runs all of the Playwright UI tests. There are hundreds of tests now and it may take many minutes on your machine.
+
 - Playwright will by default run using **4 CPUs**. Depending on your machine this may cause some timeouts on some longer-running tests. You can choose the number of CPUs by running `pnpm test -j 2` for example. Experiment to find the highest number that always works =)
 
 ### Pull requests and automated testing
 
-Thanks for contributing! When creating PRs, set the target branch to the `staging` branch , not `master`. We merge all PRs there, and build a staging version of the site before pushing final versions. (Maybe we'll change this someday to be more normal)
+Thanks for contributing! When creating PRs, ensure the target branch is `main`. (This used to be `staging`). We merge all PRs to main, and build a staging version of the site before pushing final versions.
 
-GitHub Actions is configured to automatically run the tests and try to build the site with **every PR request**, so please run the testing suite locally BEFORE you create the PR! This will save us all a lot of time :-)
+GitHub Actions is configured to automatically run unit tests and try to build the site with **every PR request**, but the end-2-end playwright tests always time out on GitHub Actions. So, _please run the testing suite locally_ BEFORE you submit the PR! This will save us all a lot of time :-)
 
 ## Project Layout
 

@@ -15,7 +15,7 @@ If you develop your own scripts, please let us know and we can add them here!
 
 Create a JSON network appropriate for loading into SimWrapper visualizations
 
-- Download script here: **[create-json-network.py](https://raw.githubusercontent.com/simwrapper/simwrapper/master/scripts/create-geojson-network.py)**
+- Download script here: **[create-json-network.py](https://raw.githubusercontent.com/simwrapper/simwrapper/main/scripts/create-geojson-network.py)**
 
 **Command:**
 
@@ -29,7 +29,7 @@ Create a JSON network appropriate for loading into SimWrapper visualizations
 
 ## create-csv-network.py
 
-- Download script here: **[create-csv-network.py](https://raw.githubusercontent.com/simwrapper/simwrapper/master/scripts/create-csv-network.py)**
+- Download script here: **[create-csv-network.py](https://raw.githubusercontent.com/simwrapper/simwrapper/main/scripts/create-csv-network.py)**
 
 _Create a CSV network appropriate for loading into R with the `sfnetworks` package_
 
@@ -62,7 +62,7 @@ ggplot() +
 
 Parse the event file containing DRT events.
 
-- Download script here: **[parse-drt-link-events.py](https://raw.githubusercontent.com/simwrapper/simwrapper/master/scripts/parse-drt-link-events.py)**
+- Download script here: **[parse-drt-link-events.py](https://raw.githubusercontent.com/simwrapper/simwrapper/main/scripts/parse-drt-link-events.py)**
 
 **Command:** `python parse-drt-link-events.py [network] [events] [coord-system]`
 

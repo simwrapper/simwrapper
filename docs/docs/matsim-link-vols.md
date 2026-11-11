@@ -104,7 +104,7 @@ Use whatever method you like to produce a CSV for your data; most of us either b
 
 **network:** Specify either at MATSim `output_network.xml.gz` network file, or a geojson-format network file. The geojson format loads much faster, but requires that you create it first.
 
-- Use the python script [create-geojson-network.py](https://raw.githubusercontent.com/simwrapper/simwrapper/master/scripts/create-geojson-network.py) to create a geojson network from a MATSim network.xml.gz file.
+- Use the python script [create-geojson-network.py](https://raw.githubusercontent.com/simwrapper/simwrapper/main/scripts/create-geojson-network.py) to create a geojson network from a MATSim network.xml.gz file.
 - Command is `python create-geojson-network.py [my_output_network.xml.gz] [Projection]`
 - and will create a file with the name `mynetwork.geo.json.gz`.
 

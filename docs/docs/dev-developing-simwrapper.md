@@ -65,7 +65,7 @@ We wrote a deploy script that builds and pushes to Github Pages. Follow these in
 
 2. Run `npm run build` to ensure that your site builds without any hard errors. The build goes into a folder named `dist`. Fix any errors and keep running this until it builds!
 
-3. Run `npm run deploy` to rebuild the `dist` folder and, if successful, it will then force-push the contents to the `gh-pages` branch of your repository, overwriting any previous copy of the built site (don't worry the source code will remain safe on the master branch). In a couple moments your site will be live! Woot.
+3. Run `npm run deploy` to rebuild the `dist` folder and, if successful, it will then force-push the contents to the `gh-pages` branch of your repository, overwriting any previous copy of the built site (don't worry the source code will remain safe on the main branch). In a couple moments your site will be live! Woot.
 
 **Non-Github Pages:** If you want to deploy somewhere other than Github Pages, use `npm run build` to create the production build in `dist` as above. You can push the entirety of that folder to any static web host that you like, using their publishing tools.
 

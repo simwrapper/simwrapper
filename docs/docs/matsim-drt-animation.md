@@ -24,7 +24,7 @@ This view can also be embedded in a dashboard by including `type: vehicles` in t
 
 ## YAML fields explained
 
-**drtTrips:** the output from the [parse-drt-link-events.py](https://github.com/simwrapper/simwrapper/raw/master/scripts/parse-drt-link-events.py) script, gzipped for best performance
+**drtTrips:** the output from the [parse-drt-link-events.py](https://github.com/simwrapper/simwrapper/raw/main/scripts/parse-drt-link-events.py) script, gzipped for best performance
 
 **center:** Use this to specify the map center point as `"long, lat"` or `[long,lat]`. This is also used to properly scale the vehicle icons so it's good to always set it.
 
