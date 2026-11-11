@@ -1,8 +1,10 @@
 <template lang="pug">
 .time-slider-component(v-if="hasNonZeroTimeRange" :id="`id-${id}`")
   .label-area
-    p.p1 {{ state.labels[0] }}
-    p.p2(v-show="!isPointInTime && state.labels[1] !== undefined") -&nbsp;{{ state.labels[1] }}
+    //- the label rides on the handle, and dragging it drags the handle too
+    .label-box(ref="labelBox" :style="labelPosition" @mousedown="labelDragStart")
+      p.p1 {{ state.labels[0] }}
+      p.p2(v-show="!isPointInTime && state.labels[1] !== undefined") -&nbsp;{{ state.labels[1] }}
 
   .slider-area
     button.button.play-button(size="is-small" type="is-link"
@@ -41,6 +43,10 @@ export default defineComponent({
     return {
       state: {
         componentWidth: 0,
+        // the label rides above the grab handle: these place it (px, within the component)
+        outerWidth: 0,
+        sliderLeft: 0,
+        labelWidth: 0,
         dragStartX: 0,
         dragType: DRAGTYPE.SLIDE,
         isDragging: false,
@@ -81,6 +87,17 @@ export default defineComponent({
         marginRight: `${marginRight}px`,
       }
     },
+
+    // Center the time label over the grab handle (or over the middle of the window, for a
+    // range), but keep it inside the component at either end of the slider.
+    labelPosition(): { transform: string } {
+      const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
+      const middle = (this.state.leftPosition + this.state.rightPosition) / 2
+      const center = this.state.sliderLeft + GRAB_HANDLE_WIDTH + usableWidth * middle
+      const maxLeft = Math.max(0, this.state.outerWidth - this.state.labelWidth)
+      const left = Math.min(Math.max(center - this.state.labelWidth / 2, 0), maxLeft)
+      return { transform: `translateX(${Math.round(left)}px)` }
+    },
   },
   mounted() {
     this.getDimensions()
@@ -117,6 +134,9 @@ export default defineComponent({
         this.resizer = new ResizeObserver(this.getDimensions)
         const sliderElement = document.getElementById(`id-${this.id}`) as HTMLElement
         this.resizer.observe(sliderElement)
+        // the label's width changes with its text (e.g. a range label appearing)
+        const labelBox = this.$refs.labelBox as HTMLElement | undefined
+        if (labelBox) this.resizer.observe(labelBox)
       } catch (e) {
         console.error('' + e)
       }
@@ -162,8 +182,12 @@ export default defineComponent({
     },
 
     getDimensions() {
-      //@ts-ignore - ref doesn't know about clientWidth
-      this.state.componentWidth = this.$refs.slider?.clientWidth || 0
+      const slider = this.$refs.slider as HTMLElement | undefined
+      const labelBox = this.$refs.labelBox as HTMLElement | undefined
+      this.state.componentWidth = slider?.clientWidth || 0
+      this.state.sliderLeft = slider?.offsetLeft || 0
+      this.state.outerWidth = (this.$el as HTMLElement)?.clientWidth || 0
+      this.state.labelWidth = labelBox?.offsetWidth || 0
     },
 
     dragStart(e: MouseEvent) {
@@ -183,6 +207,15 @@ export default defineComponent({
       if (e.offsetX >= 0 && e.offsetX < durationWidth) this.state.dragType = DRAGTYPE.SLIDE
       else if (e.offsetX < 0) this.state.dragType = DRAGTYPE.START
       else if (e.offsetX > durationWidth) this.state.dragType = DRAGTYPE.END
+    },
+
+    // Grabbing the time label slides the whole window, just like grabbing the handle.
+    labelDragStart(e: MouseEvent) {
+      e.preventDefault() // no text selection or native drag of the label text
+      this.$emit('drag')
+      this.state.isDragging = true
+      this.state.dragStartX = e.clientX
+      this.state.dragType = DRAGTYPE.SLIDE
     },
 
     dragging(e: MouseEvent) {
@@ -250,6 +283,7 @@ export default defineComponent({
 @use '@/variables' as *;
 
 .time-slider-component {
+  position: relative; // offsetParent for the slider, so the label can line up with it
   display: flex;
   flex-direction: column;
 }
@@ -290,7 +324,15 @@ export default defineComponent({
   font-family: monospace;
   display: flex;
   flex-direction: row;
-  margin-right: auto;
+}
+
+.label-box {
+  display: flex;
+  flex-direction: row;
+  white-space: nowrap;
+  will-change: transform;
+  user-select: none;
+  cursor: ew-resize;
 }
 
 .p1 {
