@@ -180,6 +180,7 @@ import {
   sliderEndTime,
   timeWindow,
 } from './planTime'
+import { planKey } from './planHover'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
@@ -508,7 +509,6 @@ const PlansViewerPlugin = defineComponent({
 
   methods: {
     handleSelectPlan(i: number) {
-      console.log('i', i)
       if (this.selectedPlans.length && i == this.selectedPlans[0]) {
         this.selectedPlans = []
       } else {
@@ -1046,10 +1046,30 @@ const PlansViewerPlugin = defineComponent({
       }
     },
 
-    handleClick(object: unknown) {
-      console.log('CLICK!', object)
-      // clicking empty map space releases the locked row's highlight
-      if (!object) this.lockedRow = null
+    // Clicking a leg/activity selects its plan, as if picked in the list (which also opens
+    // the plan table). On the plan already selected, it locks that row instead, like
+    // clicking the row in the table. Empty map space releases the lock.
+    handleClick(object: { row?: Plan } | null) {
+      const row = object?.row
+      if (!row) {
+        this.lockedRow = null
+        return
+      }
+      const key = planKey(row)
+      const i = this.plans.findIndex(plan => planKey(plan[0]) === key)
+      if (i < 0) return
+      if (this.selectedPlans[0] === i) {
+        this.toggleLockedRow(row)
+        return
+      }
+      this.handleSelectPlan(i)
+      // bring the newly selected plan into view in the list
+      this.$nextTick(() => {
+        const item = (this.$el as HTMLElement).querySelector?.(
+          '[data-testid="plan-list"] .carrier.selected'
+        )
+        item?.scrollIntoView({ block: 'nearest' })
+      })
     },
 
     async loadNetwork() {

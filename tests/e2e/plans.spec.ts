@@ -203,6 +203,121 @@ test('the teleported-trips switch hides the arc legs only', async ({ page }) => 
 })
 
 /**
+ * Hovering a leg/activity: its tooltip names the person and plan, and -- once the mouse
+ * has rested there for half a second, fading over a quarter second -- every OTHER plan on
+ * the map goes grey. Clicking it then selects that plan (opening its table), and clicking
+ * again on the now-selected plan locks the row in the table.
+ *
+ * The map opens at zoom 4 with all the fixture's plans on one spot, so zoom into Berlin
+ * first. person3's shopping activity sits apart from everyone else's.
+ */
+const PERSON3_SHOPPING: [number, number] = [13.428903, 52.51553]
+const PERSON1_HOME: [number, number] = [13.37596, 52.528473] // a cyan "home" dot
+
+test('hovering a plan greys out the others, and clicking selects it', async ({ page }) => {
+  test.setTimeout(180_000)
+  const noise = watchConsole(page)
+
+  await page.goto(PLUGIN_ROUTE)
+  await waitForViz(page)
+  await page.waitForTimeout(6000)
+  await search(page, 'person*') // nothing selected: all four plans are drawn
+
+  await page.evaluate(() => {
+    const store = (document.querySelector('#app') as any).__vue_app__.config.globalProperties.$store
+    store.commit('setMapCamera', {
+      longitude: 13.402,
+      latitude: 52.511,
+      zoom: 12,
+      bearing: 0,
+      pitch: 0,
+      jump: true,
+    })
+  })
+  await page.waitForTimeout(2000)
+
+  const mapBox = (await page.locator('.map-container').first().boundingBox())!
+  const toPage = async (lngLat: [number, number]) => {
+    const xy = await page.evaluate(ll => (window as any).__testdata__.project(ll), lngLat)
+    return { x: mapBox.x + xy[0], y: mapBox.y + xy[1] }
+  }
+  const dimPlan = () => page.evaluate(() => (window as any).__testdata__?.dimPlan)
+
+  // Pixels around the person1 home dot that are still cyan. The overlay is interleaved, so
+  // the dot is in maplibre's canvas; the tooltip is DOM on top of it, so mask it out.
+  const cyanPixels = async () => {
+    const home = await toPage(PERSON1_HOME)
+    const png = (
+      await page.screenshot({
+        clip: { x: home.x - 8, y: home.y - 8, width: 16, height: 16 },
+        mask: [page.locator('.my-tooltip')],
+      })
+    ).toString('base64')
+    return page.evaluate(async png => {
+      const blob = await (await fetch(`data:image/png;base64,${png}`)).blob()
+      const bitmap = await createImageBitmap(blob)
+      const ctx = new OffscreenCanvas(bitmap.width, bitmap.height).getContext('2d')!
+      ctx.drawImage(bitmap, 0, 0)
+      const { data } = ctx.getImageData(0, 0, bitmap.width, bitmap.height)
+      let n = 0
+      for (let i = 0; i < data.length; i += 4)
+        if (data[i] < 120 && data[i + 1] > 200 && data[i + 2] > 200) n++
+      return n
+    }, png)
+  }
+
+  expect(await cyanPixels(), 'person1 home dot should be cyan before hovering').toBeGreaterThan(4)
+
+  // hover person3's shopping activity
+  const shopping = await toPage(PERSON3_SHOPPING)
+  await page.evaluate(() => ((window as any).__hoverStart__ = performance.now()))
+  await page.mouse.move(shopping.x, shopping.y)
+  // timed in the page from just before the move, so test-runner latency can only add to it
+  const msUntilGrey = await page.evaluate(
+    () =>
+      new Promise<number>(resolve => {
+        const tick = () => {
+          if ((window as any).__testdata__?.dimPlan === 'person3/1')
+            resolve(performance.now() - (window as any).__hoverStart__)
+          else requestAnimationFrame(tick)
+        }
+        tick()
+      })
+  )
+  expect(
+    msUntilGrey,
+    'the other plans should not grey out the moment the mouse arrives'
+  ).toBeGreaterThanOrEqual(450)
+
+  const tooltip = page.locator('.my-tooltip')
+  await expect(tooltip).toContainText('person3 · plan 1 (*)')
+  await expect(tooltip).toContainText('shopping')
+
+  // ...and person1's plan has gone grey
+  await expect.poll(cyanPixels, { message: 'person1 home dot should be greyed out' }).toBe(0)
+
+  // moving off every plan restores the colors
+  await page.mouse.move(mapBox.x + 20, mapBox.y + mapBox.height / 2)
+  await expect.poll(dimPlan).toBe(null)
+  await expect.poll(cyanPixels).toBeGreaterThan(4)
+
+  // clicking selects person3's plan in the list and opens its table
+  await expect(page.locator('.plan-table')).toHaveCount(0)
+  await page.mouse.click(shopping.x, shopping.y)
+  await expect(page.locator(`${PLANS}.selected`)).toHaveCount(1)
+  await expect(page.locator(`${PLANS}.selected`)).toContainText('person3')
+  await expect(page.locator('.plan-table')).toHaveCount(1)
+  await expect(page.locator('.plan-html-table tbody tr')).toHaveCount(3) // home, drt, shopping
+
+  // a second click, on the plan that's now selected, locks its row in the table
+  await page.mouse.click(shopping.x, shopping.y)
+  await expect(page.locator('.plan-html-table tbody tr.is-locked')).toHaveCount(1)
+  await expect(page.locator(`${PLANS}.selected`)).toContainText('person3')
+
+  expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
+})
+
+/**
  * Switching the theme calls map.setStyle() and the 3D toggle adds a maplibre layer under
  * the deck overlay -- both re-render paths that only exist after load.
  *

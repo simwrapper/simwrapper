@@ -28,6 +28,7 @@ import MapTooltip from './MapTooltip.vue'
 import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
 import { LegModeColor, type Plan } from './PlansViewer.vue'
 import { OPEN_END, activeAtFilter } from './planTime'
+import { planKey } from './planHover'
 import {
   activeRoutes,
   buildRoutePaths,
@@ -40,6 +41,19 @@ const BASE_URL = import.meta.env.BASE_URL
 
 // more segments smoother! fewer segments faster :-)
 const ARC_SEGMENTS = 13
+
+// Every plan except the hovered one: medium grey, mostly transparent (#80808040)
+const DIMMED_COLOR = [128, 128, 128, 64]
+// ...but only once the mouse has rested on a plan this long, so sweeping across the map
+// doesn't flash everything grey; and colors fade in and out rather than switching
+const DIM_DELAY_MS = 750
+const DIM_FADE_MS = 250
+const COLOR_FADE = {
+  getColor: DIM_FADE_MS,
+  getSourceColor: DIM_FADE_MS,
+  getTargetColor: DIM_FADE_MS,
+  getFillColor: DIM_FADE_MS,
+}
 
 // Shared by every plan layer: each object carries its [t0, t1) time window, and the time
 // slider moves the filter range (a uniform), so dragging or playing never rebuilds data.
@@ -118,6 +132,12 @@ export default defineComponent({
       deckOverlay: null as InstanceType<typeof MapboxOverlay> | null,
       globalState: globalStore.state,
       tip: null,
+      // the plan ("person/plan") every other plan is drawn grey around: the hovered one,
+      // once the mouse has rested on it for DIM_DELAY_MS
+      dimPlan: null as string | null,
+      // the plan under the mouse right now, and the timer that will make it dimPlan
+      hoverPlan: null as string | null,
+      dimTimer: 0,
       tooltipCoord: { top: 0, left: 0, display: 'block' },
     }
   },
@@ -415,7 +435,7 @@ export default defineComponent({
           id: 'shipmentLocationDashedLine',
           data: this.stopActivities,
           getPath: (d: any) => [d.ptFrom, d.ptTo],
-          getColor: [128, 128, 128],
+          getColor: (d: any) => this.planColor(d, [128, 128, 128]),
           getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
           opacity: 1,
           getWidth: this.settings.scaleFactor / 2,
@@ -429,6 +449,8 @@ export default defineComponent({
           parameters: {},
           getDashArray: [3, 2],
           dashJustified: true,
+          updateTriggers: { getColor: [this.dimPlan] },
+          transitions: COLOR_FADE,
           extensions: [dashExtension, timeFilterExtension],
           ...timeFilter,
         })
@@ -441,8 +463,10 @@ export default defineComponent({
             data: this.shownNonRoutedLegs,
             getSourcePosition: (d: any) => d.start,
             getTargetPosition: (d: any) => d.end,
-            getSourceColor: (d: any) => LegModeColor[d.mode] || [200, 200, 200, 192],
-            getTargetColor: (d: any) => LegModeColor[d.mode] || [200, 200, 200, 192],
+            getSourceColor: (d: any) =>
+              this.planColor(d, LegModeColor[d.mode] || [200, 200, 200, 192]),
+            getTargetColor: (d: any) =>
+              this.planColor(d, LegModeColor[d.mode] || [200, 200, 200, 192]),
             // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
             getWidth: 2, // 2 + ((this.settings.scaleFactor - 0) * (40 - 2)) / (100 - 0),
             getHeight: 0.6,
@@ -453,8 +477,13 @@ export default defineComponent({
             // widthScale: widthScale,
             opacity: 0.9,
             parameters: { depthTest: false },
-            updateTriggers: { getWidth: [this.settings.scaleFactor] },
-            transitions: { getWidth: 150 },
+            updateTriggers: {
+              getWidth: [this.settings.scaleFactor],
+              getColor: [this.dimPlan],
+              getSourceColor: [this.dimPlan],
+              getTargetColor: [this.dimPlan],
+            },
+            transitions: { getWidth: 150, ...COLOR_FADE },
             pickable: true,
             autoHighlight: true,
             highlightColor: [255, 255, 255], // [64, 255, 64],
@@ -474,8 +503,8 @@ export default defineComponent({
             data: this.legs,
             getSourcePosition: (d: any) => d.points[0],
             getTargetPosition: (d: any) => d.points[d.points.length - 1],
-            getSourceColor: (d: any) => LegModeColor[d.mode] || [0, 128, 230], // d.color,
-            getTargetColor: (d: any) => LegModeColor[d.mode] || [0, 128, 230], // d.color,
+            getSourceColor: (d: any) => this.planColor(d, LegModeColor[d.mode] || [0, 128, 230]),
+            getTargetColor: (d: any) => this.planColor(d, LegModeColor[d.mode] || [0, 128, 230]),
             getWidth: 2, //  + ((this.settings.scaleFactor - 0) * (40 - 2)) / (100 - 0),
             getHeight: 0.5,
             widthMinPixels: 2,
@@ -485,8 +514,13 @@ export default defineComponent({
             opacity: 0.9,
             numSegments: this.legs.length < 1000 ? 50 : ARC_SEGMENTS,
             parameters: { depthTest: false },
-            updateTriggers: { getWidth: [this.settings.scaleFactor] },
-            transitions: { getWidth: 150 },
+            updateTriggers: {
+              getWidth: [this.settings.scaleFactor],
+              getColor: [this.dimPlan],
+              getSourceColor: [this.dimPlan],
+              getTargetColor: [this.dimPlan],
+            },
+            transitions: { getWidth: 150, ...COLOR_FADE },
             pickable: true,
             autoHighlight: true,
             highlightColor: [255, 255, 255], // [64, 255, 64],
@@ -503,7 +537,7 @@ export default defineComponent({
             id: 'deliveryroutes',
             data: this.legs,
             getPath: (d: any) => d.points,
-            getColor: (d: any) => LegModeColor[d.mode] || [0, 128, 230], // d.color,
+            getColor: (d: any) => this.planColor(d, LegModeColor[d.mode] || [0, 128, 230]),
             // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
             getWidth: 2, // 3 + ((this.settings.scaleFactor - 0) * (40 - 3)) / (100 - 0),
             getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
@@ -519,8 +553,13 @@ export default defineComponent({
             numSegments: this.legs.length < 1000 ? 50 : ARC_SEGMENTS,
             highlightColor: [255, 255, 255], // [64, 255, 64],
             parameters: { depthTest: false },
-            updateTriggers: { getWidth: [this.settings.scaleFactor] },
-            transitions: { getWidth: 150 },
+            updateTriggers: {
+              getWidth: [this.settings.scaleFactor],
+              getColor: [this.dimPlan],
+              getSourceColor: [this.dimPlan],
+              getTargetColor: [this.dimPlan],
+            },
+            transitions: { getWidth: 150, ...COLOR_FADE },
             onHover: this.getTooltip,
             extensions: [timeFilterExtension],
             ...timeFilter,
@@ -535,7 +574,10 @@ export default defineComponent({
           id: 'activity-locations',
           data: this.stopActivities,
           getLineColor: [128, 128, 128],
-          getFillColor: (d: any) => (d.type?.startsWith('home') ? [24, 255, 255] : [255, 64, 255]),
+          getFillColor: (d: any) =>
+            this.planColor(d, d.type?.startsWith('home') ? [24, 255, 255] : [255, 64, 255]),
+          updateTriggers: { getFillColor: [this.dimPlan] },
+          transitions: COLOR_FADE,
           getLineWidth: 0.5,
           stroked: false,
           getPosition: (d: any, i: number) => [...d.midpoint, (i + 1) * 4],
@@ -660,6 +702,7 @@ export default defineComponent({
   beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
+    window.clearTimeout(this.dimTimer)
     delete (window as any).__testdata__
   },
 
@@ -670,11 +713,37 @@ export default defineComponent({
       for (const layer of this.layers as Layer[]) {
         const data = layer.props.data as { length?: number } | null
         layers[layer.id] = {
-          count: data && typeof data === 'object' ? (data.length ?? null) : null,
+          count: data && typeof data === 'object' ? data.length ?? null : null,
           visible: layer.props.visible,
         }
       }
-      ;(window as any).__testdata__ = { layers }
+      ;(window as any).__testdata__ = {
+        layers,
+        dimPlan: this.dimPlan,
+        // [lon, lat] -> pixels within the map container, to aim the mouse at a plan
+        project: (lngLat: [number, number]) => {
+          const p = this.mymap?.project(lngLat)
+          return p ? [p.x, p.y] : null
+        },
+      }
+    },
+
+    // Grey out the other plans once the mouse rests on this one; leaving every plan
+    // restores the colors straight away (both fade, see COLOR_FADE)
+    setHoverPlan(plan: string | null) {
+      if (plan === this.hoverPlan) return // another leg/activity of the same plan
+      this.hoverPlan = plan
+      window.clearTimeout(this.dimTimer)
+      if (!plan) this.dimPlan = null
+      else if (plan !== this.dimPlan) {
+        this.dimTimer = window.setTimeout(() => (this.dimPlan = plan), DIM_DELAY_MS)
+      }
+    },
+
+    // A plan object's own color, or grey when another plan is being hovered
+    planColor(d: { row?: { person_id: string; plan_num: number } }, color: number[]) {
+      if (!this.dimPlan || !d.row || planKey(d.row) === this.dimPlan) return color
+      return DIMMED_COLOR
     },
 
     handleMove() {
@@ -697,6 +766,7 @@ export default defineComponent({
 
       // the plan-table row behind this leg/activity, so the table can light it up (null clears)
       this.$emit('hover-row', object?.row ?? null)
+      this.setHoverPlan(object?.row ? planKey(object.row) : null)
 
       if (!object) {
         this.tooltipCoord.display = 'none'
