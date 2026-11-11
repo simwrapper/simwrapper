@@ -40,16 +40,15 @@ const i18n = {
       populationShare: 'Share of population',
       cellShare: 'Share of cells',
       value: 'Value',
-      populationChartTitle: 'Cumulative % of population attaining accessibility level',
-      cellChartTitle: 'Cumulative % of cells attaining accessibility level',
+      populationChartTitle: 'Cumulative % of population by value',
+      cellChartTitle: 'Cumulative % of cells by value',
     },
     de: {
       populationShare: 'Bevölkerungsanteil',
       cellShare: 'Anteil der Zellen',
       value: 'Wert',
-      populationChartTitle:
-        'Kumulierter Anteil (%) der Bevölkerung, der das Erreichbarkeitsniveau erreicht',
-      cellChartTitle: 'Kumulierter Anteil (%) der Zellen, die das Erreichbarkeitsniveau erreichen',
+      populationChartTitle: 'Kumulierter Anteil (%) der Bevölkerung nach Wert',
+      cellChartTitle: 'Kumulierter Anteil (%) der Zellen nach Wert',
     },
   },
 }

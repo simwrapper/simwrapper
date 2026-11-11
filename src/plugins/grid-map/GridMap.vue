@@ -358,8 +358,9 @@ const GridMap = defineComponent({
         isDifference: false,
       }),
       // Summary chart: cumulative share of population by value, for the time on display.
-      // request drops worker answers that a newer request superseded.
-      summaryChart: markRaw({ request: 0 }),
+      // busy/again: one worker request at a time (see updateSummaryChart). dataVersion
+      // counts prepare() calls, so a curve of the previous column is never drawn.
+      summaryChart: markRaw({ busy: false, again: false, dataVersion: 0 }),
       /** markRaw'd: only ever replaced, and Plotly reads it as is */
       summary: null as CumulativeShare | null,
       /** unscaled [min, max] per time period, from the worker */
@@ -910,6 +911,8 @@ const GridMap = defineComponent({
      * With withColors, colorData comes back filled in, so nothing renders uncolored.
      */
     async prepareData(withColors: boolean) {
+      // any summary curve still on its way is of the values this replaces
+      this.summaryChart.dataVersion++
       const result = await this.calc.task!.prepare(
         unreactive({
           valueColumn: this.vizDetails.valueColumn || '',
@@ -1075,19 +1078,37 @@ const GridMap = defineComponent({
       this.data = markRaw({ ...this.data, mapData })
     },
 
-    /** Cumulative distribution of the values on the map, for the time period on display */
+    /**
+     * Cumulative distribution of the values on the map, for the time period on display.
+     *
+     * Called on every time slider step. Only one request is in flight at a time: calls
+     * that arrive meanwhile just mark it to run again, and when the answer is in, it is
+     * drawn and the next request is for whatever time is on display by then. So the chart
+     * follows a drag as fast as the worker answers, without a backlog of stale periods.
+     */
     async updateSummaryChart() {
+      const state = this.summaryChart
       if (!this.calc.task) return
+      if (state.busy) {
+        state.again = true
+        return
+      }
 
-      const request = ++this.summaryChart.request
-      const result = await this.calc.task.cumulativeShare(
-        this.currentTimeIndex,
-        this.vizDetails.populationColumn || 'population'
-      )
-      // a newer time or column was picked while this one was running
-      if (request !== this.summaryChart.request) return
-
-      this.summary = markRaw(result)
+      state.busy = true
+      try {
+        do {
+          state.again = false
+          const version = state.dataVersion
+          const result = await this.calc.task.cumulativeShare(
+            this.currentTimeIndex,
+            this.vizDetails.populationColumn || 'population'
+          )
+          // a column change re-ran prepare() meanwhile: this curve is of the old values
+          if (version === state.dataVersion) this.summary = markRaw(result)
+        } while (state.again)
+      } finally {
+        state.busy = false
+      }
     },
 
     resolveProjection() {

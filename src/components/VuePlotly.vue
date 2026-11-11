@@ -19,6 +19,8 @@ export default defineComponent({
     return {
       plotlyId: `plotly-${plotlyCounter++}`,
       myPlot: null as any,
+      /** a redraw is already scheduled for the next tick */
+      updatePending: false,
     }
   },
   watch: {
@@ -53,8 +55,12 @@ export default defineComponent({
     },
 
     async updatePlot() {
+      // data and layout usually change together: one redraw for both, not one each
+      if (this.updatePending) return
+      this.updatePending = true
       try {
         await this.$nextTick()
+        this.updatePending = false
         Plotly.react(this.plotlyId, this.data, this.layout, this.options)
       } catch (e) {
         console.warn('' + e)

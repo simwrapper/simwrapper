@@ -92,6 +92,19 @@ let _values: Float32Array[] = []
 let _rawValues: Float32Array[] = []
 /** with a diff: unscaled values of each side of it, per time period. Otherwise empty */
 let _sideValues: Float32Array[][] = []
+/**
+ * cumulativeShare() answers by `${timeIndex}|${weightColumn}`, so dragging the time slider
+ * back over a period is free. Belongs to one _rawValues: prepare() replaces that array,
+ * which empties the cache.
+ */
+const _shareCache = new Map<string, CumulativeShare>()
+let _shareCacheSource = _rawValues
+/**
+ * Points per summary-chart curve. The chart is ~200px tall, so a curve thinned to this
+ * many is off by under 0.1% -- a fraction of a pixel -- instead of carrying every cell
+ * (100k+) into Plotly on each time slider step.
+ */
+const CHART_CURVE_POINTS = 1000
 let _opacityValues: Float32Array[] = []
 let _hasOpacity = false
 let _valuesIncludeNeg = false
@@ -290,6 +303,14 @@ const Task = {
    * Cells with no value or no weight are left out.
    */
   cumulativeShare(timeIndex: number, weightColumn: string): CumulativeShare {
+    if (_shareCacheSource !== _rawValues) {
+      _shareCache.clear()
+      _shareCacheSource = _rawValues
+    }
+    const key = `${timeIndex}|${weightColumn}`
+    const cached = _shareCache.get(key)
+    if (cached) return cached
+
     const raw = _rawValues[timeIndex] || new Float32Array(0)
     const weightValues = _isAvro ? undefined : _columns[weightColumn]
 
@@ -300,8 +321,10 @@ const Task = {
       }
     }
 
-    const { values, shares } = cumulativeDistribution(raw, weights)
-    const sides = _sideValues.map(side => cumulativeDistribution(side[timeIndex], weights))
+    const { values, shares } = thinCurve(cumulativeDistribution(raw, weights))
+    const sides = _sideValues.map(side =>
+      thinCurve(cumulativeDistribution(side[timeIndex], weights))
+    )
 
     const result: CumulativeShare = {
       values,
@@ -309,10 +332,9 @@ const Task = {
       weighted: !!weightValues,
       sides: sides.length ? sides : undefined,
     }
-    const buffers = [values, shares, ...sides.flatMap(d => [d.values, d.shares])].map(
-      a => a.buffer as ArrayBuffer
-    )
-    return Comlink.transfer(result, buffers)
+    // copied, not transferred: the cache keeps these, and thinned they are only a few KB
+    _shareCache.set(key, result)
+    return result
   },
 
   /**
@@ -369,6 +391,34 @@ function cumulativeDistribution(raw: Float32Array, weights: Float64Array) {
     shares[k] = cumulative / total
   })
   return { values, shares }
+}
+
+/**
+ * Thin a sorted cumulative curve to about CHART_CURVE_POINTS points, for drawing.
+ * Points are kept at steps of share, so every dropped point lies less than one step above
+ * the kept point before it: the plotted step curve ('hv') is never off by more than
+ * 1/CHART_CURVE_POINTS. The first and last points always stay; they set the chart's x range.
+ */
+function thinCurve(curve: { values: Float32Array; shares: Float32Array }) {
+  const { values, shares } = curve
+  const n = values.length
+  if (n <= CHART_CURVE_POINTS) return curve
+
+  const step = 1 / CHART_CURVE_POINTS
+  const keep = [0]
+  let nextShare = shares[0] + step
+  for (let i = 1; i < n - 1; i++) {
+    if (shares[i] >= nextShare) {
+      keep.push(i)
+      nextShare = shares[i] + step
+    }
+  }
+  keep.push(n - 1)
+
+  return {
+    values: Float32Array.from(keep, i => values[i]),
+    shares: Float32Array.from(keep, i => shares[i]),
+  }
 }
 
 /**
