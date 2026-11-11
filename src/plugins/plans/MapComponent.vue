@@ -83,7 +83,7 @@ export default defineComponent({
   name: 'MyDeckComponent',
   components: { MapTooltip },
   props: {
-    bgLayers: { type: Object as PropType<BackgroundLayers>, required: true },
+    bgLayers: { type: Object as PropType<BackgroundLayers> },
     dark: { type: Boolean, required: true },
     legs: { type: Array, required: true },
     nonRoutedLegs: { type: Array, required: true },
@@ -578,6 +578,7 @@ export default defineComponent({
       this.deckOverlay?.setProps({
         layers: this.layers,
       })
+      this.updateTestData()
     },
 
     dark() {
@@ -659,9 +660,23 @@ export default defineComponent({
   beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
+    delete (window as any).__testdata__
   },
 
   methods: {
+    // e2e hook: what each deck layer was handed (CPU side only -- not what the GPU drew)
+    updateTestData() {
+      const layers: Record<string, { count: number | null; visible: boolean }> = {}
+      for (const layer of this.layers as Layer[]) {
+        const data = layer.props.data as { length?: number } | null
+        layers[layer.id] = {
+          count: data && typeof data === 'object' ? (data.length ?? null) : null,
+          visible: layer.props.visible,
+        }
+      }
+      ;(window as any).__testdata__ = { layers }
+    },
+
     handleMove() {
       if (this.mapIsIndependent) return
       const center = this.mymap?.getCenter() as any

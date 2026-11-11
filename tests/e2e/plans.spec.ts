@@ -26,10 +26,16 @@ const PLUGIN_ROUTE = 'e2e-tests/plans/plans.parquet'
  *    file. Deleting the `return` would switch click handling on for the first time (and
  *    `clickedDepot`/`clickedLeg` are stale carrier-viewer code), so it is left as found.
  *  - the WebAssembly `try` deprecation, which comes out of the DuckDB-WASM bundle itself.
+ *
+ * And DuckDB-WASM's "fall back to full HTTP read": the SVN fixture server answers a Range
+ * request for this small parquet with a plain 200, so DuckDB downloads all of it (3.6 kB)
+ * and says so. That is the server, not the plugin; a Range-capable mirror
+ * (scripts/mini-file-server.py) doesn't trigger it.
  */
 const isNoise = (t: string) =>
   /GPU stall|webgl|externalized for browser|could not be loaded/i.test(t) ||
-  /unreachable code after return|WebAssembly exception handling/i.test(t)
+  /unreachable code after return|WebAssembly exception handling/i.test(t) ||
+  /fall back to full HTTP read/i.test(t)
 
 function watchConsole(page: Page) {
   const noise: string[] = []
@@ -43,6 +49,11 @@ function watchConsole(page: Page) {
 }
 
 const PLANS = '[data-testid="plan-list"] .carrier'
+
+/** What each deck layer was handed, from MapComponent's `__testdata__` hook (CPU side). */
+type LayerFacts = Record<string, { count: number | null; visible: boolean }>
+const layerFacts = (page: Page): Promise<LayerFacts | undefined> =>
+  page.evaluate(() => (window as any).__testdata__?.layers)
 
 const waitForViz = (page: Page) =>
   page.waitForSelector('[data-testid="plan-list"]', { timeout: 120_000 })
@@ -117,7 +128,7 @@ test('the selected-plans-only switch filters the list', async ({ page }) => {
 /**
  * Selecting a plan mounts PlanTable and rebuilds every deck layer -- the update pass
  * where trap #7 would fire. It does not reproduce on this fixture (see the theme test),
- * so what this really guards is the plan->table wiring and that driving the two bottom
+ * so what this really guards is the plan->table wiring and that driving the three bottom
  * o-switches through a layer rebuild stays console-clean.
  */
 test('selecting a plan opens its table and redraws', async ({ page }) => {
@@ -137,13 +148,56 @@ test('selecting a plan opens its table and redraws', async ({ page }) => {
   await expect(page.locator('.plan-html-table tbody tr')).toHaveCount(5)
   await expect(page.locator(PLANS).first()).toHaveClass(/\bselected\b/)
 
-  // the three bottom switches (activities, simple tours, walk trips) all drive the deck layers
+  // the three bottom switches (activities, simple tours, teleported trips) all drive the deck
+  // layers
   const switches = page.locator('.switchbox input')
   await expect(switches).toHaveCount(3)
   for (let i = 0; i < 3; i++) {
     await switches.nth(i).click({ force: true })
     await page.waitForTimeout(1500)
   }
+
+  expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
+})
+
+/**
+ * "Teleported trips" hides every leg drawn as an arc -- legs without a link route, whatever
+ * their mode -- and nothing else. In the fixture, person3's only leg is a `drt` leg with a
+ * `generic` route (an arc), while person2's `walk` leg has a link route and is drawn on the
+ * road network: the old "Walk trips" switch hid that one, this switch must not.
+ */
+test('the teleported-trips switch hides the arc legs only', async ({ page }) => {
+  test.setTimeout(180_000)
+  const noise = watchConsole(page)
+
+  await page.goto(PLUGIN_ROUTE)
+  await waitForViz(page)
+  await page.waitForTimeout(6000)
+  await search(page, 'person*')
+
+  const label = page.locator('.switchbox').getByText('Teleported trips', { exact: true })
+  await expect(label).toBeVisible()
+  const toggle = () => label.click()
+  const count = async (layerId: string) => (await layerFacts(page))?.[layerId]?.count
+
+  // person3: one teleported drt leg, drawn as an arc
+  await page.locator(PLANS).filter({ hasText: 'person3' }).click()
+  await expect.poll(() => count('non-routed-leg-arcs')).toBe(1)
+
+  await toggle() // off
+  await expect.poll(() => count('non-routed-leg-arcs')).toBe(0)
+
+  // person2: a routed pt leg and a routed walk leg -- both stay drawn with the switch off
+  await page.locator(PLANS).filter({ hasText: 'person2' }).click()
+  await expect.poll(() => count('deliveryroutes')).toBe(2)
+
+  await toggle() // on again: nothing changes for routed legs
+  await page.waitForTimeout(500)
+  expect(await count('deliveryroutes')).toBe(2)
+
+  // and the arc comes back for person3
+  await page.locator(PLANS).filter({ hasText: 'person3' }).click()
+  await expect.poll(() => count('non-routed-leg-arcs')).toBe(1)
 
   expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
 })

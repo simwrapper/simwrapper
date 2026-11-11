@@ -7,7 +7,6 @@ import { describe, expect, it } from 'vitest'
 import {
   OverviewBuilder,
   activeRoutes,
-  arcsOfKinds,
   buildRoutePaths,
   linkLookup,
   type OverviewBatch,
@@ -149,24 +148,5 @@ describe('activeRoutes', () => {
       for (let k = 0; k < r.count; k++) if (r.times[2 * k] <= t && t < r.times[2 * k + 1]) expected.push(k)
       expect(got).toEqual(expected)
     }
-  })
-})
-
-describe('arcsOfKinds', () => {
-  it('keeps only the arcs of the wanted kinds', () => {
-    const arcs = {
-      count: 3,
-      source: Float32Array.from([0, 0, 1, 1, 2, 2]),
-      target: Float32Array.from([10, 10, 11, 11, 12, 12]),
-      times: Float32Array.from([0, 5, 1, 6, 2, 7]),
-      kind: Uint16Array.from([0, 1, 0]), // 0 = walk, 1 = pt
-    }
-    const noWalk = arcsOfKinds(arcs, k => k !== 0)
-    expect(noWalk.count).toBe(1)
-    expect(Array.from(noWalk.source)).toEqual([1, 1])
-    expect(Array.from(noWalk.target)).toEqual([11, 11])
-    expect(Array.from(noWalk.times)).toEqual([1, 6])
-    expect(Array.from(noWalk.kind)).toEqual([1])
-    expect(arcsOfKinds(arcs, () => true)).toBe(arcs) // nothing filtered: no copy
   })
 })
