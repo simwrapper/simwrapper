@@ -72,6 +72,64 @@ test('xy time loads small emission data', async ({ page }) => {
 })
 
 /**
+ * The bin colors reach the GPU as a `vec4 colors[21]` uniform array. luma.gl 9.3 packs
+ * exactly what `uniformTypes` declares, so declaring it as a bare 'vec4<f32>' uploads
+ * colors[0] only: every point past the first breakpoint then reads a zeroed bin and
+ * renders black. `__testdata__` is all JS-side and can't see that, so read the pixels.
+ */
+test('points are drawn in more than one legend color', async ({ page }) => {
+  test.setTimeout(180_000)
+
+  await page.goto(PLUGIN_ROUTE)
+  await page.waitForSelector('.legend-box')
+  await waitForPoints(page)
+
+  const legend = await page.evaluate(() =>
+    [...document.querySelectorAll('.legend-box .row-value')]
+      .map(el => getComputedStyle(el as HTMLElement).backgroundColor)
+      .map(c => (c.match(/\d+/g) || []).slice(0, 3).map(Number))
+      .filter(c => c.length === 3)
+  )
+  expect(legend.length).toBe(7)
+
+  // the deck overlay is interleaved, so the points are in maplibre's own canvas. An element
+  // screenshot also captures DOM drawn on top of it, and the legend's own swatches (144px
+  // each) would otherwise satisfy this test by themselves -- so mask the legend out.
+  const png = (
+    await page
+      .locator('canvas')
+      .first()
+      .screenshot({ mask: [page.locator('.legend-box')], maskColor: '#ff00ff' })
+  ).toString('base64')
+
+  const pixelsPerLegendColor: number[] = await page.evaluate(
+    async ({ png, legend }) => {
+      const blob = await (await fetch(`data:image/png;base64,${png}`)).blob()
+      const bitmap = await createImageBitmap(blob)
+      const ctx = new OffscreenCanvas(bitmap.width, bitmap.height).getContext('2d')!
+      ctx.drawImage(bitmap, 0, 0)
+      const { data } = ctx.getImageData(0, 0, bitmap.width, bitmap.height)
+      const counts = legend.map(() => 0)
+      for (let i = 0; i < data.length; i += 4) {
+        legend.forEach(([r, g, b], k) => {
+          if (
+            Math.abs(data[i] - r) <= 3 &&
+            Math.abs(data[i + 1] - g) <= 3 &&
+            Math.abs(data[i + 2] - b) <= 3
+          )
+            counts[k]++
+        })
+      }
+      return counts
+    },
+    { png, legend }
+  )
+
+  const binsOnScreen = pixelsPerLegendColor.filter(n => n > 50).length
+  expect(binsOnScreen, `pixels per legend color: ${pixelsPerLegendColor}`).toBeGreaterThan(2)
+})
+
+/**
  * deck.gl's proxy-invariant TypeError (trap #7) fires on layer *update*, not first
  * paint, so a load-and-look check would miss it. The lil-gui panel is the only way to
  * force a rebuild here.

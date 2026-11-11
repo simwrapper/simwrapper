@@ -34,7 +34,7 @@ const DEFAULT_COLOR: RGBA = [0, 132, 193, 255]
 const INNER_SIDE_OUTLINE_THICKNESS = 1
 
 const uniformBlock = `\
-uniform uniUniforms {
+layout(std140) uniform uniUniforms {
   vec4 outlineColor;
   float thicknessUnit;
   float gap;

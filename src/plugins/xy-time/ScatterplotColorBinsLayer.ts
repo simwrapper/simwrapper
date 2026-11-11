@@ -3,7 +3,7 @@ import type { ShaderModule } from '@luma.gl/shadertools'
 
 // uniform block object --------------------------
 const uniformBlock = `\
-uniform highlightUniforms {
+layout(std140) uniform highlightUniforms {
   uniform vec4 numBreakpoints;
   uniform vec4 colors[21];
 } highlight;
@@ -13,7 +13,9 @@ const highlightUniforms = {
   vs: uniformBlock,
   uniformTypes: {
     numBreakpoints: 'vec4<f32>',
-    colors: 'vec4<f32>',
+    // luma 9.3 packs exactly what is declared here: a bare 'vec4<f32>' uploads
+    // colors[0] only, leaving every other bin black. Length must match colors[21].
+    colors: ['vec4<f32>', 21],
   },
 } as const satisfies ShaderModule
 

@@ -115,6 +115,16 @@ function getIconId(icon: UnpackedIcon): string {
   return icon && (icon.id || icon.url)
 }
 
+// ported from deck.gl 9.3's icon-manager
+function regenerateMipmaps(texture: Texture) {
+  const { device } = texture
+  if (device.type === 'webgl') {
+    texture.generateMipmapsWebGL()
+  } else if (device.type === 'webgpu') {
+    device.generateMipmapsWebGPU(texture)
+  }
+}
+
 // resize texture without losing original data
 function resizeTexture(
   texture: Texture,
@@ -129,7 +139,7 @@ function resizeTexture(
     width,
     height,
     sampler,
-    mipmaps: true,
+    mipLevels: device.getMipLevelCount(width, height),
   })
 
   const commandEncoder = device.createCommandEncoder()
@@ -139,7 +149,9 @@ function resizeTexture(
     width: oldWidth,
     height: oldHeight,
   })
-  commandEncoder.finish()
+  // finish() only records the copy; without submit() the old icons never reach newTexture
+  device.submit(commandEncoder.finish())
+  regenerateMipmaps(newTexture)
 
   texture.destroy()
   return newTexture
@@ -420,7 +432,7 @@ export default class IconManager {
           width: this._canvasWidth,
           height: this._canvasHeight,
           sampler: this._samplerParameters || DEFAULT_SAMPLER_PARAMETERS,
-          mipmaps: true,
+          mipLevels: this.device.getMipLevelCount(this._canvasWidth, this._canvasHeight),
         })
       }
 
@@ -478,9 +490,9 @@ export default class IconManager {
           iconDef.width = width
           iconDef.height = height
 
-          // Call to regenerate mipmaps after modifying texture(s)
-          // @ts-ignore
-          this._texture.generateMipmap()
+          // Call to regenerate mipmaps after modifying texture(s).
+          // (Texture.generateMipmap() does not exist in luma 9.x; calling it threw here.)
+          if (this._texture) regenerateMipmaps(this._texture)
 
           this.onUpdate()
         })

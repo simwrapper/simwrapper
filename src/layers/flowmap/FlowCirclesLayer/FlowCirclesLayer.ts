@@ -29,7 +29,7 @@ export interface Props extends LayerProps {
 }
 
 const uniformBlock = `\
-uniform uniUniforms {
+layout(std140) uniform uniUniforms {
   float opacity;
   vec4 emptyColor;
   float outlineEmptyMix;

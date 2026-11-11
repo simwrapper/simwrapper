@@ -10,7 +10,7 @@ const defaultProps = {
 
 // Deckg. 9.x: Use Uniform block (UBO) instead of individual uniforms
 const uniformBlock = `\
-uniform udataUniforms {
+layout(std140) uniform udataUniforms {
   float currentTime;
   float searchFlag;
 } udata;

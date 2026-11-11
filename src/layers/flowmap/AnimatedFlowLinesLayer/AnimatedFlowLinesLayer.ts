@@ -46,7 +46,7 @@ const animationSpeed = 20
 const loopTime = loopLength / animationSpeed
 
 const uniformBlock = `\
-uniform uniUniforms {
+layout(std140) uniform uniUniforms {
   float opacity;
   float currentTime;
   float thicknessUnit;

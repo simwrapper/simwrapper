@@ -12,7 +12,7 @@ export const OFFSET_DIRECTION = {
 
 // Uniform block (UBO)
 const uniformBlock = `\
-uniform udataUniforms {
+layout(std140) uniform udataUniforms {
   float offsetDirection;
 } udata;
 `
