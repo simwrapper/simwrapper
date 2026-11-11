@@ -18,9 +18,13 @@ const ROUTE = 'e2e-tests/cottbus/output_events.xml.gz'
  * Headless GPU chatter, Vite shimming node builtins, maplibre complaining about sprite
  * images its own style asset references but does not ship, and the WASM module's
  * deprecated exception-handling opcodes (firefox only).
+ * Also firefox 159+ (playwright 1.65), whose Gecko "microtasks on this page was reordered"
+ * notice is a page-level scheduling diagnostic (line 0), not our code.
  */
 const isNoise = (t: string) =>
-  /GPU stall|webgl|externalized for browser|could not be loaded|exception handling/i.test(t)
+  /GPU stall|webgl|externalized for browser|microtasks.*reordered|could not be loaded|exception handling/i.test(
+    t
+  )
 
 function watchConsole(page: Page) {
   const noise: string[] = []

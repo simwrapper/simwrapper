@@ -195,14 +195,19 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = markRaw(
-        new MapboxOverlay({
-          interleaved: true,
-          layers: this.layers,
-          onClick: this.handleClick,
-        })
-      )
-      this.mymap?.addControl(this.deckOverlay)
+      // style.load fires again on every setStyle() (theme switch). The interleaved overlay
+      // re-adds its own layers on 'styledata', so build it only once: a second overlay
+      // would hand the same Layer instances to a second Deck -> "assertion failed".
+      if (!this.deckOverlay) {
+        this.deckOverlay = markRaw(
+          new MapboxOverlay({
+            interleaved: true,
+            layers: this.layers,
+            onClick: this.handleClick,
+          })
+        )
+        this.mymap?.addControl(this.deckOverlay)
+      }
     })
   },
 

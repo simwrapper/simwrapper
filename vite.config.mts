@@ -29,7 +29,6 @@ export default defineConfig(({ command, mode }) => {
   return {
     base: '/',
     build: { sourcemap: false, target: 'esnext' },
-    esbuild: { target: 'esnext' },
     optimizeDeps: {
       include: [
         'nanoid',

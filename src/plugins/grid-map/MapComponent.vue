@@ -229,14 +229,17 @@ export default defineComponent({
       // "'get' on proxy: property 'data' is a read-only and non-configurable data
       // property ... but the proxy did not return its actual value". It fires on layer
       // *update*, not first paint, so a load-and-screenshot check misses it.
-      this.deckOverlay = markRaw(
-        new MapboxOverlay({
-          interleaved: true,
-          layers: this.layers,
-          onClick: this.handleClick,
-        })
-      )
-      this.mymap?.addControl(this.deckOverlay)
+      // style.load fires again on every setStyle() (theme switch); build the overlay once
+      if (!this.deckOverlay) {
+        this.deckOverlay = markRaw(
+          new MapboxOverlay({
+            interleaved: true,
+            layers: this.layers,
+            onClick: this.handleClick,
+          })
+        )
+        this.mymap?.addControl(this.deckOverlay)
+      }
     })
   },
 

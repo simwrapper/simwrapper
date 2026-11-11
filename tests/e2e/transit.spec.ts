@@ -19,9 +19,13 @@ const PANEL_ROUTE = 'e2e-tests/transit/cottbus' // dashboard-1.yaml, `type: tran
  * Benign + unrelated: headless GPU chatter, Vite shimming node builtins for avro, and
  * maplibre's own blob tile-worker complaining about nulls in the basemap vector tiles.
  * Case-insensitive on purpose -- see the note in gridmap-lifecycle.spec.ts.
+ * Also firefox 159+ (playwright 1.65), whose Gecko "microtasks on this page was reordered"
+ * notice is a page-level scheduling diagnostic (line 0), not our code.
  */
 const isNoise = (t: string) =>
-  /GPU stall|webgl|externalized for browser|Expected value to be of type number/i.test(t)
+  /GPU stall|webgl|externalized for browser|microtasks.*reordered|Expected value to be of type number/i.test(
+    t
+  )
 
 function watchConsole(page: Page) {
   const noise: string[] = []

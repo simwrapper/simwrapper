@@ -39,6 +39,9 @@ import {
 
 const BASE_URL = import.meta.env.BASE_URL
 
+// more segments smoother! fewer segments faster :-)
+const ARC_SEGMENTS = 7
+
 // Shared by every plan layer: each object carries its [t0, t1) time window, and the time
 // slider moves the filter range (a uniform), so dragging or playing never rebuilds data.
 const timeFilterExtension = new DataFilterExtension({ filterSize: 2 })
@@ -235,7 +238,7 @@ export default defineComponent({
           data: legArcs.arcs,
           getWidth: 2,
           getHeight: 0.6,
-          numSegments: 13, // legArcs.arcs.length < 32768 ? 13 : 6,
+          numSegments: ARC_SEGMENTS, // legArcs.arcs.length < 32768 ? 13 : 6,
           widthMinPixels: 1,
           widthMaxPixels: 40,
           widthUnits: 'pixels',
@@ -251,7 +254,7 @@ export default defineComponent({
             id: 'everyone-leg-arcs',
             data: legArcs.routeArcs,
             getWidth: 2,
-            numSegments: 5,
+            numSegments: ARC_SEGMENTS,
             getHeight: 0.5,
             widthMinPixels: 2,
             widthMaxPixels: 40,
@@ -364,7 +367,7 @@ export default defineComponent({
               widthUnits: 'pixels',
               widthMinPixels: width,
               widthMaxPixels: 400,
-              numSegments: 13,
+              numSegments: ARC_SEGMENTS,
               getHeight: 0.6,
               opacity: 1,
               pickable: false,
@@ -462,7 +465,7 @@ export default defineComponent({
             widthMinPixels: 1,
             widthMaxPixels: 40,
             widthUnits: 'pixels',
-            numSegments: 8,
+            numSegments: ARC_SEGMENTS,
             // widthScale: widthScale,
             opacity: 0.9,
             parameters: { depthTest: false },
@@ -496,7 +499,7 @@ export default defineComponent({
             widthUnits: 'pixels',
             // widthScale: widthScale,
             opacity: 0.9,
-            numSegments: 7,
+            numSegments: ARC_SEGMENTS,
             parameters: { depthTest: false },
             updateTriggers: { getWidth: [this.settings.scaleFactor] },
             transitions: { getWidth: 150 },
@@ -529,7 +532,7 @@ export default defineComponent({
             shadowEnabled: false,
             pickable: true,
             autoHighlight: true,
-            numSegments: 5,
+            numSegments: ARC_SEGMENTS,
             highlightColor: [255, 255, 255], // [64, 255, 64],
             parameters: { depthTest: false },
             updateTriggers: { getWidth: [this.settings.scaleFactor] },
@@ -651,17 +654,20 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = markRaw(
-        new MapboxOverlay({
-          layers: this.layers,
-          interleaved: true,
-          pickingRadius: 2,
-          onClick: this.handleClick,
-          getCursor: ({ isDragging, isHovering }) =>
-            isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab',
-        })
-      )
-      this.mymap?.addControl(this.deckOverlay)
+      // style.load fires again on every setStyle() (theme switch); build the overlay once
+      if (!this.deckOverlay) {
+        this.deckOverlay = markRaw(
+          new MapboxOverlay({
+            layers: this.layers,
+            interleaved: true,
+            pickingRadius: 2,
+            onClick: this.handleClick,
+            getCursor: ({ isDragging, isHovering }) =>
+              isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab',
+          })
+        )
+        this.mymap?.addControl(this.deckOverlay)
+      }
     })
     this.mymap.on('move', this.handleMove)
   },

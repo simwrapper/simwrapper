@@ -150,14 +150,17 @@ export default defineComponent({
           enable3DBuildings(this.mymap)
         }
 
-        this.deckOverlay = markRaw(
-          new MapboxOverlay({
-            interleaved: true,
-            layers: this.layers,
-            onClick: this.handleClick,
-          })
-        )
-        this.mymap?.addControl(this.deckOverlay)
+        // style.load fires again on every setStyle() (theme switch); build the overlay once
+        if (!this.deckOverlay) {
+          this.deckOverlay = markRaw(
+            new MapboxOverlay({
+              interleaved: true,
+              layers: this.layers,
+              onClick: this.handleClick,
+            })
+          )
+          this.mymap?.addControl(this.deckOverlay)
+        }
       })
 
       if (this.header && view.startup) this.zoomToArchiveExtent()

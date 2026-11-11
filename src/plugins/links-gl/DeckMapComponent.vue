@@ -216,14 +216,17 @@ export default defineComponent({
 
       // markRaw: deckOverlay lives in data(), so otherwise the overlay becomes a
       // reactive Proxy and deck.gl reads the frozen layer.props.data through it (trap #7).
-      this.deckOverlay = markRaw(
-        new MapboxOverlay({
-          interleaved: true,
-          layers: this.layers,
-          onClick: this.handleClick,
-        })
-      )
-      this.mymap?.addControl(this.deckOverlay)
+      // style.load fires again on every setStyle() (theme switch); build the overlay once
+      if (!this.deckOverlay) {
+        this.deckOverlay = markRaw(
+          new MapboxOverlay({
+            interleaved: true,
+            layers: this.layers,
+            onClick: this.handleClick,
+          })
+        )
+        this.mymap?.addControl(this.deckOverlay)
+      }
     })
   },
 

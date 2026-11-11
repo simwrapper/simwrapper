@@ -118,14 +118,17 @@ export default defineComponent({
 
       // markRaw: deck.gl freezes each layer's props; reading them back through a reactive
       // overlay's Vue proxy violates the proxy invariant and throws during layer matching.
-      this.deckOverlay = markRaw(
-        new MapboxOverlay({
-          interleaved: true,
-          layers: this.layers,
-          onClick: this.handleClick,
-        })
-      )
-      this.mymap?.addControl(this.deckOverlay)
+      // style.load fires again on every setStyle() (theme switch); build the overlay once
+      if (!this.deckOverlay) {
+        this.deckOverlay = markRaw(
+          new MapboxOverlay({
+            interleaved: true,
+            layers: this.layers,
+            onClick: this.handleClick,
+          })
+        )
+        this.mymap?.addControl(this.deckOverlay)
+      }
     })
   },
 

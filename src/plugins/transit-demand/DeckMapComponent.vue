@@ -294,20 +294,23 @@ export default defineComponent({
 
       // markRaw: keeps every deck.gl layer out of Vue's proxy path, which
       // otherwise throws on the frozen `data` prop during layer matching
-      this.deckOverlay = markRaw(
-        new MapboxOverlay({
-          interleaved: false,
-          useDevicePixels: true,
-          layers: this.layers,
-          pickingRadius: 2,
-          onClick: this.handleClick,
-          onHover: this.getTooltip,
-          getCursor: (c: any) => {
-            return c.isHovering ? 'pointer' : 'grab'
-          },
-        })
-      )
-      this.mymap?.addControl(this.deckOverlay)
+      // style.load fires again on every setStyle() (theme switch); build the overlay once
+      if (!this.deckOverlay) {
+        this.deckOverlay = markRaw(
+          new MapboxOverlay({
+            interleaved: false,
+            useDevicePixels: true,
+            layers: this.layers,
+            pickingRadius: 2,
+            onClick: this.handleClick,
+            onHover: this.getTooltip,
+            getCursor: (c: any) => {
+              return c.isHovering ? 'pointer' : 'grab'
+            },
+          })
+        )
+        this.mymap?.addControl(this.deckOverlay)
+      }
     })
   },
 

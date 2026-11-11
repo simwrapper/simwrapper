@@ -285,15 +285,18 @@ export default defineComponent({
 
       // markRaw: a reactive overlay makes deck's layer-matching read frozen props
       // through Vue's proxy, which throws. See trap #7 in VUE3-MIGRATION.md.
-      this.deckOverlay = markRaw(
-        new MapboxOverlay({
-          interleaved: true,
-          layers: this.layers,
-          onClick: this.handleClick,
-          onHover: this.getTooltip,
-        } as any)
-      )
-      this.mymap?.addControl(this.deckOverlay)
+      // style.load fires again on every setStyle() (theme switch); build the overlay once
+      if (!this.deckOverlay) {
+        this.deckOverlay = markRaw(
+          new MapboxOverlay({
+            interleaved: true,
+            layers: this.layers,
+            onClick: this.handleClick,
+            onHover: this.getTooltip,
+          } as any)
+        )
+        this.mymap?.addControl(this.deckOverlay)
+      }
     })
   },
 

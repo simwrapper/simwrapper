@@ -476,20 +476,23 @@ export default defineComponent({
       // markRaw: deck.gl freezes each layer's props. If the overlay is reactive, reading
       // layer.props.data during deck's layer-matching goes through Vue's proxy, which
       // returns reactive(value) !== the frozen actual value -> TypeError. See trap #7.
-      this.deckOverlay = markRaw(
-        new MapboxOverlay({
-          interleaved: true,
-          layers: this.layers,
-          onClick: this.handleClick,
-          onHover: this.handleHover,
-          onDrag: this.handleHover,
-          pickingRadius: 2,
-          getCursor: (c: any) => {
-            return c.isHovering ? 'pointer' : 'grab'
-          },
-        })
-      )
-      this.mymap?.addControl(this.deckOverlay)
+      // style.load fires again on every setStyle() (theme switch); build the overlay once
+      if (!this.deckOverlay) {
+        this.deckOverlay = markRaw(
+          new MapboxOverlay({
+            interleaved: true,
+            layers: this.layers,
+            onClick: this.handleClick,
+            onHover: this.handleHover,
+            onDrag: this.handleHover,
+            pickingRadius: 2,
+            getCursor: (c: any) => {
+              return c.isHovering ? 'pointer' : 'grab'
+            },
+          })
+        )
+        this.mymap?.addControl(this.deckOverlay)
+      }
     })
   },
 

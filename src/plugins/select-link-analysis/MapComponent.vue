@@ -191,22 +191,25 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = markRaw(
-        new MapboxOverlay({
-          interleaved: true,
-          layers: this.layers,
-          pickingRadius: 10,
-          onHover: this.handleHover,
-          onClick: this.handleClick,
+      // style.load fires again on every setStyle() (theme switch); build the overlay once
+      if (!this.deckOverlay) {
+        this.deckOverlay = markRaw(
+          new MapboxOverlay({
+            interleaved: true,
+            layers: this.layers,
+            pickingRadius: 10,
+            onHover: this.handleHover,
+            onClick: this.handleClick,
+          })
+        )
+
+        this.mymap?.addControl(this.deckOverlay)
+        // console.log('overlay added, layers count:', this.layers.length)
+
+        this.$nextTick(() => {
+          this.deckOverlay?.setProps({ layers: this.layers })
         })
-      )
-
-      this.mymap?.addControl(this.deckOverlay)
-      // console.log('overlay added, layers count:', this.layers.length)
-
-      this.$nextTick(() => {
-        this.deckOverlay?.setProps({ layers: this.layers })
-      })
+      }
     })
   },
 

@@ -23,8 +23,11 @@ const NOISE_ROUTE = 'e2e-tests/lausitz'
  * "WEBGL_debug_renderer_info is deprecated" (from luma.gl's webgl-device, not our code),
  * and a case-sensitive /WebGL/ misses the second one, so the spec passed on chromium and
  * failed on firefox.
+ * Also firefox 159+ (playwright 1.65), whose Gecko "microtasks on this page was reordered"
+ * notice is a page-level scheduling diagnostic (line 0), not our code.
  */
-const isNoise = (t: string) => /GPU stall|webgl|externalized for browser/i.test(t)
+const isNoise = (t: string) =>
+  /GPU stall|webgl|externalized for browser|microtasks.*reordered/i.test(t)
 
 function watchConsole(page: Page) {
   const noise: string[] = []

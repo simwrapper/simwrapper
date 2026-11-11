@@ -29,8 +29,11 @@ const DIFFS = 'e2e-tests/emissions/viz-links-vol-diffs.yaml'
  * Benign + unrelated, case-insensitively: chromium's "GPU stall ... ReadPixels", firefox's
  * "WEBGL_debug_renderer_info is deprecated" (luma.gl, not our code), and Vite shimming node
  * builtins. A case-sensitive /WebGL/ misses the firefox one.
+ * Also firefox 159+ (playwright 1.65), whose Gecko "microtasks on this page was reordered"
+ * notice is a page-level scheduling diagnostic (line 0), not our code.
  */
-const isNoise = (t: string) => /GPU stall|webgl|externalized for browser/i.test(t)
+const isNoise = (t: string) =>
+  /GPU stall|webgl|externalized for browser|microtasks.*reordered/i.test(t)
 
 function watchConsole(page: any) {
   const noise: string[] = []

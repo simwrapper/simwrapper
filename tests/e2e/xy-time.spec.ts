@@ -17,9 +17,11 @@ const DASHBOARD_ROUTE = 'e2e-tests/xy-time'
  * complaining about sprite images its own style asset references but does not ship
  * ("circle-11" in dark.json). The last one is firefox/webkit only -- chromium stays
  * quiet -- so a spec without it passes on chromium and fails in a full run.
+ * Also firefox 159+ (playwright 1.65), whose Gecko "microtasks on this page was reordered"
+ * notice is a page-level scheduling diagnostic (line 0), not our code.
  */
 const isNoise = (t: string) =>
-  /GPU stall|webgl|externalized for browser|could not be loaded/i.test(t)
+  /GPU stall|webgl|externalized for browser|microtasks.*reordered|could not be loaded/i.test(t)
 
 function watchConsole(page: Page) {
   const noise: string[] = []

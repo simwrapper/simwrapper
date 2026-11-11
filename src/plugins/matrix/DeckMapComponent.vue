@@ -170,22 +170,25 @@ export default defineComponent({
         enable3DBuildings(this.mymap)
       }
 
-      this.deckOverlay = markRaw(
-        new MapboxOverlay({
-          interleaved: true,
-          layers: [this.layers[0]],
-          onClick: this.handleClick,
-          onHover: this.getTooltip,
-        })
-      )
-      this.mymap?.addControl(this.deckOverlay)
-      this.highlightOverlay = markRaw(
-        new MapboxOverlay({
-          interleaved: false,
-          layers: [this.layers[1]],
-        })
-      )
-      this.mymap?.addControl(this.highlightOverlay)
+      // style.load fires again on every setStyle() (theme switch); build the overlay once
+      if (!this.deckOverlay) {
+        this.deckOverlay = markRaw(
+          new MapboxOverlay({
+            interleaved: true,
+            layers: [this.layers[0]],
+            onClick: this.handleClick,
+            onHover: this.getTooltip,
+          })
+        )
+        this.mymap?.addControl(this.deckOverlay)
+        this.highlightOverlay = markRaw(
+          new MapboxOverlay({
+            interleaved: false,
+            layers: [this.layers[1]],
+          })
+        )
+        this.mymap?.addControl(this.highlightOverlay)
+      }
     })
   },
 
