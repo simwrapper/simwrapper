@@ -405,27 +405,3 @@ export interface ArcSet {
   times: Float32Array
   kind: Uint16Array
 }
-
-/** The arcs whose kind passes `keep`, e.g. to hide walk legs. Returns `arcs` itself if all pass. */
-export function arcsOfKinds(arcs: ArcSet, keep: (kind: number) => boolean): ArcSet {
-  let n = 0
-  for (let i = 0; i < arcs.count; i++) if (keep(arcs.kind[i])) n++
-  if (n === arcs.count) return arcs
-  const out: ArcSet = {
-    count: n,
-    source: new Float32Array(2 * n),
-    target: new Float32Array(2 * n),
-    times: new Float32Array(2 * n),
-    kind: new Uint16Array(n),
-  }
-  let j = 0
-  for (let i = 0; i < arcs.count; i++) {
-    if (!keep(arcs.kind[i])) continue
-    out.source.set(arcs.source.subarray(2 * i, 2 * i + 2), 2 * j)
-    out.target.set(arcs.target.subarray(2 * i, 2 * i + 2), 2 * j)
-    out.times.set(arcs.times.subarray(2 * i, 2 * i + 2), 2 * j)
-    out.kind[j] = arcs.kind[i]
-    j++
-  }
-  return out
-}

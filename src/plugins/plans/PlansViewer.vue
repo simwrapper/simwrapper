@@ -99,8 +99,8 @@
             span(v-html="$t('Activities')")
           o-switch(v-model="vizSettings.simplifyTours")
             span(v-html="$t('flatten')")
-          o-switch(v-model="vizSettings.showWalkTrips")
-            span {{ $t('walkTrips') }}
+          o-switch(v-model="vizSettings.showTeleportedTrips")
+            span {{ $t('teleportedTrips') }}
 
 </template>
 
@@ -123,7 +123,7 @@ const i18n = {
       scaleFactor: 'Width',
       selectedPlansOnly: 'Selected plans (*) only',
       showEveryone: 'Show everyone',
-      walkTrips: 'Walk trips',
+      teleportedTrips: 'Teleported trips',
       unknownLink: '1 unknown link: not found in the network file, so it is left off the map.',
       unknownLinks:
         '{count} unknown links: not found in the network file, so they are left off the map.',
@@ -153,7 +153,7 @@ const i18n = {
       show: 'Show',
       Activities: 'Activities',
       showEveryone: 'Alle anzeigen',
-      walkTrips: 'Fußwege',
+      teleportedTrips: 'Teleportierte Wege',
       unknownLink: '1 unbekannter Link: nicht im Netzwerk, daher fehlt er auf der Karte.',
       unknownLinks: '{count} unbekannte Links: nicht im Netzwerk, daher fehlen sie auf der Karte.',
       confirmEveryone:
@@ -366,7 +366,7 @@ const PlansViewerPlugin = defineComponent({
         shipmentDotsOnTourMap: true,
         scaleFactor: 0, // 0 means don't scale at all
         selectedPlansOnly: false,
-        showWalkTrips: true,
+        showTeleportedTrips: true,
       },
 
       vizDetails: {

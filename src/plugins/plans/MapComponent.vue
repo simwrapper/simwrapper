@@ -30,7 +30,6 @@ import { LegModeColor, type Plan } from './PlansViewer.vue'
 import { OPEN_END, activeAtFilter } from './planTime'
 import {
   activeRoutes,
-  arcsOfKinds,
   buildRoutePaths,
   type ArcSet,
   type OverviewData,
@@ -40,7 +39,7 @@ import {
 const BASE_URL = import.meta.env.BASE_URL
 
 // more segments smoother! fewer segments faster :-)
-const ARC_SEGMENTS = 7
+const ARC_SEGMENTS = 13
 
 // Shared by every plan layer: each object carries its [t0, t1) time window, and the time
 // slider moves the filter range (a uniform), so dragging or playing never rebuilds data.
@@ -95,7 +94,7 @@ export default defineComponent({
         simplifyTours: boolean
         scaleFactor: number
         shipmentDotsOnTourMap: boolean
-        showWalkTrips?: boolean
+        showTeleportedTrips?: boolean
       }>,
       required: true,
     },
@@ -124,8 +123,7 @@ export default defineComponent({
   },
 
   computed: {
-    // "Show everyone" data that only changes when a new overview loads (or a leg switch is
-    // toggled) -- not when the time slider moves -- so its GPU buffers are uploaded once and
+    // "Show everyone" data that only changes when a new overview loads -- not when the time slider moves -- so its GPU buffers are uploaded once and
     // filtered by time on the GPU.
     overviewActivities(): LayerData<unknown> | null {
       const ov = this.overview
@@ -143,18 +141,9 @@ export default defineComponent({
       }
     },
 
-    // Which kinds (leg modes) of the overview to draw: all but walk when walk trips are off.
-    overviewKindShown(): ((kind: number) => boolean) | null {
-      const ov = this.overview
-      if (!ov) return null
-      const shown = ov.kinds.map(k => this.isModeShown(k))
-      return (kind: number) => shown[kind]
-    },
-
     overviewLegArcs(): { arcs: LayerData<unknown>; routeArcs: LayerData<unknown> } | null {
       const ov = this.overview
-      const shown = this.overviewKindShown
-      if (!ov || !shown) return null
+      if (!ov) return null
       const asLayerData = (set: ArcSet, fallback: number[]): LayerData<unknown> => {
         const colors = colorsByKind(ov.kinds, set.kind, modeColor(fallback))
         return {
@@ -169,18 +158,19 @@ export default defineComponent({
         }
       }
       return {
-        arcs: asLayerData(arcsOfKinds(ov.arcs, shown), ARC_DEFAULT_COLOR),
+        arcs: asLayerData(ov.arcs, ARC_DEFAULT_COLOR),
         // routed legs as start-to-end arcs, for "simple tours"
-        routeArcs: asLayerData(arcsOfKinds(ov.routes, shown), ROUTE_DEFAULT_COLOR),
+        routeArcs: asLayerData(ov.routes, ROUTE_DEFAULT_COLOR),
       }
     },
 
-    // The plan's legs, minus walk legs when walk trips are switched off.
-    shownLegs(): unknown[] {
-      return this.legs.filter(d => this.isModeShown((d as { mode: string }).mode))
-    },
+    // The plan's teleported (non-routed) legs, drawn as arcs: none when the
+    // "Teleported trips" switch is off.
     shownNonRoutedLegs(): unknown[] {
-      return this.nonRoutedLegs.filter(d => this.isModeShown((d as { mode: string }).mode))
+      return this.showTeleportedTrips ? this.nonRoutedLegs : []
+    },
+    showTeleportedTrips(): boolean {
+      return this.settings.showTeleportedTrips !== false
     },
 
     // Road paths of the routed legs under way at the slider time, in deck.gl's binary path
@@ -193,13 +183,7 @@ export default defineComponent({
         scratch = { ids: [] }
         routeScratch.set(ov, scratch)
       }
-      const shown = this.overviewKindShown
       const ids = activeRoutes(ov.routes, this.currentTime, scratch.ids)
-      if (shown) {
-        let n = 0
-        for (const r of ids) if (shown(ov.routes.kind[r])) ids[n++] = r
-        ids.length = n
-      }
       const colorOf = modeColor(ROUTE_DEFAULT_COLOR)
       const kindColors = ov.kinds.map(colorOf)
       const paths = buildRoutePaths(
@@ -231,19 +215,19 @@ export default defineComponent({
       const legArcs = this.overviewLegArcs
       if (!activities || !legArcs) return []
       const timeFilter = { ...activeAtFilter(this.currentTime), filterEnabled: true }
-      console.log('legArcs.arcs', legArcs.arcs)
       const layers: Layer[] = [
         new ArcLayer<unknown, DataFilterExtensionProps>({
           id: 'everyone-non-routed-leg-arcs',
           data: legArcs.arcs,
           getWidth: 2,
           getHeight: 0.6,
-          numSegments: ARC_SEGMENTS, // legArcs.arcs.length < 32768 ? 13 : 6,
+          numSegments: legArcs.arcs?.length < 1000 ? 50 : ARC_SEGMENTS,
           widthMinPixels: 1,
           widthMaxPixels: 40,
           widthUnits: 'pixels',
           opacity: 0.9,
           pickable: false,
+          visible: this.showTeleportedTrips,
           extensions: [timeFilterExtension],
           ...timeFilter,
         }),
@@ -254,7 +238,7 @@ export default defineComponent({
             id: 'everyone-leg-arcs',
             data: legArcs.routeArcs,
             getWidth: 2,
-            numSegments: ARC_SEGMENTS,
+            numSegments: legArcs.routeArcs.length < 1000 ? 50 : ARC_SEGMENTS,
             getHeight: 0.5,
             widthMinPixels: 2,
             widthMaxPixels: 40,
@@ -302,12 +286,12 @@ export default defineComponent({
 
     // The map geometry drawn for the hovered/locked table row, found by row identity (each
     // drawn leg / activity keeps the plan row it came from). Undefined if that row is not
-    // on the map (unknown links, walk legs switched off...).
+    // on the map (unknown links, teleported trips switched off...).
     highlightGeometry(): { leg?: HlLeg; arc?: HlArc; activity?: HlActivity } {
       const row = this.highlightRow
       if (!row) return {}
       return {
-        leg: (this.shownLegs as HlLeg[]).find(d => d.row === row),
+        leg: (this.legs as HlLeg[]).find(d => d.row === row),
         arc: (this.shownNonRoutedLegs as HlArc[]).find(d => d.row === row),
         activity: (this.stopActivities as HlActivity[]).find(d => d.row === row),
       }
@@ -367,7 +351,7 @@ export default defineComponent({
               widthUnits: 'pixels',
               widthMinPixels: width,
               widthMaxPixels: 400,
-              numSegments: ARC_SEGMENTS,
+              numSegments: 50,
               getHeight: 0.6,
               opacity: 1,
               pickable: false,
@@ -465,7 +449,7 @@ export default defineComponent({
             widthMinPixels: 1,
             widthMaxPixels: 40,
             widthUnits: 'pixels',
-            numSegments: ARC_SEGMENTS,
+            numSegments: this.shownNonRoutedLegs.length < 1000 ? 50 : ARC_SEGMENTS,
             // widthScale: widthScale,
             opacity: 0.9,
             parameters: { depthTest: false },
@@ -487,7 +471,7 @@ export default defineComponent({
         allLayers.push(
           new ArcLayer({
             id: 'leg-arcs',
-            data: this.shownLegs,
+            data: this.legs,
             getSourcePosition: (d: any) => d.points[0],
             getTargetPosition: (d: any) => d.points[d.points.length - 1],
             getSourceColor: (d: any) => LegModeColor[d.mode] || [0, 128, 230], // d.color,
@@ -499,7 +483,7 @@ export default defineComponent({
             widthUnits: 'pixels',
             // widthScale: widthScale,
             opacity: 0.9,
-            numSegments: ARC_SEGMENTS,
+            numSegments: this.legs.length < 1000 ? 50 : ARC_SEGMENTS,
             parameters: { depthTest: false },
             updateTriggers: { getWidth: [this.settings.scaleFactor] },
             transitions: { getWidth: 150 },
@@ -517,7 +501,7 @@ export default defineComponent({
         allLayers.push(
           new PathLayer({
             id: 'deliveryroutes',
-            data: this.shownLegs,
+            data: this.legs,
             getPath: (d: any) => d.points,
             getColor: (d: any) => LegModeColor[d.mode] || [0, 128, 230], // d.color,
             // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
@@ -532,7 +516,7 @@ export default defineComponent({
             shadowEnabled: false,
             pickable: true,
             autoHighlight: true,
-            numSegments: ARC_SEGMENTS,
+            numSegments: this.legs.length < 1000 ? 50 : ARC_SEGMENTS,
             highlightColor: [255, 255, 255], // [64, 255, 64],
             parameters: { depthTest: false },
             updateTriggers: { getWidth: [this.settings.scaleFactor] },
@@ -678,11 +662,6 @@ export default defineComponent({
   },
 
   methods: {
-    // false for walk legs when the "Walk trips" switch is off
-    isModeShown(mode: string) {
-      return this.settings.showWalkTrips !== false || mode !== 'walk'
-    },
-
     handleMove() {
       if (this.mapIsIndependent) return
       const center = this.mymap?.getCenter() as any
