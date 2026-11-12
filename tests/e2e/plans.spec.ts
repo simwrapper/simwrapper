@@ -394,3 +394,114 @@ test('the map tears down on unmount', async ({ page }) => {
   )
   expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
 })
+
+/**
+ * A viz-plans-*.yaml: title, description, center/zoom, the parquet file (`plans:`), and
+ * `colors:` that replace the built-in ones. The fixture folder is on the read-only SVN
+ * server, so the YAML is served by intercepting its request (not the page's own URL, which
+ * has the same path on localhost); `plans:` is a glob for the fixture's real plans.parquet
+ * (DuckDB can't open a glob URL: the viewer looks it up in the folder listing first).
+ *
+ * Colors are checked as pixels: activities matched by glob (home* -> orange) and by the
+ * default (person3's shopping -> blue), at radius 9 -- far more colored pixels in a 16px
+ * square than the built-in radius of 4 could give. ("Show everyone" isn't covered: the
+ * fixture has no time metadata, so it has no time slider and no "Show everyone" switch.)
+ */
+const VIZ_YAML = 'viz-plans-colors.yaml'
+const VIZ_YAML_TEXT = `
+type: plans
+title: Colored plans
+description: Activities and legs colored from the YAML
+plans: pl*.parquet
+center: 13.402,52.511
+zoom: 12
+colors:
+  activities:
+    default: '#0000ff'
+    radius: 9
+    activity_type:
+      home*: '#ff8000'
+  legs:
+    default: '#808080'
+    leg_mode:
+      pt: '#00ff00'
+      walk*: black
+`
+
+test('a viz-plans YAML sets the title, view and colors', async ({ page }) => {
+  test.setTimeout(180_000)
+  const noise = watchConsole(page)
+
+  await page.route(
+    url => url.hostname !== 'localhost' && url.pathname.endsWith(`/plans/${VIZ_YAML}`),
+    route => route.fulfill({ body: VIZ_YAML_TEXT, contentType: 'text/yaml' })
+  )
+  await page.goto(`e2e-tests/plans/${VIZ_YAML}`)
+  await waitForViz(page)
+
+  await expect(page.locator('.right-panel h3')).toHaveText('Colored plans')
+  await expect(page.locator('.viz-description')).toHaveText(
+    'Activities and legs colored from the YAML'
+  )
+  const legend = async (testid: string) =>
+    (await page.locator(`[data-testid="${testid}"] .mode-color`).allTextContents()).map(t =>
+      t.replace(/[ \s]+/g, ' ').trim()
+    )
+  await expect.poll(() => legend('legend-activities')).toEqual(['● home*', '● other'])
+  await expect.poll(() => legend('legend-legs')).toEqual(['─── pt', '─── walk*', '─── other'])
+
+  const zoom = () =>
+    page.evaluate(() => {
+      const store = (document.querySelector('#app') as any).__vue_app__.config.globalProperties
+        .$store
+      return Math.round(store.state.viewState.zoom)
+    })
+  await expect.poll(zoom, { message: 'zoom from the YAML' }).toBe(12)
+
+  const mapBox = (await page.locator('.map-container').first().boundingBox())!
+  // pixels in a 16px square around a [lon, lat] whose rgb are all within the given ranges
+  const pixels = async (lngLat: [number, number], range: number[][]) => {
+    const xy = await page.evaluate(ll => (window as any).__testdata__.project(ll), lngLat)
+    const png = (
+      await page.screenshot({
+        clip: { x: mapBox.x + xy[0] - 8, y: mapBox.y + xy[1] - 8, width: 16, height: 16 },
+        mask: [page.locator('.my-tooltip')],
+      })
+    ).toString('base64')
+    return page.evaluate(
+      async ({ png, range }) => {
+        const blob = await (await fetch(`data:image/png;base64,${png}`)).blob()
+        const bitmap = await createImageBitmap(blob)
+        const ctx = new OffscreenCanvas(bitmap.width, bitmap.height).getContext('2d')!
+        ctx.drawImage(bitmap, 0, 0)
+        const { data } = ctx.getImageData(0, 0, bitmap.width, bitmap.height)
+        let n = 0
+        for (let i = 0; i < data.length; i += 4)
+          if ([0, 1, 2].every(c => data[i + c] >= range[c][0] && data[i + c] <= range[c][1])) n++
+        return n
+      },
+      { png, range }
+    )
+  }
+  // #ff8000 and #0000ff, drawn at opacity 0.9 over the light basemap
+  const ORANGE = [
+    [220, 255],
+    [100, 180],
+    [0, 80],
+  ]
+  const BLUE = [
+    [0, 80],
+    [0, 80],
+    [200, 255],
+  ]
+
+  // home by its glob, shopping by the default
+  await page.waitForTimeout(6000) // DuckDB-WASM, see search()
+  await search(page, 'person*')
+  await expect
+    .poll(() => pixels(PERSON3_SHOPPING, BLUE), { message: 'shopping dot blue (the default)' })
+    .toBeGreaterThan(150)
+  expect(await pixels(PERSON1_HOME, ORANGE), 'home dot orange').toBeGreaterThan(150)
+
+  expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
+})

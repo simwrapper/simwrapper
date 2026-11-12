@@ -27,14 +27,16 @@ import BackgroundLayers from '@/js/BackgroundLayers'
 import globalStore from '@/store'
 import MapTooltip from './MapTooltip.vue'
 import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
-import {
-  LegModeColor,
-  type ActivityStop,
-  type DrawnLeg,
-  type NonRoutedLeg,
-  type Plan,
-} from './PlansViewer.vue'
+import { type ActivityStop, type DrawnLeg, type NonRoutedLeg, type Plan } from './PlansViewer.vue'
 import { OPEN_END, activeAtFilter } from './planTime'
+import {
+  ARC_DEFAULT_COLOR,
+  ACTIVITY_COLOR,
+  ROUTE_DEFAULT_COLOR,
+  planColors,
+  type PlanColors,
+  type RGBA,
+} from './planColors'
 import { planKey, type HoverRow } from './planHover'
 import {
   activeRoutes,
@@ -55,8 +57,6 @@ const BASE_URL = import.meta.env.BASE_URL
 // more segments smoother! fewer segments faster :-)
 const ARC_SEGMENTS = 13
 
-type RGBA = [number, number, number, number]
-
 // Every plan except the hovered one: medium grey, mostly transparent (#80808040)
 const DIMMED_COLOR: RGBA = [128, 128, 128, 64]
 // ...but only once the mouse has rested on a plan this long, so sweeping across the map
@@ -74,12 +74,6 @@ const COLOR_FADE = {
 // slider moves the filter range (a uniform), so dragging or playing never rebuilds data.
 const timeFilterExtension = new DataFilterExtension({ filterSize: 2 })
 const dashExtension = new PathStyleExtension({ dash: true })
-
-// "Show everyone" uses the plan view's colors (see the plan layers below)
-const HOME_COLOR: RGBA = [24, 255, 255, 255]
-const ACTIVITY_COLOR: RGBA = [255, 64, 255, 255]
-const ROUTE_DEFAULT_COLOR = [0, 128, 230, 255]
-const ARC_DEFAULT_COLOR = [200, 200, 200, 192]
 
 // Reusable buffers for the road paths under way at the current time, per overview. Outside
 // Vue's reactivity on purpose: rewritten on every slider move, rendered only through deck.gl.
@@ -115,11 +109,6 @@ function colorsByKind(
   const colors = new Uint8ClampedArray(4 * kindOf.length)
   for (let i = 0; i < kindOf.length; i++) colors.set(table[kindOf[i]], 4 * i)
   return colors
-}
-
-const modeColor = (fallback: number[]) => (mode: string) => {
-  const c = LegModeColor[mode] || fallback
-  return (c.length === 4 ? c : [...c, 255]) as RGBA
 }
 
 // deck.gl binary data: a length plus ready-made attribute buffers
@@ -168,6 +157,8 @@ export default defineComponent({
     overview: { type: Object as PropType<OverviewData | null>, default: null },
     // the plan-table row being hovered or locked: its leg / activity is drawn bright white
     highlightRow: { type: Object as PropType<Plan | null>, default: null },
+    // activity/leg colors and the activity radius (built-in, or from the viz YAML); markRaw'd
+    colors: { type: Object as PropType<PlanColors>, default: () => planColors(undefined) },
   },
 
   // the plan-table row under the mouse on the map (null when nothing hoverable is)
@@ -203,9 +194,7 @@ export default defineComponent({
     overviewActivities(): { colored: BinaryData; plain: BinaryData } | null {
       const ov = this.overview
       if (!ov) return null
-      const colors = colorsByKind(ov.kinds, ov.activities.kind, k =>
-        k.startsWith('home') ? HOME_COLOR : ACTIVITY_COLOR
-      )
+      const colors = colorsByKind(ov.kinds, ov.activities.kind, this.activityColor)
       const attributes = {
         getPosition: { value: ov.activities.positions, size: 2 },
         getFilterValue: { value: ov.activities.times, size: 2 },
@@ -225,8 +214,8 @@ export default defineComponent({
     } | null {
       const ov = this.overview
       if (!ov) return null
-      const asLayerData = (set: ArcSet, fallback: number[]) => {
-        const colors = colorsByKind(ov.kinds, set.kind, modeColor(fallback))
+      const asLayerData = (set: ArcSet, fallback: RGBA) => {
+        const colors = colorsByKind(ov.kinds, set.kind, this.legColor(fallback))
         const attributes = {
           getSourcePosition: { value: set.source, size: 2 },
           getTargetPosition: { value: set.target, size: 2 },
@@ -271,7 +260,7 @@ export default defineComponent({
         routeScratch.set(ov, scratch)
       }
       const ids = activeRoutes(ov.routes, this.currentTime, scratch.ids)
-      const colorOf = modeColor(ROUTE_DEFAULT_COLOR)
+      const colorOf = this.legColor(ROUTE_DEFAULT_COLOR)
       const kindColors = ov.kinds.map(k => (this.dimPlan ? DIMMED_COLOR : colorOf(k)))
       const paths = buildRoutePaths(
         ov.routes,
@@ -374,7 +363,7 @@ export default defineComponent({
           data: (dim ? activities.plain : activities.colored) as LayerData<unknown>,
           ...(dim ? { getFillColor: DIMMED_COLOR } : {}),
           radiusUnits: 'pixels',
-          getRadius: 4,
+          getRadius: this.colors.activityRadius,
           stroked: false,
           opacity: 0.9,
           visible: this.settings.shipmentDotsOnTourMap,
@@ -422,8 +411,8 @@ export default defineComponent({
         highlightColor: [255, 255, 255, 255] as RGBA,
         onHover: this.getTooltip,
       }
-      const arcColor = modeColor(ARC_DEFAULT_COLOR)
-      const routeColor = modeColor(ROUTE_DEFAULT_COLOR)
+      const arcColor = this.legColor(ARC_DEFAULT_COLOR)
+      const routeColor = this.legColor(ROUTE_DEFAULT_COLOR)
       const layers: Layer[] = [
         new ArcLayer<Arc>({
           id: 'everyone-focus-arcs',
@@ -486,9 +475,9 @@ export default defineComponent({
           id: 'everyone-focus-activities',
           data: focus.activities,
           getPosition: d => d.position,
-          getFillColor: d => (d.kind.startsWith('home') ? HOME_COLOR : ACTIVITY_COLOR),
+          getFillColor: d => this.activityColor(d.kind),
           radiusUnits: 'pixels',
-          getRadius: 4,
+          getRadius: this.colors.activityRadius,
           stroked: false,
           opacity: 0.9,
           ...picking,
@@ -618,6 +607,9 @@ export default defineComponent({
       // everyone, below the searched plans
       allLayers.push(...this.overviewLayers)
 
+      const arcColor = this.legColor(ARC_DEFAULT_COLOR)
+      const routeColor = this.legColor(ROUTE_DEFAULT_COLOR)
+
       // spread into each plan layer, alongside its own extensions
       const timeFilter = {
         getFilterValue: (d: { t0?: number; t1?: number }) => [d.t0 ?? 0, d.t1 ?? OPEN_END],
@@ -657,8 +649,8 @@ export default defineComponent({
             data: this.shownNonRoutedLegs,
             getSourcePosition: d => d.start,
             getTargetPosition: d => d.end,
-            getSourceColor: d => this.planColor(d, LegModeColor[d.mode] || [200, 200, 200, 192]),
-            getTargetColor: d => this.planColor(d, LegModeColor[d.mode] || [200, 200, 200, 192]),
+            getSourceColor: d => this.planColor(d, arcColor(d.mode)),
+            getTargetColor: d => this.planColor(d, arcColor(d.mode)),
             // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
             getWidth: 2, // 2 + ((this.settings.scaleFactor - 0) * (40 - 2)) / (100 - 0),
             getHeight: 0.6,
@@ -670,9 +662,9 @@ export default defineComponent({
             opacity: 0.9,
             updateTriggers: {
               getWidth: [this.settings.scaleFactor],
-              getColor: [this.dimPlan],
-              getSourceColor: [this.dimPlan],
-              getTargetColor: [this.dimPlan],
+              getColor: [this.dimPlan, this.colors],
+              getSourceColor: [this.dimPlan, this.colors],
+              getTargetColor: [this.dimPlan, this.colors],
             },
             transitions: { getWidth: 150, ...COLOR_FADE },
             pickable: true,
@@ -694,8 +686,8 @@ export default defineComponent({
             data: this.legs,
             getSourcePosition: d => d.points[0],
             getTargetPosition: d => d.points[d.points.length - 1],
-            getSourceColor: d => this.planColor(d, LegModeColor[d.mode] || [0, 128, 230]),
-            getTargetColor: d => this.planColor(d, LegModeColor[d.mode] || [0, 128, 230]),
+            getSourceColor: d => this.planColor(d, routeColor(d.mode)),
+            getTargetColor: d => this.planColor(d, routeColor(d.mode)),
             getWidth: 2, //  + ((this.settings.scaleFactor - 0) * (40 - 2)) / (100 - 0),
             getHeight: 0.5,
             widthMinPixels: 2,
@@ -706,9 +698,9 @@ export default defineComponent({
             numSegments: this.legs.length < 1000 ? 50 : ARC_SEGMENTS,
             updateTriggers: {
               getWidth: [this.settings.scaleFactor],
-              getColor: [this.dimPlan],
-              getSourceColor: [this.dimPlan],
-              getTargetColor: [this.dimPlan],
+              getColor: [this.dimPlan, this.colors],
+              getSourceColor: [this.dimPlan, this.colors],
+              getTargetColor: [this.dimPlan, this.colors],
             },
             transitions: { getWidth: 150, ...COLOR_FADE },
             pickable: true,
@@ -727,7 +719,7 @@ export default defineComponent({
             id: 'deliveryroutes',
             data: this.legs,
             getPath: d => d.points,
-            getColor: d => this.planColor(d, LegModeColor[d.mode] || [0, 128, 230]),
+            getColor: d => this.planColor(d, routeColor(d.mode)),
             // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
             getWidth: 2, // 3 + ((this.settings.scaleFactor - 0) * (40 - 3)) / (100 - 0),
             getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
@@ -743,9 +735,9 @@ export default defineComponent({
             highlightColor: [255, 255, 255], // [64, 255, 64],
             updateTriggers: {
               getWidth: [this.settings.scaleFactor],
-              getColor: [this.dimPlan],
-              getSourceColor: [this.dimPlan],
-              getTargetColor: [this.dimPlan],
+              getColor: [this.dimPlan, this.colors],
+              getSourceColor: [this.dimPlan, this.colors],
+              getTargetColor: [this.dimPlan, this.colors],
             },
             transitions: { getWidth: 150, ...COLOR_FADE },
             onHover: this.getTooltip,
@@ -762,14 +754,13 @@ export default defineComponent({
           id: 'activity-locations',
           data: this.stopActivities,
           getLineColor: [128, 128, 128],
-          getFillColor: d =>
-            this.planColor(d, d.type?.startsWith('home') ? [24, 255, 255] : [255, 64, 255]),
-          updateTriggers: { getFillColor: [this.dimPlan] },
+          getFillColor: d => this.planColor(d, this.activityColor(this.activityValue(d))),
+          updateTriggers: { getFillColor: [this.dimPlan, this.colors] },
           transitions: COLOR_FADE,
           getLineWidth: 0.5,
           stroked: false,
           getPosition: d => d.midpoint,
-          getRadius: 4,
+          getRadius: this.colors.activityRadius,
           radiusUnits: 'pixels',
           lineWidthUnits: 'pixels',
           opacity: 0.9,
@@ -938,6 +929,23 @@ export default defineComponent({
       else if (plan !== this.dimPlan) {
         this.dimTimer = window.setTimeout(() => (this.dimPlan = plan), DIM_DELAY_MS)
       }
+    },
+
+    // An activity's color, by its value in the configured column (e.g. its activity_type)
+    activityColor(value: unknown): RGBA {
+      return this.colors.activities.colorOf(value, ACTIVITY_COLOR)
+    },
+
+    // The value a plan-view activity is colored by. (Its plan row has every column; the
+    // "Show everyone" overview loads just this one, as its `kind`.)
+    activityValue(d: ActivityStop): unknown {
+      const row = d.row as Record<string, unknown> | undefined
+      return row ? row[this.colors.activities.column] : d.type
+    },
+
+    // A leg's color by mode; `fallback` when nothing matches and the config has no default
+    legColor(fallback: RGBA) {
+      return (mode: unknown) => this.colors.legs.colorOf(mode, fallback)
     },
 
     // A plan object's own color, or grey when another plan is being hovered

@@ -21,6 +21,7 @@
         :currentTime="currentTime"
         :overview="showEveryone ? overview : null"
         :highlightRow="highlightRow"
+        :colors="colors"
         @hover-row="handleMapHover"
       )
 
@@ -56,7 +57,8 @@
     .dragger(@mousedown="dividerDragStart" @mouseup="dividerDragEnd" @mousemove.stop="dividerDragging")
 
     .right-panel(:darkMode="true" :style="{width: `${legendSectionWidth}px`}")
-      h3 {{ $t('plansExplorer') }}
+      h3 {{ vizDetails.title || $t('plansExplorer') }}
+      p.viz-description(v-if="vizDetails.description") {{ vizDetails.description }}
 
       .search-panel
         p.speed-label(:style="{margin: '1rem 0 0 0'}") {{ $t('search') }}
@@ -88,9 +90,14 @@
       .detail-area
         .speed-label(style="margin-bottom: 0.5rem") Legend
 
-        .mode-color(v-for="c in legModeColors" :key="c[0]")
-          .flex-row
-            span(:style="{color: `rgb(${c[1][0]},${c[1][1]},${c[1][2]})`}") ───&nbsp;{{ c[0]}}
+        //- activities (dots), then legs (lines): the patterns from the viz YAML, or built-ins
+        .legend-columns
+          .legend-legs(data-testid="legend-legs")
+            .mode-color(v-for="item in legend.legs" :key="item.label")
+              span(:style="{color: item.css}") ───&nbsp;{{ item.label }}
+          .legend-activities(data-testid="legend-activities")
+            .mode-color(v-for="item in legend.activities" :key="item.label")
+              span(:style="{color: item.css}") ●&nbsp;{{ item.label }}
 
       .switchbox
         p.speed-label(:style="{margin: '1rem 0 0 0'}") {{ $t('show') }}
@@ -183,13 +190,14 @@ import {
   timeWindow,
 } from './planTime'
 import { planKey, sameElement, type HoverRow } from './planHover'
+import { planColors, type LegendItem, type PlanColors } from './planColors'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import TimeSlider from '@/components/TimeSlider.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { sleep, debounce } from '@/js/util'
+import { sleep, debounce, findMatchingGlobInFiles } from '@/js/util'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import DeckMapComponent from './MapComponent.vue'
 import PlanTable from './PlanTable.vue'
@@ -197,20 +205,13 @@ import BackgroundLayers from '@/js/BackgroundLayers'
 
 import { FileSystemConfig, REACT_VIEW_HANDLES } from '@/Globals'
 
-export const LegModeColor = {
-  bike: [0, 225, 50, 255],
-  car: [0, 128, 240, 255],
-  drt: [180, 0, 228, 255],
-  freight: [255, 128, 255, 255],
-  pt: [255, 0, 40, 255],
-  ride: [0, 255, 255, 255],
-  walk: [255, 220, 0, 255],
-} as { [mode: string]: [number, number, number, number] }
-
 naturalSort.insensitive = true
 
-// The viz YAML / dashboard config, plus the fields this viewer reads from it.
+// The viz YAML (viz-plans-*.yaml) / dashboard config, plus the fields this viewer reads
+// from it. `plans` is the parquet file, relative to the YAML's folder; `colors` is parsed
+// by planColors().
 interface VizDetails {
+  plans?: string
   network?: string
   carriers?: string
   projection?: string
@@ -220,6 +221,8 @@ interface VizDetails {
   buildings3d?: boolean
   show3dBuildings?: boolean
   center?: number[] | string | null
+  zoom?: number
+  colors?: unknown
 }
 
 // An activity stop drawn on the map: its position plus the dashed marker along its link.
@@ -262,7 +265,8 @@ const OVERVIEW_CONFIRM_ROWS = 20_000_000
 // plan (activity coordinates; link routes; start/end links of other legs) plus the time
 // windows. Coalesced so every column arrives without nulls (see OverviewBatch), and the route
 // strings only where they're drawn. `has` = the file's columns: optional ones may be missing.
-const overviewQuery = (url: string, has: Set<string>) => {
+// `activityColumn` is what activities are colored by: their `kind` here.
+const overviewQuery = (url: string, has: Set<string>, activityColumn: string) => {
   const col = (name: string, fallback: string) => (has.has(name) ? name : fallback)
   const routeType = col('route_type', "''")
   return `
@@ -272,7 +276,7 @@ const overviewQuery = (url: string, has: Set<string>) => {
          coalesce(${col('activity_lat', 'NULL')}::FLOAT, 'NaN'::FLOAT) AS lat,
          coalesce(time_start, -1) AS t0,
          coalesce(time_end, 1000000000) AS t1,
-         coalesce(${col('leg_mode', 'NULL')}, ${col('activity_type_simple', 'NULL')}, '') AS kind,
+         coalesce(${col('leg_mode', 'NULL')}, ${col(activityColumn, 'NULL')}, '') AS kind,
          coalesce(${routeType}, '') AS route_type,
          CASE WHEN ${routeType} = 'links' THEN coalesce(${col(
     'route_text',
@@ -303,6 +307,7 @@ export interface Plan {
   activity_lon: number
   activity_lat: number
   activity_type: string
+  activity_type_simple?: string
   // [time_start, time_end) in seconds, from plans2parquet; null time_end = open-ended
   time_start?: number | null
   time_end?: number | null
@@ -347,7 +352,9 @@ const PlansViewerPlugin = defineComponent({
       pendingPlan: null as string | null,
       isQueryRunning: false,
       linkLayerId: Math.floor(1e12 * Math.random()),
-      legModeColors: Object.entries(LegModeColor),
+      // activity/leg colors: built-in until the viz config is read. markRaw: it caches
+      // colors as they're looked up, while deck.gl renders.
+      colors: markRaw(planColors(undefined)) as PlanColors,
       dbUrl: '',
 
       // time slider: 0 = no file metadata, so no slider
@@ -442,6 +449,15 @@ const PlansViewerPlugin = defineComponent({
       return this.thumbnailUrl
     },
 
+    legend(): { activities: LegendItem[]; legs: LegendItem[] } {
+      return { activities: this.colors.activities.legend(), legs: this.colors.legs.legend() }
+    },
+
+    // the parquet file: from the viz YAML, or the file this viewer was opened on
+    plansFile(): string {
+      return this.vizDetails.plans || this.yamlConfig || ''
+    },
+
     // hover wins while the mouse is over a row; otherwise the locked (clicked) row stays lit
     highlightRow(): Plan | null {
       return this.hoveredRow ?? this.lockedRow
@@ -481,6 +497,8 @@ const PlansViewerPlugin = defineComponent({
     await this.getVizDetails()
 
     if (this.thumbnail) return
+
+    await this.resolvePlansFile()
 
     this.myState.statusMessage = 'Loading network...'
     await sleep(0) // update UI
@@ -638,7 +656,7 @@ const PlansViewerPlugin = defineComponent({
       // Flask filesystem: URL
       // S3: URL
       // Remote: URL
-      let url = `${this.fileSystem.baseURL}/${this.subfolder}/${this.yamlConfig}`
+      let url = `${this.fileSystem.baseURL}/${this.subfolder}/${this.plansFile}`
 
       if (!this.fileSystem.handle) {
         // await this.duck.registerFileURL('plans.parquet', url, DuckDB.DuckDBDataProtocol.HTTP, true)
@@ -646,11 +664,14 @@ const PlansViewerPlugin = defineComponent({
         return url
       }
 
-      url = 'plans.parquet' // this.yamlConfig || 'datafile.parquet'
+      url = 'plans.parquet'
 
-      // retrieve file handle
-      const dir = await this.fileApi.getDirectory(this.subfolder)
-      const handle = dir.handles[this.yamlConfig || url]
+      // retrieve file handle (the file may be in a subfolder of this one)
+      const slash = this.plansFile.lastIndexOf('/')
+      const folder =
+        slash < 0 ? this.subfolder : `${this.subfolder}/${this.plansFile.slice(0, slash)}`
+      const dir = await this.fileApi.getDirectory(folder)
+      const handle = dir.handles[this.plansFile.slice(slash + 1)]
       const file = await handle.getFile()
       // console.log({ dir, handle })
 
@@ -693,7 +714,10 @@ const PlansViewerPlugin = defineComponent({
         const conn = await db.connect()
         const builder = new OverviewBuilder(network)
         let reported = 0
-        for await (const batch of await conn.send(overviewQuery(url, columns))) {
+        // built-in colors match on the activity's simple type ("home", not "home_86400")
+        const activities = this.colors.activities
+        const activityColumn = activities.isCustom ? activities.column : 'activity_type_simple'
+        for await (const batch of await conn.send(overviewQuery(url, columns, activityColumn))) {
           const text = (name: string) => {
             const vector = batch.getChild(name)!
             return (i: number) => vector.get(i) as string
@@ -863,7 +887,11 @@ const PlansViewerPlugin = defineComponent({
 
       const grouped = Object.groupBy(shownRows, row => `${row.person_id}/${row.plan_num}`)
       const plans = Object.values(grouped).filter((p): p is Plan[] => !!p)
-      plans.sort((a, b) => naturalSort(a[0].person_id, b[0].person_id))
+      // raw alphabetical (code-unit) order by person_id, then plan number
+      plans.sort((a, b) => {
+        const [p, q] = [String(a[0].person_id), String(b[0].person_id)]
+        return p < q ? -1 : p > q ? 1 : Number(a[0].plan_num) - Number(b[0].plan_num)
+      })
       this.plans = plans
 
       this.selectedPlans = []
@@ -951,6 +979,7 @@ const PlansViewerPlugin = defineComponent({
       if (this.config) {
         this.vizDetails = Object.assign({}, this.config)
         this.sync3dBuildingsSetting()
+        this.setColors()
         return
       }
 
@@ -968,6 +997,11 @@ const PlansViewerPlugin = defineComponent({
           if (this.vizDetails.title) {
             this.$emit('title', this.vizDetails.title)
           }
+          if (!this.vizDetails.plans) {
+            this.$emit('error', `${this.yamlConfig}: no 'plans:' parquet file given`)
+          }
+          this.setColors()
+          if (!this.vizDetails.network) this.vizDetails.network = await this.guessNetworkFile()
 
           return
         } catch (e) {
@@ -985,24 +1019,9 @@ const PlansViewerPlugin = defineComponent({
 
       // Fine, build the config based on folder contents -------------------------
 
-      // TODO for now, we'll try two network files
-      const { files } = await this.fileApi.getDirectory(this.subfolder)
-
-      let networkFile = ''
-      if (files.indexOf('network.avro') > -1) networkFile = 'network.avro'
-      else networkFile = this.yamlConfig?.replace('events.xml', 'network.xml.gz') || 'network.xml'
-
-      // does that network file actually exist? If not grab any network file :-)
-      // (A plans parquet's name has no 'events.xml', so the replace above returns the plans
-      // file itself -- which exists, but isn't a network.)
-      if (files.indexOf(networkFile) == -1 || networkFile === this.yamlConfig) {
-        networkFile = files.find(f => f.indexOf('network.xml') > -1) || ''
-        if (networkFile) console.log('Guessing that network is in:', networkFile)
-      }
-
       const t = '' + this.$t('plansExplorer')
       this.vizDetails = {
-        network: networkFile,
+        network: await this.guessNetworkFile(),
         carriers: this.yamlConfig,
         title: t,
         description: '',
@@ -1013,6 +1032,46 @@ const PlansViewerPlugin = defineComponent({
       this.sync3dBuildingsSetting()
 
       this.$emit('title', t)
+    },
+
+    // `plans:` may be a glob (e.g. *.output_plans.parquet), which DuckDB can't open: swap it
+    // for the matching file in its folder -- the first, alphabetically, if several match.
+    async resolvePlansFile() {
+      const pattern = this.vizDetails.plans
+      if (!pattern || !/[*?[\]{}]/.test(pattern)) return
+
+      const slash = pattern.lastIndexOf('/')
+      const folder = slash < 0 ? this.subfolder : `${this.subfolder}/${pattern.slice(0, slash)}`
+      try {
+        const { files } = await this.fileApi.getDirectory(folder)
+        const matches = findMatchingGlobInFiles(files, pattern.slice(slash + 1)).sort(naturalSort)
+        if (!matches.length) {
+          this.$emit('error', `plans: no file matches '${pattern}'`)
+          return
+        }
+        if (matches.length > 1)
+          console.log(`plans: '${pattern}' matches`, matches, '- using the first')
+        this.vizDetails.plans = pattern.slice(0, slash + 1) + matches[0]
+      } catch (e) {
+        this.$emit('error', `plans: could not read folder for '${pattern}': ${e}`)
+      }
+    },
+
+    // The network when the config doesn't name one: network.avro, else any network.xml file
+    async guessNetworkFile() {
+      const { files } = await this.fileApi.getDirectory(this.subfolder)
+      if (files.includes('network.avro')) return 'network.avro'
+
+      const networkFile = files.find(f => f.indexOf('network.xml') > -1) || ''
+      if (networkFile) console.log('Guessing that network is in:', networkFile)
+      return networkFile
+    },
+
+    // Activity/leg colors from the config's `colors:` section; mistakes in it are reported
+    setColors() {
+      const colors = planColors(this.vizDetails.colors)
+      this.colors = markRaw(colors)
+      if (colors.errors.length) this.$emit('error', colors.errors.join('; '))
     },
 
     sync3dBuildingsSetting() {
@@ -1057,7 +1116,7 @@ const PlansViewerPlugin = defineComponent({
         this.$store.commit('setMapCamera', {
           longitude,
           latitude,
-          zoom: 4,
+          zoom: this.vizDetails.zoom ?? 4,
           bearing: 0,
           pitch: 0,
           jump: false,
@@ -1492,7 +1551,9 @@ input {
 
 .x-status-message {
   position: absolute;
-  inset: 0 0 0 0;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  right: 0.5rem;
   display: flex;
   flex-direction: column;
   z-index: 20000;
@@ -1504,7 +1565,7 @@ input {
     color: var(--link);
     margin: auto 0px;
     opacity: 0.95;
-    padding: 2rem 2rem;
+    padding: 1rem 2rem;
     text-align: center;
     user-select: none;
     filter: drop-shadow(0px 3px 5px #00000020);
@@ -1540,6 +1601,24 @@ input {
 .mode-color {
   font-size: 0.9rem;
   font-weight: bold;
+}
+
+.legend-columns {
+  display: flex;
+  flex-wrap: wrap; // stacks again when the panel is dragged narrow
+  align-items: flex-start;
+  gap: 0.5rem 1.5rem;
+}
+
+.legend-activities,
+.legend-legs {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.viz-description {
+  margin-top: 0.25rem;
+  line-height: 1.2rem;
 }
 
 @media only screen and (max-width: 640px) {
