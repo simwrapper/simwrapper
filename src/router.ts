@@ -11,11 +11,11 @@ const routes = [
       subfolder: '',
     }),
   },
-  // {
-  //   path: '/matrix',
-  //   component: () => import('@/plugins/matrix/MatrixViewer.vue'),
-  //   props: (route: RouteLocationNormalized) => ({ root: '', subfolder: '' }),
-  // },
+  {
+    path: '/matrix',
+    component: () => import('@/plugins/matrix/MatrixViewer.vue'),
+    props: (route: RouteLocationNormalized) => ({ root: '', subfolder: '' }),
+  },
   // {
   //   path: '/map',
   //   component: () => import('@/plugins/layer-map/LayerMap.vue'),

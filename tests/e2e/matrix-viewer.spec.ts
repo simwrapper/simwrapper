@@ -43,3 +43,12 @@ test('matrix viewer displays table: sfcta H5 file', async ({ page }) => {
   await cells.first().waitFor({ timeout: 60_000 })
   await expect(cells.nth(0)).toHaveText('3.500e+0')
 })
+
+// /matrix has its own route in src/router.ts; without it the path falls through to the
+// catch-all LayoutManager and the splash-page "Matrix viewer" tool silently goes nowhere.
+test('splash page Matrix viewer tool opens the standalone viewer', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('.az-quick-item', { hasText: 'Matrix' }).click()
+  await expect(page).toHaveURL(/\/matrix$/)
+  await expect(page.getByText('Drop an OMX/HDF5 matrix file here')).toBeVisible()
+})
