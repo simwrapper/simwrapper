@@ -123,6 +123,7 @@ const i18n = {
       scaleFactor: 'Width',
       selectedPlansOnly: 'Selected plans (*) only',
       showEveryone: 'Show everyone',
+      scanningRows: 'Scanning all rows...',
       teleportedTrips: 'Teleported trips',
       unknownLink: '1 unknown link: not found in the network file, so it is left off the map.',
       unknownLinks:
@@ -153,6 +154,7 @@ const i18n = {
       show: 'Show',
       Activities: 'Activities',
       showEveryone: 'Alle anzeigen',
+      scanningRows: 'Alle Zeilen werden durchsucht...',
       teleportedTrips: 'Teleportierte Wege',
       unknownLink: '1 unbekannter Link: nicht im Netzwerk, daher fehlt er auf der Karte.',
       unknownLinks: '{count} unbekannte Links: nicht im Netzwerk, daher fehlen sie auf der Karte.',
@@ -172,7 +174,7 @@ import type {
 import naturalSort from 'javascript-natural-sort'
 
 import { personSearchFilter } from './personSearch'
-import { OverviewBuilder, linkLookup, type OverviewData } from './overviewData'
+import { OverviewBuilder, linkLookup, type LonLat, type OverviewData } from './overviewData'
 import {
   MAX_END_TIME_KEY,
   P995_END_TIME_KEY,
@@ -180,7 +182,7 @@ import {
   sliderEndTime,
   timeWindow,
 } from './planTime'
-import { planKey } from './planHover'
+import { planKey, sameElement, type HoverRow } from './planHover'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
@@ -203,7 +205,7 @@ export const LegModeColor = {
   pt: [255, 0, 40, 255],
   ride: [0, 255, 255, 255],
   walk: [255, 220, 0, 255],
-} as { [mode: string]: number[] }
+} as { [mode: string]: [number, number, number, number] }
 
 naturalSort.insensitive = true
 
@@ -222,21 +224,31 @@ interface VizDetails {
 
 // An activity stop drawn on the map: its position plus the dashed marker along its link.
 // `row` is the plan-table row it came from, so table hover/click can find it again.
-interface ActivityStop {
+export interface ActivityStop {
   type: string
-  midpoint: number[]
-  ptFrom: number[]
-  ptTo: number[]
+  midpoint: LonLat
+  ptFrom: LonLat
+  ptTo: LonLat
   t0: number
   t1: number
   row?: Plan
 }
 
 // A leg drawn on the map: polyline points, its mode (colors the line) and time window.
-interface DrawnLeg {
-  points: number[][]
+export interface DrawnLeg {
+  points: LonLat[]
   mode: string
   type: string
+  t0: number
+  t1: number
+  row?: Plan
+}
+
+// A leg without a link route, drawn as an arc between the middles of its start and end links.
+export interface NonRoutedLeg {
+  start: LonLat
+  end: LonLat
+  mode: string
   t0: number
   t1: number
   row?: Plan
@@ -254,7 +266,8 @@ const overviewQuery = (url: string, has: Set<string>) => {
   const col = (name: string, fallback: string) => (has.has(name) ? name : fallback)
   const routeType = col('route_type', "''")
   return `
-  SELECT (element = 'leg')::TINYINT AS is_leg,
+  SELECT person_id, plan_num::INTEGER AS plan_num,
+         (element = 'leg')::TINYINT AS is_leg,
          coalesce(${col('activity_lon', 'NULL')}::FLOAT, 'NaN'::FLOAT) AS lon,
          coalesce(${col('activity_lat', 'NULL')}::FLOAT, 'NaN'::FLOAT) AS lat,
          coalesce(time_start, -1) AS t0,
@@ -320,14 +333,7 @@ const PlansViewerPlugin = defineComponent({
     return {
       duck: {} as AsyncDuckDB,
       debounceUpdateSearch: {} as () => void,
-      nonRoutedLegs: [] as {
-        start: number[]
-        end: number[]
-        mode: string
-        t0: number
-        t1: number
-        row?: Plan
-      }[],
+      nonRoutedLegs: [] as NonRoutedLeg[],
       plans: [] as Plan[][],
       selectedPlans: [] as number[],
       // the plan-table row whose map geometry is highlighted: hovered (transient) or
@@ -337,6 +343,8 @@ const PlansViewerPlugin = defineComponent({
       // the row hovered on the map (a leg/activity under the mouse), so the table can
       // highlight it back. Only rows shown in the table count; everything else stays null.
       mapHoveredRow: null as Plan | null,
+      // a plan clicked in "Show everyone" that isn't in the list: searched for, then selected
+      pendingPlan: null as string | null,
       isQueryRunning: false,
       linkLayerId: Math.floor(1e12 * Math.random()),
       legModeColors: Object.entries(LegModeColor),
@@ -452,7 +460,9 @@ const PlansViewerPlugin = defineComponent({
     },
 
     searchTerm() {
-      this.debounceUpdateSearch()
+      // a person clicked on the map is searched for straight away, not after typing stops
+      if (this.pendingPlan) this.updateSearch()
+      else this.debounceUpdateSearch()
     },
 
     showEveryone(on: boolean) {
@@ -573,8 +583,8 @@ const PlansViewerPlugin = defineComponent({
         const start = linkXY(leg.route_start_link)
         const end = linkXY(leg.route_end_link)
         if (!start || !end) return
-        const startMidpoint = [0.5 * (start[0] + start[2]), 0.5 * (start[1] + start[3])]
-        const endMidpoint = [0.5 * (end[0] + end[2]), 0.5 * (end[1] + end[3])]
+        const startMidpoint: LonLat = [0.5 * (start[0] + start[2]), 0.5 * (start[1] + start[3])]
+        const endMidpoint: LonLat = [0.5 * (end[0] + end[2]), 0.5 * (end[1] + end[3])]
 
         this.nonRoutedLegs.push({
           start: startMidpoint,
@@ -590,11 +600,11 @@ const PlansViewerPlugin = defineComponent({
       const stopActivities = [] as ActivityStop[]
       activities.forEach(activity => {
         const link = activity.activity_link
-        const lnglat = [activity.activity_lon, activity.activity_lat]
+        const lnglat: LonLat = [activity.activity_lon, activity.activity_lat]
         // the dashed marker along the activity's link; none if the link is unknown
         const xy = linkXY(link)
-        const ptFrom = xy ? [xy[0], xy[1]] : lnglat
-        const ptTo = xy ? [xy[2], xy[3]] : lnglat
+        const ptFrom: LonLat = xy ? [xy[0], xy[1]] : lnglat
+        const ptTo: LonLat = xy ? [xy[2], xy[3]] : lnglat
 
         stopActivities.push({
           type: activity.activity_type,
@@ -661,6 +671,8 @@ const PlansViewerPlugin = defineComponent({
     // it back (Leipzig 10%: ~350 MB less kept than reusing the viewer's instance).
     async loadOverview() {
       this.isLoadingOverview = true
+      // right away: the first progress count only comes after DuckDB has read 250k rows
+      this.myState.statusMessage = `${this.$t('scanningRows')}`
       let db: AsyncDuckDB | null = null
       try {
         const rows = await this.countFileRows()
@@ -698,6 +710,8 @@ const PlansViewerPlugin = defineComponent({
             startLink: text('start_link'),
             endLink: text('end_link'),
             routeText: text('route_text'),
+            personId: text('person_id'),
+            planNum: batch.getChild('plan_num')!.toArray(),
           })
           if (builder.rowsRead - reported >= 250_000) {
             reported = builder.rowsRead
@@ -814,9 +828,10 @@ const PlansViewerPlugin = defineComponent({
 
     // Hovering a leg/activity on the map lights up its row in the table -- but only while
     // the table is up and the object belongs to a row it shows; otherwise nothing happens.
-    handleMapHover(row: Plan | null) {
+    // ("Show everyone" hands over stand-in rows: those match the table's row by element.)
+    handleMapHover(row: HoverRow | null) {
       const shown = this.selectedPlans.length ? this.plans[this.selectedPlans[0]] : null
-      this.mapHoveredRow = row && shown && shown.indexOf(row) > -1 ? row : null
+      this.mapHoveredRow = (row && shown?.find(r => sameElement(r, row))) || null
     },
 
     async performQuery(conn: AsyncDuckDBConnection, term: string) {
@@ -859,6 +874,10 @@ const PlansViewerPlugin = defineComponent({
 
       this.drawThePlans(shownRows)
       this.isQueryRunning = false
+
+      const pending = this.pendingPlan
+      this.pendingPlan = null
+      if (pending) this.selectPlanByKey(pending)
     },
 
     dividerDragStart(e: MouseEvent) {
@@ -885,11 +904,11 @@ const PlansViewerPlugin = defineComponent({
     ) {
       if (!this.links) return
       // starting point from xy:[0,1]
-      const points = [[this.links[linkIds[0]][0], this.links[linkIds[0]][1]]]
+      const points: LonLat[] = [[this.links[linkIds[0]][0], this.links[linkIds[0]][1]]]
 
       for (const link of linkIds) {
         const lastPoint = points[points.length - 1]
-        const fromXY = [this.links[link][0], this.links[link][1]]
+        const fromXY: LonLat = [this.links[link][0], this.links[link][1]]
 
         // add from-point if it isn't a duplicate
         if (fromXY[0] !== lastPoint[0] || fromXY[1] !== lastPoint[1]) {
@@ -1048,8 +1067,9 @@ const PlansViewerPlugin = defineComponent({
 
     // Clicking a leg/activity selects its plan, as if picked in the list (which also opens
     // the plan table). On the plan already selected, it locks that row instead, like
-    // clicking the row in the table. Empty map space releases the lock.
-    handleClick(object: { row?: Plan } | null) {
+    // clicking the row in the table. Empty map space releases the lock. A plan that is only
+    // drawn by "Show everyone" (not in the list) is searched for by its person id first.
+    handleClick(object: { row?: HoverRow } | null) {
       const row = object?.row
       if (!row) {
         this.lockedRow = null
@@ -1057,11 +1077,25 @@ const PlansViewerPlugin = defineComponent({
       }
       const key = planKey(row)
       const i = this.plans.findIndex(plan => planKey(plan[0]) === key)
-      if (i < 0) return
-      if (this.selectedPlans[0] === i) {
-        this.toggleLockedRow(row)
+      if (i < 0) {
+        this.pendingPlan = key
+        if (this.searchTerm === row.person_id) this.updateSearch()
+        else this.searchTerm = row.person_id // the watcher searches
         return
       }
+      if (this.selectedPlans[0] === i) {
+        // "Show everyone" rows are stand-ins: lock the table's own row for that leg/activity
+        const tableRow = this.plans[i].find(r => sameElement(r, row))
+        if (tableRow) this.toggleLockedRow(tableRow)
+        return
+      }
+      this.selectPlanByKey(key)
+    },
+
+    // Select the listed plan "person/plan" (opening its table) and scroll it into view.
+    selectPlanByKey(key: string) {
+      const i = this.plans.findIndex(plan => planKey(plan[0]) === key)
+      if (i < 0 || this.selectedPlans[0] === i) return
       this.handleSelectPlan(i)
       // bring the newly selected plan into view in the list
       this.$nextTick(() => {

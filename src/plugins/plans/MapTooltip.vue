@@ -3,7 +3,7 @@
   .tooltip.flex-col
     b {{ lines.title }}
     p {{ lines.detail }}
-      span.tip-time(v-if="lines.time") {{ lines.time }}
+    .tip-time(v-if="lines.time") {{ lines.time }}
 </template>
 
 <script lang="ts">
@@ -51,7 +51,6 @@ export default defineComponent({
 }
 
 .tip-time {
-  margin-left: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
 </style>

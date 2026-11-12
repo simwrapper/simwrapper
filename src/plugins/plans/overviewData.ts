@@ -9,6 +9,12 @@
 // to draw at once (Leipzig 10%: 21.6M links), so only the routes under way at the slider time
 // are turned into path vertices (a few thousand at once), found by binary search in routes
 // sorted by start time.
+//
+// Every activity, arc and route also keeps the index of the plan it belongs to (see `plans`),
+// so the map can tell whose leg is under the mouse.
+
+import { OPEN_END } from './planTime'
+import type { HoverRow } from './planHover'
 
 /** Routes longer than this are kept apart, so the search window for the rest stays short. */
 const LONG_ROUTE_SECONDS = 2 * 3600
@@ -32,6 +38,15 @@ export interface OverviewBatch {
   startLink: (i: number) => string
   endLink: (i: number) => string
   routeText: (i: number) => string // space-separated link ids of a 'links' route
+  personId: (i: number) => string
+  planNum: ArrayLike<number>
+}
+
+/** The plans in an overview: person and plan number per plan index. */
+export interface OverviewPlans {
+  count: number
+  person: string[]
+  planNum: Int32Array
 }
 
 export interface OverviewData {
@@ -41,6 +56,7 @@ export interface OverviewData {
     positions: Float32Array // lon, lat pairs
     times: Float32Array // t0, t1 pairs: DataFilterExtension filter values
     kind: Uint16Array // index into kinds
+    plan: Uint32Array // index into plans
   }
   /** legs without a link route, like the plan view's non-routed-leg-arcs layer */
   arcs: {
@@ -49,10 +65,12 @@ export interface OverviewData {
     target: Float32Array // middle of the end link
     times: Float32Array
     kind: Uint16Array
+    plan: Uint32Array
   }
   /** legs with a link route, like the plan view's deliveryroutes / leg-arcs layers */
   routes: Routes
   kinds: string[]
+  plans: OverviewPlans
   rowsRead: number
   /** distinct link ids that aren't in the network (their legs are skipped) */
   unknownLinks: number
@@ -66,6 +84,7 @@ export interface Routes {
   links: Int32Array
   linkStart: Uint32Array
   kind: Uint16Array
+  plan: Uint32Array
   /** first and last point of each route, for "simple tours" arcs */
   source: Float32Array
   target: Float32Array
@@ -83,10 +102,37 @@ export class OverviewBuilder {
   private kinds: string[] = []
   private rows = 0
   private unknown = new Set<string>()
+  // plan index by "person/plan"; rows arrive grouped by plan, so the last one is checked first
+  private planCodes = new Map<string, number>()
+  private planPerson: string[] = []
+  private planNums: number[] = []
+  private lastPlan = { person: '', num: NaN, code: -1 }
 
-  private acts = new Columns({ lon: Float32Array, lat: Float32Array, t0: Float64Array, t1: Float64Array, kind: Uint16Array })
-  private arcs = new Columns({ x0: Float32Array, y0: Float32Array, x1: Float32Array, y1: Float32Array, t0: Float64Array, t1: Float64Array, kind: Uint16Array })
-  private routes = new Columns({ t0: Float64Array, t1: Float64Array, kind: Uint16Array, linkStart: Uint32Array })
+  private acts = new Columns({
+    lon: Float32Array,
+    lat: Float32Array,
+    t0: Float64Array,
+    t1: Float64Array,
+    kind: Uint16Array,
+    plan: Uint32Array,
+  })
+  private arcs = new Columns({
+    x0: Float32Array,
+    y0: Float32Array,
+    x1: Float32Array,
+    y1: Float32Array,
+    t0: Float64Array,
+    t1: Float64Array,
+    kind: Uint16Array,
+    plan: Uint32Array,
+  })
+  private routes = new Columns({
+    t0: Float64Array,
+    t1: Float64Array,
+    kind: Uint16Array,
+    plan: Uint32Array,
+    linkStart: Uint32Array,
+  })
   private links = new IntList()
 
   constructor(private network: LinkLookup) {}
@@ -101,12 +147,13 @@ export class OverviewBuilder {
       const t0 = batch.t0[i]
       const t1 = batch.t1[i]
       if (!(t0 >= 0 && t1 > t0)) continue // unknown or zero-length: never visible
+      const plan = this.planFor(batch.personId(i), Number(batch.planNum[i]))
 
       if (!batch.isLeg[i]) {
         const lon = batch.lon[i]
         const lat = batch.lat[i]
         if (!isFinite(lon) || !isFinite(lat)) continue
-        this.acts.push({ lon, lat, t0, t1, kind: this.codeFor(batch.kind(i)) })
+        this.acts.push({ lon, lat, t0, t1, kind: this.codeFor(batch.kind(i)), plan })
         continue
       }
 
@@ -119,7 +166,7 @@ export class OverviewBuilder {
           else if (id) this.unknown.add(id)
         }
         if (this.links.length === first) continue // no known links: nothing to draw
-        this.routes.push({ t0, t1, kind: this.codeFor(batch.kind(i)), linkStart: first })
+        this.routes.push({ t0, t1, kind: this.codeFor(batch.kind(i)), plan, linkStart: first })
         continue
       }
 
@@ -135,6 +182,7 @@ export class OverviewBuilder {
         t0,
         t1,
         kind: this.codeFor(batch.kind(i)),
+        plan,
       })
     }
     this.rows += batch.numRows
@@ -149,6 +197,7 @@ export class OverviewBuilder {
       positions: interleave(a.lon, a.lat, nActs),
       times: interleave(a.t0, a.t1, nActs),
       kind: Uint16Array.from(a.kind.subarray(0, nActs)),
+      plan: Uint32Array.from(a.plan.subarray(0, nActs)),
     }
 
     const c = this.arcs.columns
@@ -159,6 +208,7 @@ export class OverviewBuilder {
       target: interleave(c.x1, c.y1, nArcs),
       times: interleave(c.t0, c.t1, nArcs),
       kind: Uint16Array.from(c.kind.subarray(0, nArcs)),
+      plan: Uint32Array.from(c.plan.subarray(0, nArcs)),
     }
 
     const r = this.routes.columns
@@ -188,6 +238,7 @@ export class OverviewBuilder {
       links,
       linkStart,
       kind: Uint16Array.from(r.kind.subarray(0, nRoutes)),
+      plan: Uint32Array.from(r.plan.subarray(0, nRoutes)),
       source,
       target,
       times: interleave(r.t0, r.t1, nRoutes),
@@ -202,6 +253,11 @@ export class OverviewBuilder {
       arcs,
       routes,
       kinds: this.kinds,
+      plans: {
+        count: this.planPerson.length,
+        person: this.planPerson,
+        planNum: Int32Array.from(this.planNums),
+      },
       rowsRead: this.rows,
       unknownLinks: this.unknown.size,
       linkCoords: coords,
@@ -213,6 +269,21 @@ export class OverviewBuilder {
     const link = this.network.index.get(id)
     if (link === undefined && id) this.unknown.add(id)
     return link
+  }
+
+  private planFor(person: string, num: number) {
+    const last = this.lastPlan
+    if (person === last.person && num === last.num) return last.code
+    const key = `${person}/${num}`
+    let code = this.planCodes.get(key)
+    if (code === undefined) {
+      code = this.planPerson.length
+      this.planPerson.push(person)
+      this.planNums.push(num)
+      this.planCodes.set(key, code)
+    }
+    this.lastPlan = { person, num, code }
+    return code
   }
 
   private codeFor(kind: string) {
@@ -404,4 +475,89 @@ export interface ArcSet {
   target: Float32Array
   times: Float32Array
   kind: Uint16Array
+}
+
+// --- picking -----------------------------------------------------------------------------
+
+/** The three kinds of things an overview draws, each indexed from 0 within its own set. */
+export type OverviewSet = 'activity' | 'arc' | 'route'
+
+/** The plan index of item `i` of a set. */
+export function overviewPlanOf(ov: OverviewData, set: OverviewSet, i: number): number {
+  if (set === 'activity') return ov.activities.plan[i]
+  if (set === 'arc') return ov.arcs.plan[i]
+  return ov.routes.plan[i]
+}
+
+/**
+ * What the tooltip shows for item `i` of a set, in the plan table's row shape (the overview
+ * keeps only the plan's identity, the leg mode or simple activity type, and the times).
+ */
+export function overviewHoverRow(ov: OverviewData, set: OverviewSet, i: number): HoverRow {
+  const plan = overviewPlanOf(ov, set, i)
+  const { kind, times } = set === 'activity' ? ov.activities : set === 'arc' ? ov.arcs : ov.routes
+  const t1 = times[2 * i + 1]
+  const isLeg = set !== 'activity'
+  return {
+    person_id: ov.plans.person[plan],
+    plan_num: ov.plans.planNum[plan],
+    plan_selected: 'yes',
+    element: isLeg ? 'leg' : 'activity',
+    leg_mode: isLeg ? ov.kinds[kind[i]] : undefined,
+    activity_type: isLeg ? undefined : ov.kinds[kind[i]],
+    time_start: times[2 * i],
+    time_end: t1 >= OPEN_END ? null : t1,
+  }
+}
+
+/** The plan index of "person/plan", or -1 if the overview doesn't have that plan. */
+export function overviewPlanIndex(ov: OverviewData, person: string, planNum: number): number {
+  const { person: persons, planNum: nums, count } = ov.plans
+  for (let p = 0; p < count; p++) if (persons[p] === person && nums[p] === planNum) return p
+  return -1
+}
+
+/** Everything one plan draws, as plain objects (a handful of them), for its own layers. */
+export type LonLat = [number, number]
+export interface PlanGeometry {
+  activities: { index: number; position: LonLat; kind: string; t0: number; t1: number }[]
+  arcs: { index: number; start: LonLat; end: LonLat; kind: string; t0: number; t1: number }[]
+  routes: { index: number; points: LonLat[]; kind: string; t0: number; t1: number }[]
+}
+
+/** One plan's activities, arcs and routes (road paths drawn like buildRoutePaths does). */
+export function overviewPlanGeometry(ov: OverviewData, plan: number): PlanGeometry {
+  const out: PlanGeometry = { activities: [], arcs: [], routes: [] }
+  const { activities: a, arcs: c, routes: r, kinds, linkCoords: coords } = ov
+  const time = (times: Float32Array, i: number) => ({ t0: times[2 * i], t1: times[2 * i + 1] })
+
+  for (let i = 0; i < a.count; i++) {
+    if (a.plan[i] !== plan) continue
+    const position: LonLat = [a.positions[2 * i], a.positions[2 * i + 1]]
+    out.activities.push({ index: i, position, kind: kinds[a.kind[i]], ...time(a.times, i) })
+  }
+  for (let i = 0; i < c.count; i++) {
+    if (c.plan[i] !== plan) continue
+    out.arcs.push({
+      index: i,
+      start: [c.source[2 * i], c.source[2 * i + 1]],
+      end: [c.target[2 * i], c.target[2 * i + 1]],
+      kind: kinds[c.kind[i]],
+      ...time(c.times, i),
+    })
+  }
+  for (let i = 0; i < r.count; i++) {
+    if (r.plan[i] !== plan) continue
+    const firstLink = r.links[r.linkStart[i]]
+    const points: LonLat[] = [[coords[4 * firstLink], coords[4 * firstLink + 1]]]
+    for (let k = r.linkStart[i]; k < r.linkStart[i + 1]; k++) {
+      const link = r.links[k]
+      const last = points[points.length - 1]
+      if (coords[4 * link] !== last[0] || coords[4 * link + 1] !== last[1])
+        points.push([coords[4 * link], coords[4 * link + 1]])
+      points.push([coords[4 * link + 2], coords[4 * link + 3]])
+    }
+    out.routes.push({ index: i, points, kind: kinds[r.kind[i]], ...time(r.times, i) })
+  }
+  return out
 }

@@ -40,3 +40,17 @@ export function tooltipLines(row: HoverRow): { title: string; detail: string; ti
     time: timeRangeText(row.time_start, row.time_end),
   }
 }
+
+/**
+ * True if two rows are the same leg/activity of the same plan. The "Show everyone" map keeps
+ * no table rows, only stand-ins with the plan, element and times, so match on those.
+ */
+export function sameElement(a: HoverRow, b: HoverRow): boolean {
+  return (
+    a === b ||
+    (planKey(a) === planKey(b) &&
+      (a.element === 'leg') === (b.element === 'leg') &&
+      (a.time_start ?? null) === (b.time_start ?? null) &&
+      (a.time_end ?? null) === (b.time_end ?? null))
+  )
+}

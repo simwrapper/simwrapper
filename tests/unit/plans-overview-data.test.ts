@@ -34,6 +34,8 @@ interface Row {
   start?: string
   end?: string
   route?: string
+  person?: string
+  plan?: number
 }
 
 function batch(rows: Row[]): OverviewBatch {
@@ -49,6 +51,8 @@ function batch(rows: Row[]): OverviewBatch {
     startLink: i => rows[i].start ?? '',
     endLink: i => rows[i].end ?? '',
     routeText: i => rows[i].route ?? '',
+    personId: i => rows[i].person ?? 'p1',
+    planNum: rows.map(r => r.plan ?? 1),
   }
 }
 
@@ -134,7 +138,14 @@ describe('activeRoutes', () => {
     for (let i = 0; i < 3000; i++) {
       const t0 = Math.floor(rand() * 80000)
       const dur = rand() < 0.1 ? 3600 * (2 + 10 * rand()) : 60 + 3000 * rand()
-      rows.push({ leg: true, t0, t1: t0 + Math.floor(dur), kind: 'car', routeType: 'links', route: 'L1 L2' })
+      rows.push({
+        leg: true,
+        t0,
+        t1: t0 + Math.floor(dur),
+        kind: 'car',
+        routeType: 'links',
+        route: 'L1 L2',
+      })
     }
     const b = new OverviewBuilder(NETWORK)
     b.append(batch(rows))
@@ -145,7 +156,8 @@ describe('activeRoutes', () => {
     for (let t = 0; t < 100000; t += 997) {
       const got = activeRoutes(r, t).sort((x, y) => x - y)
       const expected: number[] = []
-      for (let k = 0; k < r.count; k++) if (r.times[2 * k] <= t && t < r.times[2 * k + 1]) expected.push(k)
+      for (let k = 0; k < r.count; k++)
+        if (r.times[2 * k] <= t && t < r.times[2 * k + 1]) expected.push(k)
       expect(got).toEqual(expected)
     }
   })

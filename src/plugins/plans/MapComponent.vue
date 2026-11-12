@@ -17,23 +17,36 @@ import { defineComponent, markRaw, PropType } from 'vue'
 import maplibregl from 'maplibre-gl'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { ArcLayer, PathLayer as SolidPathLayer, ScatterplotLayer } from '@deck.gl/layers'
+import type { PathLayerProps } from '@deck.gl/layers'
 import { DataFilterExtension, PathStyleExtension } from '@deck.gl/extensions'
-import type { DataFilterExtensionProps } from '@deck.gl/extensions'
-import type { Layer, LayerData } from '@deck.gl/core'
+import type { DataFilterExtensionProps, PathStyleExtensionProps } from '@deck.gl/extensions'
+import type { Accessor, Color, Layer, LayerData, PickingInfo } from '@deck.gl/core'
 import PathLayer from '@/layers/PathOffsetLayer'
 import BackgroundLayers from '@/js/BackgroundLayers'
 
 import globalStore from '@/store'
 import MapTooltip from './MapTooltip.vue'
 import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
-import { LegModeColor, type Plan } from './PlansViewer.vue'
+import {
+  LegModeColor,
+  type ActivityStop,
+  type DrawnLeg,
+  type NonRoutedLeg,
+  type Plan,
+} from './PlansViewer.vue'
 import { OPEN_END, activeAtFilter } from './planTime'
-import { planKey } from './planHover'
+import { planKey, type HoverRow } from './planHover'
 import {
   activeRoutes,
   buildRoutePaths,
+  overviewHoverRow,
+  overviewPlanGeometry,
+  overviewPlanIndex,
   type ArcSet,
   type OverviewData,
+  type LonLat,
+  type OverviewSet,
+  type PlanGeometry,
   type RoutePaths,
 } from './overviewData'
 
@@ -42,11 +55,13 @@ const BASE_URL = import.meta.env.BASE_URL
 // more segments smoother! fewer segments faster :-)
 const ARC_SEGMENTS = 13
 
+type RGBA = [number, number, number, number]
+
 // Every plan except the hovered one: medium grey, mostly transparent (#80808040)
-const DIMMED_COLOR = [128, 128, 128, 64]
+const DIMMED_COLOR: RGBA = [128, 128, 128, 64]
 // ...but only once the mouse has rested on a plan this long, so sweeping across the map
 // doesn't flash everything grey; and colors fade in and out rather than switching
-const DIM_DELAY_MS = 750
+const DIM_DELAY_MS = 1000
 const DIM_FADE_MS = 250
 const COLOR_FADE = {
   getColor: DIM_FADE_MS,
@@ -61,14 +76,34 @@ const timeFilterExtension = new DataFilterExtension({ filterSize: 2 })
 const dashExtension = new PathStyleExtension({ dash: true })
 
 // "Show everyone" uses the plan view's colors (see the plan layers below)
-const HOME_COLOR = [24, 255, 255, 255]
-const ACTIVITY_COLOR = [255, 64, 255, 255]
+const HOME_COLOR: RGBA = [24, 255, 255, 255]
+const ACTIVITY_COLOR: RGBA = [255, 64, 255, 255]
 const ROUTE_DEFAULT_COLOR = [0, 128, 230, 255]
 const ARC_DEFAULT_COLOR = [200, 200, 200, 192]
 
 // Reusable buffers for the road paths under way at the current time, per overview. Outside
 // Vue's reactivity on purpose: rewritten on every slider move, rendered only through deck.gl.
 const routeScratch = new WeakMap<OverviewData, { ids: number[]; paths?: RoutePaths }>()
+
+// the e2e hook (see updateTestData)
+type TestWindow = Window & { __testdata__?: unknown }
+
+// deck.gl's picking tolerance, in pixels
+const PICKING_RADIUS = 2
+// "Show everyone" is too big to pick on every mouse move (tens of ms per pick for a large
+// file: every item is redrawn into the picking buffer). So deck.gl's own picking skips it (see
+// layerFilter), and it is picked once the mouse has rested this long, or on a click...
+const REST_PICK_MS = 100
+// ...and the item found there keeps its tooltip until the mouse moves this far away
+const REST_LEAVE_PX = 4
+
+// "Show everyone" layer id -> what its picked index counts (see pickedObject)
+const OVERVIEW_PICKS: Record<string, OverviewSet> = {
+  'everyone-activities': 'activity',
+  'everyone-non-routed-leg-arcs': 'arc',
+  'everyone-leg-arcs': 'route',
+  'everyone-routes': 'route',
+}
 
 /** rgba per item from per-kind colors, as deck.gl's own color type (normalized 0-255). */
 function colorsByKind(
@@ -84,14 +119,26 @@ function colorsByKind(
 
 const modeColor = (fallback: number[]) => (mode: string) => {
   const c = LegModeColor[mode] || fallback
-  return c.length === 4 ? c : [...c, 255]
+  return (c.length === 4 ? c : [...c, 255]) as RGBA
 }
 
-// The three shapes a plan row can own on the map. PlansViewer tags every drawn geometry with
-// the row it came from, and the highlight finds it back through `row`.
-type HlLeg = { points: number[][]; row?: Plan }
-type HlArc = { start: number[]; end: number[]; row?: Plan }
-type HlActivity = { midpoint: number[]; ptFrom: number[]; ptTo: number[]; row?: Plan }
+// deck.gl binary data: a length plus ready-made attribute buffers
+type BinaryData = {
+  length: number
+  attributes: Record<string, { value: ArrayLike<number>; size: number }>
+}
+
+// PathOffsetLayer adds getOffset to deck.gl's PathLayer, but its class carries only the base
+// (untyped-data) PathLayer props: check the props against the data here, then hand them over.
+type OffsetPathProps<D> = PathLayerProps<D> &
+  DataFilterExtensionProps<D> &
+  PathStyleExtensionProps<D> & {
+    getOffset?: Accessor<D, number>
+    shadowEnabled?: boolean // read by deck.gl's shadow pass, missing from its prop types
+  }
+function offsetPathLayer<D>(props: OffsetPathProps<D>) {
+  return new PathLayer(props as ConstructorParameters<typeof PathLayer>[0])
+}
 
 export default defineComponent({
   name: 'MyDeckComponent',
@@ -99,8 +146,8 @@ export default defineComponent({
   props: {
     bgLayers: { type: Object as PropType<BackgroundLayers> },
     dark: { type: Boolean, required: true },
-    legs: { type: Array, required: true },
-    nonRoutedLegs: { type: Array, required: true },
+    legs: { type: Array as PropType<DrawnLeg[]>, required: true },
+    nonRoutedLegs: { type: Array as PropType<NonRoutedLeg[]>, required: true },
     mapIsIndependent: { type: Boolean },
     onClick: { type: Function, required: true },
     settings: {
@@ -112,7 +159,7 @@ export default defineComponent({
       }>,
       required: true,
     },
-    stopActivities: { type: Array, required: true },
+    stopActivities: { type: Array as PropType<ActivityStop[]>, required: true },
     viewId: { type: Number, required: true },
     show3dBuildings: { type: Boolean, required: false, default: false },
     // time slider position (seconds): show only what is active then; 0 = no filter
@@ -131,50 +178,70 @@ export default defineComponent({
       mymap: null as maplibregl.Map | null,
       deckOverlay: null as InstanceType<typeof MapboxOverlay> | null,
       globalState: globalStore.state,
-      tip: null,
+      // the tooltip: where, and the leg/activity under the mouse (its plan-table row)
+      tip: null as { x: number; y: number; object: { row?: HoverRow } } | null,
       // the plan ("person/plan") every other plan is drawn grey around: the hovered one,
       // once the mouse has rested on it for DIM_DELAY_MS
       dimPlan: null as string | null,
       // the plan under the mouse right now, and the timer that will make it dimPlan
       hoverPlan: null as string | null,
       dimTimer: 0,
-      tooltipCoord: { top: 0, left: 0, display: 'block' },
+      // the "Show everyone" item found by the last resting-mouse pick, and where it was picked
+      overviewHit: null as { layerId: string; index: number; x: number; y: number } | null,
+      restTimer: 0,
+      // true only while pickOverview() runs: lets "Show everyone" into deck.gl's picking
+      pickingOverview: false,
+      tooltipCoord: { top: '0px', left: '0px', display: 'block' },
     }
   },
 
   computed: {
     // "Show everyone" data that only changes when a new overview loads -- not when the time slider moves -- so its GPU buffers are uploaded once and
     // filtered by time on the GPU.
-    overviewActivities(): LayerData<unknown> | null {
+    // (Each also comes without its colors, for drawing everyone grey: the same typed arrays,
+    // so deck.gl only re-uploads the color buffer.)
+    overviewActivities(): { colored: BinaryData; plain: BinaryData } | null {
       const ov = this.overview
       if (!ov) return null
       const colors = colorsByKind(ov.kinds, ov.activities.kind, k =>
         k.startsWith('home') ? HOME_COLOR : ACTIVITY_COLOR
       )
+      const attributes = {
+        getPosition: { value: ov.activities.positions, size: 2 },
+        getFilterValue: { value: ov.activities.times, size: 2 },
+      }
       return {
-        length: ov.activities.count,
-        attributes: {
-          getPosition: { value: ov.activities.positions, size: 2 },
-          getFillColor: { value: colors, size: 4 },
-          getFilterValue: { value: ov.activities.times, size: 2 },
+        colored: {
+          length: ov.activities.count,
+          attributes: { ...attributes, getFillColor: { value: colors, size: 4 } },
         },
+        plain: { length: ov.activities.count, attributes },
       }
     },
 
-    overviewLegArcs(): { arcs: LayerData<unknown>; routeArcs: LayerData<unknown> } | null {
+    overviewLegArcs(): {
+      arcs: { colored: BinaryData; plain: BinaryData }
+      routeArcs: { colored: BinaryData; plain: BinaryData }
+    } | null {
       const ov = this.overview
       if (!ov) return null
-      const asLayerData = (set: ArcSet, fallback: number[]): LayerData<unknown> => {
+      const asLayerData = (set: ArcSet, fallback: number[]) => {
         const colors = colorsByKind(ov.kinds, set.kind, modeColor(fallback))
+        const attributes = {
+          getSourcePosition: { value: set.source, size: 2 },
+          getTargetPosition: { value: set.target, size: 2 },
+          getFilterValue: { value: set.times, size: 2 },
+        }
         return {
-          length: set.count,
-          attributes: {
-            getSourcePosition: { value: set.source, size: 2 },
-            getTargetPosition: { value: set.target, size: 2 },
-            getSourceColor: { value: colors, size: 4 },
-            getTargetColor: { value: colors, size: 4 },
-            getFilterValue: { value: set.times, size: 2 },
+          colored: {
+            length: set.count,
+            attributes: {
+              ...attributes,
+              getSourceColor: { value: colors, size: 4 },
+              getTargetColor: { value: colors, size: 4 },
+            },
           },
+          plain: { length: set.count, attributes },
         }
       }
       return {
@@ -186,7 +253,7 @@ export default defineComponent({
 
     // The plan's teleported (non-routed) legs, drawn as arcs: none when the
     // "Teleported trips" switch is off.
-    shownNonRoutedLegs(): unknown[] {
+    shownNonRoutedLegs(): NonRoutedLeg[] {
       return this.showTeleportedTrips ? this.nonRoutedLegs : []
     },
     showTeleportedTrips(): boolean {
@@ -205,7 +272,7 @@ export default defineComponent({
       }
       const ids = activeRoutes(ov.routes, this.currentTime, scratch.ids)
       const colorOf = modeColor(ROUTE_DEFAULT_COLOR)
-      const kindColors = ov.kinds.map(colorOf)
+      const kindColors = ov.kinds.map(k => (this.dimPlan ? DIMMED_COLOR : colorOf(k)))
       const paths = buildRoutePaths(
         ov.routes,
         ids,
@@ -230,23 +297,38 @@ export default defineComponent({
     // arcs between their links, routed legs as road paths (or arcs, for "simple tours"), and
     // activity dots on top. Unlike a searched plan, everyone is always filtered by time --
     // even at 00:00 -- since every leg of the day at once would be millions of road segments.
+    //
+    // Everyone is pickable: hovering shows the plan's tooltip and, once the mouse rests, greys
+    // out every other plan (overviewFocusLayers redraws the hovered one in color on top).
     overviewLayers(): Layer[] {
       const activities = this.overviewActivities
       const legArcs = this.overviewLegArcs
       if (!activities || !legArcs) return []
       const timeFilter = { ...activeAtFilter(this.currentTime), filterEnabled: true }
+      const dim = !!this.dimPlan
+      // Picked only by pickOverview(), not deck.gl's hover, so deck.gl's autoHighlight
+      // never sees the item: highlight the one found there by its index instead.
+      const hit = this.overviewHit
+      const picking = (id: string) => ({
+        id,
+        pickable: true,
+        highlightColor: [255, 255, 255, 255] as RGBA,
+        highlightedObjectIndex: hit?.layerId === id ? hit.index : -1,
+      })
+      // the grey stands in for the per-item color attributes left out of the `plain` data
+      const greyArcs = dim ? { getSourceColor: DIMMED_COLOR, getTargetColor: DIMMED_COLOR } : {}
       const layers: Layer[] = [
         new ArcLayer<unknown, DataFilterExtensionProps>({
-          id: 'everyone-non-routed-leg-arcs',
-          data: legArcs.arcs,
+          ...picking('everyone-non-routed-leg-arcs'),
+          data: (dim ? legArcs.arcs.plain : legArcs.arcs.colored) as LayerData<unknown>,
+          ...greyArcs,
           getWidth: 2,
           getHeight: 0.6,
-          numSegments: legArcs.arcs?.length < 1000 ? 50 : ARC_SEGMENTS,
+          numSegments: legArcs.arcs.colored.length < 1000 ? 50 : ARC_SEGMENTS,
           widthMinPixels: 1,
           widthMaxPixels: 40,
           widthUnits: 'pixels',
           opacity: 0.9,
-          pickable: false,
           visible: this.showTeleportedTrips,
           extensions: [timeFilterExtension],
           ...timeFilter,
@@ -255,16 +337,16 @@ export default defineComponent({
       if (this.settings.simplifyTours) {
         layers.push(
           new ArcLayer<unknown, DataFilterExtensionProps>({
-            id: 'everyone-leg-arcs',
-            data: legArcs.routeArcs,
+            ...picking('everyone-leg-arcs'),
+            data: (dim ? legArcs.routeArcs.plain : legArcs.routeArcs.colored) as LayerData<unknown>,
+            ...greyArcs,
             getWidth: 2,
-            numSegments: legArcs.routeArcs.length < 1000 ? 50 : ARC_SEGMENTS,
+            numSegments: legArcs.routeArcs.colored.length < 1000 ? 50 : ARC_SEGMENTS,
             getHeight: 0.5,
             widthMinPixels: 2,
             widthMaxPixels: 40,
             widthUnits: 'pixels',
             opacity: 0.9,
-            pickable: false,
             extensions: [timeFilterExtension],
             ...timeFilter,
           })
@@ -272,7 +354,7 @@ export default defineComponent({
       } else if (this.overviewRoutePaths) {
         layers.push(
           new PathLayer({
-            id: 'everyone-routes',
+            ...picking('everyone-routes'),
             data: this.overviewRoutePaths,
             _pathType: 'open', // binary paths: skip deck.gl's path normalization
             getWidth: 2,
@@ -282,23 +364,135 @@ export default defineComponent({
             widthMaxPixels: 40,
             widthUnits: 'pixels',
             jointRounded: true,
-            pickable: false,
             // PathOffsetLayer's getOffset isn't in deck.gl's PathLayer types
           } as ConstructorParameters<typeof PathLayer>[0])
         )
       }
       layers.push(
         new ScatterplotLayer<unknown, DataFilterExtensionProps>({
-          id: 'everyone-activities',
-          data: activities,
+          ...picking('everyone-activities'),
+          data: (dim ? activities.plain : activities.colored) as LayerData<unknown>,
+          ...(dim ? { getFillColor: DIMMED_COLOR } : {}),
           radiusUnits: 'pixels',
           getRadius: 4,
           stroked: false,
           opacity: 0.9,
-          pickable: false,
           visible: this.settings.shipmentDotsOnTourMap,
           extensions: [timeFilterExtension],
           ...timeFilter,
+        })
+      )
+      layers.push(...this.overviewFocusLayers)
+      return layers
+    },
+
+    // The plan everyone else is greyed out around, as "Show everyone" draws it: a few plain
+    // objects (each with its tooltip row), so it can be drawn in color above the grey. Its
+    // whole day is drawn, not just what is under way at the slider time.
+    overviewFocus(): {
+      activities: (PlanGeometry['activities'][number] & { row: HoverRow })[]
+      arcs: (PlanGeometry['arcs'][number] & { row: HoverRow })[]
+      routes: (PlanGeometry['routes'][number] & { row: HoverRow })[]
+    } | null {
+      const ov = this.overview
+      const key = this.dimPlan
+      if (!ov || !key) return null
+      const slash = key.lastIndexOf('/')
+      const plan = overviewPlanIndex(ov, key.slice(0, slash), Number(key.slice(slash + 1)))
+      if (plan < 0) return null
+      const geometry = overviewPlanGeometry(ov, plan)
+      const withRow = <T extends { index: number }>(set: OverviewSet, items: T[]) =>
+        items.map(d => ({ ...d, row: overviewHoverRow(ov, set, d.index) }))
+      return {
+        activities: withRow('activity', geometry.activities),
+        arcs: withRow('arc', geometry.arcs),
+        routes: withRow('route', geometry.routes),
+      }
+    },
+
+    overviewFocusLayers(): Layer[] {
+      const focus = this.overviewFocus
+      if (!focus) return []
+      type Arc = (typeof focus.arcs)[number]
+      type Route = (typeof focus.routes)[number]
+      type Activity = (typeof focus.activities)[number]
+      const picking = {
+        pickable: true,
+        autoHighlight: true,
+        highlightColor: [255, 255, 255, 255] as RGBA,
+        onHover: this.getTooltip,
+      }
+      const arcColor = modeColor(ARC_DEFAULT_COLOR)
+      const routeColor = modeColor(ROUTE_DEFAULT_COLOR)
+      const layers: Layer[] = [
+        new ArcLayer<Arc>({
+          id: 'everyone-focus-arcs',
+          data: focus.arcs,
+          getSourcePosition: d => d.start,
+          getTargetPosition: d => d.end,
+          getSourceColor: d => arcColor(d.kind),
+          getTargetColor: d => arcColor(d.kind),
+          getWidth: 2,
+          getHeight: 0.6,
+          numSegments: 50,
+          widthMinPixels: 1,
+          widthMaxPixels: 40,
+          widthUnits: 'pixels',
+          opacity: 0.9,
+          ...picking,
+          visible: this.showTeleportedTrips,
+        }),
+      ]
+      if (this.settings.simplifyTours) {
+        layers.push(
+          new ArcLayer<Route>({
+            id: 'everyone-focus-route-arcs',
+            data: focus.routes,
+            getSourcePosition: d => d.points[0],
+            getTargetPosition: d => d.points[d.points.length - 1],
+            getSourceColor: d => routeColor(d.kind),
+            getTargetColor: d => routeColor(d.kind),
+            getWidth: 2,
+            getHeight: 0.5,
+            numSegments: 50,
+            widthMinPixels: 2,
+            widthMaxPixels: 40,
+            widthUnits: 'pixels',
+            opacity: 0.9,
+            ...picking,
+          })
+        )
+      } else {
+        layers.push(
+          new PathLayer({
+            id: 'everyone-focus-routes',
+            data: focus.routes,
+            getPath: (d: Route) => d.points,
+            getColor: (d: Route) => routeColor(d.kind),
+            getWidth: 2,
+            getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
+            opacity: 1,
+            widthMinPixels: 3,
+            widthMaxPixels: 40,
+            widthUnits: 'pixels',
+            jointRounded: true,
+            ...picking,
+            // PathOffsetLayer's getOffset isn't in deck.gl's PathLayer types
+          } as unknown as ConstructorParameters<typeof PathLayer>[0])
+        )
+      }
+      layers.push(
+        new ScatterplotLayer<Activity>({
+          id: 'everyone-focus-activities',
+          data: focus.activities,
+          getPosition: d => d.position,
+          getFillColor: d => (d.kind.startsWith('home') ? HOME_COLOR : ACTIVITY_COLOR),
+          radiusUnits: 'pixels',
+          getRadius: 4,
+          stroked: false,
+          opacity: 0.9,
+          ...picking,
+          visible: this.settings.shipmentDotsOnTourMap,
         })
       )
       return layers
@@ -307,13 +501,13 @@ export default defineComponent({
     // The map geometry drawn for the hovered/locked table row, found by row identity (each
     // drawn leg / activity keeps the plan row it came from). Undefined if that row is not
     // on the map (unknown links, teleported trips switched off...).
-    highlightGeometry(): { leg?: HlLeg; arc?: HlArc; activity?: HlActivity } {
+    highlightGeometry(): { leg?: DrawnLeg; arc?: NonRoutedLeg; activity?: ActivityStop } {
       const row = this.highlightRow
       if (!row) return {}
       return {
-        leg: (this.legs as HlLeg[]).find(d => d.row === row),
-        arc: (this.shownNonRoutedLegs as HlArc[]).find(d => d.row === row),
-        activity: (this.stopActivities as HlActivity[]).find(d => d.row === row),
+        leg: this.legs.find(d => d.row === row),
+        arc: this.shownNonRoutedLegs.find(d => d.row === row),
+        activity: this.stopActivities.find(d => d.row === row),
       }
     },
 
@@ -328,7 +522,7 @@ export default defineComponent({
       const layers: Layer[] = []
 
       // one white polyline: a wide soft glow underneath a solid core, both in pixels
-      const addPath = (id: string, paths: number[][][]) => {
+      const addPath = (id: string, paths: LonLat[][]) => {
         for (const [color, width] of [
           [HL_GLOW, 14],
           [HL_CORE, 8],
@@ -337,7 +531,7 @@ export default defineComponent({
             new SolidPathLayer({
               id: `${id}-${width}`,
               data: paths,
-              getPath: (d: number[][]) => d,
+              getPath: (d: LonLat[]) => d,
               getColor: () => color,
               widthUnits: 'pixels',
               widthMinPixels: width,
@@ -354,7 +548,7 @@ export default defineComponent({
         }
       }
 
-      const addArc = (id: string, ends: number[][]) => {
+      const addArc = (id: string, ends: LonLat[]) => {
         for (const [color, width] of [
           [HL_GLOW, 24],
           [HL_CORE, 10],
@@ -363,8 +557,8 @@ export default defineComponent({
             new ArcLayer({
               id: `${id}-${width}`,
               data: [ends],
-              getSourcePosition: (d: number[][]) => d[0],
-              getTargetPosition: (d: number[][]) => d[1],
+              getSourcePosition: (d: LonLat[]) => d[0],
+              getTargetPosition: (d: LonLat[]) => d[1],
               getSourceColor: () => color,
               getTargetColor: () => color,
               getWidth: width,
@@ -399,7 +593,7 @@ export default defineComponent({
             new ScatterplotLayer({
               id: `highlight-activity-${radius}`,
               data: [activity],
-              getPosition: (d: HlActivity) => d.midpoint,
+              getPosition: (d: ActivityStop) => d.midpoint,
               getFillColor: () => color,
               radiusUnits: 'pixels',
               getRadius: radius,
@@ -416,7 +610,7 @@ export default defineComponent({
     },
 
     layers() {
-      const allLayers = [] as any[]
+      const allLayers: Layer[] = []
 
       const extraLayers = this.bgLayers?.layers()
       if (extraLayers) allLayers.push(...extraLayers.layersBelow)
@@ -431,11 +625,11 @@ export default defineComponent({
       }
 
       allLayers.push(
-        new PathLayer({
+        offsetPathLayer<ActivityStop>({
           id: 'shipmentLocationDashedLine',
           data: this.stopActivities,
-          getPath: (d: any) => [d.ptFrom, d.ptTo],
-          getColor: (d: any) => this.planColor(d, [128, 128, 128]),
+          getPath: d => [d.ptFrom, d.ptTo],
+          getColor: d => this.planColor(d, [128, 128, 128]),
           getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
           opacity: 1,
           getWidth: this.settings.scaleFactor / 2,
@@ -458,15 +652,13 @@ export default defineComponent({
 
       if (this.nonRoutedLegs.length) {
         allLayers.push(
-          new ArcLayer({
+          new ArcLayer<NonRoutedLeg, DataFilterExtensionProps<NonRoutedLeg>>({
             id: 'non-routed-leg-arcs',
             data: this.shownNonRoutedLegs,
-            getSourcePosition: (d: any) => d.start,
-            getTargetPosition: (d: any) => d.end,
-            getSourceColor: (d: any) =>
-              this.planColor(d, LegModeColor[d.mode] || [200, 200, 200, 192]),
-            getTargetColor: (d: any) =>
-              this.planColor(d, LegModeColor[d.mode] || [200, 200, 200, 192]),
+            getSourcePosition: d => d.start,
+            getTargetPosition: d => d.end,
+            getSourceColor: d => this.planColor(d, LegModeColor[d.mode] || [200, 200, 200, 192]),
+            getTargetColor: d => this.planColor(d, LegModeColor[d.mode] || [200, 200, 200, 192]),
             // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
             getWidth: 2, // 2 + ((this.settings.scaleFactor - 0) * (40 - 2)) / (100 - 0),
             getHeight: 0.6,
@@ -476,7 +668,6 @@ export default defineComponent({
             numSegments: this.shownNonRoutedLegs.length < 1000 ? 50 : ARC_SEGMENTS,
             // widthScale: widthScale,
             opacity: 0.9,
-            parameters: { depthTest: false },
             updateTriggers: {
               getWidth: [this.settings.scaleFactor],
               getColor: [this.dimPlan],
@@ -498,13 +689,13 @@ export default defineComponent({
 
       if (this.settings.simplifyTours) {
         allLayers.push(
-          new ArcLayer({
+          new ArcLayer<DrawnLeg, DataFilterExtensionProps<DrawnLeg>>({
             id: 'leg-arcs',
             data: this.legs,
-            getSourcePosition: (d: any) => d.points[0],
-            getTargetPosition: (d: any) => d.points[d.points.length - 1],
-            getSourceColor: (d: any) => this.planColor(d, LegModeColor[d.mode] || [0, 128, 230]),
-            getTargetColor: (d: any) => this.planColor(d, LegModeColor[d.mode] || [0, 128, 230]),
+            getSourcePosition: d => d.points[0],
+            getTargetPosition: d => d.points[d.points.length - 1],
+            getSourceColor: d => this.planColor(d, LegModeColor[d.mode] || [0, 128, 230]),
+            getTargetColor: d => this.planColor(d, LegModeColor[d.mode] || [0, 128, 230]),
             getWidth: 2, //  + ((this.settings.scaleFactor - 0) * (40 - 2)) / (100 - 0),
             getHeight: 0.5,
             widthMinPixels: 2,
@@ -513,7 +704,6 @@ export default defineComponent({
             // widthScale: widthScale,
             opacity: 0.9,
             numSegments: this.legs.length < 1000 ? 50 : ARC_SEGMENTS,
-            parameters: { depthTest: false },
             updateTriggers: {
               getWidth: [this.settings.scaleFactor],
               getColor: [this.dimPlan],
@@ -529,15 +719,15 @@ export default defineComponent({
             ...timeFilter,
             //TODO: ONHOVER
             // onHover: setHoverInfo,
-          } as any)
+          })
         )
       } else {
         allLayers.push(
-          new PathLayer({
+          offsetPathLayer<DrawnLeg>({
             id: 'deliveryroutes',
             data: this.legs,
-            getPath: (d: any) => d.points,
-            getColor: (d: any) => this.planColor(d, LegModeColor[d.mode] || [0, 128, 230]),
+            getPath: d => d.points,
+            getColor: d => this.planColor(d, LegModeColor[d.mode] || [0, 128, 230]),
             // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
             getWidth: 2, // 3 + ((this.settings.scaleFactor - 0) * (40 - 3)) / (100 - 0),
             getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
@@ -550,9 +740,7 @@ export default defineComponent({
             shadowEnabled: false,
             pickable: true,
             autoHighlight: true,
-            numSegments: this.legs.length < 1000 ? 50 : ARC_SEGMENTS,
             highlightColor: [255, 255, 255], // [64, 255, 64],
-            parameters: { depthTest: false },
             updateTriggers: {
               getWidth: [this.settings.scaleFactor],
               getColor: [this.dimPlan],
@@ -564,28 +752,27 @@ export default defineComponent({
             extensions: [timeFilterExtension],
             ...timeFilter,
             // onHover: setHoverInfo,
-          } as any)
+          })
         )
       }
 
       // destination labels
       allLayers.push(
-        new ScatterplotLayer({
+        new ScatterplotLayer<ActivityStop, DataFilterExtensionProps<ActivityStop>>({
           id: 'activity-locations',
           data: this.stopActivities,
           getLineColor: [128, 128, 128],
-          getFillColor: (d: any) =>
+          getFillColor: d =>
             this.planColor(d, d.type?.startsWith('home') ? [24, 255, 255] : [255, 64, 255]),
           updateTriggers: { getFillColor: [this.dimPlan] },
           transitions: COLOR_FADE,
           getLineWidth: 0.5,
           stroked: false,
-          getPosition: (d: any, i: number) => [...d.midpoint, (i + 1) * 4],
+          getPosition: d => d.midpoint,
           getRadius: 4,
           radiusUnits: 'pixels',
           lineWidthUnits: 'pixels',
           opacity: 0.9,
-          noAlloc: false,
           pickable: true,
           autoHighlight: true,
           highlightColor: [255, 255, 255],
@@ -616,6 +803,11 @@ export default defineComponent({
   },
 
   watch: {
+    // the slider moved: the rested-on item may be gone, and road paths are re-indexed
+    currentTime() {
+      this.clearOverviewHit()
+    },
+
     layers() {
       this.deckOverlay?.setProps({
         layers: this.layers,
@@ -638,8 +830,9 @@ export default defineComponent({
 
     'globalState.viewState'() {
       if (this.mapIsIndependent) return
-      const incoming = this.globalState.viewState as any
-      const center = this.mymap?.getCenter() as any
+      const incoming = this.globalState.viewState
+      const center = this.mymap?.getCenter()
+      if (!center) return
       if (
         incoming.longitude !== center.lng ||
         incoming.latitude !== center.lat ||
@@ -647,9 +840,13 @@ export default defineComponent({
         incoming.pitch !== this.mymap?.getPitch() ||
         incoming.bearing !== this.mymap?.getBearing()
       ) {
-        this.mymap?.jumpTo(
-          Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
-        )
+        // (the store keeps center and longitude/latitude in step)
+        this.mymap?.jumpTo({
+          center: { lng: incoming.longitude, lat: incoming.latitude },
+          zoom: incoming.zoom,
+          pitch: incoming.pitch,
+          bearing: incoming.bearing,
+        })
       }
     },
   },
@@ -664,7 +861,6 @@ export default defineComponent({
     // markRaw: maplibre freezes the `rgb` array on the Color objects it parses out of a
     // style, and deck.gl freezes its layer props -- reading either back through a Vue
     // proxy violates the proxy invariant and throws. See trap #7.
-    //@ts-ignore
     this.mymap = markRaw(
       new maplibregl.Map({
         center,
@@ -687,23 +883,27 @@ export default defineComponent({
           new MapboxOverlay({
             layers: this.layers,
             interleaved: true,
-            pickingRadius: 2,
+            pickingRadius: PICKING_RADIUS,
             onClick: this.handleClick,
+            layerFilter: this.layerFilter,
             getCursor: ({ isDragging, isHovering }) =>
-              isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab',
+              isDragging ? 'grabbing' : isHovering || this.overviewHit ? 'pointer' : 'grab',
           })
         )
         this.mymap?.addControl(this.deckOverlay)
       }
     })
     this.mymap.on('move', this.handleMove)
+    this.mymap.on('mousemove', this.handleMouseMove)
+    this.mymap.on('mouseout', this.handleMouseOut)
   },
 
   beforeUnmount() {
     if (this.deckOverlay) this.mymap?.removeControl(this.deckOverlay)
     this.mymap?.remove()
     window.clearTimeout(this.dimTimer)
-    delete (window as any).__testdata__
+    window.clearTimeout(this.restTimer)
+    delete (window as TestWindow).__testdata__
   },
 
   methods: {
@@ -717,7 +917,7 @@ export default defineComponent({
           visible: layer.props.visible,
         }
       }
-      ;(window as any).__testdata__ = {
+      ;(window as TestWindow).__testdata__ = {
         layers,
         dimPlan: this.dimPlan,
         // [lon, lat] -> pixels within the map container, to aim the mouse at a plan
@@ -741,14 +941,15 @@ export default defineComponent({
     },
 
     // A plan object's own color, or grey when another plan is being hovered
-    planColor(d: { row?: { person_id: string; plan_num: number } }, color: number[]) {
+    planColor(d: { row?: { person_id: string; plan_num: number } }, color: Color): Color {
       if (!this.dimPlan || !d.row || planKey(d.row) === this.dimPlan) return color
       return DIMMED_COLOR
     },
 
     handleMove() {
       if (this.mapIsIndependent) return
-      const center = this.mymap?.getCenter() as any
+      const center = this.mymap?.getCenter()
+      if (!center) return
       const view = {
         latitude: center.lat,
         longitude: center.lng,
@@ -761,9 +962,77 @@ export default defineComponent({
       globalStore.commit('setMapCamera', view)
     },
 
-    getTooltip(tip: { x: number; y: number; object: any }) {
-      const { x, y, object } = tip
+    // The object under the mouse. "Show everyone" layers hold binary data, so deck.gl only
+    // hands over an index: turn it into a stand-in object carrying that item's tooltip row.
+    pickedObject(info: Pick<PickingInfo, 'object' | 'index' | 'layer'>): { row?: HoverRow } | null {
+      if (info.object) return info.object
+      const set = info.layer ? OVERVIEW_PICKS[info.layer.id] : undefined
+      const ov = this.overview
+      if (!set || !ov || info.index == null || info.index < 0) return null
+      let index = info.index
+      // road paths: only the routes under way are drawn, in this order
+      if (info.layer!.id === 'everyone-routes') index = routeScratch.get(ov)?.ids[index] ?? -1
+      if (index < 0) return null
+      return { row: overviewHoverRow(ov, set, index) }
+    },
 
+    // deck.gl's picking leaves "Show everyone" out, except while pickOverview() runs
+    layerFilter({ layer, isPicking }: { layer: Layer; isPicking: boolean }) {
+      return !isPicking || this.pickingOverview || !(layer.id in OVERVIEW_PICKS)
+    },
+
+    // One pick of everything at (x, y), "Show everyone" included: the topmost item wins.
+    pickOverview(x: number, y: number): PickingInfo | null {
+      this.pickingOverview = true
+      try {
+        return this.deckOverlay?.pickObject({ x, y, radius: PICKING_RADIUS }) ?? null
+      } finally {
+        this.pickingOverview = false
+      }
+    },
+
+    // Mouse moves only (re)start the rest timer; a rested-on "Show everyone" item keeps its
+    // tooltip until the mouse leaves it. Searched plans are picked by deck.gl as usual.
+    handleMouseMove(e: maplibregl.MapMouseEvent) {
+      window.clearTimeout(this.restTimer)
+      const { x, y } = e.point
+      const hit = this.overviewHit
+      if (hit && Math.hypot(x - hit.x, y - hit.y) > REST_LEAVE_PX) this.clearOverviewHit()
+      if (!this.overview || e.originalEvent.buttons) return
+      this.restTimer = window.setTimeout(() => this.pickAtRest(x, y), REST_PICK_MS)
+    },
+
+    handleMouseOut() {
+      window.clearTimeout(this.restTimer)
+      this.clearOverviewHit()
+    },
+
+    pickAtRest(x: number, y: number) {
+      const info = this.pickOverview(x, y)
+      // a searched plan (or the hovered one) on top: deck.gl's own hover already has it
+      if (!info?.layer || !(info.layer.id in OVERVIEW_PICKS)) {
+        this.clearOverviewHit()
+        return
+      }
+      this.overviewHit = { layerId: info.layer.id, index: info.index, x, y }
+      this.showTooltip(this.pickedObject(info), x, y)
+    },
+
+    clearOverviewHit() {
+      if (!this.overviewHit) return
+      this.overviewHit = null
+      this.showTooltip(null, 0, 0)
+    },
+
+    // deck.gl's hover (searched plans, the hovered plan's own layers)
+    getTooltip(info: PickingInfo) {
+      const object = this.pickedObject(info)
+      // e.g. the rested-on plan, now redrawn in color on top: deck.gl's hover takes over
+      if (object) this.overviewHit = null
+      this.showTooltip(object, info.x, info.y)
+    },
+
+    showTooltip(object: { row?: HoverRow } | null, x: number, y: number) {
       // the plan-table row behind this leg/activity, so the table can light it up (null clears)
       this.$emit('hover-row', object?.row ?? null)
       this.setHoverPlan(object?.row ? planKey(object.row) : null)
@@ -774,21 +1043,24 @@ export default defineComponent({
         return
       }
 
-      this.tip = { ...tip }
+      // just what the tooltip needs: the pick info also holds deck.gl's (frozen) layer
+      this.tip = { x, y, object }
 
       this.tooltipCoord.display = 'block'
-      this.tooltipCoord.top = `${y + 12}px`
+      this.tooltipCoord.top = `${y + 18}px`
       this.tooltipCoord.left = `${x + 12}px`
     },
 
-    handleClick(event: any) {
+    handleClick(event: PickingInfo) {
       if (!this.onClick) return
-      if (!event.object) {
-        // no object: send null as message that blank area was clicked
-        this.onClick(null)
-      } else {
-        this.onClick(event.object)
+      let object = this.pickedObject(event)
+      // deck.gl's click pick leaves "Show everyone" out: look there too
+      if (!object && this.overview) {
+        const info = this.pickOverview(event.x, event.y)
+        if (info) object = this.pickedObject(info)
       }
+      // no object: send null as message that blank area was clicked
+      this.onClick(object)
     },
   },
 })
