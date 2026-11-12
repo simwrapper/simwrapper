@@ -763,6 +763,17 @@ h4 {
   transition: 0.15s ease-in-out;
 }
 
+// same hover as the FolderBrowser folder list; .az-row is display:contents, so color its cells
+.az-row:hover > .az-cell {
+  background-color: var(--bgPanel);
+  transition: background-color 0.1s ease-in-out;
+  color: var(--yellowHighlight);
+
+  a {
+    color: var(--yellowHighlight);
+  }
+}
+
 .az-cell:hover .zap-folder {
   opacity: 0.2;
 }

@@ -793,6 +793,17 @@ h4 {
   color: var(--yellowHighlight);
 }
 
+// same hover as .folder; .az-row is display:contents, so color its cells
+.map-grid .az-row {
+  cursor: pointer;
+}
+
+.map-grid .az-row:hover > .az-cell {
+  background-color: var(--bgPanel);
+  transition: background-color 0.1s ease-in-out;
+  color: var(--yellowHighlight);
+}
+
 .up-folder {
   // background-color: var(--bgBold);
   padding-left: 6px;
