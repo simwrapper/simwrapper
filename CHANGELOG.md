@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.9.0](https://github.com/simwrapper/simwrapper/compare/v4.8.2...v4.9.0) (2026-11-12)
+
+
+### Features
+
+* **gridmap:** selectable combinations of columns using "dataColumns" ([895316e](https://github.com/simwrapper/simwrapper/commit/895316ecc6b9691cfd0a77b987b65af9ac19a9ba))
+
+
+### Bug Fixes
+
+* **map:** fix transparency around bodies of water with fill heights ([a9b86af](https://github.com/simwrapper/simwrapper/commit/a9b86af5108c5a692608a471aba2a35110cc4b70)), closes [#516](https://github.com/simwrapper/simwrapper/issues/516)
+* **map:** improve display of diffs, relative diffs, and transparency ([04724c4](https://github.com/simwrapper/simwrapper/commit/04724c4fa5883fac53b3fe4552fdd4e927a7ba6e)), closes [#504](https://github.com/simwrapper/simwrapper/issues/504)
+* **maps:** add reactivity and performance improvements ([ee2f46d](https://github.com/simwrapper/simwrapper/commit/ee2f46d69bf8bed3c67c36a768acf9ca365121dc))
+
 ### [4.8.2](https://github.com/simwrapper/simwrapper/compare/v4.8.1...v4.8.2) (2026-10-24)
 
 

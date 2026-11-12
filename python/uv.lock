@@ -2390,7 +2390,7 @@ wheels = [
 
 [[package]]
 name = "simwrapper"
-version = "4.8.2"
+version = "4.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "avro" },
