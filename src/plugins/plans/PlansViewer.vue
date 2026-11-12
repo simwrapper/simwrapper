@@ -73,11 +73,6 @@
           o-switch(v-model="vizSettings.selectedPlansOnly")
             span(v-html="$t('selectedPlansOnly')")
 
-      //- every selected plan in the file, animated by the time slider (needs time columns)
-      .show-everyone(v-if="maxEndTime")
-          o-switch(v-model="showEveryone" :disabled="isLoadingOverview")
-            span {{ $t('showEveryone') }}
-
       .carrier-list.mb1(data-testid="plan-list")
         .carrier(v-for="plan,i in plans" :key="plan[0].plan_num"
                  :class="{selected: selectedPlans.indexOf(i) > -1 }"
@@ -129,7 +124,7 @@ const i18n = {
       scaleSize: 'Widths',
       scaleFactor: 'Width',
       selectedPlansOnly: 'Selected plans (*) only',
-      showEveryone: 'Show everyone',
+      allPlans: 'All plans',
       scanningRows: 'Scanning all rows...',
       teleportedTrips: 'Teleported trips',
       unknownLink: '1 unknown link: not found in the network file, so it is left off the map.',
@@ -160,7 +155,7 @@ const i18n = {
       service: 'Betrieb',
       show: 'Show',
       Activities: 'Activities',
-      showEveryone: 'Alle anzeigen',
+      allPlans: 'Alle Pläne',
       scanningRows: 'Alle Zeilen werden durchsucht...',
       teleportedTrips: 'Teleportierte Wege',
       unknownLink: '1 unbekannter Link: nicht im Netzwerk, daher fehlt er auf der Karte.',
@@ -371,8 +366,8 @@ const PlansViewerPlugin = defineComponent({
       // the panel is showing the "unknown links" error (so it can be cleared again)
       isShowingUnknownLinks: false,
 
-      // "Show everyone": loaded once, on first use; markRaw'd typed arrays
-      showEveryone: false,
+      // "Show everyone": every selected plan in the file, drawn while the search box is empty.
+      // Loaded once, at startup (files with time columns only); markRaw'd typed arrays.
       isLoadingOverview: false,
       overview: null as OverviewData | null,
 
@@ -458,6 +453,11 @@ const PlansViewerPlugin = defineComponent({
       return this.vizDetails.plans || this.yamlConfig || ''
     },
 
+    // no search term: show everyone; otherwise just the plans matching the search
+    showEveryone(): boolean {
+      return !this.searchTerm.trim()
+    },
+
     // hover wins while the mouse is over a row; otherwise the locked (clicked) row stays lit
     highlightRow(): Plan | null {
       return this.hoveredRow ?? this.lockedRow
@@ -476,13 +476,10 @@ const PlansViewerPlugin = defineComponent({
     },
 
     searchTerm() {
-      // a person clicked on the map is searched for straight away, not after typing stops
-      if (this.pendingPlan) this.updateSearch()
+      // a person clicked on the map is searched for straight away, not after typing stops;
+      // and clearing the box goes back to everyone straight away too
+      if (this.pendingPlan || this.showEveryone) this.updateSearch()
       else this.debounceUpdateSearch()
-    },
-
-    showEveryone(on: boolean) {
-      if (on && !this.overview && !this.isLoadingOverview) this.loadOverview()
     },
   },
 
@@ -526,6 +523,9 @@ const PlansViewerPlugin = defineComponent({
     this.duck = await db
     this.dbUrl = await this.setupDbUrl()
     await this.loadTimeRange()
+
+    // everyone is drawn by time, so it needs the file's time range (no slider: nothing)
+    if (this.maxEndTime) this.loadOverview()
   },
 
   beforeUnmount() {
@@ -699,10 +699,7 @@ const PlansViewerPlugin = defineComponent({
         const rows = await this.countFileRows()
         if (rows > OVERVIEW_CONFIRM_ROWS) {
           const message = `${this.$t('confirmEveryone', { rows: rows.toLocaleString() })}`
-          if (!window.confirm(message)) {
-            this.showEveryone = false
-            return
-          }
+          if (!window.confirm(message)) return
         }
 
         const columns = await this.fileColumns()
@@ -739,9 +736,7 @@ const PlansViewerPlugin = defineComponent({
           })
           if (builder.rowsRead - reported >= 250_000) {
             reported = builder.rowsRead
-            this.myState.statusMessage = `${this.$t('showEveryone')}: ${(reported / 1e6).toFixed(
-              2
-            )}M`
+            this.myState.statusMessage = `${this.$t('allPlans')}: ${(reported / 1e6).toFixed(2)}M`
           }
         }
         await conn.close()
@@ -749,7 +744,6 @@ const PlansViewerPlugin = defineComponent({
         if (this.overview.unknownLinks) this.reportUnknownLinks(this.overview.unknownLinks)
       } catch (e) {
         console.error('Could not load everyone:', e)
-        this.showEveryone = false
       } finally {
         db?.terminate()
         this.isLoadingOverview = false
@@ -869,13 +863,21 @@ const PlansViewerPlugin = defineComponent({
     },
 
     async updateSearch() {
+      if (this.showEveryone) return this.clearSearch()
       if (!this.duck.ping) return
 
       this.isQueryRunning = true
 
+      const term = this.searchTerm
       const dbconn = await this.duck.connect()
-      const table = await this.performQuery(dbconn, this.searchTerm)
+      const table = await this.performQuery(dbconn, term)
       dbconn.close()
+
+      // typed on (or cleared) while this query ran: the newer search wins
+      if (term !== this.searchTerm) {
+        this.isQueryRunning = false
+        return
+      }
 
       // let's search for persons
       const rows = table.toArray().map(r => r.toJSON()) as Plan[]
@@ -906,6 +908,17 @@ const PlansViewerPlugin = defineComponent({
       const pending = this.pendingPlan
       this.pendingPlan = null
       if (pending) this.selectPlanByKey(pending)
+    },
+
+    // No search term: no plan list, no searched plans drawn -- just everyone
+    clearSearch() {
+      this.plans = []
+      this.selectedPlans = []
+      this.hoveredRow = null
+      this.lockedRow = null
+      this.mapHoveredRow = null
+      this.pendingPlan = null
+      this.drawThePlans([])
     },
 
     dividerDragStart(e: MouseEvent) {
@@ -1433,10 +1446,6 @@ input {
 
 .filter-plans {
   margin: 1rem 0 1rem 0;
-}
-
-.show-everyone {
-  margin: 0 0 1rem 0;
 }
 
 .carrier-list {

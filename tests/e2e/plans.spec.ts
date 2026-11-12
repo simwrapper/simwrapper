@@ -103,6 +103,38 @@ test('plans plugin loads and searches its parquet', async ({ page }) => {
 })
 
 /**
+ * There is no "Show everyone" switch: an empty search box shows everyone, a search term
+ * shows just the matching plans, and clearing the box goes back to everyone -- the plan
+ * list empties and the searched plans leave the map, without waiting for the debounce.
+ * (Everyone itself needs a file with time columns; the fixture has none, so with the box
+ * empty the map has no plans on it at all.)
+ */
+test('a search shows just its plans, and clearing it goes back to everyone', async ({ page }) => {
+  test.setTimeout(180_000)
+  const noise = watchConsole(page)
+
+  await page.goto(PLUGIN_ROUTE)
+  await waitForViz(page)
+  await page.waitForTimeout(6000)
+  await expect(page.getByText('Show everyone')).toHaveCount(0)
+
+  const count = async (layerId: string) => (await layerFacts(page))?.[layerId]?.count
+  await search(page, 'person*')
+  await expect(page.locator(PLANS)).toHaveCount(4)
+  await expect.poll(() => count('activity-locations')).toBeGreaterThan(0)
+
+  await search(page, 'person3')
+  await expect(page.locator(PLANS)).toHaveCount(1)
+
+  await page.locator('.search-panel input').fill('')
+  await expect(page.locator(PLANS)).toHaveCount(0)
+  await expect.poll(() => count('activity-locations'), { timeout: 400 }).toBe(0)
+  await expect.poll(() => count('deliveryroutes')).toBe(0)
+
+  expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
+})
+
+/**
  * `b-switch` -> `o-switch`. This one filters the query result, so it has a countable
  * observable: three of the four plans are marked selected="yes" in the fixture.
  */
