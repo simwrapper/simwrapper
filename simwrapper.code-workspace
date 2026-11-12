@@ -33,8 +33,7 @@
     "[typescript]": {
       "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
-    "javascript.validate.enable": true,
-    "typescript.validate.enable": true,
+    "js/ts.validate.enable": true,
     "editor.formatOnSave": true,
 
     // Python is configured per-folder, only for ./python (see folders[2].settings)
@@ -63,7 +62,9 @@
       "GOARCH": "wasm",
       "GOROOT": "/Users/billy/Library/Caches/tinygo/goroot-ba4a9a47e6136854fcbeeeddca387447b4cd9b238edb51ad8d17a915d1a97776",
       "GOFLAGS": "-tags=tinygo.wasm,tinygo,purego,osusergo,math_big_pure_go,gc.precise,scheduler.asyncify,serial.none"
-    }
+    },
+    "js/ts.tsdk.promptToUseWorkspaceVersion": true,
+    "js/ts.tsdk.path": "SimWrapper/node_modules/typescript/lib"
   },
   "extensions": {
     "recommendations": [
