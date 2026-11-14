@@ -9,7 +9,7 @@
 set -euo pipefail
 
 echo --- CLEARING ---
-rm -rf dist
+rm -r dist
 
 echo --- Set up Github Pages SPA links ---
 # always start with clean config
@@ -28,7 +28,7 @@ echo --- BUILD INDEX.HTML FILES ---
 npm run index
 
 echo --- BUILD SITE ---
-npx vite build
+VITE_REPO=$1 npx vite build
 
 echo --- CREATE GIT COMMIT FOR GH-PAGES ---
 cd dist

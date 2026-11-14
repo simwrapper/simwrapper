@@ -6,7 +6,7 @@
       .top-banner.flex-row
         .flex1
           img(width=256 src="@/assets/simwrapper-logo/SW_logo_yellow.png")
-      .tagline {{ tagline }}
+      .tagline(v-html="tagline")
 
   .splash-scroll-area.white-text
 
@@ -203,7 +203,7 @@ const i18n = {
   messages: {
     en: {
       'more-info': 'Documentation:',
-      tagLine: 'the simulation browser and data visualizer from TU&nbsp;Berlin.',
+      tagLine: 'The transport simulation data visualizer from TU&nbsp;Berlin.',
       privacy:
         'SimWrapper is a client-side app, which means there is no upstream server collecting or storing data.\n\nSimWrapper does not collect, handle or process any data about you while you use the site. SimWrapper does not contain any tracking devices or analytics software. No user cookies are stored or transmitted.',
     },
@@ -312,7 +312,11 @@ export default defineComponent({
       }
     },
     tagline() {
-      return this.state.flaskConfig.tagline || 'Transport simulation data visualizer'
+      if (this.state.flaskConfig?.tagline) return this.state.flaskConfig.tagline
+      if (import.meta.env.VITE_REPO === 'matsim-vsp/simwrapper') {
+        return this.$t('tagLine')
+      }
+      return 'Transport simulation data visualizer'
     },
   },
 
@@ -755,7 +759,7 @@ h4 {
 
 .settings-popup {
   float: right;
-  background-color: var(--bgBold);
+  background-color: white;
   padding: 0.5rem 1rem 0 1rem;
   border: var(--borderThin);
 }

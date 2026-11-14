@@ -8,7 +8,7 @@
 set -euo pipefail
 
 echo --- CLEARING ---
-rm -rf dist
+rm -r dist
 
 echo --- Set up Github Pages SPA links ---
 # always start with clean config
