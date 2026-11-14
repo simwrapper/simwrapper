@@ -6,6 +6,16 @@
 import { defineComponent } from 'vue'
 import Plotly from 'plotly.js/dist/plotly'
 
+// Plotly's full bundle injects its own copy of maplibre-gl.css into <head> when it loads.
+// Arriving late, its `.maplibregl-map { position: relative }` beats our map components'
+// `.map-container { position: absolute; inset: 0 }` (same specificity, last one wins),
+// collapsing dashboard maps to 0px height -- a blank map, depending on chunk load order.
+// main.ts already loads maplibre-gl.css, so drop plotly's duplicate. Plotly only injects
+// it once, at module load, so it does not come back.
+document.head.querySelectorAll('style:not([data-vite-dev-id])').forEach(style => {
+  if (style.textContent?.startsWith('.maplibregl-map{')) style.remove()
+})
+
 let plotlyCounter = 0
 
 export default defineComponent({
