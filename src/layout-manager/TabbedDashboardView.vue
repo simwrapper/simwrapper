@@ -116,8 +116,10 @@ export default defineComponent({
       loadErrorMessage: '',
       pageHeader: '',
       showFooter: false,
-      styleElement: null as any,
+      styleElements: [] as HTMLStyleElement[],
       isMobile: false,
+      // bumped on every route change so stale async loads can bail out
+      loadGeneration: 0,
       mediaQuery: null as any,
       showDropDown: false,
       // project site navigation
@@ -197,10 +199,9 @@ export default defineComponent({
   },
   methods: {
     clearStyles() {
-      if (this.styleElement) {
-        document.getElementsByTagName('head')[0].removeChild(this.styleElement)
-        this.styleElement = null
-      }
+      // each simwrapper-config in the hierarchy may have added its own stylesheet
+      this.styleElements.forEach(el => el.remove())
+      this.styleElements = []
     },
 
     getPageHeader() {
@@ -255,45 +256,51 @@ export default defineComponent({
     },
 
     async findConfigsAndDashboards() {
+      // Each route change bumps loadGeneration; if it changes while we are awaiting,
+      // a newer load owns the view and this one must not touch it.
+      const generation = this.loadGeneration
+      const isStale = () => generation !== this.loadGeneration
+
       this.loadErrorMessage = ''
       if (!this.fileApi) return []
 
       await this.fileApi.getChromePermission(this.fileSystem.handle)
+      if (isStale()) return
 
       this.getFolderReadme()
 
       try {
-        this.allConfigFiles = await this.fileApi.findAllYamlConfigs(this.xsubfolder)
+        const allConfigFiles = await this.fileApi.findAllYamlConfigs(this.xsubfolder)
+        if (isStale()) return
+        this.allConfigFiles = allConfigFiles
 
         const { files } = await this.fileApi.getDirectory(this.xsubfolder)
+        if (isStale()) return
 
         // if folder has .nodashboards, then skip all dashboards!
-        let showDashboards = true
-        NO_DASHBOARDS.forEach(filename => {
-          if (files.indexOf(filename) > -1) {
-            showDashboards = false
-          }
+        const showDashboards = !NO_DASHBOARDS.some(filename => files.includes(filename))
+        const dashboardPaths = showDashboards ? Object.values(allConfigFiles.dashboards) : []
+
+        // Fetch every dashboard yaml at once (not one round-trip per tab), alongside
+        // the project config (headers, footers, etc)
+        const [dashboardYamls] = await Promise.all([
+          Promise.all(dashboardPaths.map(fullPath => this.initDashboard(fullPath))),
+          this.setupProjectConfig(allConfigFiles, isStale),
+        ])
+        if (isStale()) return
+
+        // Build the complete tab list in yaml order, then publish it in one go
+        const dashboards: Record<string, any> = {}
+        dashboardPaths.forEach((fullPath, i) => {
+          if (dashboardYamls[i]) dashboards[fullPath] = dashboardYamls[i]
         })
-
-        // headers, footers, etc
-        await this.setupProjectConfig()
-        await this.$nextTick()
-
-        if (showDashboards) {
-          for (const fullPath of Object.values(this.allConfigFiles.dashboards)) {
-            // add the tab now
-            this.dashboards[fullPath] = { header: { tab: '...' } }
-            // load the details (title)
-            const showThisDashboard = await this.initDashboard(fullPath)
-            // and now remove it if it isn't triggered. Yes this order is correct
-            if (!showThisDashboard) delete this.dashboards[fullPath as any]
-          }
-        }
 
         // Add FileBrowser as "Files" tab
         if (this.globalState.isShowingFilesTab) {
-          this.dashboards['FILE__BROWSER'] = { header: { tab: 'Files' } }
+          dashboards['FILE__BROWSER'] = { header: { tab: 'Files' } }
         }
+
+        this.dashboards = dashboards
 
         // // Start on correct tab
         const dashboardKeys = Object.keys(this.dashboards)
@@ -313,8 +320,15 @@ export default defineComponent({
         } else {
           this.activeTab = dashboardKeys[0]
         }
+
+        // Let the browser paint the tab names before the dashboard mounts: dashboards
+        // can start heavy CPU work and workers that would otherwise block that paint.
+        await this.waitForPaint()
+        if (isStale()) return
+
         this.dashboardTabWithDelay = this.activeTab
       } catch (e) {
+        if (isStale()) return
         // Bad things happened! Tell user
         console.warn({ eeee: e })
         if (this.fileSystem.handle) {
@@ -326,8 +340,10 @@ export default defineComponent({
       }
     },
 
-    async setupProjectConfig() {
-      const allConfigs = Object.values(this.allConfigFiles.configs)
+    // isStale() turns true once a newer route load has started: from then on,
+    // this (older) load must not write anything to the view, store, or <head>.
+    async setupProjectConfig(allConfigFiles: YamlConfigs, isStale: () => boolean) {
+      const allConfigs = Object.values(allConfigFiles.configs)
 
       // no configs: no project mode.
       if (!allConfigs.length) {
@@ -341,6 +357,7 @@ export default defineComponent({
         try {
           let yamlFolder = ''
           const config = await this.fileApi.getFileText(filename)
+          if (isStale()) return
           const yaml = YAML.parse(config)
 
           // figure out relative path for config file
@@ -434,19 +451,29 @@ export default defineComponent({
           const cssFile = `${yamlFolder}${yaml.css}`
           try {
             if (yaml.css) {
-              this.customCSS = await this.fileApi.getFileText(cssFile)
-              this.styleElement = document.createElement('style')
-              this.styleElement.appendChild(document.createTextNode(this.customCSS))
-              document.getElementsByTagName('head')[0].appendChild(this.styleElement)
+              const css = await this.fileApi.getFileText(cssFile)
+              if (isStale()) return
+              this.customCSS = css
+              const styleElement = document.createElement('style')
+              styleElement.appendChild(document.createTextNode(css))
+              document.getElementsByTagName('head')[0].appendChild(styleElement)
+              this.styleElements.push(styleElement)
             }
           } catch (e) {
+            if (isStale()) return
             // no css, oh well
             console.error(`Error reading ${cssFile}: ` + e)
           }
 
-          this.header = await this.buildPanel('header', yaml, yamlFolder)
-          this.footer = await this.buildPanel('footer', yaml, yamlFolder)
+          const [header, footer] = await Promise.all([
+            this.buildPanel('header', yaml, yamlFolder),
+            this.buildPanel('footer', yaml, yamlFolder),
+          ])
+          if (isStale()) return
+          this.header = header
+          this.footer = footer
         } catch (e) {
+          if (isStale()) return
           // note parsing error and move on
           const msg = `Error reading ${filename}: ` + e
           this.$emit('error', msg)
@@ -507,8 +534,17 @@ export default defineComponent({
       return html
     },
 
-    // for each dashboard, fetch the yaml, set the tab title, and config the ... switcher?
-    async initDashboard(fullPath: any) {
+    async waitForPaint() {
+      await this.$nextTick()
+      // rAF fires just before the next paint; the timeout runs right after it
+      await new Promise<void>(resolve =>
+        requestAnimationFrame(() => setTimeout(() => resolve(), 0))
+      )
+    },
+
+    // for each dashboard, fetch the yaml and set the tab title.
+    // Returns the parsed yaml, or null if this dashboard should not be shown.
+    async initDashboard(fullPath: any): Promise<any> {
       try {
         const config = await this.fileApi.getFileText(fullPath)
         const yaml = YAML.parse(config)
@@ -521,7 +557,7 @@ export default defineComponent({
           const matches = micromatch.match(allContents, yaml.header.triggerPattern).length
           if (matches === 0) {
             // no files matched trigger; skip this dashboard
-            return false
+            return null
           }
         }
 
@@ -544,12 +580,10 @@ export default defineComponent({
             shortFilename
         }
 
-        this.dashboards[fullPath] = yaml
-        // console.log('DASHBOARD:', fullPath)
-        return true
+        return yaml
       } catch (e) {
         this.$emit('error', `Error parsing: ${fullPath}`)
-        return false
+        return null
       }
     },
     updateRoute() {
@@ -557,6 +591,13 @@ export default defineComponent({
 
       if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
       this.dashboardDataManager = new DashboardDataManager(this.root, this.xsubfolder)
+
+      // Invalidate any load still in flight for the previous folder, and tear down
+      // whatever that folder was showing (e.g. its Files tab) right away
+      this.loadGeneration++
+      this.activeTab = ''
+      this.dashboardTabWithDelay = ''
+      this.showFooter = false
 
       this.header = ''
       this.footer = ''
@@ -589,6 +630,8 @@ export default defineComponent({
 
       // to give browser time to teardown
       setTimeout(() => {
+        // user clicked another tab, or navigated away, in the meantime
+        if (this.activeTab !== tab) return
         this.dashboardTabWithDelay = tab
         if (index) {
           this.$router.replace({ query: { tab: `${index + 1}` } })

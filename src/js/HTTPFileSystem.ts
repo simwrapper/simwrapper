@@ -32,6 +32,8 @@ const YAML_FOLDERS = ['simwrapper', '.simwrapper']
 
 // Cache directory listings for each slug & directory
 const CACHE: { [slug: string]: { [dir: string]: DirectoryEntry } } = {}
+// Listings currently being fetched, so concurrent callers share one request
+const PENDING: { [slug: string]: { [dir: string]: Promise<DirectoryEntry> } } = {}
 
 // ---------------------------------------------------------------------------
 
@@ -71,6 +73,7 @@ class HTTPFileSystem {
     if (!project.baseURL.endsWith('/')) this.baseUrl += '/'
 
     if (!CACHE[this.urlId]) CACHE[this.urlId] = {}
+    if (!PENDING[this.urlId]) PENDING[this.urlId] = {}
   }
 
   public hasHandle() {
@@ -96,6 +99,7 @@ class HTTPFileSystem {
 
   public clearCache() {
     CACHE[this.urlId] = {}
+    PENDING[this.urlId] = {}
   }
 
   public cleanURL(scaryPath: string) {
@@ -535,7 +539,21 @@ class HTTPFileSystem {
       return cachedEntry
     }
 
-    stillScaryPath = stillScaryPath.replaceAll('/./', '/')
+    // Someone else is already fetching this listing: share their request
+    const pending = PENDING[this.urlId][stillScaryPath]
+    if (pending) return pending
+
+    const pendingForThisCache = PENDING[this.urlId]
+    const request = this._fetchDirectory(stillScaryPath).finally(() => {
+      if (pendingForThisCache[stillScaryPath] === request)
+        delete pendingForThisCache[stillScaryPath]
+    })
+    pendingForThisCache[stillScaryPath] = request
+    return request
+  }
+
+  private async _fetchDirectory(cacheKey: string): Promise<DirectoryEntry> {
+    const stillScaryPath = cacheKey.replaceAll('/./', '/')
 
     try {
       // Generate and cache the listing
@@ -755,18 +773,26 @@ class HTTPFileSystem {
 
     const pathChunks = fullFolder.split('/')
 
+    const ancestorPaths = [] as string[]
     for (const chunk of pathChunks.slice(0, pathChunks.length - 1)) {
       currentPath = `${currentPath}${chunk}/`.replaceAll('//', '/')
-
-      try {
-        const { dirs } = await this.getDirectory(currentPath)
-        for (const dir of dirs) {
-          if (YAML_FOLDERS.includes(dir.toLocaleLowerCase())) {
-            configFolders.push(`${currentPath}/${dir}`.replaceAll('//', '/'))
-          }
-        }
-      } catch (e) {}
+      ancestorPaths.push(currentPath)
     }
+
+    // fetch all ancestor listings at once, instead of one round-trip per level;
+    // results stay in top-down order so nearer folders still supersede parents
+    const ancestorListings = await Promise.all(
+      ancestorPaths.map(path => this.getDirectory(path).catch(() => null))
+    )
+
+    ancestorListings.forEach((listing, i) => {
+      if (!listing) return
+      for (const dir of listing.dirs) {
+        if (YAML_FOLDERS.includes(dir.toLocaleLowerCase())) {
+          configFolders.push(`${ancestorPaths[i]}/${dir}`.replaceAll('//', '/'))
+        }
+      }
+    })
 
     // also add current working folder as final option, which supersedes all others
     configFolders.push(folder)
@@ -778,8 +804,11 @@ class HTTPFileSystem {
     const viz = 'viz*.y?(a)ml'
     const config = 'simwrapper-config.y?(a)ml'
 
-    for (const configFolder of configFolders) {
-      const { files } = await this.getDirectory(configFolder)
+    const configListings = await Promise.all(configFolders.map(f => this.getDirectory(f)))
+
+    for (let i = 0; i < configFolders.length; i++) {
+      const configFolder = configFolders[i]
+      const { files } = configListings[i]
 
       micromatch
         .match(files, dashboard)
