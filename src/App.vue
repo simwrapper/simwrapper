@@ -524,7 +524,9 @@ p.splash-label {
   h6 {
     padding-top: 0.25rem;
     padding-bottom: 0.25rem;
-    color: var(--textFancy) !important;
+    // not !important: markdown files may style their own headings, e.g. MATSim's
+    // status.md sets `.dash-row.row-warnings h4 { color: white }` on a brown banner
+    color: var(--textFancy);
   }
 
   h1 {
@@ -535,6 +537,8 @@ p.splash-label {
   h2 {
     font-size: 1.5rem;
     font-weight: bold;
+    // must beat the global `h2 { color: var(--text) !important }`
+    color: var(--textFancy) !important;
   }
 
   h3 {
