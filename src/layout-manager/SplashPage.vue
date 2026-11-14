@@ -554,6 +554,9 @@ h4 {
   // background-color: white;
 }
 .logos {
+  // fill the flex row: as a shrink-to-fit flex item, Firefox sizes this grid to 0px wide
+  // (minmax(0,1fr) columns + max-width:100% imgs have no intrinsic width) and logos vanish
+  flex: 1;
   display: grid;
   gap: 3rem;
   grid-template-columns: repeat(5, minmax(0, 1fr));
