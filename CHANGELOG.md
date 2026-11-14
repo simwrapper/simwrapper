@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.9.1](https://github.com/simwrapper/simwrapper/compare/v4.9.0...v4.9.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **dashboard:** Dashboards load faster with fewer click-race conditions ([58f2104](https://github.com/simwrapper/simwrapper/commit/58f2104cae81a7f48715c6a17a25b944f1c62549))
+* **map:** Some maps on pages with Plotly charts borrowed some unwanted CSS ([96c0162](https://github.com/simwrapper/simwrapper/commit/96c0162debfa9c64cd4d78136b264473b6f1610d))
+* URL bar tab switching no longer leaves %2F's in URL bar ([f86e917](https://github.com/simwrapper/simwrapper/commit/f86e917bd318970a85ceb5e56219f8dee3519562))
+
 ## [4.9.0](https://github.com/simwrapper/simwrapper/compare/v4.8.2...v4.9.0) (2026-11-12)
 
 

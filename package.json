@@ -1,6 +1,6 @@
 {
   "name": "simwrapper",
-  "version": "4.9.0",
+  "version": "4.9.1",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.14.0",
