@@ -450,10 +450,11 @@ export default defineComponent({
         const { subtab, ...queryWithoutSubtab } = this.$route.query
         if (index) {
           this.$router.replace({
+            path: this.$route.path,
             query: Object.assign({}, queryWithoutSubtab, { subtab: `${index + 1}` }),
           })
         } else {
-          this.$router.replace({ query: {} })
+          this.$router.replace({ path: this.$route.path, query: {} })
         }
         this.selectTabLayout()
       }, 200)

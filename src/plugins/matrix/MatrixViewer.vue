@@ -392,12 +392,12 @@ const MyComponent = defineComponent({
       console.log('table:', table)
       if (!table || table == 'undefined') {
         this.activeTable = ''
-        this.$router.replace({ query: {} }).catch(() => {})
+        this.$router.replace({ path: this.$route.path, query: {} }).catch(() => {})
         return
       }
 
       this.activeTable = table
-      this.$router.replace({ query: { ...this.$route.query, table } }).catch(() => {})
+      this.$router.replace({ path: this.$route.path, query: { ...this.$route.query, table } }).catch(() => {})
       await this.getMatrices()
       localStorage.setItem('matrix-initial-table', table)
 
@@ -539,7 +539,7 @@ const MyComponent = defineComponent({
       if (this.mapConfig.colormap !== 'Viridis') query.colors = this.mapConfig.colormap
       if (this.mapConfig.isInvertedColor) query.invert = 'true'
       if (this.mapConfig.scale !== 'linear') query.scale = this.mapConfig.scale
-      this.$router.replace({ query }).catch(() => {})
+      this.$router.replace({ path: this.$route.path, query }).catch(() => {})
     },
 
     saveMapSettings() {

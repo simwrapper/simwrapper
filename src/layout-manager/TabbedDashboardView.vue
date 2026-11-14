@@ -634,9 +634,9 @@ export default defineComponent({
         if (this.activeTab !== tab) return
         this.dashboardTabWithDelay = tab
         if (index) {
-          this.$router.replace({ query: { tab: `${index + 1}` } })
+          this.$router.replace({ path: this.$route.path, query: { tab: `${index + 1}` } })
         } else {
-          this.$router.replace({ query: {} })
+          this.$router.replace({ path: this.$route.path, query: {} })
         }
       }, 125)
 

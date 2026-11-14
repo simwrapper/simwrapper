@@ -284,7 +284,7 @@ const MyComponent = defineComponent({
     'mapConfig.scale'() {
       // if user changes scale, remove manual breakpoints
       const { breakpoints, ...query } = this.$route.query
-      this.$router.replace({ query }).catch(() => {})
+      this.$router.replace({ path: this.$route.path, query }).catch(() => {})
 
       this.setInitialColorsForArray()
     },
@@ -653,7 +653,7 @@ const MyComponent = defineComponent({
         query.breakpoints = this.colorThresholds?.breakpoints?.join(',')
       }
 
-      this.$router.replace({ query }).catch(() => {})
+      this.$router.replace({ path: this.$route.path, query }).catch(() => {})
     },
 
     async loadBoundariesBasedOnMatrixSize() {

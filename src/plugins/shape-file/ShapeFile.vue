@@ -1264,7 +1264,7 @@ const MyComponent = defineComponent({
         if (column in this.filters) {
           const query = Object.assign({}, this.$route.query)
           delete query[column]
-          this.$router.replace({ query })
+          this.$router.replace({ path: this.$route.path, query })
 
           delete this.filters[column]
         }
@@ -2835,7 +2835,7 @@ const MyComponent = defineComponent({
 
       const query = Object.assign({}, this.$route.query)
       query.display = this.datasetValuesColumn
-      this.$router.replace({ query })
+      this.$router.replace({ path: this.$route.path, query })
 
       this.maxValue = this.boundaryDataTable[this.datasetValuesColumn].max || 0
       // console.log('MAXVALUE', this.maxValue)
@@ -2867,7 +2867,7 @@ const MyComponent = defineComponent({
       }
       // only update if query actually changed
       if (JSON.stringify(this.$route.query) !== JSON.stringify(queryFilters)) {
-        this.$router.replace({ query: queryFilters })
+        this.$router.replace({ path: this.$route.path, query: queryFilters })
       }
     },
 
@@ -2877,7 +2877,7 @@ const MyComponent = defineComponent({
       const query = Object.assign({}, this.$route.query)
       if (show) query.show = 'dots'
       else delete query.show
-      this.$router.replace({ query })
+      this.$router.replace({ path: this.$route.path, query })
     },
 
     handleUserCreatedNewFilter(selectedColumn?: string) {
