@@ -5,7 +5,7 @@ import { test, expect, Page } from '@playwright/test'
  * map plugin here it queries its data with DuckDB-WASM straight out of a parquet file,
  * and it loads NOTHING until the user types a search term.
  *
- * Fixture: `e2e-tests/plans/` (outside git, created for this spec) -- a synthetic
+ * Fixture: `e2e-tests/plans/test/` (outside git, created for this spec) -- a synthetic
  * `plans.parquet` (3 people, 4 plans, 16 rows) whose routes are real connected link
  * chains lifted out of `logistics/network.avro`, which is copied in beside it.
  *
@@ -14,7 +14,7 @@ import { test, expect, Page } from '@playwright/test'
  * which for `plans.parquet` is the parquet itself -- it then XML-parsed the parquet and
  * failed with "Could not load network file". It now ignores that self-match.)
  */
-const PLUGIN_ROUTE = 'e2e-tests/plans/plans.parquet'
+const PLUGIN_ROUTE = 'e2e-tests/plans/test/plans.parquet'
 
 /**
  * Headless GPU chatter, Vite shimming node builtins for the geo libs, and maplibre
@@ -465,10 +465,13 @@ test('a viz-plans YAML sets the title, view and colors', async ({ page }) => {
   const noise = watchConsole(page)
 
   await page.route(
-    url => url.hostname !== 'localhost' && url.pathname.endsWith(`/plans/${VIZ_YAML}`),
+    // the fixture request, not the app's own route (/e2e-tests/...) for the same file. Not
+    // by hostname: a local fixture mirror (localhost:8000) is on localhost too.
+    url =>
+      !url.pathname.startsWith('/e2e-tests/') && url.pathname.endsWith(`/plans/test/${VIZ_YAML}`),
     route => route.fulfill({ body: VIZ_YAML_TEXT, contentType: 'text/yaml' })
   )
-  await page.goto(`e2e-tests/plans/${VIZ_YAML}`)
+  await page.goto(`e2e-tests/plans/test/${VIZ_YAML}`)
   await waitForViz(page)
 
   await expect(page.locator('.right-panel h3')).toHaveText('Colored plans')

@@ -14,9 +14,10 @@
 
       .map-container(:class="{'hide-thumbnail': !thumbnail }" oncontextmenu="return false")
 
-          transit-layers.map-styles(v-if="transitLinks?.features.length"
+          transit-layers.map-styles(v-if="linkCount"
             :viewId="viewId"
-            :links="transitLinks"
+            :linkData="net.linkData"
+            :linkVersion="linkVersion"
             :selectedFeatures="selectedFeatures"
             :stopMarkers="stopMarkers"
             :handleClickEvent="handleMapClick"
@@ -34,8 +35,8 @@
               img.icon-blue-ramp(:src="icons.blueramp")
               o-slider.pie-slider(:tooltip="false" size="small"  v-model="widthSlider")
               //- pie slider
-              img.icon-pie-slider(v-if="crossFilters.length" :src="icons.piechart")
-              o-slider.pie-slider(v-if="crossFilters.length" :tooltip="false" size="small"  v-model="pieSlider")
+              img.icon-pie-slider(v-if="hasDemand" :src="icons.piechart")
+              o-slider.pie-slider(v-if="hasDemand" :tooltip="false" size="small"  v-model="pieSlider")
 
           zoom-buttons(corner="top-left" :show3dToggle="true" :is3dBuildings="show3dBuildings" :onToggle3dBuildings="toggle3dBuildings")
 
@@ -85,7 +86,7 @@
               .aa
                 b {{ summaryStats.departures }}
                 | &nbsp;Departures
-              .aa(v-if="crossFilters.length")
+              .aa(v-if="hasDemand")
                 b {{ summaryStats.pax }}
                 | &nbsp;Passengers
 
@@ -107,22 +108,27 @@ const i18n = {
 import { defineComponent, markRaw } from 'vue'
 import type { PropType } from 'vue'
 
+import * as Comlink from 'comlink'
 import * as turf from '@turf/turf'
-import { getAvro } from '@/js/avro'
-import colormap from 'colormap'
-import crossfilter from 'crossfilter2'
 import { debounce } from 'debounce'
-import Papa from '@simwrapper/papaparse'
 import yaml from 'yaml'
-import match from 'micromatch'
 import naturalSort from 'javascript-natural-sort'
-import { color } from 'd3-color'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { Network, NetworkInputs, NetworkNode, TransitLine, RouteDetails } from './Interfaces'
+import {
+  ColorRule,
+  DemandResult,
+  LinkRenderData,
+  RouteDemand,
+  RouteDetails,
+  SupplyResult,
+  TransitLine,
+} from './Interfaces'
 import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
-import TransitSupplyWorker from './TransitSupplyHelper.worker?worker'
+import TransitTaskWorker from './TransitTask.worker?worker'
+import type { TransitTaskApi } from './TransitTask.worker'
+import { colorToRGB, DEFAULT_ROUTE_COLORS } from './routeColors'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import TransitLayers from './DeckMapComponent.vue'
@@ -132,130 +138,22 @@ import { unreactive } from '@/js/util'
 
 import { FileSystemConfig, ColorScheme } from '@/Globals'
 
-import GzipWorker from '@/workers/GzipFetcher.worker?worker'
 import IconPieChart from './assets/icon-pie-chart.png'
 import IconBlueRamp from './assets/icon-blue-ramp.png'
 import BackgroundLayers from '@/js/BackgroundLayers'
 
 const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
-const COLOR_CATEGORIES = 10
-const SHOW_STOPS_AT_ZOOM_LEVEL = 11
 
-interface PtData {
-  name: string
-  a: number
-  b: number
-}
+type RouteDemandMap = { [routeId: string]: { pax: number; cap: number } }
 
-interface StopLevelData {
-  [ptLine: string]: PtData | number
-}
-
-const DEFAULT_ROUTE_COLORS = [
-  // ---------------------------------------------------
-  // GTFS codes first, they are most accurate.
-  {
-    match: {
-      gtfsRouteType: [3, 700, 701, 702, 703, 704],
-    },
-    color: '#95276E',
-    label: 'Bus (GTFS)',
-  },
-  {
-    match: {
-      gtfsRouteType: [109],
-    },
-    color: '#408335',
-    label: 'S-Bahn (GTFS)',
-  },
-  {
-    match: {
-      gtfsRouteType: [401, 402],
-    },
-    color: '#115D91',
-    label: 'U-Bahn (GTFS)',
-  },
-  {
-    match: {
-      gtfsRouteType: [0, 3, 900, 901, 902, 903, 904, 905, 906],
-    },
-    color: '#BE1414',
-    label: 'Tram (GTFS)',
-  },
-  {
-    match: {
-      gtfsRouteType: [4, 1000, 1200],
-    },
-    color: '#0480c1',
-    label: 'Ferry (GTFS)',
-  },
-  // ---------------------------------------------------
-  // MATSim transportMode and string-id next; less accurate but consistent.
-  {
-    match: {
-      transportMode: ['rail', 'subway'],
-      id: 'U*',
-    },
-    color: '#115D91',
-    label: 'U-Bahn',
-  },
-  {
-    match: {
-      transportMode: 'rail',
-      id: 'S*',
-    },
-    color: '#408335',
-    label: 'S-Bahn',
-  },
-  {
-    match: {
-      transportMode: 'ferry',
-    },
-    color: '#0480c1',
-    label: 'Ferry',
-  },
-  {
-    match: {
-      transportMode: 'tram',
-    },
-    color: '#9E1444',
-    label: 'Tram',
-  },
-  {
-    match: { transportMode: 'pt' },
-    color: '#05c',
-    label: 'Public Transport',
-  },
-  {
-    match: {
-      transportMode: 'rail',
-    },
-    color: '#EC0016 ',
-    label: 'Train',
-  },
-  {
-    match: { transportMode: 'train' },
-    color: '#0a0',
-    label: 'Rail',
-  },
-  {
-    match: {
-      transportMode: 'bus',
-    },
-    color: '#95276E',
-    label: 'Bus',
-  },
-  {
-    match: { id: '**' },
-    color: '#aae',
-    label: 'Other',
-  },
-] as { match: any; color: string; label: string; hide: boolean }[]
-
-class Departure {
-  public total: number = 0
-  public routes: Set<string> = new Set()
-}
+const emptyNet = () => ({
+  supply: null as SupplyResult | null,
+  demand: null as DemandResult | null,
+  linkData: null as LinkRenderData | null,
+  linkIndexById: {} as { [linkId: string]: number },
+  // by route id; a duplicate id keeps the last route
+  routeData: {} as { [id: string]: RouteDetails },
+})
 
 const MyComponent = defineComponent({
   name: 'TransitViewer',
@@ -312,7 +210,7 @@ const MyComponent = defineComponent({
         projection: '',
         title: '',
         description: '',
-        colors: [] as { match: any; color: string; label: string; hide: boolean }[],
+        colors: [] as ColorRule[],
       },
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
@@ -325,7 +223,6 @@ const MyComponent = defineComponent({
         thumbnail: true,
       },
 
-      avroNetwork: null as any,
       isDarkMode: globalStore.state.isDarkMode,
       isMapMoving: false,
       isHighlightingLink: false,
@@ -339,41 +236,36 @@ const MyComponent = defineComponent({
       selectedFeatures: [] as any[],
       summaryStats: { departures: 0, pax: 0, loadfac: 0 },
       stopMarkers: [] as any[],
-      _departures: {} as { [linkID: string]: Departure },
+
+      // Big data: typed arrays and lookups, never reactive. Replaced wholesale only.
+      net: markRaw(emptyNet()),
+      linkCount: 0,
+      linkVersion: 0,
+      hasDemand: false,
+      /** per-route demand over all rows (no link selected) */
+      routeDemandAll: null as RouteDemandMap | null,
+      /** per-route demand for the selected link, once the worker has answered */
+      routeDemandLink: null as null | { linkId: string; map: RouteDemandMap },
+      linkDemandRequest: 0,
+
+      // Comlink remotes must never be stored in reactive state: keep them in a raw holder
+      task: markRaw({
+        worker: null as Worker | null,
+        api: null as Comlink.Remote<TransitTaskApi> | null,
+      }),
+
       _mapExtentXYXY: null as any,
-      _maximum: -Infinity,
-      _network: {} as Network,
-      transitLinks: { type: 'FeatureCollection', features: [] } as any, // GeoJSON.FeatureCollection,
-      transitLinkOffset: {} as { [linkId: string]: number },
-      routeData: {} as { [index: string]: RouteDetails },
-      _stopFacilities: {} as { [index: string]: NetworkNode },
 
       transitLines: [] as TransitLine[],
       highlightedTransitLineIds: new Set(),
-
-      _transitFetcher: {} as any,
-      _transitHelper: {} as any,
 
       pieSlider: 20,
       widthSlider: 20,
 
       resolvers: {} as { [id: number]: any },
       resolverId: 0,
-      crossFilters: [] as {
-        cfDemand: crossfilter.Crossfilter<any>
-        cfDemandLink: crossfilter.Dimension<any, any>
-        cfDemandStop: crossfilter.Dimension<any, any>
-      }[],
 
-      stopLevelDemand: {} as {
-        [id: string]: {
-          b: number
-          a: number
-          ptLines: { [ptLineId: string]: { name: string; b: number; a: number } }
-        }
-      },
-
-      routeColors: [] as { match: any; color: string; label: string; hide: boolean }[],
+      routeColors: [] as ColorRule[],
       usedLabels: [] as string[],
     }
   },
@@ -418,6 +310,14 @@ const MyComponent = defineComponent({
       return [...this.transitLines]
     },
 
+    /** demand rows filtered by the selected link (all rows if none), summed per route */
+    currentRouteDemand(): RouteDemandMap | null {
+      if (!this.hasDemand) return null
+      if (!this.selectedLinkId) return this.routeDemandAll
+      const answer = this.routeDemandLink
+      return answer && answer.linkId === this.selectedLinkId ? answer.map : null
+    },
+
     activeTransitLines() {
       const lines = {} as {
         [id: string]: { id: string; routes: RouteDetails[]; isOpen: boolean; stats: any }
@@ -439,23 +339,7 @@ const MyComponent = defineComponent({
         lines[route.lineId].routes.push(route)
       })
 
-      // if (!this.selectedLinkId) return lines
-
-      // store demand data for these links
-      const demandLookup = {} as { [routeId: string]: any[] }
-
-      // run the cross filters for each data subsection
-      this.crossFilters.forEach(cf => {
-        cf.cfDemandStop.filterAll()
-        cf.cfDemandLink.filter((id: any) => id.indexOf(this.selectedLinkId) > -1)
-        let demandData = cf.cfDemand.allFiltered()
-        if (demandData) {
-          demandData.forEach(row => {
-            if (!(row.transitRoute in demandLookup)) demandLookup[row.transitRoute] = []
-            demandLookup[row.transitRoute].push(row)
-          })
-        }
-      })
+      const demandLookup = this.currentRouteDemand || {}
 
       Object.values(lines).forEach(line => {
         // sort by nice names
@@ -468,17 +352,10 @@ const MyComponent = defineComponent({
           line.stats.departures += route.departures
           const routeRuns = demandLookup[route.id]
           if (routeRuns) {
-            const pax = routeRuns.reduce((a, b) => {
-              return a + b.passengersAtArrival
-            }, 0)
-            line.stats.pax += pax
-            route.pax += pax
-
-            const cap = routeRuns.reduce((a, b) => {
-              return a + b.totalVehicleCapacity
-            }, 0)
-            line.stats.cap += cap
-            route.cap += cap
+            line.stats.pax += routeRuns.pax
+            route.pax += routeRuns.pax
+            line.stats.cap += routeRuns.cap
+            route.cap += routeRuns.cap
           }
           route.loadfac = route.pax / route.cap
         })
@@ -490,7 +367,7 @@ const MyComponent = defineComponent({
     legendRows(): string[][] {
       return this.routeColors
         .filter(r => this.usedLabels.includes(r.label))
-        .map(r => [r.color, r.label])
+        .map(r => [r.color as string, r.label])
     },
   },
 
@@ -507,8 +384,12 @@ const MyComponent = defineComponent({
       this.updateTestData()
     },
 
-    transitLinks() {
+    linkCount() {
       this.updateTestData()
+    },
+
+    selectedLinkId() {
+      this.requestLinkDemand()
     },
 
     searchText() {
@@ -520,10 +401,16 @@ const MyComponent = defineComponent({
     updateTestData() {
       //@ts-ignore
       window.__testdata__ = {
-        transitLinks: this.transitLinks.features,
+        transitLinks: this.net.supply?.linkIds || [],
         transitLines: this.transitLines,
         selectedRouteIds: this.selectedRouteIds,
+        hasDemand: this.hasDemand,
       }
+    },
+
+    /** tell the deck layer that the per-link arrays changed */
+    redrawLinks() {
+      this.linkVersion++
     },
 
     async selectNetwork(filename: string) {
@@ -541,7 +428,7 @@ const MyComponent = defineComponent({
     toggleRouteChecked(props: { route: string; isChecked: boolean }) {
       if (props.isChecked) {
         // highlight if checked
-        this.routesOnLink.push(this.routeData[props.route])
+        this.routesOnLink.push(this.net.routeData[props.route])
       } else {
         // remove
         this.routesOnLink = this.routesOnLink.filter(route => route.id !== props.route)
@@ -553,8 +440,7 @@ const MyComponent = defineComponent({
         this.selectedLinkId = ''
         this.resetLinkColors()
         this.highlightedTransitLineIds = new Set()
-        // trigger redraw
-        this.transitLinks = { ...this.transitLinks }
+        this.redrawLinks()
       }
 
       this.selectedRouteIds = this.routesOnLink.map(route => route.id)
@@ -570,7 +456,7 @@ const MyComponent = defineComponent({
       const lineTerm = line.id.toLocaleLowerCase()
       line.check = event.isChecked
 
-      const foundRoutes = Object.values(this.routeData).filter(
+      const foundRoutes = Object.values(this.net.routeData).filter(
         route => route.lineId.toLocaleLowerCase() == lineTerm
       )
 
@@ -588,22 +474,20 @@ const MyComponent = defineComponent({
 
       this.selectedRouteIds = this.routesOnLink.map(route => route.id)
 
-      // console.log('new routes on link', this.routesOnLink)
       if (this.routesOnLink.length) {
         this.highlightAllAttachedRoutes()
       } else {
         this.selectedLinkId = ''
         this.resetLinkColors()
         this.highlightedTransitLineIds = new Set()
-        // trigger redraw
-        this.transitLinks = { ...this.transitLinks }
+        this.redrawLinks()
       }
     },
 
     updateSummaryStats() {
       this.summaryStats = { departures: 0, pax: 0, loadfac: 0 }
       for (const routeId of this.selectedRouteIds) {
-        const r = this.routeData[routeId]
+        const r = this.net.routeData[routeId]
         if (r.departures) this.summaryStats.departures += r.departures
         if (r.pax) this.summaryStats.pax += r.pax
       }
@@ -635,8 +519,7 @@ const MyComponent = defineComponent({
 
       if (!searchTerm) {
         this.resetLinkColors()
-        // trigger redraw
-        this.transitLinks = { ...this.transitLinks }
+        this.redrawLinks()
         return
       }
 
@@ -650,11 +533,12 @@ const MyComponent = defineComponent({
         regexp = new RegExp(regexTerm, 'gu') // global, unicode
       }
 
+      const routeData = this.net.routeData
       if (regexp) {
-        foundRoutes = Object.keys(this.routeData).filter(routeID => routeID.match(regexp))
+        foundRoutes = Object.keys(routeData).filter(routeID => routeID.match(regexp))
         foundLines = this.transitLines.filter(line => line.id.match(regexp)).map(line => line.id)
       } else {
-        foundRoutes = Object.keys(this.routeData).filter(
+        foundRoutes = Object.keys(routeData).filter(
           routeID => routeID.toLocaleLowerCase().indexOf(searchTerm) > -1
         )
         foundLines = this.transitLines
@@ -663,7 +547,7 @@ const MyComponent = defineComponent({
       }
 
       // show selected route snakepaths
-      this.routesOnLink = foundRoutes.map(id => this.routeData[id])
+      this.routesOnLink = foundRoutes.map(id => routeData[id])
       this.highlightAllAttachedRoutes()
 
       // show found lines in list
@@ -684,7 +568,6 @@ const MyComponent = defineComponent({
     },
 
     dividerDragStart(e: MouseEvent) {
-      // console.log('dragStart', e)
       this.isDraggingDivider = e.clientX
       this.dragStartWidth = this.legendSectionWidth
     },
@@ -715,10 +598,6 @@ const MyComponent = defineComponent({
 
       // Build the config based on folder contents
       const title = this.myState.yamlConfig
-      // const title = this.myState.yamlConfig.substring(
-      //   0,
-      //   15 + this.myState.yamlConfig.indexOf('transitSchedule')
-      // )
 
       this.vizDetails = {
         transitSchedule: this.myState.yamlConfig,
@@ -751,7 +630,6 @@ const MyComponent = defineComponent({
 
       let network = this.vizDetails.network
       // First see if we have an avro network
-      // network.includes(".avro")
       if (!network) {
         const avroNetworkFiles = files
           .filter(f => f.toLocaleLowerCase().endsWith('.avro'))
@@ -832,12 +710,10 @@ const MyComponent = defineComponent({
         f => f.indexOf('.output_config.xml') > -1 || f.indexOf('.output_config_reduced.xml') > -1
       )
       if (outputConfigs.length && this.fileSystem) {
-        // console.log('trying to find CRS in', outputConfigs[0])
-
         for (const xmlConfigFileName of outputConfigs) {
           try {
             const configXML: any = await this.fetchXML({
-              worker: null,
+              worker: new NewXmlFetcher(),
               slug: this.fileSystem.slug,
               filePath: this.myState.subfolder + '/' + xmlConfigFileName,
             })
@@ -910,46 +786,27 @@ const MyComponent = defineComponent({
       return x < 640
     },
 
-    // setupMap() {
-    //   try {
-    //     const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
-
-    //     if (extent) {
-    //       try {
-    //         const lnglat = JSON.parse(extent)
-    //         const mFac = this.isMobile() ? 0 : 1
-    //         const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 50 * mFac, left: 50 * mFac }
-    //       } catch (e) {
-    //         // ignore this, it's ok
-    //       }
-    //     }
-    //   } catch (e) {
-    //     console.warn('' + e)
-
-    //     // no worries
-    //   }
-    // },
-
     drawMetric() {
-      let widthExpression: any = 3
+      const L = this.net.linkData
+      if (!L) return
 
-      this.transitLinks.features.forEach((link: any) => {
+      for (let i = 0; i < L.length; i++) {
         let width = 1
         switch (this.activeMetric) {
           case 'departures':
-            width = link.properties.departures
+            width = L.departures[i]
             break
           case 'pax':
-            width = link.properties.pax
+            width = L.pax ? L.pax[i] : NaN
             break
           case 'loadfac':
-            width = link.properties.loadfac * 10000
+            width = L.loadfac ? L.loadfac[i] * 10000 : NaN
             break
         }
-        link.properties.width = width
-      })
+        L.widths[i] = width
+      }
 
-      this.transitLinks = { ...this.transitLinks }
+      this.redrawLinks()
     },
 
     handleClickedMetric(metric: { field: string }) {
@@ -983,7 +840,7 @@ const MyComponent = defineComponent({
       this.stopHTML.html = ''
       this.summaryStats = { departures: 0, pax: 0, loadfac: 0 }
 
-      this.transitLinks = { ...this.transitLinks }
+      this.redrawLinks()
     },
 
     async loadEverything() {
@@ -996,11 +853,7 @@ const MyComponent = defineComponent({
       // comment this for now; this is what the user really asked for: NOT A GUESS.
       // this.vizDetails.projection = projection
 
-      this.processInputs(networks)
-      // console.log(networks)
-
-      // TODO remove for now until we research whether this causes a memory leak:
-      // this.setupKeyListeners()
+      await this.processInputs(networks)
     },
 
     setupKeyListeners() {
@@ -1056,31 +909,21 @@ const MyComponent = defineComponent({
       this.loadingText = message
     },
 
-    async loadAvroRoadNetwork() {
-      console.log('LOADING AVRO:', this.vizDetails.network)
-      const filename = `${this.subfolder}/${this.vizDetails.network}`
-      const blob = await this.fileApi.getFileBlob(filename)
-      const avro = await getAvro()
+    /** the Comlink remote for this component's transit worker, created on first use */
+    transitTask(): Comlink.Remote<TransitTaskApi> {
+      if (!this.task.api) {
+        this.task.worker = new TransitTaskWorker()
+        this.task.api = Comlink.wrap<TransitTaskApi>(this.task.worker)
+      }
+      return this.task.api
+    },
 
-      const records: any[] = await new Promise((resolve, reject) => {
-        const rows = [] as any[]
-        avro
-          .createBlobDecoder(blob)
-          .on('metadata', (schema: any) => {
-            // console.log(schema)
-          })
-          .on('data', (row: any) => {
-            rows.push(row)
-          })
-          .on('end', () => {
-            resolve(rows)
-          })
+    /** worker status messages advance the progress bar */
+    statusCallback() {
+      return Comlink.proxy((message: string) => {
+        this.loadingText = message
+        this.incrementLoadProgress()
       })
-
-      // console.log({ records })
-      // markRaw: this is a large column-store network, read but never rendered
-      this.avroNetwork = markRaw(records[0])
-      return records[0]
     },
 
     async loadNetworks() {
@@ -1090,34 +933,25 @@ const MyComponent = defineComponent({
         this.loadingText = 'Loading networks...'
         this.incrementLoadProgress()
 
-        const filename = this.vizDetails.network
+        // the worker fetches and parses the schedule while we wait for the road network
+        const transit = this.transitTask().loadSchedule(
+          unreactive({
+            fileSystem: this.fileSystem,
+            schedulePath: this.myState.subfolder + '/' + this.vizDetails.transitSchedule,
+          })
+        )
 
         const roads = (await this.myDataManager.getRoadNetwork(
-          filename,
+          this.vizDetails.network,
           this.subfolder,
           this.vizDetails,
           this.updateStatus
         )) as any
 
         this.isAtlantis = !!roads.isAtlantis
-        this.avroNetwork = markRaw(roads)
 
-        const transit = this.fetchXML({
-          worker: this._transitFetcher,
-          slug: this.fileSystem.slug,
-          filePath: this.myState.subfolder + '/' + this.vizDetails.transitSchedule,
-          options: {
-            attributeNamePrefix: '',
-            alwaysArray: [
-              'transitSchedule.transitLine.transitRoute',
-              'transitSchedule.transitLine.transitRoute.departures.departure',
-            ],
-          },
-        })
-
-        // and wait for them to all complete
-        const results = await Promise.all([roads, transit])
-        return { roadXML: results[0], transitXML: results[1], ridership: [] }
+        await transit
+        return { roadXML: roads }
       } catch (e) {
         console.error('TRANSIT:', e)
         this.loadingText = ''
@@ -1126,246 +960,8 @@ const MyComponent = defineComponent({
       }
     },
 
-    loadDemandData(filename: string): Promise<any[]> {
-      this.totalLoadSteps += 3
-      this.loadingText = 'Loading demand...'
-
-      const promise: Promise<any[]> = new Promise<any[]>((resolve, reject) => {
-        if (!filename) resolve([])
-        this.incrementLoadProgress()
-
-        const worker = new GzipWorker() as Worker
-
-        worker.onmessage = (event: MessageEvent) => {
-          this.loadingText = 'Processing demand...'
-          this.incrementLoadProgress()
-
-          worker.terminate()
-
-          if (event.data.error) {
-            this.$emit('error', event.data.error)
-            this.loadingText = ''
-            return
-          }
-
-          // SPLIT loaded data into chunks because TextDecoder, PapaParse, and CrossFilter all bork on > 500k lines
-          // at some point, we can't do all of this in the browser....
-
-          const chunkSize = 100000000
-          let offset = 0
-          let rawData = new Uint8Array(event.data)
-
-          // first build header
-          const decoder = new TextDecoder('utf-8')
-          const header = decoder.decode(rawData.subarray(0, 1024)).split('\n')[0]
-
-          // then chunk over raw text
-          while (offset < event.data.byteLength) {
-            let high = offset + chunkSize
-            let chunk = new Uint8Array(event.data).subarray(offset, high)
-            let currentChunkLength = chunk.length
-
-            // find last \n so we break on line ending
-            while (chunk[currentChunkLength] !== 10 && currentChunkLength > 0) {
-              currentChunkLength--
-            }
-
-            if (!currentChunkLength) break
-
-            chunk = new Uint8Array(event.data).subarray(offset, offset + currentChunkLength)
-            let csvData = decoder.decode(chunk)
-
-            if (offset > 0) csvData = header + csvData
-
-            const results = Papa.parse(csvData, {
-              // preview: 10000,
-              header: true,
-              skipEmptyLines: true,
-              dynamicTyping: false,
-              // worker: true,
-              // complete: (results: any) => {
-              //   const result = this.processDemand(results)
-              //   resolve(result)
-              // },
-            })
-            this.processDemand(results)
-            offset += currentChunkLength
-          }
-
-          this.metrics = this.metrics.concat([
-            { field: 'pax', name_en: 'Passengers', name_de: 'Passagiere' },
-            { field: 'loadfac', name_en: 'Load Factor', name_de: 'Auslastung' },
-          ])
-
-          this.loadProgress = 100
-
-          // update load factors now that we are all done
-          this.transitLinks.features.forEach((transitLink: any) => {
-            try {
-              transitLink.properties.loadfac =
-                Math.round((1000 * transitLink.properties.pax) / transitLink.properties.cap) / 1000
-            } catch {
-              transitLink.properties.loadfac = 0
-            }
-          })
-
-          resolve([])
-        }
-
-        worker.postMessage(
-          unreactive({
-            filePath: this.myState.subfolder + '/' + filename,
-            fileSystem: this.fileSystem,
-          })
-        )
-      })
-      return promise
-    },
-
-    processDemand(results: any) {
-      // todo: make sure meta contains fields we need!
-      this.loadingText = 'Summarizing demand data...'
-      this.incrementLoadProgress()
-
-      const numericCols = [
-        'passengersAlighting',
-        'passengersAtArrival',
-        'passengersBoarding',
-        'stopSequence',
-        'totalVehicleCapacity',
-      ]
-      results.data.forEach((row: any) => {
-        for (const key of numericCols) row[key] = parseFloat(row[key])
-      })
-
-      // build the crossfilters for this data subsection
-      const cfDemand = crossfilter(results.data)
-      this.crossFilters.push({
-        cfDemand,
-        cfDemandLink: cfDemand.dimension((d: any) => d.linkIdsSincePreviousStop),
-        cfDemandStop: cfDemand.dimension((d: any) => d.stop),
-      })
-
-      // make stopLevelDemand a 2-dimensional array? stop ID and then pt-line?
-      for (const row of results.data) {
-        const stopId = row.stop
-        if (!this.stopLevelDemand[stopId]) {
-          this.stopLevelDemand[stopId] = { b: 0, a: 0, ptLines: {} }
-        }
-        this.stopLevelDemand[stopId].b += row.passengersBoarding
-        this.stopLevelDemand[stopId].a += row.passengersAlighting
-        const ptLineId = row.transitLine
-        if (!this.stopLevelDemand[stopId].ptLines[ptLineId])
-          this.stopLevelDemand[stopId].ptLines[ptLineId] = { name: ptLineId, b: 0, a: 0 }
-        this.stopLevelDemand[stopId].ptLines[ptLineId].a += row.passengersAlighting
-        this.stopLevelDemand[stopId].ptLines[ptLineId].b += row.passengersBoarding
-      }
-      // build link-level passenger ridership ----------
-      console.log('---Calculating link-by-link pax/cap')
-
-      const linkPassengersById = {} as any
-      const linkCapacity = {} as any
-
-      // link IDs are split using what character? They changed the format again :-O
-      let splitter = ','
-      if (results.data.length)
-        splitter = results.data[0].linkIdsSincePreviousStop.indexOf(',') > -1 ? ',' : ';'
-
-      // loop through rows
-      for (const row of results.data) {
-        // console.log(row)
-        if (row.linkIdsSincePreviousStop) {
-          const traversedLinks = row.linkIdsSincePreviousStop.split(splitter)
-          for (const linkId of traversedLinks) {
-            // pax
-            if (!linkPassengersById[linkId]) linkPassengersById[linkId] = 0
-            linkPassengersById[linkId] += row.passengersAtArrival
-            // cap
-            if (!linkCapacity[linkId]) linkCapacity[linkId] = 0
-            linkCapacity[linkId] += row.totalVehicleCapacity
-          }
-        }
-      }
-
-      // update passenger value in the transit-link geojson.
-      for (const transitLink of this.transitLinks.features) {
-        if (!transitLink.properties) transitLink.properties = { pax: 0, cap: 0, loadfac: 0 }
-        transitLink.properties.pax =
-          (transitLink.properties.pax || 0) + (linkPassengersById[transitLink.properties.id] || 0)
-        transitLink.properties.cap =
-          (transitLink.properties.cap || 0) + (linkCapacity[transitLink.properties.id] || 0)
-      }
-
-      return []
-    },
-
-    async processInputs(networks: NetworkInputs) {
+    async processInputs(networks: { roadXML: any }) {
       this.loadingText = 'Examining networks...'
-      this.incrementLoadProgress()
-
-      // spawn transit helper web worker
-
-      this._transitHelper.onmessage = (buffer: MessageEvent) => {
-        this.receivedProcessedTransit(buffer)
-      }
-
-      // Transit schedule: this might have a different projection than the network,
-      // because Avro networks are always EPSG:4326 even if original network is not.
-      let transitProjection = this.vizDetails.projection
-      if (!transitProjection) {
-        try {
-          // see if transit network has its own projection
-          let tCRS = networks?.transitXML?.transitSchedule?.attributes?.attribute
-          // sometimes array, sometimes element.
-          if (!tCRS.length) tCRS = [tCRS]
-          tCRS = tCRS.filter((f: any) => f.name === 'coordinateReferenceSystem')
-          if (tCRS.length) {
-            transitProjection = tCRS[0]['#text']
-          } else {
-            // otherwise use roadnetwork project
-            transitProjection = this.projection
-          }
-        } catch (e) {
-          // otherwise use roadnetwork project
-          transitProjection = this.projection
-        }
-      }
-
-      console.log('Transit schedule using', transitProjection)
-      // NB: `networks` is deliberately NOT run through unreactive() -- it holds the
-      // entire road network, and it never passes through reactive state on its way
-      // here (both halves are awaited straight off a worker), so it carries no Proxy.
-      this._transitHelper.postMessage({
-        xml: networks,
-        projection: transitProjection,
-      })
-    },
-
-    async receivedProcessedTransit(buffer: MessageEvent) {
-      if (buffer.data.status) {
-        this.loadingText = buffer.data.status
-        this.incrementLoadProgress()
-        return
-      }
-
-      if (buffer.data.error) {
-        console.error(buffer.data.error)
-        this.$emit('error', '' + buffer.data.error)
-        this.loadingText = ''
-        return
-      }
-
-      const { network, routeData, stopFacilities, transitLines, mapExtent } = buffer.data
-
-      this._network = network
-      this.routeData = routeData
-      this._stopFacilities = stopFacilities
-      this.transitLines = Array.isArray(transitLines) ? transitLines : [transitLines]
-      this._mapExtentXYXY = mapExtent
-
-      this._transitHelper.terminate()
-
-      this.loadingText = 'Summarizing departures...'
       this.incrementLoadProgress()
 
       // Use custom colors if they exist, otherwise use defaults
@@ -1380,26 +976,81 @@ const MyComponent = defineComponent({
         this.routeColors = DEFAULT_ROUTE_COLORS
       }
 
-      await this.processDepartures()
-
-      // Build the links layer and add it
-      try {
-        this.transitLinks = await this.constructDepartureFrequencyGeoJson()
-      } catch (e) {
-        const msg = '' + e || 'Failed processing departure links'
-        this.$emit('error', msg)
+      // Only the columns the worker needs. They are copied, not transferred: the data
+      // manager caches this network for other panels. Not run through unreactive() --
+      // it comes straight off a worker and never passes through reactive state.
+      const roads = networks.roadXML
+      const network = {
+        linkId: roads.linkId,
+        from: roads.from,
+        to: roads.to,
+        nodeCoordinates: roads.nodeCoordinates,
+        source: roads.source,
+        dest: roads.dest,
       }
-      // don't keep the network lying around wasting memory
-      this._network = { links: {}, nodes: {} }
-      // build the lookup for transit links by linkId
-      this.transitLinkOffset = {}
-      this.transitLinks.features.forEach((feature: any, i: number) => {
-        //@ts-ignore
-        this.transitLinkOffset[feature.properties.id] = i
-      })
 
-      this.drawMetric()
+      let supply: SupplyResult
+      try {
+        supply = await this.transitTask().buildSupply(
+          {
+            network,
+            // Transit schedule might have a different projection than the network,
+            // because Avro networks are always EPSG:4326 even if original network is not.
+            forcedProjection: this.vizDetails.projection,
+            fallbackProjection: this.projection,
+            colorRules: unreactive(this.routeColors),
+          },
+          this.statusCallback()
+        )
+      } catch (e) {
+        const msg = (e as any)?.message || '' + e || 'Failed processing departures'
+        console.error(msg)
+        this.$emit('error', msg)
+        this.loadingText = ''
+        return
+      }
+
+      this.applySupply(supply)
+
+      const demand = this.vizDetails.demand || this.vizDetails.ptStop2stopFile
+      if (demand) await this.loadDemandData(demand)
+
+      this.loadingText = ''
+    },
+
+    applySupply(supply: SupplyResult) {
+      for (const msg of supply.routeErrors.slice(0, 10)) this.$emit('error', msg)
+      if (supply.routeErrors.length > 10)
+        this.$emit('error', `...and ${supply.routeErrors.length - 10} more route errors`)
+
+      const n = supply.linkIds.length
+      const net = emptyNet()
+      net.supply = supply
+      for (const route of supply.routes) net.routeData[route.id] = route
+      supply.linkIds.forEach((id, i) => (net.linkIndexById[id] = i))
+      net.linkData = {
+        length: n,
+        coords: supply.linkCoords,
+        baseColors: supply.linkColor,
+        colors: supply.linkColor.slice(),
+        widths: new Float64Array(n),
+        sort: new Uint8Array(n).fill(1),
+        departures: supply.linkDepartures,
+      }
+      this.net = markRaw(net)
+
+      this.transitLines = supply.lines.map(line => ({
+        id: line.id,
+        name: line.name,
+        transitRoutes: line.routes.map(i => supply.routes[i]),
+        gtfsRouteType: line.gtfsRouteType,
+        check: false,
+      }))
+      this.usedLabels = supply.usedLabels
+      this._mapExtentXYXY = supply.mapExtent
+
       this.handleClickedMetric({ field: 'departures' })
+      this.linkCount = n
 
       const lon = 0.5 * (this._mapExtentXYXY[0] + this._mapExtentXYXY[2])
       const lat = 0.5 * (this._mapExtentXYXY[1] + this._mapExtentXYXY[3])
@@ -1410,217 +1061,71 @@ const MyComponent = defineComponent({
         zoom,
         bearing: 0,
         pitch: 0,
-        // initial: true,
       })
-
-      const demand = this.vizDetails.demand || this.vizDetails.ptStop2stopFile
-      if (demand) await this.loadDemandData(demand)
-
-      this.loadingText = ''
     },
 
-    async processDepartures() {
-      this.loadingText = 'Processing departures...'
-      this.incrementLoadProgress()
+    async loadDemandData(filename: string) {
+      this.totalLoadSteps += 3
+      this.loadingText = 'Loading demand...'
+      if (!filename) return
 
-      for (const transitLine of this.transitLines) {
-        transitLine.transitRoutes.sort((a, b) => naturalSort(a.id, b.id))
-
-        for (const route of transitLine.transitRoutes) {
-          for (const linkID of route.route) {
-            if (!(linkID in this._departures)) {
-              this._departures[linkID] = { total: 0, routes: new Set() }
-            }
-            this._departures[linkID].total += route.departures
-            this._departures[linkID].routes.add(route.id)
-          }
-        }
-      }
-
-      // get max so we can scale line widths nicely
-      Object.values(this._departures).forEach(
-        e => (this._maximum = Math.max(this._maximum, e.total))
-      )
-    },
-
-    async constructDepartureFrequencyGeoJson() {
-      const geojson = [] as any
-      this.usedLabels = []
-
-      const allCoords = this.avroNetwork?.nodeCoordinates
-
-      for (const linkID in this._departures) {
-        if (this._departures.hasOwnProperty(linkID)) {
-          const link = this._network.links[linkID] as any
-          if (link == undefined) continue
-
-          let coordinates
-
-          try {
-            if (this.avroNetwork) {
-              // link is an INDEX to the node column arrays
-              const offsetFrom = 2 * this.avroNetwork.from[link]
-              const offsetTo = 2 * this.avroNetwork.to[link]
-              coordinates = [
-                [allCoords[offsetFrom], allCoords[1 + offsetFrom]],
-                [allCoords[offsetTo], allCoords[1 + offsetTo]],
-              ]
-            } else {
-              // link is an object with values
-              coordinates = [
-                [this._network.nodes[link.from].x, this._network.nodes[link.from].y],
-                [this._network.nodes[link.to].x, this._network.nodes[link.to].y],
-              ]
-            }
-          } catch (e) {
-            console.warn('' + e)
-            continue
-          }
-
-          const departures = this._departures[linkID].total
-          const routes = [...this._departures[linkID].routes]
-
-          // TODO for now take color from... first route?
-          // for (const routeId of this._departures[linkID].routes) {
-          const routeId = routes[0]
-
-          const { color, hideThisLine } = this.determineRouteColor(routeId)
-
-          // Add the line to the geojson array only if the line should not be hidden
-          if (!hideThisLine) {
-            let line = {
-              type: 'Feature',
-              geometry: {
-                type: 'LineString',
-                coordinates: coordinates,
-              },
-              properties: {
-                color,
-                departures: departures,
-                id: linkID,
-                from: link.from,
-                to: link.to,
-                currentColor: color,
-              },
-            }
-            line = this.offsetLineByMeters(line, 5)
-            geojson.push(line)
-          }
-        }
-      }
-
-      if (!geojson.length) {
-        throw Error('No links found. Does the network contain PT links?')
-      }
-      // markRaw: these features are handed straight to deck.gl and can number in
-      // the 100k -- proxying every one of them costs a lot and buys nothing, since
-      // redraws are triggered by replacing the FeatureCollection, not by mutation.
-      return {
-        type: 'FeatureCollection',
-        features: markRaw(geojson),
-      } as GeoJSON.FeatureCollection
-    },
-
-    determineRouteColor(id: string) {
-      let color = '#888'
-      let hideThisLine = false // stores if this line should be hidden from view
-
-      const props = this.routeData[id] as any
-      // routeColors is a list of possible matches by GTFS code, modestring, etc.
-      // For each route, we loop through the list of metrics.  The first set of
-      // match conditions that match all parameters determines the route color.
-      for (const config of this.routeColors) {
-        hideThisLine = false
-        if (config.hide) hideThisLine = true
-
-        let matched = true
-
-        // loop through all parameters in this match definition
-        // be nice to user: match can be a list or an object
-        let matchRules = config.match
-        try {
-          if (Array.isArray(matchRules)) {
-            const newRules = {} as any
-            for (const row of matchRules) {
-              const [key, value] = Object.entries(row)[0]
-              newRules[key] = value
-            }
-            matchRules = newRules
-          }
-        } catch (e) {
-          console.warn('Match rules malformed', matchRules)
-        }
-
-        for (const [key, pattern] of Object.entries(matchRules) as any[]) {
-          const valueForThisProp = props[key]
-          // fail if route doesn't include this match property
-          if (!valueForThisProp) {
-            matched = false
-            break
-          }
-
-          // because the gtfsRouteType is an integer or an integer array micromatch doesn't work
-          if (key === 'gtfsRouteType') {
-            if (Array.isArray(pattern)) {
-              // array of gtfs values
-              if (!pattern.includes(valueForThisProp)) {
-                matched = false
-                break
-              }
-            } else {
-              // numeric - just one value
-              if (valueForThisProp !== pattern) {
-                matched = false
-                break
-              }
-            }
-          } else {
-            // text-match the pattern
-            if (!match.isMatch(valueForThisProp, pattern)) {
-              matched = false
-              break
-            }
-          }
-        }
-        // Set color and stop searching after first successful match
-        // the label will only be added if the route should not be hidden
-        if (matched) {
-          color = config.color
-          if (!this.usedLabels.includes(config.label) && !hideThisLine)
-            this.usedLabels.push(config.label)
-          break
-        }
-      }
-      // no rules matched; sad!
-      if (color == '#888') console.log('OHE NOES', id)
-
-      // save color in the route props before returning. HA! Side effects, woot! :-/
-      // convert css colors to rgb[]
-      const rgb = Array.isArray(color) ? color : this.colorToRGB(color)
-      props.color = rgb
-
-      return { color: rgb, hideThisLine }
-    },
-
-    colorToRGB(colorString: string) {
+      let demand: DemandResult
+      let allRoutes: RouteDemand | null
       try {
-        const rgb = color(colorString)
-        if (!rgb) return [0, 0, 0]
-        // d3.color provides r, g, b properties directly
-        return [rgb.r, rgb.g, rgb.b]
-      } catch (error) {
-        return [0, 0, 0]
-      }
-    },
-
-    offsetLineByMeters(line: any, metersToTheRight: number) {
-      try {
-        const offsetLine = turf.lineOffset(line, metersToTheRight, { units: 'meters' })
-        return offsetLine
+        const api = this.transitTask()
+        demand = await api.loadDemand(
+          unreactive({
+            fileSystem: this.fileSystem,
+            path: this.myState.subfolder + '/' + filename,
+          }),
+          this.statusCallback()
+        )
+        allRoutes = await api.routeDemandForLink('')
       } catch (e) {
-        // offset can fail if points are exactly on top of each other; ignore.
+        this.$emit('error', (e as any)?.message || '' + e)
+        this.loadingText = ''
+        return
       }
-      return line
+
+      const L = this.net.linkData as LinkRenderData
+      L.pax = demand.linkPax
+      L.cap = demand.linkCap
+      L.loadfac = demand.linkLoadfac
+      this.net.demand = demand
+
+      this.routeDemandAll = this.routeDemandToMap(allRoutes)
+      this.hasDemand = true
+
+      this.metrics = this.metrics.concat([
+        { field: 'pax', name_en: 'Passengers', name_de: 'Passagiere' },
+        { field: 'loadfac', name_en: 'Load Factor', name_de: 'Auslastung' },
+      ])
+
+      this.loadProgress = 100
+      this.updateTestData()
+    },
+
+    routeDemandToMap(d: RouteDemand | null): RouteDemandMap {
+      const map: RouteDemandMap = {}
+      if (!d) return map
+      d.routeIds.forEach((id, i) => (map[id] = { pax: d.pax[i], cap: d.cap[i] }))
+      return markRaw(map)
+    },
+
+    /** per-route demand on the selected link comes from the worker, asynchronously */
+    async requestLinkDemand() {
+      const linkId = this.selectedLinkId
+      const request = ++this.linkDemandRequest
+      if (!linkId || !this.hasDemand || !this.task.api) return
+
+      try {
+        const answer = await this.task.api.routeDemandForLink(linkId)
+        // a newer click wins
+        if (request !== this.linkDemandRequest) return
+        this.routeDemandLink = markRaw({ linkId, map: this.routeDemandToMap(answer) })
+      } catch (e) {
+        console.warn('transit: link demand query failed', e)
+      }
     },
 
     removeStopMarkers() {
@@ -1672,45 +1177,62 @@ const MyComponent = defineComponent({
     },
 
     showTransitStops() {
+      const S = this.net.supply
+      const D = this.net.demand
+      if (!S) {
+        this.stopMarkers = []
+        return
+      }
+
       const markers = {} as { [stopId: string]: any }
 
       this.selectedRouteIds.forEach(routeId => {
-        const route = this.routeData[routeId]
-
-        const allStops = route.routeProfile
-        const numStops = allStops.length
+        const r = this.net.routeData[routeId].uniqueRouteID
+        const first = S.routeStopOffsets[r]
+        const numStops = S.routeStopOffsets[r + 1] - first
         // purposely unitialized so that final stop retains previous value
         let bearing
 
-        for (const [i, stop] of allStops.entries()) {
+        for (let i = 0; i < numStops; i++) {
+          const si = S.routeStopIdx[first + i]
+          // stop is not in the schedule's stop facilities
+          if (si < 0) continue
+
           // figure out bearing direction for stop icon
-          const startFacility = this._stopFacilities[stop.refId]
-          const startCoord = turf.point([startFacility.x, startFacility.y])
+          const x = S.stopCoords[2 * si]
+          const y = S.stopCoords[2 * si + 1]
           if (i < numStops - 1) {
-            const endFacility = this._stopFacilities[route.routeProfile[i + 1].refId]
-            const endCoord = turf.point([endFacility.x, endFacility.y])
-            // deck.gl layer will rotate these bearing along with the map
-            bearing = turf.bearing(startCoord, endCoord)
+            const next = S.routeStopIdx[first + i + 1]
+            if (next > -1) {
+              // deck.gl layer will rotate these bearing along with the map
+              bearing = turf.bearing(
+                turf.point([x, y]),
+                turf.point([S.stopCoords[2 * next], S.stopCoords[2 * next + 1]])
+              )
+            }
           }
 
           // every marker has a latlng coord and a bearing
+          const stop = S.stops[si]
           const marker = {
             i,
             bearing,
-            xy: [startFacility.x, startFacility.y],
-            name: startFacility.name || '',
-            id: stop.refId || '', // startFacility.id || '',
-            linkRefId: startFacility.linkRefId || '',
+            xy: [x, y],
+            name: stop.name || '',
+            id: stop.id || '',
+            linkRefId: stop.linkRefId || '',
           } as any
 
           // figure out boardings/alightings at each stop
-          if (this.stopLevelDemand) {
-            const ridership = this.stopLevelDemand[stop.refId]
-            if (ridership) {
-              marker.boardings = ridership.b
-              marker.alightings = ridership.a
-              marker.ptLines = ridership.ptLines
+          if (D && D.stopHasDemand[si]) {
+            marker.boardings = D.stopBoard[si]
+            marker.alightings = D.stopAlight[si]
+            const ptLines = {} as { [lineId: string]: { name: string; b: number; a: number } }
+            for (let k = D.stopLineOffsets[si]; k < D.stopLineOffsets[si + 1]; k++) {
+              const name = D.demandLineIds[D.stopLineIdx[k]]
+              ptLines[name] = { name, b: D.stopLineB[k], a: D.stopLineA[k] }
             }
+            marker.ptLines = ptLines
           }
 
           // merge stop-level stats for routes that share the same stop
@@ -1728,15 +1250,27 @@ const MyComponent = defineComponent({
 
     showTransitRoutes() {
       this.stopHTML.html = ''
+      const S = this.net.supply
 
       const featureCollection = [] as any[]
 
-      this.selectedRouteIds.forEach(id => {
-        const route = this.routeData[id]
-        featureCollection.push(route.geojson)
-      })
+      if (S) {
+        this.selectedRouteIds.forEach(id => {
+          const r = this.net.routeData[id].uniqueRouteID
+          const coordinates = [] as number[][]
+          for (let p = S.routePathOffsets[r]; p < S.routePathOffsets[r + 1]; p++) {
+            coordinates.push([S.routePath[2 * p], S.routePath[2 * p + 1]])
+          }
+          featureCollection.push({
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates },
+            properties: { id, from: coordinates[0], to: coordinates[coordinates.length - 1] },
+          })
+        })
+      }
 
-      this.selectedFeatures = featureCollection
+      // markRaw: handed straight to deck.gl, which freezes layer data
+      this.selectedFeatures = markRaw(featureCollection)
     },
 
     removeSelectedRoute() {
@@ -1745,28 +1279,27 @@ const MyComponent = defineComponent({
     },
 
     clickedOnTransitLink(index: number) {
+      const S = this.net.supply
+      const L = this.net.linkData
+      if (!S || !L) return
+
       this.isHighlightingLink = true
       this.removeStopMarkers()
       this.removeSelectedRoute()
 
-      // the browser delivers some details that we need, in the fn argument 'e'
-      const props = this.transitLinks.features[index].properties
-
-      this.selectedLinkId = props.id
-      const routeIDs = this._departures[props.id].routes
+      this.selectedLinkId = S.linkIds[index]
 
       // overall link statistics
-      let empty = { departures: 0, pax: 0, loadfac: 0 }
-      const foundLink = this.transitLinks[this.transitLinkOffset[props.id]]
-      this.summaryStats = foundLink ? foundLink.properties : empty
+      this.summaryStats = { departures: 0, pax: 0, loadfac: 0 }
 
-      // routes and lines on this link
+      // routes and lines on this link; they take on the link's color
+      const linkColor = [...L.baseColors.subarray(3 * index, 3 * index + 3)]
       const routes = []
       const lines = new Set()
-      for (const id of routeIDs) {
-        const details = this.routeData[id]
-        details.color = props.color
-        details.currentColor = props.color
+      for (let k = S.linkRouteOffsets[index]; k < S.linkRouteOffsets[index + 1]; k++) {
+        const details = S.routes[S.linkRouteIdx[k]]
+        details.color = linkColor
+        details.currentColor = linkColor
         routes.push(details)
         lines.add(details.lineId)
       }
@@ -1782,47 +1315,66 @@ const MyComponent = defineComponent({
     },
 
     resetLinkColors(color?: number[]) {
+      const L = this.net.linkData
+      if (!L) return
+
       if (color) {
-        for (const link of this.transitLinks.features) {
-          link.properties.currentColor = color
-          link.properties.sort = 0
+        for (let i = 0; i < L.length; i++) {
+          L.colors[3 * i] = color[0]
+          L.colors[3 * i + 1] = color[1]
+          L.colors[3 * i + 2] = color[2]
         }
+        L.sort.fill(0)
       } else {
-        for (const link of this.transitLinks.features) {
-          link.properties.currentColor = link.properties.color
-          link.properties.sort = 1
-        }
+        L.colors.set(L.baseColors)
+        L.sort.fill(1)
       }
     },
 
     highlightAllAttachedRoutes() {
-      if (!this.transitLinks) return
+      const S = this.net.supply
+      const L = this.net.linkData
+      if (!S || !L) return
 
       if (this.routesOnLink.length) {
-        const gray = this.colorToRGB(this.isDarkMode ? '#333344' : '#ccccdd')
+        const gray = colorToRGB(this.isDarkMode ? '#333344' : '#ccccdd')
         this.resetLinkColors(gray)
       } else {
         this.resetLinkColors()
       }
 
       for (const routeDetails of this.routesOnLink) {
-        for (const linkId of routeDetails.route) {
-          const offset = this.transitLinkOffset[linkId]
-          const transitLink = this.transitLinks.features[offset]
-          transitLink.properties.currentColor = routeDetails.color || transitLink.properties.color
-          transitLink.properties.sort = 5
+        const r = routeDetails.uniqueRouteID
+        const color = routeDetails.color
+        for (let k = S.routeLinkOffsets[r]; k < S.routeLinkOffsets[r + 1]; k++) {
+          const li = S.routeLinkIdx[k]
+          if (li < 0) continue // link isn't drawn
+          if (color) {
+            L.colors[3 * li] = color[0]
+            L.colors[3 * li + 1] = color[1]
+            L.colors[3 * li + 2] = color[2]
+          } else {
+            L.colors[3 * li] = L.baseColors[3 * li]
+            L.colors[3 * li + 1] = L.baseColors[3 * li + 1]
+            L.colors[3 * li + 2] = L.baseColors[3 * li + 2]
+          }
+          L.sort[li] = 5
         }
       }
 
       // selected link all the way on top
       if (this.selectedLinkId) {
-        const selectedLink = this.transitLinks.features[this.transitLinkOffset[this.selectedLinkId]]
-        selectedLink.properties.currentColor = this.colorToRGB('#f4f')
-        selectedLink.properties.sort = 5
+        const li = this.net.linkIndexById[this.selectedLinkId]
+        if (li !== undefined) {
+          const magenta = colorToRGB('#f4f')
+          L.colors[3 * li] = magenta[0]
+          L.colors[3 * li + 1] = magenta[1]
+          L.colors[3 * li + 2] = magenta[2]
+          L.sort[li] = 5
+        }
       }
 
-      // trigger redraw
-      this.transitLinks = { ...this.transitLinks }
+      this.redrawLinks()
     },
 
     pressedEscape() {
@@ -1835,35 +1387,21 @@ const MyComponent = defineComponent({
 
     pressedArrowKey(delta: number) {
       return
-      // if (!this.selectedRouteIds.length) return
-
-      // let i = this.routesOnLink.indexOf(this.selectedRoute)
-      // i = i + delta
-
-      // if (i < 0 || i >= this.routesOnLink.length) return
-
-      // this.showRouteDetails(this.routesOnLink[i].id)
     },
 
     clearData() {
-      this._departures = {}
       this._mapExtentXYXY = [180, 90, -180, -90]
-      this._maximum = 0
-      this._network = { nodes: {}, links: {} }
-      this.routeData = {}
-      this._stopFacilities = {}
-      this.transitLinks = { type: 'FeatureCollection', features: [] }
+      this.net = markRaw(emptyNet())
+      this.linkCount = 0
+      this.hasDemand = false
+      this.routeDemandAll = null
+      this.routeDemandLink = null
       this.transitLines = []
       this.selectedRouteIds = []
       this.resolvers = {}
       this.routesOnLink = []
       this.stopMarkers = []
       this.searchText = ''
-      this.crossFilters.forEach(cf => {
-        cf.cfDemandLink.dispose()
-        cf.cfDemandStop.dispose()
-        cf.cfDemand = null as any
-      })
     },
   },
 
@@ -1872,9 +1410,6 @@ const MyComponent = defineComponent({
 
     this.debounceHandleSearchText = debounce(this.handleSearchText, 350)
     this.clearData()
-
-    this._transitFetcher = new NewXmlFetcher()
-    this._transitHelper = new TransitSupplyWorker()
 
     // populate props after we attach, not before!
     this.myState.subfolder = this.subfolder
@@ -1909,8 +1444,10 @@ const MyComponent = defineComponent({
     delete window.__testdata__
     this.clearData()
 
-    this._transitFetcher?.terminate()
-    this._transitHelper?.terminate()
+    this.task.api?.[Comlink.releaseProxy]()
+    this.task.worker?.terminate()
+    this.task.api = null
+    this.task.worker = null
   },
 })
 

@@ -16,6 +16,7 @@ import globalStore from '@/store'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 import BackgroundLayers from '@/js/BackgroundLayers'
 import { disable3DBuildings, enable3DBuildings } from '@/js/maplibre/threeDBuildings'
+import type { LinkRenderData } from './Interfaces'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -36,7 +37,9 @@ export default defineComponent({
   props: {
     handleClickEvent: { type: Function, required: true },
     isAtlantis: { type: Boolean, required: true },
-    links: { type: Object, required: true },
+    /** per-link typed arrays (LinkRenderData), not reactive; linkVersion bumps when they change */
+    linkData: { type: Object as PropType<LinkRenderData>, required: true },
+    linkVersion: { type: Number, required: true },
     // mapIsIndependent: { type: Boolean, required: true },
     pieSlider: { type: Number, required: true },
     selectedFeatures: { type: Array as PropType<any[]>, required: true },
@@ -129,16 +132,9 @@ export default defineComponent({
       return 1 // what is this actually??
     },
 
-    data() {
-      const linestrings = this.links.features.map((feature: any) => {
-        return {
-          source: [...feature.geometry.coordinates[0], feature.properties.sort],
-          target: [...feature.geometry.coordinates[1], feature.properties.sort],
-          color: feature.properties.currentColor,
-          width: Math.pow(feature.properties.width, this.power),
-        }
-      })
-      return linestrings
+    /** stable non-iterable data for the link layer; accessors read the typed arrays by index */
+    linkLayerData() {
+      return markRaw({ length: this.linkData.length })
     },
 
     slices() {
@@ -188,15 +184,42 @@ export default defineComponent({
       if (extraLayers) layers.push(...extraLayers.layersBelow)
 
       // TRANSIT LINKS
+      // read props once: accessors run per link, and every this.x goes through a Vue proxy
+      const L = this.linkData
+      const power = this.power
+      const version = this.linkVersion
       layers.push(
         //@ts-ignore
         new LineOffsetLayer({
           id: 'linkLayer',
-          data: this.data,
-          getSourcePosition: (d: any) => d.source,
-          getTargetPosition: (d: any) => d.target,
-          getColor: (d: any) => d.color,
-          getWidth: (d: any) => d.width,
+          data: this.linkLayerData,
+          // z = sort, so highlighted links draw on top of grayed-out ones
+          getSourcePosition: (_: any, { index, target }: any) => {
+            target[0] = L.coords[4 * index]
+            target[1] = L.coords[4 * index + 1]
+            target[2] = L.sort[index]
+            return target
+          },
+          getTargetPosition: (_: any, { index, target }: any) => {
+            target[0] = L.coords[4 * index + 2]
+            target[1] = L.coords[4 * index + 3]
+            target[2] = L.sort[index]
+            return target
+          },
+          getColor: (_: any, { index, target }: any) => {
+            target[0] = L.colors[3 * index]
+            target[1] = L.colors[3 * index + 1]
+            target[2] = L.colors[3 * index + 2]
+            target[3] = 255
+            return target
+          },
+          getWidth: (_: any, { index }: any) => Math.pow(L.widths[index], power),
+          updateTriggers: {
+            getSourcePosition: version,
+            getTargetPosition: version,
+            getColor: version,
+            getWidth: [version, power],
+          },
           widthUnits: 'pixels',
           widthScale: this.scale, // 1.0, // widthSlider,
           widthMinPixels: 1,
@@ -437,7 +460,8 @@ export default defineComponent({
       const { x, y, index, object, layer } = tip
 
       if (index == -1) return
-      if (!object) return
+      // the link layer's data is not an array, so it has no picked object
+      if (!object && layer?.id !== 'linkLayer') return
 
       // ---------------
       if (layer.id.startsWith('stop-pie-charts-layer')) {
@@ -461,6 +485,8 @@ export default defineComponent({
       }
 
       // ---------------
+      if (layer?.id !== 'linkLayer') return
+
       const metrics = [
         { field: 'pax', name_en: 'Passengers', name_de: 'Passagiere' },
         { field: 'departures', name_en: 'Departures', name_de: 'Abfahrten' },
@@ -471,10 +497,16 @@ export default defineComponent({
       try {
         let html = '<div class="map-popup">'
 
-        const props = this.links.features[index].properties
-
+        const L = this.linkData
         // no tooltip if greyed out link
-        if (props.sort == 0) return null
+        if (L.sort[index] == 0) return null
+
+        const props: any = {
+          departures: L.departures[index],
+          pax: L.pax?.[index],
+          cap: L.cap?.[index],
+          loadfac: L.loadfac?.[index],
+        }
 
         for (const metric of metrics) {
           let label = this.locale == 'de' ? metric.name_de : metric.name_en

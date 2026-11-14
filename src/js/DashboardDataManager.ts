@@ -17,11 +17,13 @@ import globalStore from '@/store'
 import HTTPFileSystem from './HTTPFileSystem'
 import { DataTable, DataTableColumn, DataType, FileSystemConfig, Status } from '@/Globals'
 import { findMatchingGlobInFiles, gUnzip, parseXML, unreactive } from '@/js/util'
-import { getAvro } from '@/js/avro'
+import * as Comlink from 'comlink'
 
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 import WasmXmlNetworkParser from '@/workers/WasmXmlNetworkParser.worker.ts?worker'
+import AvroNetworkLoaderWorker from '@/workers/AvroNetworkLoader.worker.ts?worker'
+import type { AvroNetworkLoaderTask } from '@/workers/AvroNetworkLoader.worker'
 
 interface configuration {
   dataset: string
@@ -574,47 +576,21 @@ export default class DashboardDataManager {
     options?: any
     cbStatus?: any
   }): Promise<NetworkLinks | null> {
+    // decoding runs in a worker: it took ~300ms of main-thread time on big networks
+    const worker = new AvroNetworkLoaderWorker()
     try {
-      const httpFileSystem = new HTTPFileSystem(this.fileApi)
-      const blob = await httpFileSystem.getFileBlob(`${props.subfolder}/${props.filename}`)
-      const avro = await getAvro()
-
-      const records: any[] = await new Promise(async (resolve, reject) => {
-        const rows = [] as any[]
-
-        avro
-          .createBlobDecoder(blob)
-          .on('metadata', (schema: any) => {})
-          .on('data', (row: any) => {
-            rows.push(row)
-          })
-          .on('end', () => {
-            resolve(rows)
-          })
-      })
-
-      const network = records[0]
-
-      const numLinks = network.linkId.length
-      const source: Float32Array = new Float32Array(2 * numLinks)
-      const dest: Float32Array = new Float32Array(2 * numLinks)
-
-      for (let i = 0; i < numLinks; i++) {
-        const fromOffset = 2 * network.from[i]
-        const toOffset = 2 * network.to[i]
-        source[2 * i] = network.nodeCoordinates[fromOffset]
-        source[2 * i + 1] = network.nodeCoordinates[1 + fromOffset]
-        dest[2 * i] = network.nodeCoordinates[toOffset]
-        dest[2 * i + 1] = network.nodeCoordinates[1 + toOffset]
-      }
-
-      network.source = source
-      network.dest = dest
-
-      return network
+      if (props.cbStatus) props.cbStatus('Loading network...')
+      const loader = Comlink.wrap<AvroNetworkLoaderTask>(worker)
+      const network = await loader.loadNetwork(
+        unreactive(this.fileApi),
+        `${props.subfolder}/${props.filename}`
+      )
+      return network as any
     } catch (e) {
       console.error(e)
       return null
+    } finally {
+      worker.terminate()
     }
   }
 
