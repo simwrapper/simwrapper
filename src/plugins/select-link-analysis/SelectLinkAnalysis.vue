@@ -6,15 +6,6 @@
         .new-rightside-info-panel(v-show="showLegend")
             .legend-panel.scrolly
                 p(v-if="!legendStore.state?.sections?.length" style="font-size: 1.3rem; margin-left: 5px;"): b INFO PANEL
-                .dbSelector
-                    h4(style="margin-left: 5px;"): b Select database format:
-                    .button-group
-                        button.button-toggle(
-                        v-for="format in ['Parquet', 'Csv', 'Sqlite']"
-                        :key="format"
-                        :class="{ 'button-active': chosenFormat === format }"
-                        @click="chosenFormat = format"
-                        ) {{ format }}
                 .query-info(v-if="selectedLink.link && queryTime > 0")
 
                     h4 Selected Link: {{ selectedLink.link.id }}
@@ -108,9 +99,6 @@ import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 import { FileSystemConfig, REACT_VIEW_HANDLES, DataTable } from '@/Globals'
 import LegendStore from '@/js/LegendStore'
 
-import { markRaw } from 'vue'
-import sqlite3InitModule from '@sqlite.org/sqlite-wasm'
-
 /* export interface MapData {
     linkId: String
     agentId: String
@@ -190,18 +178,10 @@ const SelectLinkAnalysis = defineComponent({
             linkLayerId: Math.floor(1e12 * Math.random()),
             isAreaMode: false,
             db: null as duckdb.AsyncDuckDB | null,
-            dbCsv: null as any,
             worker: null as Worker | null,
             logger: null as duckdb.ConsoleLogger | null,
             bundle: null as duckdb.DuckDBBundle | null,
-            bundleCsv: null as duckdb.DuckDBBundle | null,
-            workerCsv: null as Worker | null,
-            loggerCsv: null as duckdb.ConsoleLogger | null,
             conn: null as duckdb.AsyncDuckDBConnection | null,
-            connCsv: null as duckdb.AsyncDuckDBConnection | null,
-
-            sqlite3: null as any,
-            sqliteDb: null as any,
 
             globalState: globalStore.state,
             isLoaded: false,
@@ -229,11 +209,7 @@ const SelectLinkAnalysis = defineComponent({
             timeRange: Array.from({ length: 35 }, (_, i) => i * 3600) as any[],
             allTimes: Array.from({ length: 35 }, (_, i) => i * 3600) as any[],
             queryTime: 0 as number,
-            currentlyRegisteredHour: null as number | null,
-            currentlyRegisteredHourCsv: null as number | null,
-            currentlyAttachedHourSqlite: null as number | null,
             parquetDataLoaded: false as boolean,
-            csvDataLoaded: false as boolean,
 
             originalAgents: {} as any,
             originalTraversals: {} as any,
@@ -292,15 +268,11 @@ const SelectLinkAnalysis = defineComponent({
             selectedLinkTraversals: new Object() as any,
             queriedAgents: new Map<number, any>() as any,
 
-            chosenFormat: ((typeof window !== 'undefined' && (window as any).__testFormat__) || 'Parquet') as string,
-            loadPromises: markRaw({}) as Record<string, Promise<void> | undefined>,
             appliedPrefetch: 'none' as string,
 
             myMap: new Map<string, number[]>(),
 
             thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
-
-            csvLinkTraversalData: [] as any[],
 
             // DataManager might be passed in from the dashboard; or we might be
             // in single-view mode, in which case we need to create one for ourselves
@@ -359,13 +331,6 @@ const SelectLinkAnalysis = defineComponent({
         async selectedHour() {
             this.debouncedRefresh?.()
         },
-
-        async chosenFormat(fmt: string) {
-            this.statusText = `Loading ${fmt} data...`
-            await this.ensureFormatLoaded(fmt)
-            this.statusText = ''
-            this.debouncedRefresh?.()
-        },
     },
 
     methods: {
@@ -401,7 +366,7 @@ const SelectLinkAnalysis = defineComponent({
                 ? `${this.subfolder}/hour-partition-${ext}/hour-${hour}/${stem}-${hour}.${ext}`
                 : `${this.subfolder}/${stem}.${ext}`
         },
-        dataFiles(ext: 'parquet' | 'csv'): { name: string; url: string }[] {
+        dataFiles(ext: 'parquet'): { name: string; url: string }[] {
             const stems = ['link-traversals-sorted', 'leg-sequences-sorted']
             const hours = this.isPartitioned() ? Array.from({ length: 35 }, (_, i) => i) : [0]
             return hours.flatMap(h =>
@@ -409,13 +374,6 @@ const SelectLinkAnalysis = defineComponent({
                     name: this.dataFileName(stem, ext, h),
                     url: this.fileApi.cleanURL(this.dataFilePath(stem, ext, h)),
                 }))
-            )
-        },
-        sqliteUrl(hour: number): string {
-            return this.fileApi.cleanURL(
-                this.isPartitioned()
-                    ? `${this.subfolder}/hour-partition-sqlite/hour-${hour}/sla-${hour}.sqlite3`
-                    : `${this.subfolder}/sla.sqlite3`
             )
         },
 
@@ -440,21 +398,6 @@ const SelectLinkAnalysis = defineComponent({
             this.queriedAgents = agentResults || {}
         },
 
-        ensureFormatLoaded(format: string): Promise<void> {
-            if (!this.loadPromises[format]) {
-                const loaders: Record<string, () => Promise<void>> = {
-                    Parquet: () => this.loadParquetData(),
-                    Csv: () => this.loadAndPrepareCSVData(),
-                    Sqlite: () => this.loadSQLiteData(),
-                }
-                this.loadPromises[format] = loaders[format]().catch(e => {
-                    console.error(`[load:${format}] FAILED`, e)
-                    this.loadPromises[format] = undefined // allow retry
-                })
-            }
-            return this.loadPromises[format]!
-        },
-
         async loadAndPrepareData() {
             this.logger = new duckdb.ConsoleLogger()
 
@@ -462,11 +405,9 @@ const SelectLinkAnalysis = defineComponent({
             window.__testdata__ = {
                 getReady: () => ({
                     Parquet: this.parquetDataLoaded === true && !!this.conn,
-                    Csv: !!this.connCsv && this.csvDataLoaded === true,
-                    Sqlite: !!this.sqlite3 && (this.isPartitioned() || !!this.sqliteDb),
                 }),
-                selectLink: async (linkId: any, hour: any, format?: string) =>
-                    await this.queryLinksForSelectedLink(linkId, hour, format),
+                selectLink: async (linkId: any, hour: any) =>
+                    await this.queryLinksForSelectedLink(linkId, hour),
                 getOriginalTraversals: () => this.originalTraversals,
                 getConfig: () => ({
                     partition: this.isPartitioned() ? 'hour' : 'none',
@@ -474,24 +415,11 @@ const SelectLinkAnalysis = defineComponent({
                 }),
             }
 
-            await this.ensureFormatLoaded(this.chosenFormat)
-        },
-
-        // csv will be loaded as direct path for the moment - will work on incorporating it into dashboard structure after Zwischenpräsi
-        async loadAndPrepareCSVData() {
-            this.bundleCsv = await duckdb.selectBundle(MANUAL_BUNDLES);
-            this.workerCsv = new Worker(this.bundleCsv.mainWorker!);
-            this.dbCsv = new duckdb.AsyncDuckDB(this.loggerCsv ?? new duckdb.ConsoleLogger(), this.workerCsv)
-            await this.dbCsv.instantiate(this.bundleCsv.mainModule, this.bundleCsv.pthreadWorker);
-            this.connCsv = await this.dbCsv.connect();
-
-            // @ts-ignore
-            await this.connCsv.query(`SET enable_http_metadata_cache = true;`)
-            for (const f of this.dataFiles('csv')) {
-                await this.dbCsv.registerFileURL(f.name, f.url, duckdb.DuckDBDataProtocol.HTTP, false)
+            try {
+                await this.loadParquetData()
+            } catch (e) {
+                console.error('[load:Parquet] FAILED', e)
             }
-            this.csvDataLoaded = true
-
         },
 
         async loadParquetData() {
@@ -532,140 +460,44 @@ const SelectLinkAnalysis = defineComponent({
 
         },
 
-        async openSqliteFromUrl(url: string) {
-            const resp = await fetch(url)
-            if (!resp.ok) throw new Error(`SQLite fetch failed: ${resp.status} ${url}`)
-            const bytes = new Uint8Array(await resp.arrayBuffer())
-            const sqlite3 = this.sqlite3
-            const p = sqlite3.wasm.allocFromTypedArray(bytes)
-            const db = new sqlite3.oo1.DB()
-            db.onclose = { after: () => sqlite3.wasm.dealloc(p) }
-            const rc = sqlite3.capi.sqlite3_deserialize(
-                db.pointer, 'main', p, bytes.length, bytes.length,
-                sqlite3.capi.SQLITE_DESERIALIZE_READONLY
-            )
-            db.checkRc(rc)
-            return markRaw(db)
-        },
-
-        async loadSQLiteData() {
-            this.sqlite3 = markRaw(await sqlite3InitModule())
-            console.log('SQLite WASM loaded, version', this.sqlite3.version.libVersion)
-            // @ts-ignore
-            window.__sqlite__ = { sqlite3: this.sqlite3, getDb: () => this.sqliteDb }
-
-            // unpartitioned: one database for all hours, fetched now.
-            // partitioned: each hour's database is fetched on demand (switchHourPartitionSqlite)
-            if (!this.isPartitioned()) this.sqliteDb = await this.openSqliteFromUrl(this.sqliteUrl(0))
-        },
-
-        async switchHourPartitionSqlite(newHour: number) {
-            if (!this.isPartitioned()) return
-            if (this.currentlyAttachedHourSqlite === newHour) return
-            if (this.sqliteDb) {
-                this.sqliteDb.close()
-                this.sqliteDb = null
-                this.currentlyAttachedHourSqlite = null
-            }
-            this.sqliteDb = await this.openSqliteFromUrl(this.sqliteUrl(newHour))
-            this.currentlyAttachedHourSqlite = newHour
-        },
-
-        async queryLinksForSelectedLink(linkId: number, hour: number, format?: string) {
+        async queryLinksForSelectedLink(linkId: number, hour: number) {
             hour = this.assertValidHour(hour)
-            const useFormat = format ?? this.chosenFormat
-            const lt = (ext: string) => this.dataFileName('link-traversals-sorted', ext, hour)
-            const ls = (ext: string) => this.dataFileName('leg-sequences-sorted', ext, hour)
+            const lt = this.dataFileName('link-traversals-sorted', 'parquet', hour)
+            const ls = this.dataFileName('leg-sequences-sorted', 'parquet', hour)
+
+            if (!this.conn) {
+                console.warn('Parquet data not loaded yet')
+                return { result: {}, queryTime: 0, prepTime: 0, totalTime: 0 }
+            }
 
             try {
-                // ---------- PHASE 1: prep ----------
-                const t0 = performance.now()
-                // if (useFormat === 'Csv') await this.switchHourPartitionCsv(hour)
-                if (useFormat === 'Sqlite') await this.switchHourPartitionSqlite(hour)
-                // Parquet: files are registered at load, nothing to do
-                const prepTime = performance.now() - t0
+                // parquet files are registered at load, so there is no prep phase
+                const prepTime = 0
 
-                // ---------- PHASE 2: query + materialize ----------
                 let traversals: Record<string, number> = {}
                 const t1 = performance.now()
 
-                if (this.conn && useFormat === 'Parquet') {
-
-                    const stmt = await this.conn.prepare(`
-                         WITH sequences AS (
-                            SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
-                            FROM '${lt('parquet')}' lt
-                            INNER JOIN '${ls('parquet')}' ls
-                                ON lt.leg_id = ls.leg_id
-                            WHERE lt.link_id = ?
-                            AND lt.hour = ?
-                        )
-                        SELECT co_link_id, COUNT(*) AS traversal_count
-                         FROM sequences
-                         GROUP BY co_link_id
-                         ORDER BY traversal_count DESC
-                    `)
-                    try {
-                        const result = await stmt.query(linkId, hour)
-                        traversals = Object.fromEntries(
-                            result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
-                        )
-                    } finally {
-                        await stmt.close()
-                    }
-                } else if (this.connCsv && useFormat === 'Csv') {
-                    const stmt = await this.connCsv.prepare(`WITH sequences AS (
-                            SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
-                            FROM '${lt('csv')}' lt
-                            INNER JOIN '${ls('csv')}' ls
-                                ON lt.leg_id = ls.leg_id
-                            WHERE lt.link_id = ?
-                            AND lt.hour = ?
-                        )
-                        SELECT co_link_id, COUNT(*) AS traversal_count
-                         FROM sequences
-                         GROUP BY co_link_id
-                         ORDER BY traversal_count DESC
-                    `)
-                    try {
-                        const result = await stmt.query(linkId, hour)
-                        traversals = Object.fromEntries(
-                            result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
-                        )
-                    } finally {
-                        await stmt.close()
-                    }
-                } else if (this.sqlite3 && useFormat === 'Sqlite') {
-                    const rows = this.sqliteDb.exec({
-                        sql: `
-                            WITH RECURSIVE legs AS (
-                                SELECT ls.leg_sequence AS seq
-                                FROM traversals lt
-                                INNER JOIN sequences ls ON lt.leg_id = ls.leg_id
-                                WHERE lt.link_id = ? AND lt.hour = ?
-                            ),
-                            split(co_link_id, rest) AS (
-                                SELECT '', seq || '|' FROM legs
-                                UNION ALL
-                                SELECT substr(rest, 1, instr(rest, '|') - 1), substr(rest, instr(rest, '|') + 1)
-                                FROM split WHERE rest <> ''
-                            )
-                            SELECT co_link_id, COUNT(*) AS traversal_count
-                            FROM split
-                            WHERE co_link_id <> ''
-                            GROUP BY co_link_id
-                            ORDER BY traversal_count DESC
-                        `,
-                        bind: [String(linkId), hour],
-                        rowMode: 'object',
-                        returnValue: 'resultRows',
-                    })
-                    traversals = Object.fromEntries(
-                        rows.map((row: any) => [String(row.co_link_id), Number(row.traversal_count)])
+                const stmt = await this.conn.prepare(`
+                     WITH sequences AS (
+                        SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
+                        FROM '${lt}' lt
+                        INNER JOIN '${ls}' ls
+                            ON lt.leg_id = ls.leg_id
+                        WHERE lt.link_id = ?
+                        AND lt.hour = ?
                     )
-                } else {
-                    console.warn(`No matching branch for format="${useFormat}"`)
-                    return { result: {}, queryTime: 0, prepTime: 0, totalTime: 0 }
+                    SELECT co_link_id, COUNT(*) AS traversal_count
+                     FROM sequences
+                     GROUP BY co_link_id
+                     ORDER BY traversal_count DESC
+                `)
+                try {
+                    const result = await stmt.query(linkId, hour)
+                    traversals = Object.fromEntries(
+                        result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
+                    )
+                } finally {
+                    await stmt.close()
                 }
 
                 const queryTime = performance.now() - t1
@@ -685,25 +517,16 @@ const SelectLinkAnalysis = defineComponent({
             return h
         },
 
-        async queryAgentsForSelectedLink(linkId: number, hour: number, format?: string) {
+        async queryAgentsForSelectedLink(linkId: number, hour: number) {
             hour = this.assertValidHour(hour)
             this.currentlyQueriedLinkId = linkId
             this.currentlyQueriedHour = hour
 
-            const useFormat = this.chosenFormat // allow test harness to override; UI clicks still work as before
-
-
             try {
-                if (this.conn && (useFormat === 'Parquet' || useFormat === 'Sqlite' || useFormat === 'Csv')) {
-                    /* const stmt = await this.conn.prepare(`
-                        SELECT a.*
-                        FROM 'agents-sorted.parquet' a
-                        INNER JOIN 'link-traversals-with-sequence-${hour}.parquet' lt
-                            ON a.agent_id = lt.agent_id
-                        WHERE lt.link_id = ? AND lt.hour = ?
-                    `) */
+                if (this.conn) {
 
-                    const stmt = await this.conn!.prepare(` SELECT a.* FROM 'agents-sorted.parquet' a INNER JOIN 'link-traversals-sorted-${hour}.parquet' lt ON a.agent_id = lt.agent_id WHERE lt.link_id = ? AND lt.hour = ? `)
+                    const lt = this.dataFileName('link-traversals-sorted', 'parquet', hour)
+                    const stmt = await this.conn!.prepare(` SELECT a.* FROM 'agents-sorted.parquet' a INNER JOIN '${lt}' lt ON a.agent_id = lt.agent_id WHERE lt.link_id = ? AND lt.hour = ? `)
                     const result = await stmt.query(linkId, hour)
 
                     // Arrow rows are exotic Proxies; Vue 3 reactivity chokes on them, so
@@ -725,66 +548,6 @@ const SelectLinkAnalysis = defineComponent({
             }
             return {} // agent details are not implemented yet, but this is where that query would go
         },
-
-        // async filterAgentGroups(group: string) {
-        //     this.selectedEconomicGroup = group
-        //     // this is where we would apply filters to the queriedAgents based on economicGroups or other demographic data
-        //     // for now, it just logs the selected groups and doesn't actually filter anything
-        //     // console.log('Filtering agents based on selected economic groups:', this.economicGroups)
-        //     // if (!this.queriedAgents || Object.keys(this.queriedAgents).length === 0) return
-
-        //     // if (!this.economicGroups || this.economicGroups.length === 0) {
-        //     //     return
-        //     // }
-
-        //     // console.log('Filtering agents based on economic status:', this.selectedEconomicGroup)
-        //     // console.log('Queried agents before filtering:', this.queriedAgents)
-
-        //     this.filteredAgents = []
-        //     this.queriedAgents = Object.fromEntries(
-        //         (Object.entries(this.originalAgents) as [string, any][]).filter(([agentId, agent]) => {
-        //             const matches = (agent as any).economic_status === this.selectedEconomicGroup
-        //             if (matches) {
-        //                 this.filteredAgents.push(agentId) // keep track of filtered agents so we can show them in the UI if needed
-        //             }
-        //             return matches
-        //         })
-        //     )
-        //     if (this.conn) {
-        //         try {
-        //             const stmt = await this.conn.prepare(`
-        //                 WITH sequences AS (
-        //                     SELECT UNNEST(string_split(ls.leg_sequence, '|')) AS co_link_id
-        //                     FROM 'link-traversals-sorted.parquet' lt
-        //                     INNER JOIN 'leg-sequences-sorted.parquet' ls
-        //                         ON lt.leg_id = ls.leg_id
-        //                     WHERE lt.link_id = ?
-        //                     AND lt.hour = ?
-        //                     AND lt.agent_id IN (
-        //                         SELECT UNNEST(string_split(?, '|'))
-        //                     )
-        //                 )
-        //                 SELECT co_link_id, COUNT(*) AS traversal_count
-        //                 FROM sequences
-        //                 GROUP BY co_link_id
-        //                 ORDER BY traversal_count DESC
-        //             `)
-
-        //             const result = await stmt.query(
-        //                 this.currentlyQueriedLinkId,
-        //                 this.currentlyQueriedHour,
-        //                 this.filteredAgents.join('|')
-        //             )
-
-        //             this.selectedLinkTraversals = Object.fromEntries(
-        //                 result.toArray().map(row => [row.co_link_id.toString(), Number(row.traversal_count)])
-        //             )
-        //         } catch (e) {
-        //             console.error('Error querying links for selected link:', e)
-        //             return {}
-        //         }
-        //     }
-        // },
 
         // this happens if viz is the full page, not a thumbnail on a project page
         buildRouteFromUrl() {
@@ -1365,22 +1128,7 @@ const SelectLinkAnalysis = defineComponent({
             console.error(e)
         }
         try {
-            this.connCsv?.close()
-        } catch (e) {
-            console.error(e)
-        }
-        try {
-            this.dbCsv?.terminate()
-        } catch (e) {
-            console.error(e)
-        }
-        try {
             this.worker?.terminate()
-        } catch (e) {
-            console.error(e)
-        }
-        try {
-            this.workerCsv?.terminate()
         } catch (e) {
             console.error(e)
         }
@@ -1564,33 +1312,6 @@ export default SelectLinkAnalysis
     right: 0;
     margin: 0 9rem 0 0.5rem;
     z-index: 2;
-}
-
-.button-group {
-    margin-left: 5px;
-    display: flex;
-    gap: 8px;
-}
-
-.button-toggle {
-    padding: 4px 8px;
-    border: 1px solid #ccc;
-    border-radius: 2px;
-    background: #f9f9f9;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.9rem;
-    color: #333;
-}
-
-.button-toggle:hover {
-    background: #e9e9e9;
-}
-
-.button-toggle.button-active {
-    background: #007bff;
-    color: white;
-    border-color: #007bff;
 }
 
 .map-component {
