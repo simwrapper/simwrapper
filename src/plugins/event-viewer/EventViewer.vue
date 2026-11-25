@@ -16,6 +16,7 @@
     :dotsize="guiConfig.size"
     :tick="tick"
     :show3dBuildings="show3dBuildings"
+    :paths="paths"
   )
 
   zoom-buttons.extra-padding(
@@ -114,6 +115,9 @@ import {
 } from '@/Globals'
 import DashboardDataManager, { NetworkLinks } from '@/js/DashboardDataManager'
 
+import { type Mozu } from './EventDeckMap.vue'
+import PATHS from './adlershof'
+
 interface VizDetail {
   title: string
   description?: string
@@ -156,7 +160,9 @@ const MyComponent = defineComponent({
   data: () => {
     const colorRamps = ['bathymetry', 'electric', 'inferno', 'jet', 'magma', 'par', 'viridis']
 
+    const pp = PATHS as Mozu[]
     return {
+      paths: pp,
       tick: 0,
       myDataManager: null as DashboardDataManager | null,
       network: {
@@ -167,7 +173,7 @@ const MyComponent = defineComponent({
       } as unknown as NetworkLinks,
       linkIdLookup: {} as any,
       guiConfig: {
-        speed: 0.01,
+        speed: 0.03,
         size: 16,
       },
       viewId: Math.floor(1e12 * Math.random()),
@@ -258,6 +264,37 @@ const MyComponent = defineComponent({
       if (REACT_VIEW_HANDLES[this.viewId]) REACT_VIEW_HANDLES[this.viewId]()
     },
   },
+
+  async mounted() {
+    this.$store.commit('setFullScreen', !this.thumbnail)
+    this.myState.thumbnail = this.thumbnail
+    this.myState.yamlConfig = this.yamlConfig || ''
+    this.myState.subfolder = this.subfolder
+
+    // DataManager might be passed in from the dashboard; or we might be
+    // in single-view mode, in which case we need to create one for ourselves
+    this.myDataManager = this.datamanager || new DashboardDataManager(this.root, this.subfolder)
+
+    await this.getVizDetails()
+    await this.buildThumbnail()
+
+    // The network can take a while to load, and the plugin is on screen and navigable the
+    // whole time -- so every await here can resume on a torn-down instance. Trap #10.
+    if (this.isUnmounted) return
+    if (this.thumbnail) return
+
+    // ----------------------------------------------------
+    this.setupGui()
+    this.myState.statusMessage = `${this.$i18n.t('loading')}`
+
+    if (!this.isLoaded) await this.loadFiles()
+    if (this.isUnmounted) return
+
+    this.isLoaded = true
+    this.myState.statusMessage = ''
+    this.timeRange = [0, 86400]
+    this.toggleAnimation()
+  },
   methods: {
     setupGui() {
       this.guiController = new GUI({
@@ -273,7 +310,7 @@ const MyComponent = defineComponent({
         .add(
           this.guiConfig,
           'speed',
-          [-2, -1, -0.5, -0.25, -0.1, -0.01, 0, 0.01, 0.1, 0.25, 0.5, 1, 2],
+          [-2, -1, -0.5, -0.25, -0.1, -0.03, 0, 0.01, 0.1, 0.25, 0.5, 1, 2],
           1
         )
         .onChange(this.setConfig)
@@ -679,37 +716,6 @@ const MyComponent = defineComponent({
 
       return `${hms.h}:${hms.m}`
     },
-  },
-
-  async mounted() {
-    this.$store.commit('setFullScreen', !this.thumbnail)
-    this.myState.thumbnail = this.thumbnail
-    this.myState.yamlConfig = this.yamlConfig || ''
-    this.myState.subfolder = this.subfolder
-
-    // DataManager might be passed in from the dashboard; or we might be
-    // in single-view mode, in which case we need to create one for ourselves
-    this.myDataManager = this.datamanager || new DashboardDataManager(this.root, this.subfolder)
-
-    await this.getVizDetails()
-    await this.buildThumbnail()
-
-    // The network can take a while to load, and the plugin is on screen and navigable the
-    // whole time -- so every await here can resume on a torn-down instance. Trap #10.
-    if (this.isUnmounted) return
-    if (this.thumbnail) return
-
-    // ----------------------------------------------------
-    this.setupGui()
-    this.myState.statusMessage = `${this.$i18n.t('loading')}`
-
-    if (!this.isLoaded) await this.loadFiles()
-    if (this.isUnmounted) return
-
-    this.isLoaded = true
-    this.myState.statusMessage = ''
-    this.timeRange = [0, 86400]
-    this.toggleAnimation()
   },
 
   beforeUnmount() {

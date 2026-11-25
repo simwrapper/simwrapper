@@ -8,6 +8,7 @@
 import { defineComponent, markRaw, PropType } from 'vue'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { DataFilterExtension } from '@deck.gl/extensions'
+import { TripsLayer } from '@deck.gl/geo-layers'
 import maplibregl from 'maplibre-gl'
 
 import globalStore from '@/store'
@@ -19,6 +20,11 @@ const BASE_URL = import.meta.env.BASE_URL
 
 const ICON_MAPPING = {
   vehicle: { x: 0, y: 0, width: 256, height: 256, mask: false },
+}
+
+export interface Mozu {
+  color: number[]
+  waypoints: number[][]
 }
 
 export default defineComponent({
@@ -34,6 +40,10 @@ export default defineComponent({
     tick: { type: Number, required: true },
     viewId: { type: Number, required: true },
     show3dBuildings: { type: Boolean, required: false, default: false },
+    paths: {
+      type: Object as PropType<Mozu[]>,
+      required: true,
+    },
   },
 
   data() {
@@ -54,6 +64,84 @@ export default defineComponent({
         zIndex: 20000,
       } as any,
     }
+  },
+
+  computed: {
+    latitudeCorrectionFactor() {
+      // rotation factors are warped at high latitudes. Thanks, mercator
+      const viewState = this.globalState.viewState
+      const latitude = viewState.latitude || (viewState.center && viewState.center[1]) || 35.0
+      return Math.cos((latitude * Math.PI) / 180.0)
+    },
+
+    layers(): any[] {
+      const vehicleLayers = [] as any[]
+
+      let numActiveLayers = 0
+      this.eventData.forEach((layer, layerIndex) => {
+        // The entire layer can be hidden if all of its trips are completely outside the current simulationTime
+        // Add 2 seconds to make sure there is overlap
+        const outOfRange =
+          this.simulationTime < layer.timeRange[0] - 5 ||
+          this.simulationTime > layer.timeRange[1] + 5
+
+        if (!outOfRange) numActiveLayers++
+
+        // vehicleLayers.push(
+        //   //@ts-ignore
+        //   new MovingIconsLayer({
+        //     data: {
+        //       length: layer.data.t0.length,
+        //       attributes: {
+        //         getTimeStart: layer.data.t0,
+        //         getTimeEnd: layer.data.t1,
+        //         getPathStart: layer.data.p0,
+        //         getPathEnd: layer.data.p1,
+        //         getColorCode: layer.data.colors,
+        //       },
+        //     },
+        //     id: 'vehicles' + layerIndex,
+        //     iconMoving: 'vehicle',
+        //     iconStill: 'vehicle',
+        //     colorDepiction: ColorDepiction.REL_SPEED,
+        //     getSize: this.dotsize, // searchEnabled ? 56 : 44,
+        //     opacity: 1,
+        //     latitudeCorrectionFactor: this.latitudeCorrectionFactor,
+        //     currentTime: this.simulationTime,
+        //     shadowEnabled: false,
+        //     iconAtlas: `${BASE_URL}images/veh-curvy5.png`, // BASE_URL + '/images/icon-atlas.png',
+        //     iconMapping: ICON_MAPPING,
+        //     sizeScale: 1,
+        //     billboard: false,
+        //     positionFormat: 'XY',
+        //     pickable: false,
+        //     autoHighlight: false,
+        //     highlightColor: [255, 255, 255, 140],
+        //     parameters: { depthTest: false },
+        //     visible: !outOfRange,
+        //   })
+        // )
+      })
+
+      // MOZU Adlershof
+      const trips = new TripsLayer({
+        id: 'mozu',
+        data: this.paths,
+        getColor: (d: Mozu) => d.color,
+        getPath: (d: Mozu) => {
+          return d.waypoints.map(p => [p[1], p[2]])
+        },
+        getTimestamps: (d: Mozu) => d.waypoints.map(p => p[0]),
+        currentTime: this.simulationTime,
+        trailLength: 30,
+        capRounded: true,
+        jointRounded: true,
+        widthMinPixels: 8,
+      })
+      vehicleLayers.push(trips)
+
+      return vehicleLayers
+    },
   },
 
   watch: {
@@ -97,66 +185,6 @@ export default defineComponent({
           Object.assign({ center: { lng: incoming.longitude, lat: incoming.latitude } }, incoming)
         )
       }
-    },
-  },
-
-  computed: {
-    latitudeCorrectionFactor() {
-      // rotation factors are warped at high latitudes. Thanks, mercator
-      const viewState = this.globalState.viewState
-      const latitude = viewState.latitude || (viewState.center && viewState.center[1]) || 35.0
-      return Math.cos((latitude * Math.PI) / 180.0)
-    },
-
-    layers(): any[] {
-      const vehicleLayers = [] as any[]
-
-      let numActiveLayers = 0
-      this.eventData.forEach((layer, layerIndex) => {
-        // The entire layer can be hidden if all of its trips are completely outside the current simulationTime
-        // Add 2 seconds to make sure there is overlap
-        const outOfRange =
-          this.simulationTime < layer.timeRange[0] - 5 ||
-          this.simulationTime > layer.timeRange[1] + 5
-
-        if (!outOfRange) numActiveLayers++
-
-        vehicleLayers.push(
-          //@ts-ignore
-          new MovingIconsLayer({
-            data: {
-              length: layer.data.t0.length,
-              attributes: {
-                getTimeStart: layer.data.t0,
-                getTimeEnd: layer.data.t1,
-                getPathStart: layer.data.p0,
-                getPathEnd: layer.data.p1,
-                getColorCode: layer.data.colors,
-              },
-            },
-            id: 'vehicles' + layerIndex,
-            iconMoving: 'vehicle',
-            iconStill: 'vehicle',
-            colorDepiction: ColorDepiction.REL_SPEED,
-            getSize: this.dotsize, // searchEnabled ? 56 : 44,
-            opacity: 1,
-            latitudeCorrectionFactor: this.latitudeCorrectionFactor,
-            currentTime: this.simulationTime,
-            shadowEnabled: false,
-            iconAtlas: `${BASE_URL}images/veh-curvy5.png`, // BASE_URL + '/images/icon-atlas.png',
-            iconMapping: ICON_MAPPING,
-            sizeScale: 1,
-            billboard: false,
-            positionFormat: 'XY',
-            pickable: false,
-            autoHighlight: false,
-            highlightColor: [255, 255, 255, 140],
-            parameters: { depthTest: false },
-            visible: !outOfRange,
-          })
-        )
-      })
-      return vehicleLayers
     },
   },
 
@@ -241,6 +269,7 @@ export default defineComponent({
 
     handleClick(target: any, event: any) {
       this.tooltipStyle.display = 'none'
+      console.log(target?.coordinate)
       // if (this.onClick) this.onClick(target, event)
     },
   },

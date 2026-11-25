@@ -46,7 +46,7 @@ const initialViewState = () => {
 
 const isMainThread = typeof window !== 'undefined'
 const initialLeftSection = isMainThread ? localStorage.getItem('activeLeftSection') || '' : ''
-const gamepad = isMainThread ? parseInt(localStorage.getItem('gamepadAxis') || '1') : 1
+const gamepad = isMainThread && parseInt(localStorage.getItem('gamepadAxis') || '1') === -1 ? -1 : 1
 
 // console.log('INITIAL LEFT SECTION', initialLeftSection)
 export default createStore({
